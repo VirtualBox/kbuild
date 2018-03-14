@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 3065 2017-09-30 12:52:35Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -27,7 +27,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
-#include "make.h"
+#include "makeint.h"
 #include <assert.h>
 
 #include <glob.h>
@@ -161,7 +161,7 @@ typedef struct EXPR
     /** The current location. */
     const char *psz;
     /** The current file location, used for errors. */
-    const struct floc *pFileLoc;
+    const floc *pFileLoc;
     /** Pending binary operator. */
     PCEXPROP pPending;
     /** Top of the operator stack. */
@@ -212,7 +212,7 @@ static void expr_error(PEXPR pThis, const char *pszError, ...)
     vsprintf(szTmp, pszError, va);
     va_end(va);
 
-    fatal(pThis->pFileLoc, "%s", szTmp);
+    OS(fatal,pThis->pFileLoc, "%s", szTmp);
 }
 
 
@@ -283,7 +283,7 @@ static EXPRRET expr_string_to_num(PEXPR pThis, EXPRINT64 *piDst, const char *psz
     /*
      * Skip blanks.
      */
-    while (isblank(*psz))
+    while (ISBLANK(*psz))
         psz++;
 
     /*
@@ -304,7 +304,7 @@ static EXPRRET expr_string_to_num(PEXPR pThis, EXPRINT64 *piDst, const char *psz
      *                                                                      .
      * Recognize some exsotic prefixes here in addition to the two standard ones.
      */
-    if (*psz != '0' || psz[1] == '\0' || isblank((unsigned int)psz[1]))
+    if (*psz != '0' || psz[1] == '\0' || ISBLANK(psz[1]))
         uBase = 10;
     else if (psz[1] == 'x' || psz[1] == 'X')
     {
@@ -369,7 +369,7 @@ static EXPRRET expr_string_to_num(PEXPR pThis, EXPRINT64 *piDst, const char *psz
 
             default:
                 /* is the rest white space? */
-                while (isspace((unsigned int)*psz))
+                while (ISSPACE(*psz))
                     psz++;
                 if (*psz != '\0')
                 {
@@ -744,7 +744,7 @@ static int expr_var_make_bool(PEXPRVAR pVar)
              */
             EXPRINT64 iVal;
             char const *psz = pVar->uVal.psz;
-            while (isblank((unsigned char)*psz))
+            while (ISBLANK(*psz))
                 psz++;
             if (    *psz
                 &&  expr_string_to_num(NULL, &iVal, psz, 1 /* fQuiet */) >= kExprRet_Ok)
@@ -1772,7 +1772,7 @@ static EXPRRET expr_get_binary_or_eoe_or_rparen(PEXPR pThis)
         char const *psz = pThis->psz;
 
         /* spaces */
-        while (isspace((unsigned int)*psz))
+        while (ISSPACE(*psz))
             psz++;
         /* see what we've got. */
         if (*psz)
@@ -1836,7 +1836,7 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
     /*
      * Eat white space and make sure there is something after it.
      */
-    while (isspace((unsigned int)*psz))
+    while (ISSPACE(*psz))
         psz++;
     if (!*psz)
     {
@@ -1934,7 +1934,7 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
                         if (pOp)
                             break;
                     }
-                    if (isspace((unsigned char)ch))
+                    if (ISSPACE(ch))
                         break;
                 }
 
@@ -2080,7 +2080,7 @@ static PEXPR expr_create(char const *pszExpr)
  * @param   line    The expression.
  * @param   flocp   The file location, used for errors.
  */
-int expr_eval_if_conditionals(const char *line, const struct floc *flocp)
+int expr_eval_if_conditionals(const char *line, const floc *flocp)
 {
     /*
      * Instantiate the expression evaluator and let

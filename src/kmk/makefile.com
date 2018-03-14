@@ -1,8 +1,7 @@
 $!
 $! Makefile.com - builds GNU Make for VMS
 $!
-$! P1 is non-empty if you want to link with the VAXCRTL library instead
-$!    of the shareable executable
+$! P1 = LIST will provide compiler listings.
 $! P2 = DEBUG will build an image with debug information
 $! P3 = WALL will enable all warning messages (some are suppressed since
 $!      one macro intentionally causes an error condition)
@@ -50,6 +49,12 @@ $      endif
 $   endif
 $ endif
 $!
+$!
+$ if (p1 .eqs. "LIST")
+$ then
+$   ccopt = ccopt + "/list/show=(expan,inclu)"
+$ endif
+$!
 $! Should we build a debug image
 $!
 $ if (p2.eqs."DEBUG")
@@ -67,9 +72,12 @@ $ then
 $   gosub check_cc_qual
 $ endif
 $ filelist = "alloca ar arscan commands default dir expand file function " + -
-             "hash implicit job main misc read remake remote-stub rule " + -
-	     "signame variable version vmsfunctions vmsify vpath " + -
-	     "[.glob]glob [.glob]fnmatch getopt1 getopt strcache"
+             "guile hash implicit job load main misc read remake " + -
+             "remote-stub rule output signame variable version " + -
+             "vmsfunctions vmsify vpath vms_progname vms_exit " + -
+	     "vms_export_symbol [.glob]glob [.glob]fnmatch getopt1 " + -
+             "getopt strcache"
+$!
 $ copy config.h-vms config.h
 $ n=0
 $ open/write optf make.opt
@@ -77,17 +85,13 @@ $ loop:
 $ cfile = f$elem(n," ",filelist)
 $ if cfile .eqs. " " then goto linkit
 $ write sys$output "Compiling ''cfile'..."
-$ call compileit 'cfile' 'p1'
+$ call compileit 'cfile'
 $ n = n + 1
 $ goto loop
 $ linkit:
 $ close optf
-$ if p1 .nes. "" then goto link_using_library
 $ link/exe=make make.opt/opt'lopt
 $ goto cleanup
-$
-$ link_using_library:
-$ link/exe=make make.opt/opt,sys$library:vaxcrtl/lib'lopt
 $
 $ cleanup:
 $ if f$trnlnm("SYS").nes."" then $ deassign sys
@@ -128,18 +132,24 @@ $!-----------------------------------------------------------------------------
 $!
 $ compileit : subroutine
 $ ploc = f$locate("]",p1)
-$ filnam = p1
-$ if ploc .lt. f$length(p1) then filnam=f$extract(ploc+1,100,p1)
-$ write optf "''filnam'"
-$ cc'ccopt'/include=([],[.glob]) -
-  /define=("allocated_variable_expand_for_file=alloc_var_expand_for_file","unlink=remove","HAVE_CONFIG_H","VMS") -
+$! filnam = p1
+$ if ploc .lt. f$length(p1)
+$ then
+$   objdir = f$extract(0, ploc+1, p1)
+$   write optf p1
+$ else
+$   objdir := []
+$   write optf objdir+p1
+$ endif
+$ cc'ccopt'/nested=none/include=([],[.glob])/obj='objdir' -
+  /define=("allocated_variable_expand_for_file=alloc_var_expand_for_file",-
+  "unlink=remove","HAVE_CONFIG_H","VMS") -
   'p1'
 $ exit
 $ endsubroutine : compileit
 $!
 $!-----------------------------------------------------------------------------
-$!Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-$!2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+$!Copyright (C) 1996-2016 Free Software Foundation, Inc.
 $!This file is part of GNU Make.
 $!
 $!GNU Make is free software; you can redistribute it and/or modify it under

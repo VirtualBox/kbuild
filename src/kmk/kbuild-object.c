@@ -1,4 +1,4 @@
-/* $Id: kbuild-object.c 3065 2017-09-30 12:52:35Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild-object.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild objects.
  */
@@ -28,7 +28,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
-#include "make.h"
+#include "makeint.h"
 #include "filedef.h"
 #include "variable.h"
 #include "dep.h"
@@ -80,7 +80,7 @@ struct kbuild_object
     /** The bare name of the define. */
     char                       *pszName;
     /** The file location where this define was declared. */
-    struct floc                 FileLoc;
+    floc                        FileLoc;
 
     /** Pointer to the next element in the global list. */
     struct kbuild_object       *pGlobalNext;
@@ -152,7 +152,7 @@ get_kbuild_object_parent(struct kbuild_object *pObj, enum kBuildSeverity enmSeve
 
 static struct kbuild_object *
 parse_kbuild_object_variable_accessor(const char *pchExpr, size_t cchExpr,
-                                      enum kBuildSeverity enmSeverity, const struct floc *pFileLoc,
+                                      enum kBuildSeverity enmSeverity, const floc *pFileLoc,
                                       const char **ppchVarNm, size_t *pcchVarNm, enum kBuildType *penmType);
 
 
@@ -175,7 +175,7 @@ void init_kbuild_object(void)
  * @param   pszFormat           The format string.
  * @param   ...                 Arguments for the format string.
  */
-static void kbuild_report_problem(enum kBuildSeverity enmSeverity, const struct floc *pFileLoc,
+static void kbuild_report_problem(enum kBuildSeverity enmSeverity, const floc *pFileLoc,
                                   const char *pszFormat, ...)
 {
     char    szBuf[8192];
@@ -192,14 +192,14 @@ static void kbuild_report_problem(enum kBuildSeverity enmSeverity, const struct 
     switch (enmSeverity)
     {
         case kBuildSeverity_Warning:
-            message(0, "%s", szBuf);
+            OS(message, 0, "%s", szBuf);
             break;
         case kBuildSeverity_Error:
-            error(pFileLoc, "%s", szBuf);
+            OS(error, pFileLoc, "%s", szBuf);
             break;
         default:
         case kBuildSeverity_Fatal:
-            fatal(pFileLoc, "%s", szBuf);
+            OS(fatal, pFileLoc, "%s", szBuf);
             break;
     }
 }
@@ -339,7 +339,7 @@ is_valid_kbuild_object_variable_name(const char *pchName, size_t cchName)
 
 static const char *
 kbuild_replace_special_accessors(const char *pchValue, size_t *pcchValue, int *pfDuplicateValue,
-                                 const struct floc *pFileLoc)
+                                 const floc *pFileLoc)
 {
     size_t      cchValue    = *pcchValue;
     size_t      cbAllocated = *pfDuplicateValue ? 0 : cchValue + 1;
@@ -463,7 +463,7 @@ kbuild_replace_special_accessors(const char *pchValue, size_t *pcchValue, int *p
             cchLeft -= cchType + 1 + cchName;
         }
         else
-            error(pFileLoc, _("The '$([%.*s...' accessor can only be used in the context of a kBuild object"),
+            error(pFileLoc, 20, _("The '$([%.*s...' accessor can only be used in the context of a kBuild object"),
                   MAX(cchLeft, 20), pchLeft);
     }
 
@@ -474,7 +474,7 @@ static struct variable *
 define_kbuild_object_variable_cached(struct kbuild_object *pObj, const char *pszName,
                                      const char *pchValue, size_t cchValue,
                                      int fDuplicateValue, enum variable_origin enmOrigin,
-                                     int fRecursive, int fNoSpecialAccessors, const struct floc *pFileLoc)
+                                     int fRecursive, int fNoSpecialAccessors, const floc *pFileLoc)
 {
     struct variable *pVar;
     size_t cchName = strcache2_get_len(&variable_strcache, pszName);
@@ -503,7 +503,7 @@ define_kbuild_object_variable_cached(struct kbuild_object *pObj, const char *psz
         pAlias = define_variable_alias_in_set(pszPrefixed, cchPrefixed, pVar, enmOrigin,
                                               &global_variable_set, pFileLoc);
         if (!pAlias->alias)
-            error(pFileLoc, _("Error defining alias '%s'"), pszPrefixed);
+            OS(error, pFileLoc, _("Error defining alias '%s'"), pszPrefixed);
     }
 
     return pVar;
@@ -514,7 +514,7 @@ struct variable *
 define_kbuild_object_variable(struct kbuild_object *pObj, const char *pchName, size_t cchName,
                               const char *pchValue, size_t cchValue,
                               int fDuplicateValue, enum variable_origin enmOrigin,
-                              int fRecursive, const struct floc *pFileLoc)
+                              int fRecursive, const floc *pFileLoc)
 {
     return define_kbuild_object_variable_cached(pObj, strcache2_add(&variable_strcache, pchName, cchName),
                                                 pchValue, cchValue,
@@ -548,7 +548,7 @@ struct variable *
 try_define_kbuild_object_variable_via_accessor(const char *pchName, size_t cchName,
                                                const char *pszValue, size_t cchValue, int fDuplicateValue,
                                                enum variable_origin enmOrigin, int fRecursive,
-                                               struct floc const *pFileLoc)
+                                               floc const *pFileLoc)
 {
     struct kbuild_object   *pObj;
     const char             *pchVarNm;
@@ -560,7 +560,7 @@ try_define_kbuild_object_variable_via_accessor(const char *pchName, size_t cchNa
     {
         assert(pObj != NULL);
         if (!is_valid_kbuild_object_variable_name(pchVarNm, cchVarNm))
-            fatal(pFileLoc, _("Invalid kBuild object variable name: '%.*s' ('%.*s')"),
+            fatal(pFileLoc, cchVarNm + cchName, _("Invalid kBuild object variable name: '%.*s' ('%.*s')"),
                   (int)cchVarNm, pchVarNm, (int)cchName, pchName);
         return define_kbuild_object_variable_cached(pObj, strcache2_add(&variable_strcache, pchVarNm, cchVarNm),
                                                     pszValue, cchValue, fDuplicateValue, enmOrigin, fRecursive,
@@ -595,12 +595,12 @@ struct variable *
 define_kbuild_object_variable_in_top_obj(const char *pchName, size_t cchName,
                                          const char *pszValue, size_t cchValue, int fDuplicateValue,
                                          enum variable_origin enmOrigin, int fRecursive,
-                                         struct floc const *pFileLoc)
+                                         floc const *pFileLoc)
 {
     assert(g_pTopKbEvalData != NULL);
 
     if (!is_valid_kbuild_object_variable_name(pchName, cchName))
-        fatal(pFileLoc, _("Invalid kBuild object variable name: '%.*s'"), (int)cchName, pchName);
+        fatal(pFileLoc, cchName, _("Invalid kBuild object variable name: '%.*s'"), (int)cchName, pchName);
 
     return define_kbuild_object_variable_cached(g_pTopKbEvalData->pObj, strcache2_add(&variable_strcache, pchName, cchName),
                                                 pszValue, cchValue, fDuplicateValue, enmOrigin, fRecursive,
@@ -630,7 +630,7 @@ struct variable *
 kbuild_object_variable_pre_append(const char *pchName, size_t cchName,
                                   const char *pchValue, size_t cchValue, int fSimpleValue,
                                   enum variable_origin enmOrigin, int fAppend,
-                                  const struct floc *pFileLoc)
+                                  const floc *pFileLoc)
 {
     struct kbuild_object   *pObj;
     struct variable         VarKey;
@@ -659,7 +659,7 @@ kbuild_object_variable_pre_append(const char *pchName, size_t cchName,
      * Make sure the variable name is valid.  Raise fatal error if not.
      */
     if (!is_valid_kbuild_object_variable_name(pchName, cchName))
-        fatal(pFileLoc, _("Invalid kBuild object variable name: '%.*s'"), (int)cchName, pchName);
+        fatal(pFileLoc, cchName, _("Invalid kBuild object variable name: '%.*s'"), (int)cchName, pchName);
 
     /*
      * Get the cached name and look it up in the object's variables.
@@ -843,8 +843,8 @@ resolve_kbuild_object_parent(struct kbuild_object *pObj, int fQuiet)
                 if (    pCur->pszParent
                     &&  (   pCur->pParent == pObj
                          || !strcmp(pCur->pszParent, pObj->pszName)) )
-                    fatal(&pObj->FileLoc, _("'%s' and '%s' are both trying to be each other children..."),
-                          pObj->pszName, pCur->pszName);
+                    OSS(fatal, &pObj->FileLoc, _("'%s' and '%s' are both trying to be each other children..."),
+                        pObj->pszName, pCur->pszName);
 
                 pObj->pParent = pCur;
                 pObj->pVariables->next = pObj->pVariables;
@@ -856,7 +856,7 @@ resolve_kbuild_object_parent(struct kbuild_object *pObj, int fQuiet)
 
         /* Not found. */
         if (!fQuiet)
-            error(&pObj->FileLoc, _("Could not locate parent '%s' of '%s'"), pObj->pszParent, pObj->pszName);
+            OSS(error, &pObj->FileLoc, _("Could not locate parent '%s' of '%s'"), pObj->pszParent, pObj->pszName);
     }
     return pObj->pParent;
 }
@@ -891,7 +891,7 @@ get_kbuild_object_parent(struct kbuild_object *pObj, enum kBuildSeverity enmSeve
 }
 
 static int
-eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFileLoc,
+eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const floc *pFileLoc,
                         const char *pszLine, const char *pszEos, int fIgnoring, enum kBuildType enmType)
 {
     unsigned int            cch;
@@ -932,14 +932,14 @@ eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFi
      */
     pObj->pszName = allocate_expanded_next_token(&pszLine, pszEos, &pObj->cchName, 1 /*strip*/);
     if (!pObj->pszName || !*pObj->pszName)
-        fatal(pFileLoc, _("The kBuild define requires a name"));
+        O(fatal, pFileLoc, _("The kBuild define requires a name"));
 
     psz = pObj->pszName;
     while ((ch = *psz++) != '\0')
         if (!isgraph(ch))
         {
-            error(pFileLoc, _("The 'kBuild-define-%s' name '%s' contains one or more invalid characters"),
-                  eval_kbuild_type_to_string(enmType), pObj->pszName);
+            OSS(error, pFileLoc, _("The 'kBuild-define-%s' name '%s' contains one or more invalid characters"),
+                eval_kbuild_type_to_string(enmType), pObj->pszName);
             break;
         }
 
@@ -954,7 +954,7 @@ eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFi
         case kBuildType_Sdk:         pszPrefix = "SDK_"; break;
         case kBuildType_Unit:        pszPrefix = "UNIT_"; break;
         default:
-            fatal(pFileLoc, _("enmType=%d"), enmType);
+            ON(fatal, pFileLoc, _("enmType=%d"), enmType);
             return -1;
     }
     cch = strlen(pszPrefix);
@@ -973,10 +973,10 @@ eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFi
         {
             /* Inheritance directive. */
             if (pObj->pszParent != NULL)
-                fatal(pFileLoc, _("'extending' can only occure once"));
+                O(fatal, pFileLoc, _("'extending' can only occure once"));
             pObj->pszParent = allocate_expanded_next_token(&pszLine, pszEos, &pObj->cchParent, 1 /*strip*/);
             if (!pObj->pszParent || !*pObj->pszParent)
-                fatal(pFileLoc, _("'extending' requires a parent name"));
+                O(fatal, pFileLoc, _("'extending' requires a parent name"));
         }
         else if (WORD_IS(psz, cch, "using"))
         {
@@ -985,13 +985,13 @@ eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFi
 
             /* Template directive. */
             if (enmType != kBuildType_Target)
-                fatal(pFileLoc, _("'using <template>' can only be used with 'kBuild-define-target'"));
+                O(fatal, pFileLoc, _("'using <template>' can only be used with 'kBuild-define-target'"));
             if (pObj->pszTemplate != NULL)
-                fatal(pFileLoc, _("'using' can only occure once"));
+                O(fatal, pFileLoc, _("'using' can only occure once"));
 
             pszTemplate = allocate_expanded_next_token(&pszLine, pszEos, &cchTemplate, 1 /*fStrip*/);
             if (!pszTemplate || !*pszTemplate)
-                fatal(pFileLoc, _("'using' requires a template name"));
+                O(fatal, pFileLoc, _("'using' requires a template name"));
 
             define_kbuild_object_variable_cached(pObj, g_pszVarNmTemplate, pszTemplate, cchTemplate,
                                                  0 /*fDuplicateValue*/, o_default, 0 /*fRecursive*/,
@@ -999,7 +999,7 @@ eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFi
 
         }
         else
-            fatal(pFileLoc, _("Don't know what '%.*s' means"), (int)cch, psz);
+            fatal(pFileLoc, cch, _("Don't know what '%.*s' means"), (int)cch, psz);
 
         /* next token */
         psz = find_next_token_eos(&pszLine, pszEos, &cch);
@@ -1026,7 +1026,7 @@ eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFi
 }
 
 static int
-eval_kbuild_endef_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFileLoc,
+eval_kbuild_endef_xxxx(struct kbuild_eval_data **ppData, const floc *pFileLoc,
                        const char *pszLine, const char *pszEos, int fIgnoring, enum kBuildType enmType)
 {
     struct kbuild_eval_data *pData;
@@ -1043,8 +1043,8 @@ eval_kbuild_endef_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFil
     pData = *ppData;
     if (!pData)
     {
-        error(pFileLoc, _("kBuild-endef-%s is missing kBuild-define-%s"),
-              eval_kbuild_type_to_string(enmType), eval_kbuild_type_to_string(enmType));
+        OSS(error, pFileLoc, _("kBuild-endef-%s is missing kBuild-define-%s"),
+            eval_kbuild_type_to_string(enmType), eval_kbuild_type_to_string(enmType));
         return 0;
     }
 
@@ -1053,8 +1053,8 @@ eval_kbuild_endef_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFil
      */
     pObj = pData->pObj;
     if (pObj->enmType != enmType)
-        error(pFileLoc, _("'kBuild-endef-%s' does not match 'kBuild-define-%s %s'"),
-              eval_kbuild_type_to_string(enmType), eval_kbuild_type_to_string(pObj->enmType), pObj->pszName);
+        OSSS(error, pFileLoc, _("'kBuild-endef-%s' does not match 'kBuild-define-%s %s'"),
+             eval_kbuild_type_to_string(enmType), eval_kbuild_type_to_string(pObj->enmType), pObj->pszName);
 
     /*
      * The endef-kbuild may optionally be followed by the target name.
@@ -1065,7 +1065,7 @@ eval_kbuild_endef_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFil
     {
         if (   cchName != pObj->cchName
             || strcmp(pszName, pObj->pszName))
-            error(pFileLoc, _("'kBuild-endef-%s %s' does not match 'kBuild-define-%s %s'"),
+            OSSSS(error, pFileLoc, _("'kBuild-endef-%s %s' does not match 'kBuild-define-%s %s'"),
                   eval_kbuild_type_to_string(enmType), pszName,
                   eval_kbuild_type_to_string(pObj->enmType), pObj->pszName);
         free(pszName);
@@ -1084,7 +1084,7 @@ eval_kbuild_endef_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFil
     return 0;
 }
 
-int eval_kbuild_read_hook(struct kbuild_eval_data **kdata, const struct floc *flocp,
+int eval_kbuild_read_hook(struct kbuild_eval_data **kdata, const floc *flocp,
                           const char *pchWord, size_t cchWord, const char *line, const char *eos, int ignoring)
 {
     enum kBuildType enmType;
@@ -1123,7 +1123,7 @@ int eval_kbuild_read_hook(struct kbuild_eval_data **kdata, const struct floc *fl
      * Everything that is prefixed with 'kBuild-' is reserved for language
      * extensions, at least until legacy assignments/whatever turns up.
      */
-    error(flocp, _("Unknown syntax 'kBuild-%.*s'"), (int)cchWord, pchWord);
+    error(flocp, cchWord, _("Unknown syntax 'kBuild-%.*s'"), (int)cchWord, pchWord);
     return 0;
 }
 
@@ -1188,7 +1188,7 @@ int is_kbuild_object_variable_accessor(const char *pchName, size_t cchName)
  */
 static struct kbuild_object *
 parse_kbuild_object_variable_accessor(const char *pchExpr, size_t cchExpr,
-                                      enum kBuildSeverity enmSeverity, const struct floc *pFileLoc,
+                                      enum kBuildSeverity enmSeverity, const floc *pFileLoc,
                                       const char **ppchVarNm, size_t *pcchVarNm, enum kBuildType *penmType)
 {
     const char * const pchOrgExpr = pchExpr;
@@ -1394,7 +1394,7 @@ void print_kbuild_data_base(void)
             printf(" using %s", pCur->pszTemplate);
         putchar('\n');
 
-        print_variable_set(pCur->pVariables->set, "");
+        print_variable_set(pCur->pVariables->set, "", 0);
 
         printf("kBuild-endef-%s  %s\n",
                eval_kbuild_type_to_string(pCur->enmType), pCur->pszName);

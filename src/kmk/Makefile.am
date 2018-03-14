@@ -1,7 +1,6 @@
 # This is a -*-Makefile-*-, or close enough
 #
-# Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-# 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+# Copyright (C) 1997-2016 Free Software Foundation, Inc.
 # This file is part of GNU Make.
 #
 # GNU Make is free software; you can redistribute it and/or modify it under
@@ -17,8 +16,8 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-AUTOMAKE_OPTIONS = 1.8 dist-bzip2 check-news
-ACLOCAL_AMFLAGS	=  -I config
+AUTOMAKE_OPTIONS = dist-bzip2 silent-rules std-options
+ACLOCAL_AMFLAGS = -I config
 
 MAKE_HOST =	@MAKE_HOST@
 
@@ -27,6 +26,9 @@ if WINDOWSENV
   MAYBE_W32 =	w32
   W32INC =	-I $(top_srcdir)/w32/include
   W32LIB =	-Lw32 -lw32
+  ossrc =
+else
+  ossrc =	posixos.c
 endif
 
 # we can safely drop doc and po when bootstrapping kmk.
@@ -34,6 +36,7 @@ endif
 SUBDIRS =	glob config $(MAYBE_W32)
 
 bin_PROGRAMS =	kmk kmk_redirect
+include_HEADERS = gnumake.h
 
 if USE_CUSTOMS
   remote =	remote-cstms.c
@@ -41,11 +44,11 @@ else
   remote =	remote-stub.c
 endif
 
-
 kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
-		function.c getopt.c getopt1.c implicit.c job.c main.c \
-		misc.c read.c remake.c $(remote) rule.c signame.c \
-		strcache.c variable.c version.c vpath.c hash.c \
+		function.c getopt.c getopt1.c guile.c implicit.c job.c load.c \
+		loadapi.c main.c misc.c $(ossrc) output.c read.c remake.c \
+		rule.c signame.c strcache.c variable.c version.c vpath.c \
+		hash.c $(remote) \
 		\
 		expreval.c \
 		incdep.c \
@@ -100,14 +103,14 @@ kmk_redirect_SOURCES = kmkbuiltin/redirect.c \
 		../lib/kbuild_version.c
 kmk_redirect_CFLAGS = -UKMK
 
-
 EXTRA_kmk_SOURCES = vmsjobs.c remote-stub.c remote-cstms.c
 
-noinst_HEADERS = commands.h dep.h filedef.h job.h make.h rule.h variable.h \
-		debug.h getopt.h gettext.h hash.h
+noinst_HEADERS = commands.h dep.h filedef.h job.h makeint.h rule.h variable.h \
+		debug.h getopt.h gettext.h hash.h output.h os.h
 
 #kmk_LDADD =	@LIBOBJS@ @ALLOCA@ $(GLOBLIB) @GETLOADAVG_LIBS@ @LIBINTL@
-kmk_LDADD =	@LIBOBJS@ @ALLOCA@ $(GLOBLIB) @GETLOADAVG_LIBS@
+kmk_LDADD =	@LIBOBJS@ @ALLOCA@ $(GLOBLIB) @GETLOADAVG_LIBS@ \
+		$(GUILE_LIBS)
 # Only process if target is MS-Windows
 if WINDOWSENV
     kmk_LDADD += $(W32LIB)
@@ -183,6 +186,7 @@ DEFS = \
     @DEFS@
 
 AM_CPPFLAGS =	$(GLOBINC) -I$(srcdir)/../lib -I$(srcdir)/../lib/kStuff/include
+AM_CFLAGS =	$(GUILE_CFLAGS)
 # Only process if target is MS-Windows
 if WINDOWSENV
     AM_CPPFLAGS +=	$(W32INC)
@@ -191,26 +195,21 @@ endif
 
 # Extra stuff to include in the distribution.
 
-EXTRA_DIST =	README build.sh.in $(man_MANS) \
+EXTRA_DIST =	ChangeLog README build.sh.in $(man_MANS) \
 		README.customs README.OS2 \
 		SCOPTIONS SMakefile \
 		README.Amiga Makefile.ami config.ami make.lnk amiga.c amiga.h \
 		README.DOS Makefile.DOS configure.bat dosbuild.bat configh.dos\
 		README.W32 NMakefile config.h.W32 build_w32.bat subproc.bat \
 		make_msvc_net2003.sln make_msvc_net2003.vcproj \
-		readme.vms makefile.vms makefile.com config.h-vms \
-		vmsdir.h vmsfunctions.c vmsify.c
+		README.VMS makefile.vms makefile.com config.h-vms \
+		vmsdir.h vmsfunctions.c vmsify.c vms_exit.c vms_progname.c \
+		vms_export_symbol.c vms_export_symbol_test.com \
+		gmk-default.scm gmk-default.h
 
 # This is built during configure, but behind configure's back
 
 DISTCLEANFILES = build.sh
-
-# Forward targets
-
-html:
-	cd doc && $(MAKE) $(AM_MAKEFLAGS) $@
-
-.PHONY: html
 
 # --------------- Internationalization Section
 
@@ -222,8 +221,8 @@ localedir =	$(datadir)/locale
 #
 
 # Whether or not make needs to be installed setgid.
-# The value should be either `true' or `false'.
-# On many systems, the getloadavg function (used to implement the `-l'
+# The value should be either 'true' or 'false'.
+# On many systems, the getloadavg function (used to implement the '-l'
 # switch) will not work unless make is installed setgid kmem.
 #
 inst_setgid = @NEED_SETGID@
@@ -239,11 +238,20 @@ install-exec-local:
 	     echo "chgrp $(inst_group) $$app && chmod g+s $$app"; \
 	   else \
 	     echo "$$app needs to be owned by group $(inst_group) and setgid;"; \
-	     echo "otherwise the \`-l' option will probably not work."; \
+	     echo "otherwise the '-l' option will probably not work."; \
 	     echo "You may need special privileges to complete the installation"; \
 	     echo "of $$app."; \
 	   fi; \
 	 else true; fi
+
+# --------------- Generate the Guile default module content
+
+guile.$(OBJEXT): gmk-default.h
+gmk-default.h: $(srcdir)/gmk-default.scm
+	(echo 'static const char *const GUILE_module_defn = " '\\ \
+	  && sed -e 's/;.*//' -e '/^[ \t]*$$/d' -e 's/"/\\"/g' -e 's/$$/ \\/' \
+		 $(srcdir)/gmk-default.scm \
+	  && echo '";') > $@
 
 # --------------- Local DIST Section
 
@@ -251,7 +259,7 @@ install-exec-local:
 #
 dist-hook:
 	(cd $(srcdir); \
-	 sub=`find w32 tests -follow \( -name CVS -prune -o -name .cvsignore -o -name work -prune \) -o \( -name \*.orig -o -name \*.rej -o -name \*~ -prune \) -o -type f -print`; \
+	 sub=`find w32 tests -follow \( -name .git -o -name .deps -o -name work -o -name .gitignore -o -name \*.orig -o -name \*.rej -o -name \*~ -o -name Makefile \) -prune -o -type f -print`; \
 	 tar chf - $$sub) \
 	| (cd $(distdir); tar xfBp -)
 
@@ -289,31 +297,32 @@ loadavg_LDADD = @GETLOADAVG_LIBS@
 #
 MAKETESTFLAGS =
 
-check-regression:
-	@if test -f "$(srcdir)/tests/run_make_tests"; then \
+check-regression: tests/config-flags.pm
+	@if test -f '$(srcdir)/tests/run_make_tests'; then \
+	  ulimit -n 128; \
 	  if $(PERL) -v >/dev/null 2>&1; then \
-	    case `cd $(srcdir); pwd` in `pwd`) : ;; \
+	    case `cd '$(srcdir)'; pwd` in `pwd`) : ;; \
 	      *) test -d tests || mkdir tests; \
 		 rm -f srctests; \
-		 if ln -s "$(srcdir)/tests" srctests; then \
+		 if ln -s '$(srcdir)/tests' srctests; then \
 		   for f in run_make_tests run_make_tests.pl test_driver.pl scripts; do \
 		     rm -f tests/$$f; ln -s ../srctests/$$f tests; \
 		   done; fi ;; \
 	    esac; \
-	    echo "cd tests && $(PERL) ./run_make_tests.pl -make ../make$(EXEEXT) $(MAKETESTFLAGS)"; \
-	    cd tests && $(PERL) ./run_make_tests.pl -make ../make$(EXEEXT) $(MAKETESTFLAGS); \
+	    echo "cd tests && $(PERL) ./run_make_tests.pl -srcdir $(abs_srcdir) -make ../make$(EXEEXT) $(MAKETESTFLAGS)"; \
+	    cd tests && $(PERL) ./run_make_tests.pl -srcdir '$(abs_srcdir)' -make '../make$(EXEEXT)' $(MAKETESTFLAGS); \
 	  else \
 	    echo "Can't find a working Perl ($(PERL)); the test suite requires Perl."; \
 	  fi; \
-	 else \
+	else \
 	  echo "Can't find the GNU Make test suite ($(srcdir)/tests)."; \
-	 fi
+	fi
 
 
 # --------------- Maintainer's Section
 
 # Tell automake that I haven't forgotten about this file and it will be
-# created before we build a distribution (see maintMakefile in the CVS
+# created before we build a distribution (see maintMakefile in the Git
 # distribution).
 
 README:

@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3051 2017-07-24 10:59:59Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -29,7 +29,7 @@
 #ifdef __APPLE__
 # define _POSIX_C_SOURCE 1 /* 10.4 sdk and unsetenv */
 #endif
-#include "make.h"
+#include "makeint.h"
 #include "job.h"
 #include "variable.h"
 #include "pathstuff.h"

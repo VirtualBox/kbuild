@@ -1,4 +1,4 @@
-/* $Id: touch.c 3074 2017-10-02 09:09:57Z knut.osmundsen@oracle.com $ */
+/* $Id: touch.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_touch - Simple touch implementation.
  */
@@ -26,7 +26,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
-#include "make.h"
+#include "makeint.h"
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>

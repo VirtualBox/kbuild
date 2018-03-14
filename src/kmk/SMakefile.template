@@ -3,8 +3,7 @@
 # NOTE: If you have no 'make' program at all to process this makefile,
 # run 'build.sh' instead.
 #
-# Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-# 2005, 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+# Copyright (C) 1995-2016 Free Software Foundation, Inc.
 # This file is part of GNU Make.
 #
 # GNU Make is free software; you can redistribute it and/or modify it under
@@ -26,7 +25,7 @@
 
 # Ultrix 2.2 make doesn't expand the value of VPATH.
 VPATH = /make-%VERSION%/
-# This must repeat the value, because configure will remove `VPATH = .'.
+# This must repeat the value, because configure will remove 'VPATH = .'.
 srcdir = /make-%VERSION%/
 
 CC = sc
@@ -38,18 +37,18 @@ CPPFLAGS =
 LDFLAGS =
 
 # Define these for your system as follows:
-#	-DNO_ARCHIVES		To disable `ar' archive support.
+#	-DNO_ARCHIVES		To disable 'ar' archive support.
 #	-DNO_FLOAT		To avoid using floating-point numbers.
 #	-DENUM_BITFIELDS	If the compiler isn't GCC but groks enum foo:2.
 #				Some compilers apparently accept this
 #				without complaint but produce losing code,
 #				so beware.
 # NeXT 1.0a uses an old version of GCC, which required -D__inline=inline.
-# See also `config.h'.
+# See also 'config.h'.
 defines =
 
 # Which flavor of remote job execution support to use.
-# The code is found in `remote-$(REMOTE).c'.
+# The code is found in 'remote-$(REMOTE).c'.
 REMOTE = stub
 
 # If you are using the GNU C library, or have the GNU getopt functions in
@@ -83,9 +82,9 @@ prefix =
 # Common prefix for machine-dependent installed files.
 exec_prefix =
 
-# Directory to install `make' in.
+# Directory to install 'make' in.
 bindir = sc:c
-# Directory to find libraries in for `-lXXX'.
+# Directory to find libraries in for '-lXXX'.
 libdir = lib:
 # Directory to search by default for included makefiles.
 includedir = include:
@@ -95,20 +94,20 @@ infodir = doc:
 mandir = t:
 # Number to put on the man page filename.
 manext = 1
-# Prefix to put on installed `make' binary file name.
+# Prefix to put on installed 'make' binary file name.
 binprefix =
-# Prefix to put on installed `make' man page file name.
+# Prefix to put on installed 'make' man page file name.
 manprefix = $(binprefix)
 
 # Whether or not make needs to be installed setgid.
-# The value should be either `true' or `false'.
-# On many systems, the getloadavg function (used to implement the `-l'
+# The value should be either 'true' or 'false'.
+# On many systems, the getloadavg function (used to implement the '-l'
 # switch) will not work unless make is installed setgid kmem.
 install_setgid = false
 # Install make setgid to this group so it can read /dev/kmem.
 group = sys
 
-# Program to install `make'.
+# Program to install 'make'.
 INSTALL_PROGRAM = copy
 # Program to install the man page.
 INSTALL_DATA = copy
@@ -124,21 +123,26 @@ TEXI2DVI = texi2dvi
 ETAGS = etags -w
 CTAGS = ctags -w
 
-objs = commands.o job.o dir.o file.o misc.o main.o read.o remake.o	\
-       rule.o implicit.o default.o variable.o expand.o function.o	\
-       vpath.o version.o ar.o arscan.o signame.o strcache.o hash.o      \
-       remote-$(REMOTE).o $(GLOB) $(GETOPT) $(ALLOCA) $(extras)
+#guile = guile.o
+
+objs = commands.o job.o dir.o file.o misc.o main.o read.o remake.o   \
+       rule.o implicit.o default.o variable.o expand.o function.o    \
+       vpath.o version.o ar.o arscan.o signame.o strcache.o hash.o   \
+       output.o remote-$(REMOTE).o $(GLOB) $(GETOPT) $(ALLOCA)       \
+       $(extras) $(guile)
+
 srcs = $(srcdir)commands.c $(srcdir)job.c $(srcdir)dir.c             \
        $(srcdir)file.c $(srcdir)getloadavg.c $(srcdir)misc.c         \
        $(srcdir)main.c $(srcdir)read.c $(srcdir)remake.c             \
        $(srcdir)rule.c $(srcdir)implicit.c $(srcdir)default.c        \
        $(srcdir)variable.c $(srcdir)expand.c $(srcdir)function.c     \
        $(srcdir)vpath.c $(srcdir)version.c $(srcdir)hash.c           \
-       $(srcdir)remote-$(REMOTE).c                                     \
-       $(srcdir)ar.c $(srcdir)arscan.c $(srcdir)strcache.c              \
-       $(srcdir)signame.c $(srcdir)signame.h $(GETOPT_SRC)            \
+       $(srcdir)guile.c $(srcdir)remote-$(REMOTE).c                  \
+       $(srcdir)ar.c $(srcdir)arscan.c $(srcdir)strcache.c           \
+       $(srcdir)signame.c $(srcdir)signame.h $(GETOPT_SRC)           \
        $(srcdir)commands.h $(srcdir)dep.h $(srcdir)file.h            \
-       $(srcdir)job.h $(srcdir)make.h $(srcdir)rule.h                \
+       $(srcdir)job.h $(srcdir)makeint.h $(srcdir)rule.h             \
+       $(srcdir)output.c $(srcdir)output.h                           \
        $(srcdir)variable.h $(ALLOCA_SRC) $(srcdir)config.h.in
 
 
@@ -148,7 +152,7 @@ srcs = $(srcdir)commands.c $(srcdir)job.c $(srcdir)dir.c             \
 all: make
 info: make.info
 dvi: make.dvi
-# Some makes apparently use .PHONY as the default goal if it is before `all'.
+# Some makes apparently use .PHONY as the default goal if it is before 'all'.
 .PHONY: all check info dvi
 
 make.info: make.texinfo

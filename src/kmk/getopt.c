@@ -3,9 +3,7 @@ NOTE: getopt is now part of the C library, so if you don't know what
 "Keep this file name-space clean" means, talk to drepper@gnu.org
 before changing it!
 
-Copyright (C) 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-1997, 1998, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-2010 Free Software Foundation, Inc.
+Copyright (C) 1987-2016 Free Software Foundation, Inc.
 
 NOTE: The canonical source of this file is maintained with the GNU C Library.
 Bugs can be reported to bug-glibc@gnu.org.
@@ -83,7 +81,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #define _(msgid)    gettext (msgid)
 
 
-/* This version of `getopt' appears to the caller like standard Unix `getopt'
+/* This version of `getopt' appears to the caller like standard Unix 'getopt'
    but it behaves differently for the user, since it allows the user
    to intersperse the options with the other arguments.
 
@@ -200,12 +198,13 @@ static char *posixly_correct;
 #  include <strings.h>
 # endif
 
+#ifndef KMK
 /* Avoid depending on library functions or files
    whose names are inconsistent.  */
-
 #ifndef getenv
 extern char *getenv ();
 #endif
+#endif /* !KMK */
 
 static char *
 my_index (const char *str, int chr)
@@ -658,7 +657,7 @@ _getopt_internal (int argc, char *const *argv, const char *optstring,
       if (ambig && !exact)
 	{
 	  if (opterr)
-	    fprintf (stderr, _("%s: option `%s' is ambiguous\n"),
+	    fprintf (stderr, _("%s: option '%s' is ambiguous\n"),
 		     argv[0], argv[optind]);
 	  nextchar += strlen (nextchar);
 	  optind++;
@@ -679,18 +678,18 @@ _getopt_internal (int argc, char *const *argv, const char *optstring,
 	      else
 		{
 		  if (opterr)
-                    {
-		      if (argv[optind - 1][1] == '-')
-                        /* --option */
-                        fprintf (stderr,
-                         _("%s: option `--%s' doesn't allow an argument\n"),
-                         argv[0], pfound->name);
-		      else
-		        /* +option or -option */
-		        fprintf (stderr,
-		         _("%s: option `%c%s' doesn't allow an argument\n"),
-		         argv[0], argv[optind - 1][0], pfound->name);
-                    }
+		  { /* bird: disambiguate */
+		   if (argv[optind - 1][1] == '-')
+		    /* --option */
+		    fprintf (stderr,
+		     _("%s: option '--%s' doesn't allow an argument\n"),
+		     argv[0], pfound->name);
+		   else
+		    /* +option or -option */
+		    fprintf (stderr,
+		     _("%s: option '%c%s' doesn't allow an argument\n"),
+		     argv[0], argv[optind - 1][0], pfound->name);
+		  }
 
 		  nextchar += strlen (nextchar);
 
@@ -706,7 +705,7 @@ _getopt_internal (int argc, char *const *argv, const char *optstring,
 		{
 		  if (opterr)
 		    fprintf (stderr,
-			   _("%s: option `%s' requires an argument\n"),
+			   _("%s: option '%s' requires an argument\n"),
 			   argv[0], argv[optind - 1]);
 		  nextchar += strlen (nextchar);
 		  optopt = pfound->val;
@@ -735,11 +734,11 @@ _getopt_internal (int argc, char *const *argv, const char *optstring,
 	    {
 	      if (argv[optind][1] == '-')
 		/* --option */
-		fprintf (stderr, _("%s: unrecognized option `--%s'\n"),
+		fprintf (stderr, _("%s: unrecognized option '--%s'\n"),
 			 argv[0], nextchar);
 	      else
 		/* +option or -option */
-		fprintf (stderr, _("%s: unrecognized option `%c%s'\n"),
+		fprintf (stderr, _("%s: unrecognized option '%c%s'\n"),
 			 argv[0], argv[optind][0], nextchar);
 	    }
 	  nextchar = (char *) "";
@@ -845,7 +844,7 @@ _getopt_internal (int argc, char *const *argv, const char *optstring,
 	if (ambig && !exact)
 	  {
 	    if (opterr)
-	      fprintf (stderr, _("%s: option `-W %s' is ambiguous\n"),
+	      fprintf (stderr, _("%s: option '-W %s' is ambiguous\n"),
 		       argv[0], argv[optind]);
 	    nextchar += strlen (nextchar);
 	    optind++;
@@ -864,7 +863,7 @@ _getopt_internal (int argc, char *const *argv, const char *optstring,
 		  {
 		    if (opterr)
 		      fprintf (stderr, _("\
-%s: option `-W %s' doesn't allow an argument\n"),
+%s: option '-W %s' doesn't allow an argument\n"),
 			       argv[0], pfound->name);
 
 		    nextchar += strlen (nextchar);
@@ -879,7 +878,7 @@ _getopt_internal (int argc, char *const *argv, const char *optstring,
 		  {
 		    if (opterr)
 		      fprintf (stderr,
-			       _("%s: option `%s' requires an argument\n"),
+			       _("%s: option '%s' requires an argument\n"),
 			       argv[0], argv[optind - 1]);
 		    nextchar += strlen (nextchar);
 		    return optstring[0] == ':' ? ':' : '?';
@@ -1005,7 +1004,7 @@ main (int argc, char **argv)
 	  break;
 
 	case 'c':
-	  printf ("option c with value `%s'\n", optarg);
+	  printf ("option c with value '%s'\n", optarg);
 	  break;
 
 	case '?':

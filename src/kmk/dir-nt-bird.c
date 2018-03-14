@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 3024 2017-01-07 17:46:13Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -31,7 +31,7 @@
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
 #include "nt/kFsCache.h"
-#include "make.h"
+#include "makeint.h"
 #if defined(KMK) && !defined(__OS2__)
 # include "glob/glob.h"
 #else
@@ -652,10 +652,10 @@ int dir_cache_volatile_dir(const char *pszDir)
             g_fFsCacheIsUsingCustomRevision = K_TRUE;
             return 0;
         }
-        error(reading_file, "failed to mark '%s' as volatile", pszDir);
+        OS(error, reading_file, "failed to mark '%s' as volatile", pszDir);
     }
     else
-        error(reading_file, "failed to mark '%s' as volatile (not found)", pszDir);
+        OS(error, reading_file, "failed to mark '%s' as volatile (not found)", pszDir);
     return -1;
 }
 

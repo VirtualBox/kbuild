@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3110 2017-10-20 19:14:56Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -29,7 +29,7 @@
 #if defined(__APPLE__)
 /*# define _POSIX_C_SOURCE 1  / *  10.4 sdk and unsetenv  * / - breaks O_CLOEXEC on 10.8 */
 #endif
-#include "make.h"
+#include "makeint.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

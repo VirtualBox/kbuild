@@ -1,3 +1,1619 @@
+2013-10-09  Paul Smith  <psmith@gnu.org>
+
+	Version 4.0 released.
+
+	* configure.ac: Updated for the release.
+	* NEWS: Updated for the release.
+
+	* maintMakefile (tag-release): New target to add a Git tag.
+	* read.c (eval): Typo fix.
+	* ChangeLog.1: Typo fixes.
+	* w32/subproc/sub_proc.c (process_cleanup): Typo fix.
+
+2013-10-07  Eli Zaretskii  <eliz@gnu.org>
+
+	* w32/compat/posixfcn.c (tmpfile): Move declaration of h before
+	the first executable statement.  Reported by Gisle Vanem
+	<gvanem@yahoo.no>.
+
+2013-10-05  Paul Smith  <psmith@gnu.org>
+
+	* makeint.h (MAP_USERFUNC): A new map type for function names.
+	* main.c (initialize_stopchar_map): Set up the function name map.
+
+	* gnumake.h (gmk_func_ptr): Define a type for function pointers.
+	(gmk_add_function): Convert the last argument to FLAGS.
+	(GMK_FUNC_*): Define flags for the function.  Change the default
+	behavior to "expand" since that's the most common one.
+
+	* function.c (function_table_entry): Use new function pointer type.
+	(lookup_function): Accept any valid function name character based
+	on the MAP_USERFUNC values.
+	(define_new_function): Use the new calling signature.  Verify that
+	registered functions have valid names.
+
+	* guile.c (guile_gmake_setup): Use new calling signatures.
+	* loadapi.c (gmk_add_function): Ditto.
+	* variable.h (define_new_function): Ditto.
+
+	* doc/make.texi (Loaded Object API): Make the registered function
+	API documentation more clear.
+
+2013-10-03  Eli Zaretskii  <eliz@gnu.org>
+
+	* function.c (abspath): Reset root_len to one for Cygwin only when
+	HAVE_DOS_PATHS is defined.  Suggested by Christopher Faylor.
+
+2013-10-02  Eli Zaretskii  <eliz@gnu.org>
+
+	* w32/compat/posixfcn.c (tmpfile): New function, a replacement for
+	the Windows libc version.
+
+	Fix $abspath on Cygwin when HAVE_DOS_PATHS is in effect.
+	* function.c (IS_ABSOLUTE) [__CYGWIN__]: Special definition for
+	Cygwin.
+	(abspath) [__CYGWIN__]: Reset root_len to 1 if the absolute file
+	name has the Posix /foo/bar form.
+	[HAVE_DOS_PATHS]: Use root_len instead of hard-coded 2.
+
+2013-10-01  Paul Smith  <psmith@gnu.org>
+
+	* configure.ac: Update version to 3.99.93.
+	* NEWS: Ditto.
+
+2013-09-30  Paul Smith  <psmith@gnu.org>
+
+	* guile.c: Portability fixes for Guile 1.8.
+
+2013-09-29  Paul Smith  <psmith@gnu.org>
+
+	* output.c (output_dump): Always write Enter/Leave messages to stdio.
+	(log_working_directory): This now always writes to stdio, so we
+	don't need the struct output parameter anymore.
+	(output_start): Show the working directory when output_sync is not
+	set or is recursive.
+	* main.c (main): Ensure the special "already shown Enter message"
+	token is removed from MAKE_RESTARTS before the user can see it.
+	* function.c (func_shell_base): If the output_context stderr
+	exists but is invalid, write to the real stderr.
+	Fixes suggested by Frank Heckenbach <f.heckenbach@fh-soft.de>.
+
+	* output.c: Guard unistd.h inclusion, add io.h.
+	* gnumake.h: Move GMK_EXPORT before the declarations.
+	* make_msvc_net2003.vcproj: Add missing files.
+	Changes for MSVC suggested by Gerte Hoogewerf <g.hoogewerf@gmail.com>
+
+	* function.c (func_shell_base) [EMX]: Fix EMX support for output-sync.
+	* job.c (child_execute_job) [EMX]: Ditto.
+	* job.h (child_execute_job) [EMX]: Ditto.
+	* w32/compat/posixfcn.c: Invert the test for NO_OUTPUT_SYNC.
+
+	* guile.c (GSUBR_TYPE): Pre-2.0 Guile doesn't provide a typedef
+	for gsubr pointers.  Create one.
+	(guile_define_module): Use it.
+	(internal_guile_eval): Force UTF-8 encoding for Guile strings.
+
+	* main.c (main): Clear GNUMAKEFLAGS after parsing, to avoid
+	proliferation of options.
+	* NEWS: Document it.
+	* doc/make.texi (Options/Recursion): Ditto.
+
+2013-09-23  Eli Zaretskii  <eliz@gnu.org>
+
+	* w32/compat/posixfcn.c: Fix the forgotten OUTPUT_SYNC conditional.
+
+	* job.h: Ditto, but in a comment.
+
+2013-09-22  Paul Smith  <psmith@gnu.org>
+
+	* configure.ac: Update version to 3.99.92.
+	* NEWS: Ditto.
+
+	* implicit.c (pattern_search): After second expansion be sure to
+	handle order-only markers inside the expansion properly.
+	Fixes Savannah bug #31155.
+
+	* guile.c (guile_define_module): Technically a void* cannot
+	contain a pointer-to-function and some compilers warn about this.
+	Cast the function pointers.
+	* load.c (load_object): Ditto.
+
+	* read.c (eval): If load_file() returns -1, don't add this to the
+	"to be rebuilt" list.
+	* doc/make.texi (load Directive): Document it.
+
+	* guile.c (guile_gmake_setup): Don't initialize Guile so early.
+	(func_guile): Lazily initialize Guile the first time the $(guile ..)
+	function is invoked.  Guile can steal file descriptors which
+	confuses our jobserver FD checking, so we don't want to initialize
+	it before we have to.
+
+	VMS port updates by Hartmut Becker <becker.ismaning@freenet.de>
+
+	* makefile.com: Add output to the filelist.
+	* output.c (va_copy): Add an implementation of this macro for VMS.
+	* commands.c: Ensure filedef.h is #included before dep.h.
+	* dir.c: Ditto.
+	* file.c: Ditto.
+	* guile.c: Ditto.
+	* main.c: Ditto.
+	* misc.c: Ditto.
+	* read.c: Ditto.
+	* rule.c: Ditto.
+	* variable.c: Ditto.
+	* readme.vms: Renamed to README.VMS and updates for this release.
+	* Makefile.am: Ditto.
+	* NEWS: Ditto.
+	* README.template: Ditto.
+	* Makefile.DOS.template: Ditto.
+
+2013-09-21  Paul Smith  <psmith@gnu.org>
+
+	* maintMakefile (check-alt-config): Create a target to test
+	alternative configurations.  Each one will build make with a
+	different configuration then run the test suite.
+
+	Invert the output-sync #define to NO_OUTPUT_SYNC
+
+	* configure.ac: Don't set OUTPUT_SYNC.
+	* makeint.h: Ditto.
+	* main.c: Use NO_OUTPUT_SYNC instead of OUTPUT_SYNC.
+	* output.c: Ditto.
+	* output.h: Ditto.
+	* job.h: Ditto.
+	* job.c: Ditto.
+	* config.ami.template: Set NO_OUTPUT_SYNC.
+	* config.h-vms.template: Ditto.
+	* config.h.W32.template: Ditto.
+	* configh.dos.template: Ditto.
+
+	Output generated while reading makefiles should be synced.
+
+	* main.c (make_sync): Define a context for syncing while reading
+	makefiles and other top-level operations.
+	(main): If we request syncing, enable it while we are parsing
+	options, reading makefiles, etc. to capture that output.  Just
+	before we start to run rules, dump the output if any.
+	(die): Dump any output we've been syncing before we die
+	* output.h (OUTPUT_SET): Disable output_context if not syncout.
+
+	Stderr generated from shell functions in recipes should be synced.
+
+	* job.h (FD_STDIN, FD_STDOUT, FD_STDERR): Create new macros to
+	avoid magic numbers.
+	(child_execute_job): Take a FD for stderr.
+	* job.c (child_execute_job): Handle STDERR FD's in addition to
+	stdin and stdout.
+	(start_job_command): Call child_execute_job() with the new STDERR
+	parameter.  Instead of performing the dup() here, send it to
+	child_execute_job() where it's already being done.
+	* function.c (func_shell_base): Pass the OUTPUT_CONTEXT stderr to
+	child_execute_job() if it's set, otherwise FD_STDERR.
+	* main.c (main): Pass FD_STDERR to child_execute_job().
+
+2013-09-19  Paul Smith  <psmith@gnu.org>
+
+	* main.c (main): Set MAKE_RESTARTS to negative before re-exec if
+	we've already generated an "Entering" message.  If we are started
+	and notice that MAKE_RESTARTS is negative, assume we already wrote
+	"Entering" and don't write it again.
+
+2013-09-18  Paul Smith  <psmith@gnu.org>
+
+	* main.c (main): Set starting_directory before we write any
+	errors.  Fixes Savannah bug #40043.
+
+2013-09-16  Eli Zaretskii  <eliz@gnu.org>
+
+	* output.c [WINDOWS32]: Include windows.h and sub_proc.h, to avoid
+	compiler warnings for CLOSE_ON_EXEC.
+
+2013-09-16  Paul Smith  <psmith@gnu.org>
+
+	* configure.ac: Update version to 3.99.91.
+	* NEWS: Ditto.
+
+2013-09-15  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi (Error Messages): Add a bit more info to the
+	section on static pattern errors, since they're common.
+	Fixes Savannah bug #31326.
+
+	* read.c (eval_makefile): If the file open fails with an
+	unrecoverable error, stop now rather than trying to make it.
+	Fixes Savannah bug #27374.
+
+	* main.c (main): Perform the validation of the jobserver FDs
+	early, before we read makefiles, to ensure that something hasn't
+	opened and used those FDs for some other reason.
+	Fixes Savannah bug #39934.
+
+	* main.c (main): Don't set MAKEFLAGS in the environment when we
+	restart.  We have the original command line flags so keep the
+	original MAKEFLAGS settings as well.
+	Fixes Savannah bug #39203.
+
+2013-09-14  Paul Smith  <psmith@gnu.org>
+
+	* main.c (decode_debug_flags): Add support for the "n" flag to
+	disable all debugging.
+	* make.1: Document the "n" (none) flag.
+	* doc/make.texi (Options Summary): Ditto.
+	* NEWS: Ditto.
+	Fixes Savannah bug #35248.
+
+	* misc.c (close_stdout): Move to output.c.
+	* main.c (main): Move atexit call to output_init().
+	* makeint.h: Remove close_stdout() declaration.
+	* output.c (output_init): Add close_stdout at exit only if it's	open.
+	Fixes Savannah bug #33134.  Suggested by David Boyce <dsb@boyski.com>.
+
+2013-09-14  Paul Smith  <psmith@gnu.org>
+
+	* misc.c (set_append_mode, open_tmpfd, open_tmpfile): Move to output.c.
+	* misc.h: Ditto.
+	* output.h: Ditto.
+	* main.c (main): Move stdio init into output.c:output_init().
+	Change open_tmpfile() to output_tmpfile().
+	* output.c: Rename open_*() to output_*().  set_append_mode() and
+	open_tmpfd() are static.
+	(_outputs, log_working_directory): Accept a struct output and
+	print to that rather than the global context.
+	(output_dump): In recurse mode print enter/leave once for the
+	whole makefile.
+	(output_init): Initialize this processes stdio as well as child's.
+
+	* vmsjobs.c: Reformat to be closer to convention.
+
+2013-09-12  Paul Smith  <psmith@gnu.org>
+
+	Rework output to handle synchronization and directory logging more
+	reliably.
+
+	* output.c: New file.  Implement lazy synchronization and
+	directory logging so that we manage them "just in time", and the
+	destination of the output is set via a global state variable.
+	* output.h: New file.
+	* function.c (func_shell_base): Ensure the output is set up before
+	running a shell command, in case it writes to stderr.
+	(func_error): Use outputs() to generate output.
+	* job.h (struct child): Add struct output to track the child's output.
+	* job.c: Use struct output in the child structure to track output.
+	(child_out, sync_init, assign_child_tempfiles, pump_from_tmp)
+	(acquire_semaphore, release_semaphore, sync_output): Move most of
+	the output_sync handling to output.c.
+	(child_error): Set output, then use simple message() and error()
+	not _s versions.
+	* main.c (log_working_directory): Moved to output.c
+	(trace_option, decode_trace_flags) Remove.  Remove support for
+	different trace modes; we don't use it anymore.
+	(die) Invoke output_close() before we exit.
+	* misc.c (message_s, error_s): Removed; no longer needed.
+	(message, error, fatal, perror_with_name, pfatal_with_name): Moved
+	to output.c.
+	* makeint.h: Remove message_s(), error_s(), and
+	log_working_directory().  Remove the TRACE_* macros.
+	* doc/make.texi: Enhance documentation for output sync, and remove
+	MODE assignment for --trace.
+	* make.1: Remove MODE assignment for --trace.
+	* Makefile.am: Add new files.
+	* NMakefile.template: Ditto.
+	* SMakefile.template: Ditto.
+	* build_w32.bat: Ditto.
+	* dosbuild.bat: Ditto.
+	* make.lnk: Ditto.
+	* make_nsvc_net2003.vcproj: Ditto.
+	* makefile.vms: Ditto.
+	* po/POTFILES.in: Ditto.
+
+2013-08-22  Petr Machata  <pmachata@redhat.com>
+
+	* function.c (func_shell_base): Get rid of any avoidable limit on
+	stack size for processes spawned via $(shell).
+
+2013-07-22  Paul Smith  <psmith@gnu.org>
+
+	* implicit.c (pattern_search): Use PARSE_SIMPLE_SEQ() even for
+	non-second expansion prerequisites, to handle globbing in patterns.
+	Fixes Savannah bug #39310.
+
+	* dep.h (PARSE_SIMPLE_SEQ): Macro for simple file sequence parsing.
+	* default.c (set_default_suffixes): Use it.
+	* file.c (split_prereqs): Ditto.
+	* main.c (main): Ditto.
+	* read.c (eval): Ditto.
+	* rule.c (install_pattern_rule): Ditto.
+	* file.c (split_prereqs): Use PARSEFS_NONE instead of 0.
+
+2013-07-21  Paul Smith  <psmith@gnu.org>
+
+	Cleanups detected by cppcheck.  Fixes Savannah bug #39158.
+	* arscan.c (ar_scan): Reduce the scope of local variables.
+	* dir.c (vms_hash): Ditto.
+	(find_directory): Ditto.
+	(file_impossible_p): Ditto.
+	* expand.c (variable_expand_string): Ditto.
+	* function.c (func_sort): Ditto.
+	(func_and): Ditto.
+	* job.c (reap_children): Ditto.
+	(exec_command): Ditto.
+	* main.c (main): Ditto.
+	* misc.c (collapse_continuations): Ditto.
+	* read.c (eval): Ditto.
+	(parse_file_seq): Ditto.
+	* vpath.c (gpath_search): Ditto.
+	(selective_vpath_search): Ditto.
+	* job.c (is_bourne_compatible_shell): Simplify for non-Windows systems.
+	* remake.c (f_mtime): Remove duplicate test.
+	* signame.c (strsignal): Fix bogus conditional.
+
+	* job.c (assign_child_tempfiles): Assign OUTFD to -1 for safety.
+	(start_job_command): Don't test output_sync and sync_cmd: redundant.
+	Changes suggested by Frank Heckenbach <f.heckenbach@fh-soft.de>.
+
+2013-07-14  Paul Smith  <psmith@gnu.org>
+
+	* filedef.h (update_status): Convert UPDATE_STATUS from a char to
+	an enumeration.  Some systems declare "char" to be "unsigned"
+	which broke the code (which expected to be able to use -1 as a
+	flag).  Using magic values was unpleasant, so rather than just
+	force "signed char" I reworked it to use an enum.
+
+	* dep.h (update_goal_chain): Return an update_status value not int.
+	* remake.c (touch_file): Ditto.
+	(update_goal_chain): Track the update_status enum.
+
+	* file.c (enter_file): Use new enumeration values with update_status.
+	(remove_intermediates): Ditto.
+	(print_file): Ditto.
+	* commands.c (execute_file_commands): Ditto.
+	* job.c (reap_children): Ditto.
+	(start_job_command): Ditto.
+	(start_waiting_job): Ditto.
+	* main.c (main): Ditto.
+	* remake.c (update_file): Ditto.
+	(complain): Ditto.
+	(update_file_1): Ditto.
+	(notice_finished_file): Ditto.
+	(remake_file): Ditto.
+	* vmsjobs.c (vmsHandleChildTerm): Ditto.
+
+2013-07-09  Paul Smith  <psmith@gnu.org>
+
+	* implicit.c (pattern_search): Keep a local copy of the number of
+	deps in deplist: the global max might change due to recursion.
+	Fixes a bug reported by Martin d'Anjou <martin.danjou14@gmail.com>.
+
+2013-06-28  Paul Smith  <psmith@gnu.org>
+
+	* misc.c (set_append_mode): Set the O_APPEND flag on a file descriptor.
+	(open_tmpfd): Set append mode on the temporary file descriptor.
+	* main.c (main): Set append mode on stdout and stderr.
+	* makeint.h (set_append_mode): Declare it.
+
+2013-06-22  Eli Zaretskii  <eliz@gnu.org>
+
+	* build_w32.bat (LinkGCC): Prevent a comment from being displayed
+	at build time.
+
+	* job.c (construct_command_argv_internal) [WINDOWS32]: Use
+	case-insensitive comparison with internal commands of non-Unix
+	shells.
+
+	* main.c (find_and_set_default_shell): Don't use file_exists_p or
+	dir_file_exists_p, as those call readdir, which can fail if PATH
+	includes directories with non-ASCII characters, and that would
+	cause Make to fail at startup with confusing diagnostics.  See
+	https://sourceforge.net/mailarchive/message.php?msg_id=30846737
+	for the details.
+
+2013-06-22  Paul Smith  <psmith@gnu.org>
+
+	Improve performance by using a character map to determine where we
+	want to stop searching strings, rather than discrete comparisons.
+
+	* read.c (find_char_unquote): Pass a stop map instead of various
+	flags and use that to check when to stop parsing the string.
+	(eval): Use the new find_char_unquote() calling signature.
+	(remove_comments): Ditto.
+	(unescape_char): Ditto.
+	(find_percent_cached): Ditto.
+	(parse_file_seq): Use a stop-map flag.
+	* main.c (stopchar_map): Character map definition.
+	(initialize_stopchar_map): Initialize the map definition.
+	(main): Invoke the map initialization function.
+	* misc.c (end_of_token_w32): Remove unused function.
+	* dir.c (dosify): Use STOP_SET to check for stop chars.
+	* main.c (main): Ditto.
+	* misc.c (end_of_token): Ditto.
+	* function.c (subst_expand): Ditto.
+	(func_notdir_suffix): Ditto.
+	(func_basename_dir): Ditto.
+	(abspath): Ditto.
+	* job.c (is_bourne_compatible_shell): Ditto.
+	* variable.c (parse_variable_definition): Ditto.
+	* read.c (eval): Ditto.
+	(conditional_line): Ditto.
+	(find_percent_cached): Ditto.
+	* dep.h (PARSE_FILE_SEQ): Update function declaration.
+	* default.c (set_default_suffixes): Update PARSE_FILE_SEQ() call.
+	* file.c (split_prereqs): Ditto.
+	* function.c (string_glob): Ditto.
+	* implicit.c (pattern_search): Ditto.
+	* rule.c (install_pattern_rule): Ditto.
+	* main.c (main): Ditto.
+
+2013-06-21  Paul Smith  <psmith@gnu.org>
+
+	* main.c (verify_flag): Global variable to determine whether to
+	verify the database or not.
+	(decode_debug_flags): If debug mode, enable verify_flag.
+	(main): If MAKE_MAINTAINER_MODE, enable verify_flag, otherwise not.
+	(die): Only verify the database if verify_flag is set.
+	* file.c (enter_file): Don't check caching unless verify_flag.
+	* makeint.h: Export verify_flag.
+
+2013-05-27  Paul Smith  <psmith@gnu.org>
+
+	* variable.c (define_automatic_variables): Create a new variable
+	MAKE_HOST.
+
+2013-05-27  Hartmut Becker  <becker.ismaning@freenet.de>
+
+	* function.c (func_shell_base) [VMS]: Support VMS.
+	* makefile.com [VMS]: Ditto.
+	* makefile.vms [VMS]: Ditto.
+	* makeint.h [VMS]: Ditto.
+	* vmsjobs.c [VMS]: Ditto.
+	* job.h: Define RECORD_SYNC_MUTEX() when OUTPUT_SYNC is not set.
+	* load.c (unload_file): Fix signature if MAKE_LOAD is not set.
+
+2013-05-26  Paul Smith  <psmith@gnu.org>
+
+	* remake.c (f_mtime): Ensure that archive file names are in the
+	string cache.  Fixes Savannah bug #38442.
+
+	* read.c (readline): To be safe, move the entire buffer if we
+	detect a CR.  Fixes Savannah bug #38945.
+
+	* job.c (new_job): Compare OUT to the beginning of the OUT
+	var/function, not IN.  Fixes Savannah bug #39035.
+
+2013-05-22  Paul Smith  <psmith@gnu.org>
+
+	* main.c (switches[]): Order switches so simple flags all come first.
+	(define_makeflags): Rework to make option passing more
+	reliable and the code less tricksy.  Ensure simple flags are kept
+	in the initial batch of flags.  Do not allow any flags with
+	options in that batch.  If there are only non-simple flags MAKEFLAGS
+	begins with ' '.
+	(print_data_base): Print the version.  Fixes part of Savannah #35336.
+
+	* read.c (eval_buffer): Initialize lineno.
+
+2013-05-18  Alexey Pavlov  <alexpux@gmail.com>  (tiny change)
+
+	* w32/Makefile.am (libw32_a_SOURCES): Add compat/posixfcn.c.
+
+	* configure.ac (OUTPUT_SYNC): Define for mingw32 target.
+
+	* job.c (construct_command_argv_internal) <sh_cmds_dos>
+	[WINDOWS32]: Add "move".  Fixes Savannah bug #30714.
+
+	* guile.c: Move inclusion of makeint.h before gnumake.h.  This
+	order must be observed when building Make, because gnumake.h must
+	be included with GMK_BUILDING_MAKE defined, which makeint.h
+	already does.  Otherwise, the linker will look for, and fail to
+	find, gmk_* functions in some external dynamic library.
+
+2013-05-17  Benno Schulenberg  <bensberg@justemail.net>
+
+	* main.c (decode_output_sync_flags): Fix output message.
+	* read.c (EXTRANEOUS): Ditto.
+	(record_files): Ditto.
+	* remake.c (update_file_1): Ditto.
+
+2013-05-17  Eli Zaretskii  <eliz@gnu.org>
+
+	* main.c (prepare_mutex_handle_string): Define conditioned on
+	OUTPUT_SYNC.
+
+	* build_w32.bat: Copy config.h.W32 to config.h regardless of
+	whether or not we are building from SCM.
+
+2013-05-17  Paul Smith  <psmith@gnu.org>
+
+	* configure.ac: Update version to 3.99.90.
+	* NEWS: Ditto.
+
+	* Source (*.[ch]): Remove TABs, use GNU coding styles.
+
+	* ALL: Update copyright.
+
+	* hash.c (CALLOC): Use xcalloc() to handle out of memory errors.
+
+	* makeint.h: Prototype new unload_file() function.
+	* load.c (unload_file): Create a function to unload a file.
+	(struct load_list): Type to remember loaded objects.
+	(loaded_syms): Global variable of remembered loaded objects so we
+	can unload them later.  We don't have to remove from the list
+	because the only time we unload is if we're about to re-exec.
+	(load_object): Remove unneeded extra DLP argument.
+	(load_file): Remove unneeded extra DLP argument.
+	* filedef.h (struct file): Remove the DLP pointer and add the
+	LOADED bit flag.  Saves 32/64 bytes per file, as this pointer is
+	almost never needed.
+	* read.c (eval): Set the new LOADED bit flag on the file.
+	* file.c (rehash_file): Merge the loaded bitfield.
+	* commands.c (execute_file_commands): Call unload_file() instead
+	of dlclose() directly.
+
+2013-05-14  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi (Loaded Object API): Document the requirement for
+	the plugin_is_GPL_compatible symbol.
+	* load.c (load_object): Check for plugin_is_GPL_compatible symbol.
+
+2013-05-13  Paul Smith  <psmith@gnu.org>
+
+	* filedef.h (struct file): Add a builtin flag.
+	* file.c (enter_file): Unset the builtin flag.
+	(rehash_file): Ditto.
+	(print_file): Don't print builtin files if we've omitted them.
+	* default.c (undefine_default_variables): New function: go through
+	the default variables and undefine them.
+	(set_default_suffixes): Mark these suffix rules as builtin.
+	* makeint.h: Prototype.
+	* main.c (main): Handle addition of -r and -R to MAKEFLAGS in the
+	makefile.  Fixes Savannah bug #20501.
+
+	* main.c (define_makeflags): Assign o_env_override level to
+	MAKEFLAGS to ensure it's set even in the presence of -e.
+	Fixes Savannah bug #2216.
+
+	* makeint.h (TRACE_NONE, TRACE_RULE, TRACE_DIRECTORY): Define
+	constants for the trace mode.
+	* main.c: Add new --trace mode parsing.
+	(decode_trace_flags): New function.
+	(decode_switches): Call it.
+	(define_makeflags): Fix a bug with long-name options.
+	* misc.c (fatal): Remove special output-sync handling.
+	* make.1: Document new --trace mode flags.
+	* doc/make.texi (Options Summary): Ditto.
+
+2013-05-11  Eli Zaretskii  <eliz@gnu.org>
+
+	* job.c (child_out): Output the newline following the message
+	before fllush-ing the stream.  Avoids displaying the following
+	failure message, which goes to stderr, on the same line.
+
+2013-05-06  Eli Zaretskii  <eliz@gnu.org>
+
+	* gnumake.h (GMK_EXPORT) [_WIN32]: Move the dllexport declaration
+	here from makeint.h.
+
+	* makeint.h (GMK_BUILDING_MAKE) [WINDOWS32]: Define before
+	including gnumake.h.
+
+	* doc/make.texi (Loaded Object Example): Add a note about building
+	shared objects on MS-Windows.
+
+2013-05-05  Paul Smith  <psmith@gnu.org>
+
+	* makeint.h (OUTPUT_SYNC_LINE, OUTPUT_SYNC_RECURSE): Rename
+	output-sync options "job" to "line" and "make" to "recurse".
+	* main.c (decode_output_sync_flags): Ditto.
+	* job.c (reap_children): Ditto.
+	(start_job_command): Ditto.
+	* make.1: Ditto.
+	* doc/make.texi (Parallel Output): Ditto.
+
+	* job.c (child_out): Write newlines explicitly, and don't do
+	anything if the message is empty.
+	(sync_output): Put working dir messages around stdout AND stderr.
+	(start_job_command): Move the tmp file assignment earlier.  After
+	we do it, write the command line to the temp file to get the order
+	correct.
+
+	* misc.c (message): Remove special handling for output_sync.
+	(error): Ditto.
+
+2013-05-04  Paul Smith  <psmith@gnu.org>
+
+	* loadapi.c (gmk_alloc): New function.
+	* gnumake.h: Add gmk_alloc().  Clean GMK_EXPORT a bit to avoid MAIN.
+	* makeint.h (GMK_EXPORT): New handling, vs. MAIN.
+	* doc/make.texi (Loaded Object API): Add information on the memory
+	handling functions.
+	(Loaded Object Example): Create an example.
+
+	* job.c (pump_from_tmp): (Rename) Write to stdout/stderr using
+	FILE* rather than fd.  It's not a good idea to mix and match.
+
+2013-05-04  Eli Zaretskii  <eliz@gnu.org>
+
+	* makeint.h (ftruncate) [_MSC_VER]: Redirect to _chsize.
+	(_S_ISDIR): If not defined (MinGW64), define to S_ISDIR.
+
+2013-05-04  Paul Smith  <psmith@gnu.org>
+
+	* job.c (child_out): Handle EINTR and incomplete write scenarios.
+	(sync_init): New function: separate the initialization code.
+	(assign_child_tempfiles): Remove truncation from this function,
+	(sync_output): and add it here after output is generated.
+	(reap_children): Always call sync_output() in case output_sync was
+	reset after the child started, due to error.
+	(start_job_command): Create new sync_cmd variable.  Use new method
+	for initializing the handle.
+	If we're not syncing the output be sure any output we've saved is
+	dumped immediately before starting the child.
+
+2013-05-04  Eli Zaretskii  <eliz@gnu.org>
+
+	* job.c (start_job_command): Make the condition for creating a
+	temporary output file be identical to the Posix code branch.
+	Suggested by Frank Heckenbach <f.heckenbach@fh-soft.de>.
+
+2013-05-03  Eli Zaretskii  <eliz@gnu.org>
+
+	* w32/subproc/sub_proc.c: Include makeint.h.  Remove a private
+	incompatible prototype of xmalloc.
+	(batch_file_with_spaces): New function, detects Windows batch
+	files whose names include whitespace characters.
+	(process_begin): If exec_name is a batch file with whitespace
+	characters in its name, pass NULL as the first argument to
+	CreateProcess.  This avoids weird failures due to buggy quoting by
+	CreateProcess.  For the details, see the discussion starting at
+	http://lists.gnu.org/archive/html/make-w32/2013-04/msg00008.html.
+
+	* load.c (load_object, load_file): Accept an additional argument
+	DLP and return in it a pointer that can be used to unload the
+	dynamic object.
+
+	* read.c (eval): Call load_file with an additional argument, and
+	record the pointer returned there in the 'struct file' object of
+	dynamic objects in that object's 'struct file'.
+
+	* commands.c (execute_file_commands): Unload dynamic objects
+	before remaking them, to avoid failure to remake if the OS doesn't
+	allow overwriting objects that are in use.
+
+	* filedef.h (struct file): New member dlopen_ptr.
+
+	* gnumake.h (GMK_EXPORT): Define to dllexport/dllimport
+	decorations for Windows and to nothing on other platforms.
+	(gmk_eval, gmk_expand, gmk_add_function): Add GMK_EXPORT qualifier
+	to prototypes.
+
+	* makeint.h (MAIN): Define before including gnumake.h, to give
+	correct dllexport decorations to exported functions.
+	(load_file): Adjust prototype.
+
+	* loadapi.c: Don't include gnumake.h, since makeint.h already
+	includes it, and takes care of defining MAIN before doing so.
+
+	* build_w32.bat (LinkGCC): Produce an import library for functions
+	exported by Make for loadable dynamic objects.
+
+	* w32/compat/posixfcn.c (dlclose): New function.
+
+	* w32/include/dlfcn.h (dlclose): Add prototype.
+
+2013-05-01  Eli Zaretskii  <eliz@gnu.org>
+
+	* job.c (start_job_command) [WINDOWS32]: Make the same fix for
+	MS-Windows as the previous commit did for Posix platforms.
+	(construct_command_argv_internal): Don't treat a backslash as an
+	escape character before whitespace, if the shell is not a Posix
+	shell.   For the description of the problem, see
+	http://lists.gnu.org/archive/html/make-w32/2013-04/msg00014.html.
+
+2013-05-01  Paul Smith  <psmith@gnu.org>
+
+	* job.c (start_job_command): Don't redirect output for recursive
+	make jobs, unless we're in makefile synchronization mode.
+
+2013-04-30  Stefano Lattarini <stefano.lattarini@gmail.com>  (tiny change)
+
+	build: enable the 'silent-rules' automake options
+
+	* configure.ac (AM_INIT_AUTOMAKE): Here.  The future major Automake
+	version 2.0 (ETA about one, one and half year from now) will enable
+	it by default, so better prepare ourselves.
+
+2013-04-30  Stefano Lattarini <stefano.lattarini@gmail.com>  (tiny change)
+
+	build: require Autoconf >= 2.62 and Automake >= 1.11.1
+
+	Older versions of those tools should be considered fully obsolete.
+	Also, GNU make already requires Gettext >= 0.18.1, which has been
+	released six months after Automake 1.11.1 and two years after
+	Autoconf 2.62; so the new requirement shouldn't be problematic
+	for people already bootstrapping GNU make from the Git repository.
+
+	* configure.ac (AC_PREREQ): Require Autoconf 2.62 or later.
+	(AM_INIT_AUTOMAKE): Require Automake 1.11.1 or later (1.11 had
+	some serious bugs, and should not be used).
+
+2013-04-30  Stefano Lattarini <stefano.lattarini@gmail.com>  (tiny change)
+
+	build: get rid of 'HAVE_ANSI_COMPILER' C preprocessor conditional
+
+	GNU make already assume C89 or later throughout the codebase, and
+	that preprocessor conditional was no longer used anyway.
+
+	* configure.ac: Remove AC_DEFINE of HAVE_ANSI_COMPILER.
+	* config.ami.template: Remove #define of HAVE_ANSI_COMPILER.
+	* config.h-vms.template: Likewise.
+	* config.h.W32.template: Likewise.
+	* configh.dos.template: Likewise.
+
+2013-04-30  Stefano Lattarini <stefano.lattarini@gmail.com>  (tiny change)
+
+	cosmetics: fix few innocuous typos
+
+	Most of these were found using Lucas De Marchi's 'codespell' tool.
+
+	* ChangeLog: Fix minor typos.
+	* ChangeLog.2: Likewise.
+	* README.Amiga: Likewise.
+	* TODO.private: Likewise.
+	* function.c: Likewise.
+	* glob/glob.h: Likewise.
+	* job.c: Likewise.
+	* main.c: Likewise.
+	* readme.vms: Likewise.
+	* remake.c: Likewise.
+	* tests/ChangeLog: Likewise.
+	* tests/NEWS: Likewise.
+	* tests/README: Likewise.
+	* tests/scripts/variables/private: Likewise.
+	* vmsdir.h: Likewise.
+	* signame.c: Likewise.  While at it, improve line wrapping in the
+	touched comment.
+
+2013-04-29  Eli Zaretskii  <eliz@gnu.org>
+
+	* w32/include/dlfcn.h: New file.
+
+	* w32/compat/posixfcn.c: Include dlfcn.h.
+	(dlopen, dlerror, dlsym) [MAKE_LOAD]: New functions, in support of
+	dynamic loading.
+
+	* config.h.W32.template (MAKE_LOAD): Define.
+
+	* load.c (load_object) [HAVE_DOS_PATHS]: Support backslashes and
+	drive letters in file names of dynamic objects.
+
+	* job.c (construct_command_argv_internal) [WINDOWS32]: Return
+	right after generating new_argv for one_shell case.  This fixes
+	the Windows build for both Unixy shell and stock Windows shells.
+
+2013-04-28  Eli Zaretskii  <eliz@gnu.org>
+
+	* dir.c (local_stat) [WINDOWS32]: Use the wrapper on MS-Windows.
+	If the argument ends in "dir/.", make sure the parent dir exists
+	and is indeed a directory.  Fixes Savannah bug #37065.
+
+2013-04-28  Paul Smith  <psmith@gnu.org>
+
+	* makeint.h (message_s, error_s): Functions that print to strings
+	rather than directly to files.
+	* misc.c (message_s, error_s): Create them.
+	* job.c (child_error): Print error messages to the output sync
+	logs, if one exists, rather then directly to the terminal.
+	(reap_children): Move the per-line sync after child_error().
+
+	* configure.ac: Remove support for pre-ANSI variadic function calls.
+	* makeint.h: Ditto.
+	* misc.c: Ditto.
+	* config.ami.template: Ditto.
+	* config.h-vms.template: Ditto.
+	* config.h.W32.template: Ditto.
+	* configh.dos.template: Ditto.
+
+	Implement a "per-job" output synchronization option.
+
+	* main.c (decode_output_sync_flags): Recognize the new option.
+	* makeint.h (OUTPUT_SYNC_JOB): Add new values for "job"
+	* job.c (assign_child_tempfiles): In per-job mode, truncate the
+	temp file for re-use by the next job.
+	(sync_output): Don't close the temp files as we may still use them.
+	(free_child): Close the temp files here as we definitely don't
+	need them.
+	(new_job): In per-job output mode, sync_output() after each job.
+	* job.h (struct child): Avoid ifdefs.
+	* make.1: Add new options to the man page.
+	* doc/make.texi (Parallel Output): Break documentation on input
+	and output into separate sections for readability.  Document the
+	new "job" and "none" modes.
+
+2013-04-27  Paul Smith  <psmith@gnu.org>
+
+	* job.c (construct_command_argv_internal): Fix oneshell support
+	for non-POSIX-sh shells.
+
+	* load.c (load_object): Extract all POSIX-isms into a separate
+	function for portability.
+	(load_file): Check the .LOADED variable first and don't invoke
+	load_object() if it's already been loaded.
+
+2013-04-27  Eli Zaretskii  <eliz@gnu.org>
+
+	* read.c (record_files): Pay attention to .ONESHELL in MS-Windows.
+
+	* job.c (construct_command_argv_internal): Support .ONESHELL on
+	MS-Windows, when the shell is not a Unixy shell.
+
+2013-04-27  Eli Zaretskii  <eliz@gnu.org>
+
+	* job.c: Fix compilation error on GNU/Linux due to "label at end
+	of compound statement".
+
+2013-04-27  Frank Heckenbach <f.heckenbach@fh-soft.de>  (tiny change)
+
+	* job.c (sync_output): Don't discard the output if
+	acquire_semaphore fails; instead, dump the output unsynchronized.
+
+2013-04-27  Eli Zaretskii  <eliz@gnu.org>
+
+	Support --output-sync on MS-Windows.
+	* w32/compat/posixfcn.c: New file, with emulations of Posix
+	functions and Posix functionality for MS-Windows.
+
+	* w32/subproc/sub_proc.c: Include io.h.
+	(process_noinherit): New function, forces a file descriptor to not
+	be inherited by child processes.
+	(process_easy): Accept two additional arguments, and use them to
+	set up the standard output and standard error handles of the child
+	process.
+
+	* w32/include/sub_proc.h (process_easy): Adjust prototype.
+	(process_noinherit): Add prototype.
+
+	* read.c [WINDOWS32]: Include windows.h and sub_proc.h.
+
+	* makeint.h (LOCALEDIR) [WINDOWS32}: Define to NULL if not
+	defined.  This is needed because the MS-Windows build doesn't have
+	a canonical place for LOCALEDIR.
+	(WIN32_LEAN_AND_MEAN) [WINDOWS32]: Define, to avoid getting from
+	windows.h header too much stuff that could conflict with the code.
+
+	* main.c <sync_mutex>: New static variable.
+	<switches>: Add support for "--sync-mutex" switch.
+	(decode_output_sync_flags): Decode the --sync-mutex= switch.
+	(prepare_mutex_handle_string) [WINDOWS32]: New function.
+	(main): Add "output-sync" to .FEATURES.
+
+	* job.h (CLOSE_ON_EXEC) [WINDOWS32]: Define to call
+	process_noinherit.
+	(F_GETFD, F_SETLKW, F_WRLCK, F_UNLCK, struct flock) [WINDOWS32]:
+	New macros.
+	(RECORD_SYNC_MUTEX): New macro, a no-op for Posix platforms.
+	(sync_handle_t): New typedef.
+
+	* job.c <sync_handle>: Change type to sync_handle_t.
+	(FD_NOT_EMPTY): Seek to the file's end.  Suggested by Frank
+	Heckenbach <f.heckenbach@fh-soft.de>.
+	(pump_from_tmp_fd) [WINDOWS32]: Switch to_fd to binary mode for
+	the duration of this function, and then change back before
+	returning.
+	(start_job_command) [WINDOWS32]: Support output_sync mode on
+	MS-Windows.  Use a system-wide mutex instead of locking
+	stdout/stderr.  Call process_easy with two additional arguments:
+	child->outfd and child->errfd.
+	(exec_command) [WINDOWS32]: Pass two additional arguments, both
+	-1, to process_easy, to adjust for the changed function signature.
+
+	* function.c (windows32_openpipe) [WINDOWS32]: This function now
+	returns an int, which is -1 if it fails and zero otherwise.  It
+	also calls 'error' instead of 'fatal', to avoid exiting
+	prematurely.
+	(func_shell_base) [WINDOWS32]: Call perror_with_name if
+	windows32_openpipe fails, now that it always returns.  This avoids
+	a compiler warning that error_prefix is not used in the MS-Windows
+	build.
+
+	* config.h.W32.template (OUTPUT_SYNC): Define.
+
+	* build_w32.bat: Add w32/compat/posixfcn.c to compilation and
+	linking commands.
+
+2013-04-20  Stefano Lattarini <stefano.lattarini@gmail.com>  (tiny change)
+
+	* README.git: Our autoconf input file is 'configure.ac', not
+	'configure.in'.  Adjust accordingly.
+	* build_w32.bat: Likewise.
+	* config.h-vms.template: Likewise.
+	* Makefile.DOS.template: Likewise.
+
+2013-04-16  Paul Smith  <psmith@gnu.org>
+
+	* misc.c (open_tmpfd): Add a new function that returns a temporary
+	file by file descriptor.
+	(open_tmpfile): Move here from main.c.
+	* job.c (assign_child_tempfiles): Use the new open_tmpfd().
+
+2013-04-15  Paul Smith  <psmith@gnu.org>
+
+	* makeint.h (OUTPUT_SYNC_TARGET, OUTPUT_SYNC_MAKE): Rename.
+	* job.c (start_job_command): Use new constants.
+	* main.c: New -O argument format.
+
+	* doc/make.texi (Options Summary): Document the argument to -O.
+	* make.1: Ditto.
+
+	* main.c (define_makeflags): Don't add space between a single-char
+	option and its argument.
+
+2013-04-06  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi (Implicit Variables): Clarify LDFLAGS vs. LDLIBS.
+	Fixes Savannah bug #37970.
+
+	* remake.c (check_dep): Reconsider files waiting on prerequisites,
+	as they may have finished.  Fixes Savannah bug #37703.
+
+2013-02-28  Paul Smith  <psmith@gnu.org>
+
+	* function.c (func_realpath): On Solaris (at least) realpath() can
+	fail due to EINTR, so loop it.  Fixes Savannah bug #38420.
+
+2013-02-25  Paul Smith  <psmith@gnu.org>
+
+	Add a proposed supported API for GNU make loaded objects.
+
+	* doc/make.texi (Loaded Object API): Document it.
+	* Makefile.am (make_SOURCES): Add new loadapi.c.
+	* dep.h: Remove eval_buffer(); moved to loadapi.c:gmk_eval().
+	* read.c (eval_buffer): Change eval_buffer() signature.
+	* main.c (main): Change eval_buffer() signature.
+	* variable.h (define_new_function): Change func_ptr signature.
+	* load.c (SYMBOL_EXTENSION): Change the extension.
+	* loadapi.c: Implement the new API.
+	* gnumake.h (gmk_eval): New function prototype.
+	(gmk_expand) Ditto.
+	(gmk_add_function) Ditto.
+	* gmk-default.scm (gmk-eval): Remove: now implemented in guile.c.
+	* guile.c (guile_expand_wrapper): Use gmk_expand()
+	(guile_eval_wrapper): Implement eval here to avoid double-expansion.
+	(guile_define_module): Define gmk-eval.
+	(func_guile): Use new func_ptr calling model.
+	(guile_gmake_setup): Use gmk_add_function() to declare $(guile ...)
+	* function.c (function_table_entry): Provide alternative func_ptr.
+	(func_eval): New signature for eval_buffer();
+	(function_table_init): New initialization for function_table_entry.
+	(expand_builtin_function): Support alternative invocation signature.
+	(define_new_function): Ditto.
+
+2013-01-20  Paul Smith  <psmith@gnu.org>
+
+	* gnumake.h: New file to contain externally-visible content.
+	* makeint.h: Include gnumake.h.  Move gmk_floc type to gnumake.h.
+	* Makefile.am (include_HEADERS): Install the gnumake.h header.
+
+	* makeint.h: Change struct floc to gmk_floc typedef.
+	* Many: Use the new typedef.
+
+	* make.h: Rename to makeint.h.
+	* Many: Use the new name makeint.h.
+
+2013-01-19  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi (load Directive): Update to discuss location of
+	loaded object file.
+	(Remaking Loaded Objects): Document remaking of loaded objects.
+
+	* main.c (main): Rename READ_MAKEFILES to READ_FILES.
+	* read.c: Change READ_MAKEFILES to READ_FILES since it now
+	contains loaded object files as well.
+	(read_all_makefiles): Ditto.
+	(eval_makefile): Ditto.
+	(eval): Add any loaded file to the READ_FILES list, so that it
+	will be considered for re-build.
+
+	* load.c (load_file): Return the simple filename (no symbol) in
+	the LDNAME argument (now a const char **).
+	This filename should no longer have "./" prepended: modify the
+	function to always check the current directory if the name has no
+	"/", before using the normal methods.
+	* make.h: Change the load_file() prototype.
+
+	* README.git: Add a bit more documentation on Git workflow & rules.
+
+2013-01-13  Paul Smith  <psmith@gnu.org>
+
+	* main.c (main): Restore all make flags after re-exec is complete.
+	Fixes Savannah bug #38051.
+
+2013-01-12  Paul Smith  <psmith@gnu.org>
+
+	Convert CVS archive to Git.
+
+	* configure.in: Rename to configure.ac.
+	* README.cvs: Rename to README.git and rework for Git.
+	* maintMakefile: Use git clean for cleanup.
+	* ChangeLog: Use new Git repository URL.
+	* ChangeLog.2: Ditto.
+	* Makefile.am: Change documentation for Git
+	* Makefile.DOS.template: Ditto.
+	* README.template: Ditto.
+	* build_w32.bat: Ditto.
+	* prepare_w32.bat: Ditto.
+	* .cvsignore: Rename to .gitignore, and change to Git format.
+
+2012-12-08  Eli Zaretskii  <eliz@gnu.org>
+
+	* job.c (create_batch_file): Fix last change: always increment the
+	counter of batch files before trying to use it.
+
+2012-12-07  Eli Zaretskii  <eliz@gnu.org>
+
+	* job.c (construct_command_argv_internal): Remove " from
+	sh_chars_dos[].  Ignore an escaped backslash inside a string
+	quoted with "..".  This lifts the 4KB or 8KB command-line length
+	limitation imposed by the Windows shells when a command uses quoted
+	strings, because we now don't call the shell in that case.
+
+	* job.c (create_batch_file): Declare the counter of batch files
+	static, to avoid having 2 jobs using the same file name and
+	stepping on each other's toes.  When all 64K names are used up,
+	make one more loop looking for slots that became vacant.  This
+	avoids leaving behind temporary batch files in the temporary
+	directory, which happens frequently on a fast machine when using
+	parallel builds.
+	(reap_children): Add debug message for when removal of a temporary
+	batch file fails.
+
+2012-10-29  Paul Smith  <psmith@gnu.org>
+
+	New feature: "load" directive for dynamically-loaded objects.
+
+	* NEWS: Document new "load" directive.
+	* doc/make.texi (Extending make): New chapter on extensions to make.
+	* configure.in: Check for dlopen/dlsym/dlerror and -ldl.
+	* Makefile.am (make_SOURCES): Add new file load.c.
+	* make.h: Prototype for load_file().
+	* main.c (main): Add "load" to .FEATURES if it's available.
+	* read.c (eval): Parse "load" and "-load" directives.
+
+2012-09-29  Paul Smith  <psmith@gnu.org>
+
+	* configure.in: Require a new version of gettext (1.18.1).
+	Fixes Savannah bug #37307.
+
+2012-09-09  Paul Smith  <psmith@gnu.org>
+
+	* configure.in (bsd_signal): Define _GNU_SOURCE, a la make.h.
+	Fixes Savannah bug #32247.
+
+	* remake.c (update_file_1): Force intermediate files to be
+	considered, not pruned, if their non-intermediate parent needs to
+	be remade.  Fixes Savannah bug #30653.
+
+	* job.c (construct_command_argv_internal): Keep the command line
+	on the heap for very long lines.  Fixes Savannah bug #36451.
+
+	* function.c (func_realpath): BSD realpath(3) doesn't fail if the
+	file does not exist: use stat.  Fixes Savannah bug #35919.
+
+	* file.c (expand_deps): Duplicate the current variable buffer, not
+	the old pointer.  Fixes Savannah bug #36925.
+
+	* read.c (eval): If we detect an initial UTF-8 BOM, skip it.
+	Fixes Savannah bug #36529.
+	(record_target_var): Remove unused variable "fname".
+	(eval): Use the correct pointer when adding to the variable buffer.
+	Fixes Savannah bug #36106.
+
+2012-09-09  Eli Zaretskii  <eliz@gnu.org>
+
+	* read.c (unescape_char): Fix a thinko in the last change.
+
+2012-09-09  Paul Smith  <psmith@gnu.org>
+
+	* default.c (default_variables): Use a correct default LIBPPATERNS
+	for MacOS.  Fixes Savannah bug #37197.
+
+	* read.c (record_files): Reset the default macro values if .POSIX
+	is set.  Fixes Savannah bug #37069.
+	(parse_file_seq): Break out of an infinite loop if we're not
+	making progress when parsing archive references.
+
+2012-09-01  Eli Zaretskii  <eliz@gnu.org>
+
+	* README.W32.template: Update for job-server and Guile support.
+
+	* read.c (unescape_char): Advance 'p' after copying the unescaped
+	characters.  Otherwise the backslashes are incorrectly erased from
+	the original string.
+
+2012-03-05  Paul Smith  <psmith@gnu.org>
+
+	Update copyright notices to use year ranges, as allowed by
+	clarifications in the GNU Maintainer's Manual.
+
+2012-03-04  Paul Smith  <psmith@gnu.org>
+
+	* read.c (unescape_char): New function to remove escapes from a char.
+	(record_files): Call it on the dependency string to unescape ":".
+	Fixes Savannah bug #12126 and bug #16545.
+
+	* make.h (CSTRLEN): Determine the length of a constant string.
+	* main.c: Use the new macro.
+	* read.c: Ditto.
+	* variable.h: Ditto.
+	* function.c: Simplify checks for function alternatives.
+
+	* expand.c (variable_append): If the current set is local and the
+	next one is not a parent, then treat the next set as
+	local as well.  Fixes Savannah bug #35468.
+
+2012-03-03  Paul Smith  <psmith@gnu.org>
+
+	* acinclude.m4 (AC_STRUCT_ST_MTIM_NSEC): Add support for AIX 5.2+
+	nanosecond timestamps.  Fixes Savannah bug #32485.
+
+	Convert uses of `foo' for quoting to 'foo' to reflect changes in
+	the GNU Coding Standards.  Fixes Savannah bug #34530.
+
+	* job.c (construct_command_argv_internal): In oneshell we need to
+	break the SHELLFLAGS up for argv.  Fixes Savannah bug #35397.
+
+	* function.c (func_filter_filterout): Recompute the length of each
+	filter word in case it was compressed due to escape chars.  Don't
+	reset the string as it's freed.  Fixes Savannah bug #35410.
+
+	* misc.c (collapse_continuations): Only use POSIX-style
+	backslash/newline handling if the .POSIX target is set.
+	Addresses Savannah bug #16670 without backward-incompatibility.
+	* NEWS: Document behavior change.
+	* doc/make.texi (Splitting Lines): New section describing how to
+	use backslash/newline to split long lines.
+
+2012-02-26  Paul Smith  <psmith@gnu.org>
+
+	* implicit.c (pattern_search): Check the stem length to avoid
+	stack overflows in stem_str.  Fixes Savannah bug #35525.
+
+2012-02-03  Eli Zaretskii  <eliz@gnu.org>
+
+	* w32/subproc/sub_proc.c (proc_stdin_thread, proc_stdout_thread)
+	(proc_stderr_thread, process_pipe_io): Ifdef away unused
+	functions.
+
+	* w32/subproc/w32err.c (map_windows32_error_to_string) [_MSC_VER]:
+	Don't use TLS storage for szMessageBuffer.  Ifdef away special
+	code for handling Winsock error codes.  Make the function return a
+	`const char *'.  Suggested by Ozkan Sezer.  Fixes Savannah bug #34832.
+
+2012-01-29  Paul Smith  <psmith@gnu.org>
+
+	* gmk-default.scm (to-string-maybe): Variables map to empty strings.
+	In Guile 2.0, (define ...) results in a variable object so make
+	sure that maps to an empty string in make.
+
+	* variable.c (parse_variable_definition): New POSIX assignment ::=
+	Take a struct variable to return more information after parsing.
+	(assign_variable_definition): New parse_variable_definition() call.
+	* variable.h: New declaration of parse_variable_definition().
+	* read.c (do_define): New parse_variable_definition() call.
+	(parse_var_assignment): Ditto.
+	(get_next_mword): Parse ::= as a variable assignment.
+	* doc/make.texi (Flavors): Describe the new ::= syntax.
+	* NEWS: Mention the ::= operator.
+
+	* variable.h (struct variable): Rearrange elts to reduce struct size.
+
+	* function.c (func_file): Create a new function, $(file ...)
+	* doc/make.texi (File Function): Document the $(file ..) function.
+	* NEWS: Announce it.
+
+	* gmk-default.scm (to-string-maybe): Use a more portable way to
+	test for unprintable characters.
+	* configure.in [GUILE]: Guile 1.6 doesn't have pkg-config
+	* build_w32.bat: Ditto.
+
+2012-01-28  Eli Zaretskii  <eliz@gnu.org>
+
+	* config.h.W32.template: Update from config.h.in.
+
+	Support a Windows build with Guile.
+
+	* README.W32.template: Update with instructions for building with
+	Guile.
+
+	* build_w32.bat: Support building with Guile.
+
+	* make.h [HAVE_STDINT_H]: Include stdint.h.
+
+	* main.c (main, clean_jobserver): Move declarations of variables
+	not used in the WINDOWS32 build to the #else branch, to avoid
+	compiler warnings.
+
+	Fix failures on MS-Windows when Make's standard handles are invalid.
+	This can happen when Make is invoked from a GUI application.
+
+	* w32/subproc/sub_proc.c (process_init_fd): Don't dereference
+	pproc if it is a NULL pointer.
+	(process_begin, process_cleanup): Don't try to close pipe handles
+	whose value is INVALID_HANDLE_VALUE.
+	(process_easy): Initialize hIn, hOut, and hErr to
+	INVALID_HANDLE_VALUE.  If DuplicateHandle fails with
+	ERROR_INVALID_HANDLE, duplicate a handle for the null device
+	instead of STD_INPUT_HANDLE, STD_OUTPUT_HANDLE or
+	STD_ERROR_HANDLE.  Don't try to close pipe handles whose value is
+	INVALID_HANDLE_VALUE.
+
+	* function.c (windows32_openpipe): Initialize hIn and hErr to
+	INVALID_HANDLE_VALUE.  If DuplicateHandle fails with
+	ERROR_INVALID_HANDLE, duplicate a handle for the null device
+	instead of STD_INPUT_HANDLE or STD_ERROR_HANDLE.  Fix indentation.
+	Don't try to close handles whose value is INVALID_HANDLE_VALUE.
+
+2012-01-25  Eli Zaretskii  <eliz@gnu.org>
+
+	* function.c (define_new_function): Fix format strings in calls to
+	`fatal'.
+
+2012-01-17  Paul Smith  <psmith@gnu.org>
+
+	* guile.c (func_guile): Handle NULL returns from Guile.
+
+2012-01-16  Paul Smith  <psmith@gnu.org>
+
+	* make.h (PATH_SEPARATOR_CHAR): Allow resetting for crosscompiling
+	for Windows.  Patch by Chris Sutcliffe <ir0nh34d@gmail.com>
+	Fixes Savannah bug #34818.
+
+2012-01-15  Paul Smith  <psmith@gnu.org>
+
+	* variable.h: Prototype an interface for defining new make functions.
+	* function.c (define_new_function): Define it.
+	(func_guile): Remove the "guile" function.
+	(function_table_init): Ditto.
+	* guile.c (func_guile): Add the "guile" function here.
+	(setup_guile): Call define_new_function() to define it.
+	(guile_eval_string): Obsolete.
+
+	* all: Update copyright notices.
+
+2012-01-12  Paul Smith  <psmith@gnu.org>
+
+	Support GNU Guile as an embedded extension language for GNU make.
+
+	* NEWS: Note the new Guile capability.
+	* Makefile.am (EXTRA_DIST, make_SOURCES): Add new guile source files.
+	(AM_CFLAGS): Add Guile compiler flags.
+	(guile): Add a rule for converting default SCM into a C header.
+	* configure.in: Add support for --with-guile.
+	Also, convert the entire file to properly escaped autoconf m4, and
+	utilize newer features such as AS_IF() and AS_CASE().
+	* doc/make.texi (Guile Function): Document the GNU guile integration.
+	* make.h (guile_eval_string, guile_boot): Prototypes for Guile.
+	* main.c (main): Run guile_boot() to handle main().
+	(real_main): All the previous content of main() is here.
+	(real_main): Add "guile" to the .FEATURES variable.
+	* function.c (func_guile): Call Guile.
+	* guile.c: New file implementing GNU make integration with GNU Guile.
+	* gmk-default.scm: The integration of GNU make with Guile uses
+	Guile itself for much of the parsing and conversion of return
+	types, etc.  This implementation is embedded into GNU make.
+	* config.h-vms.template: Disable Guile support.
+	* config.h.W32.template: Ditto.
+	* configh.dos.template: Ditto.
+	* config.ami.template: Ditto.
+	* makefile.vms: Add new Guile files.
+	* Makefile.DOS.template: Ditto.
+	* Makefile.ami: Ditto.
+	* NMakefile.template: Ditto.
+	* SMakefile.template: Ditto.
+	* build_w32.bat: Ditto.
+	* dosbuild.bat: Ditto.
+	* make_msvc_net2001.vcproj: Ditto.
+
+2011-11-15  Paul Smith  <psmith@gnu.org>
+
+	* main.c (main): Use %ld when printing DWORD values.
+	* job.c (new_job): Ditto.
+	* w32/include/sub_proc.h: Use const.
+	* w32/subproc/sub_proc.c (open_jobserver_semaphore): Use const.
+	Fixes Savannah bug #34830.  Changes suggested by Ozkan Sezer.
+
+	* configure.in (MAKE_JOBSERVER): Enable jobserver on W32 systems.
+	* config.h.W32.template (MAKE_JOBSERVER): Ditto.
+
+2011-11-14  Paul Smith  <psmith@gnu.org>
+
+	* read.c (eval): parse_file_seq() might shorten the string due to
+	backslash removal.  Start parsing again at the colon.
+	Fixes Savannah bug #33399.
+
+2011-11-13  Paul Smith  <psmith@gnu.org>
+
+	* file.c (file_timestamp_cons): Match up data types to avoid warnings.
+	* filedef.h: Ditto.
+	* misc.c (concat): Ditto.
+	* read.c (eval): Assign value to avoid warnings.
+	* function.c (func_shell_base): Use fork() instead of vfork() to
+	avoid warnings.
+	* make.h (INTEGER_TYPE_SIGNED): Use <=0 to avoid warnings.
+	Fixes Savannah bug #34608.
+
+	* job.c (construct_command_argv): Remove _p.
+	(construct_command_argv_internal): Remove _ptr.
+	Fixes Savannah bug #32567.
+
+	* main.c (clean_jobserver): Don't write the free token to the pipe.
+	Change suggested by Tim Newsome <tnewsome@aristanetworks.com>
+
+	* acinclude.m4 (AC_STRUCT_ST_MTIM_NSEC): Add support for Darwin.
+	* filedef.h (FILE_TIMESTAMP_STAT_MODTIME): Ditto.
+	Patch provided by Troy Runkel <Troy.Runkel@mathworks.com>
+
+2011-10-11  Troy Runkel  <Troy.Runkel@mathworks.com>
+
+	* config.h.W32: Enable job server support for Windows.
+	* main.c [WINDOWS32]: Include sub_proc.h
+	(main): Create a named semaphore to implement the job server.
+	(clean_jobserver): Free the job server semaphore when make is finished.
+	* job.c [WINDOWS32]: Define WAIT_NOHANG
+	(reap_children): Support non-blocking wait for child processes.
+	(free_child): Release job server semaphore when child process finished.
+	(job_noop): Don't define function on Windows.
+	(set_child_handler_action_flags): Don't define function on Windows.
+	(new_job): Wait for job server semaphore or child process termination.
+	(exec_command): Pass new parameters to process_wait_for_any.
+	* w32/include/sub_proc.h [WINDOWS32]: New/updated EXTERN_DECL entries.
+	* w32/subproc/sub_proc.c [WINDOWS32]: Added job server implementation.
+	(open_jobserver_semaphore): Open existing job server semaphore by name.
+	(create_jobserver_semaphore): Create new job server named semaphore.
+	(free_jobserver_semaphore): Close existing job server semaphore.
+	(acquire_jobserver_semaphore): Decrement job server semaphore count.
+	(release_jobserver_semaphore): Increment job server semaphore count.
+	(has_jobserver_semaphore): Returns whether job server semaphore exists.
+	(get_jobserver_semaphore_name): Returns name of job server semaphore.
+	(wait_for_semaphore_or_child_process): Wait for either the job server
+	semaphore to become signalled or a child process to terminate.
+	(process_wait_for_any_private): Support for non-blocking wait for child.
+	(process_wait_for_any): Added support for non-blocking wait for child.
+	(process_file_io): Pass new parameters to process_wait_for_any_private.
+
+2011-09-18  Paul Smith  <psmith@gnu.org>
+
+	* main.c (main): If we're re-exec'ing and we're the master make,
+	then restore the job_slots value so it goes back into MAKEFLAGS
+	properly.  See Savannah bug #33873.
+
+	* remake.c (library_search): STD_DIRS is computed when other
+	static vars like buflen etc. are computed, so it must be static
+	as well.  See Savannah bug #32511.
+
+2011-09-16  Paul Smith  <psmith@gnu.org>
+
+	* maintMakefile (do-po-update): Apparently we have to avoid
+	certificate checks on the http://translationproject.org site now.
+
+2011-09-12  Paul Smith  <psmith@gnu.org>
+
+	* read.c (eval): Ensure exported variables are defined in the
+	global scope.  Fixes Savannah bug #32498.
+
+2011-09-11  Paul Smith  <psmith@gnu.org>
+
+	* Makefile.am (dist-hook): Remove w32/Makefile and .deps/ from the
+	dist file.  Fixes Savannah bug #31489.
+
+	* doc/make.texi (Complex Makefile): Add a hint about using
+	#!/usr/bin/make (for Savannah support request #106459)
+
+2011-09-02  Paul Smith  <psmith@gnu.org>
+
+	* remake.c (touch_file): If we have both -n and -t, -n takes
+	precedence.  Patch from Michael Witten <mfwitten@gmail.com>
+
+2011-08-29  Paul Smith  <psmith@gnu.org>
+
+	* expand.c (variable_expand_string): Always allocate a new buffer
+	for a string we're expanding.  The string we're working on can get
+	freed while we work on it (for example if it's the value of a
+	variable which modifies itself using an eval operation).
+	See Savannah patch #7534 for the original report by Lubomir Rintel.
+
+2011-06-12  Paul Smith  <psmith@gnu.org>
+
+	* read.c (parse_file_seq): Move the check for empty members out of
+	the loop so we can go to the next member properly.
+	Another fix for Savannah bug #30612.
+
+	* config.h-vms.template: Newer versions of VMS have strncasecmp()
+	Patch provided by: Hartmut Becker <becker.ismaning@freenet.de>
+
+2011-05-07  Paul Smith  <psmith@gnu.org>
+
+	* expand.c (variable_append): Add a LOCAL argument to track
+	whether this is the first invocation or not.  If it's not and
+	private_var is set, then skip this variable and try the next one.
+	Fixes Savannah bug #32872.
+
+	* read.c (parse_file_seq): Ensure existence checks use glob().
+
+2011-05-07  Eli Zaretskii  <eliz@gnu.org>
+
+	* job.c (construct_command_argv_internal): Don't assume shellflags
+	is always non-NULL.  Escape-protect characters special to the
+	shell when copying the value of SHELL into new_line.  Fixes
+	Savannah bug #23922.
+
+2011-05-02  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi (Special Variables): Add documentation for the new
+	words in .FEATURES.  Fixes Savannah bug #32058.
+	(Flavor Function): Rewrite the section on the flavor function.
+	Fixes Savannah bug #31582.
+
+	* function.c (func_sort): Use the same algorithm to count the
+	number of words we will get after the split, as we use to split.
+	Based on a patch from Matthias Hopf.  Fixes Savannah bug #33125.
+
+	* make.h: Make global variable stack_limit extern.
+	Fixes Savannah bug #32753.
+
+2011-05-01  Paul Smith  <psmith@gnu.org>
+
+	* read.c (parse_file_seq): Don't try to invoke glob() unless there
+	are potential wildcard characters in the filename.  Performance
+	enhancement suggested by Michael Meeks <michael.meeks@novell.com>
+
+2011-04-29 Boris Kolpackov  <boris@codesynthesis.com>
+
+	* read.c (eval_makefile): Delay caching of the file name until after
+	all the expansions and searches.
+
+2011-04-17  David A. Wheeler  <dwheeler@dwheeler.com>
+
+	* doc/make.texi (Reading Makefiles): Document "!=".
+	(Setting): Ditto.
+	(Features): Ditto.
+	* variable.h (enum variable_flavor): New type "f_shell".
+	* variable.c (shell_result): Send a string to the shell and store
+	the output.
+	(do_variable_definition): Handle f_shell variables: expand the
+	value, then send it to the shell and store the result.
+	(parse_variable_definition): Parse "!=" shell assignments.
+	* read.c (get_next_mword): Treat "!=" as a varassign word.
+	* function.c (fold_newlines): If trim_newlines is set remove all
+	trailing newlines; otherwise remove only the last newline.
+	(func_shell_base): Move the guts of the shell function here.
+	(func_shell): Call func_shell_base().
+
+2011-02-21  Paul Smith  <psmith@gnu.org>
+
+	* strcache.c (various): Increase performance based on comments
+	from Ralf Wildenhues <Ralf.Wildenhues@gmx.de>.  Stop looking for
+	a buffer when we find the first one that fits, not the best fit.
+	If there is not enough free space in a buffer move it to a
+	separate list so we don't have to walk it again.
+	* make.h (NDEBUG): Turn off asserts unless maintainer mode is set.
+	(strcache_add_len, strcache_setbufsize): Use unsigned length/size.
+	* maintMakefile (AM_CPPFLAGS): Enable MAKE_MAINTAINER_MODE.
+
+	* remake.c (complain): Move translation lookups closer to use.
+
+2011-02-13  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi: Clean up references to "static" variables and
+	semicolon errors.  Patch from Michael Witten <mfwitten@gmail.com>.
+
+2010-12-27  Paul Smith  <psmith@gnu.org>
+
+	* make.1: Update the header/footer info in the man page.
+
+2010-11-28  Paul Smith  <psmith@gnu.org>
+
+	* read.c (record_target_var): Don't reset v if it's the same as
+	the global version.  Fixes Savannah bug #31743.
+
+2010-11-06  Paul Smith  <psmith@gnu.org>
+
+	* variable.c (print_auto_variable): Print auto variables; ignore others.
+	(print_noauto_variable): Print non-auto variables; ignore others.
+	(print_variable_set): Allow the caller to select which type to print.
+	(print_target_variables): Show all the non-auto variables for a target.
+
+	* default.c (install_default_suffix_rules): Initialize recipe_prefix.
+	* rule.c (install_pattern_rule): Ditto.
+	* read.c (record_files): Pass in the current recipe prefix.  Remember
+	it in the struct command for these targets.
+	(eval): Remember the value of RECIPEPREFIX when we start parsing.
+	Do not remove recipe prefixes from the recipe here: we'll do it later.
+	* job.c (start_job_command): Remove recipe prefix characters early,
+	before we print the output or chop it up.
+	* file.c (print_file): If recipe_prefix is not standard, reset it
+	in -p output.  Assign target variables in -p output as well.
+
+	* commands.c (chop_commands): Max command lines is USHRT_MAX.
+	Set any_recurse as a bitfield.
+	* make.h (USHRT_MAX): Define if not set.
+
+2010-10-27  Paul Smith  <psmith@gnu.org>
+
+	* commands.h (struct commands): Rearrange to make better use of
+	memory.  Add new recipe_prefix value.
+
+2010-10-26  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi (Setting): Document the treatment of
+	backslash-newline in variable values.
+	* misc.c (collapse_continuations): Do not collapse multiple
+	backslash-newlines into a single space.  Fixes Savannah bug #16670.
+
+2010-08-29  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi (Implicit Variables): Document LDLIBS and LOADLIBES.
+	Fixes Savannah bug #30807.
+	(Instead of Execution): Mention that included makefiles are still
+	rebuilt even with -n.  Fixes Savannah bug #30762.
+
+	* configure.in: Bump to 3.82.90.
+
+	* make.h: Add trace_flag variable.
+	* main.c (switches): Add --trace option.
+	(trace_flag): Declare variable.
+	* job.c (start_job_command): Show recipe if trace_flag is set.
+	(new_job): Show trace messages if trace_flag is set.
+	* doc/make.texi (Options Summary): Document the new --trace option.
+	* make.1: Add --trace documentation.
+	* NEWS: Mention --trace.
+
+	* job.c	(child_error): Show recipe filename/linenumber on error.
+	Also show "(ignored)" when appropriate even for signals/coredumps.
+	* NEWS: Mention file/linenumber change.
+
+	* main.c (main): Print version info when DB_BASIC is set.
+
+	* job.c (construct_command_argv_internal): If shellflags is not
+	set, choose an appropriate default value.  Fixes Savannah bug #30748.
+
+2010-08-27  Eli Zaretskii  <eliz@gnu.org>
+
+	* variable.c (define_automatic_variables) [__MSDOS__ || WINDOWS32]:
+	Remove trailing backslashes in $(@D), $(<D), etc., for consistency
+	with forward slashes.  Fixes Savannah bug #30795.
+
+2010-08-13  Paul Smith  <psmith@gnu.org>
+
+	* NEWS: Accidentally forgot to back out the sorted wildcard
+	enhancement in 3.82, so update NEWS.
+	Also add NEWS about the error check for explicit and pattern
+	targets in the same rule, added to 3.82.
+
+	* main.c (main): Add "oneshell" to $(.FEATURES) (forgot to add
+	this in 3.82!)
+
+	* read.c (parse_file_seq): Fix various errors parsing archives
+	with multiple objects in the parenthesis, as well as wildcards.
+	Fixes Savannah bug #30612.
+
+2010-08-10  Paul Smith  <psmith@gnu.org>
+
+	* main.c (main): Expand MAKEFLAGS before adding it to the
+	environment when re-exec'ing.  Fixes Savannah bug #30723.
+
+2010-08-07  Eli Zaretskii  <eliz@gnu.org>
+
+	* w32/subproc/build.bat: Make all 3 cl.exe compile command lines
+	use the same /I switches.  Fixes Savannah bug #30662.
+
+	* function.c (func_shell) [WINDOWS32]: Reset just_print_flag
+	around the call to construct_command_argv, so that a temporary
+	batch file _is_ created when needed for $(shell).
+	Fixes Savannah bug #16362.
+
+2010-08-07 Juan Manuel Guerrero  <juan.guerrero@gmx.de>
+
+	* configh.dos.template (HAVE_STRNCASECMP): Define.
+
 2010-07-28  Paul Smith  <psmith@gnu.org>
 
 	Version 3.82 released.
@@ -3994,15 +5610,14 @@
 
 
 
-See ChangeLog.2, available in the CVS repository at:
+See ChangeLog.2, available in the Git repository at:
 
-	http://savannah.gnu.org/cvs/?group=make
+	http://git.savannah.gnu.org/cgit/make.git/tree/
 
 for earlier changes.
 
 
-Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009 Free
-Software Foundation, Inc.
+Copyright (C) 2000-2013 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the

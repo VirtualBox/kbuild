@@ -1,7 +1,5 @@
 /* Definitions of dependency data structures for GNU Make.
-Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-2010 Free Software Foundation, Inc.
+Copyright (C) 1988-2016 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -16,72 +14,101 @@ A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/* Flag bits for the second argument to `read_makefile'.
-   These flags are saved in the `changed' field of each
-   `struct dep' in the chain returned by `read_all_makefiles'.  */
-
-#define RM_NO_DEFAULT_GOAL	(1 << 0) /* Do not set default goal.  */
-#define RM_INCLUDED		(1 << 1) /* Search makefile search path.  */
-#define RM_DONTCARE		(1 << 2) /* No error if it doesn't exist.  */
-#define RM_NO_TILDE		(1 << 3) /* Don't expand ~ in file name.  */
-#define RM_NOFLAG		0
-
-/* Structure representing one dependency of a file.
-   Each struct file's `deps' points to a chain of these,
-   chained through the `next'. `stem' is the stem for this
-   dep line of static pattern rule or NULL.
-
-   Note that the first two words of this match a struct nameseq.  */
-
-struct dep
-  {
-    struct dep *next;
-    const char *name;
-    const char *stem;
-    struct file *file;
-    unsigned int changed : 8;
-    unsigned int ignore_mtime : 1;
-    unsigned int staticpattern : 1;
-    unsigned int need_2nd_expansion : 1;
-    unsigned int dontcare : 1;
-
-#ifdef CONFIG_WITH_INCLUDEDEP
-    unsigned int includedep : 1;
-#endif
-  };
-
 
 /* Structure used in chains of names, for parsing and globbing.  */
 
+#define NAMESEQ(_t)     \
+    _t *next;           \
+    const char *name
+
 struct nameseq
   {
-    struct nameseq *next;
-    const char *name;
+    NAMESEQ (struct nameseq);
   };
 
+/* Flag bits for the second argument to 'read_makefile'.
+   These flags are saved in the 'flags' field of each
+   'struct goaldep' in the chain returned by 'read_all_makefiles'.  */
 
-#define PARSEFS_NONE    (0x0000)
-#define PARSEFS_NOSTRIP (0x0001)
-#define PARSEFS_NOAR    (0x0002)
-#define PARSEFS_NOGLOB  (0x0004)
-#define PARSEFS_EXISTS  (0x0008)
-#define PARSEFS_NOCACHE (0x0010)
+#define RM_NO_DEFAULT_GOAL      (1 << 0) /* Do not set default goal.  */
+#define RM_INCLUDED             (1 << 1) /* Search makefile search path.  */
+#define RM_DONTCARE             (1 << 2) /* No error if it doesn't exist.  */
+#define RM_NO_TILDE             (1 << 3) /* Don't expand ~ in file name.  */
+#define RM_NOFLAG               0
+
+/* Structure representing one dependency of a file.
+   Each struct file's 'deps' points to a chain of these, through 'next'.
+   'stem' is the stem for this dep line of static pattern rule or NULL.  */
+
+#ifndef CONFIG_WITH_INCLUDEDEP
+#define DEP(_t)                                 \
+    NAMESEQ (_t);                               \
+    struct file *file;                          \
+    const char *stem;                           \
+    unsigned short flags : 8;                   \
+    unsigned short changed : 1;                 \
+    unsigned short ignore_mtime : 1;            \
+    unsigned short staticpattern : 1;           \
+    unsigned short need_2nd_expansion : 1
+#else
+# define DEP(_t)                                \
+    NAMESEQ (_t);                               \
+    struct file *file;                          \
+    const char *stem;                           \
+    unsigned short flags : 8;                   \
+    unsigned short changed : 1;                 \
+    unsigned short ignore_mtime : 1;            \
+    unsigned short staticpattern : 1;           \
+    unsigned short need_2nd_expansion : 1;      \
+    unsigned short includedep : 1
+#endif
+
+struct dep
+  {
+    DEP (struct dep);
+  };
+
+/* Structure representing one goal.
+   The goals to be built constitute a chain of these, chained through 'next'.
+   'stem' is not used, but it's simpler to include and ignore it.  */
+
+struct goaldep
+  {
+    DEP (struct goaldep);
+    unsigned short error;
+    floc floc;
+  };
+
+/* Options for parsing lists of filenames.  */
+
+#define PARSEFS_NONE    0x0000
+#define PARSEFS_NOSTRIP 0x0001
+#define PARSEFS_NOAR    0x0002
+#define PARSEFS_NOGLOB  0x0004
+#define PARSEFS_EXISTS  0x0008
+#define PARSEFS_NOCACHE 0x0010
 
 #ifndef CONFIG_WITH_ALLOC_CACHES
 #define PARSE_FILE_SEQ(_s,_t,_c,_p,_f) \
             (_t *)parse_file_seq ((_s),sizeof (_t),(_c),(_p),(_f))
+#define PARSE_SIMPLE_SEQ(_s,_t) \
+            (_t *)parse_file_seq ((_s),sizeof (_t),MAP_NUL,NULL,PARSEFS_NONE)
 #else
 # define PARSE_FILE_SEQ(_s,_t,_c,_p,_f) \
             (_t *)parse_file_seq ((_s),sizeof (_t),(_c),(_p),(_f), \
                                   &PARSE_FILE_SEQ_IGNORE_ ## _t ## _cache)
+# define PARSE_SIMPLE_SEQ(_s,_t) \
+            (_t *)parse_file_seq ((_s),sizeof (_t),MAP_NUL,NULL,PARSEFS_NONE, \
+                                  &PARSE_FILE_SEQ_IGNORE_ ## _t ## _cache)
 # define PARSE_FILE_SEQ_IGNORE_struct
 #endif
+
 
 #ifdef VMS
 void *parse_file_seq ();
 #else
 void *parse_file_seq (char **stringp, unsigned int size,
-                      int stopchar, const char *prefix, int flags
+                      int stopmap, const char *prefix, int flags
                       IF_WITH_ALLOC_CACHES_PARAM(struct alloccache *cache));
 #endif
 
@@ -91,30 +118,67 @@ char *tilde_expand (const char *name);
 struct nameseq *ar_glob (const char *arname, const char *member_pattern, unsigned int size);
 #endif
 
-#define dep_name(d)     ((d)->name == 0 ? (d)->file->name : (d)->name)
-
+#define dep_name(d)        ((d)->name ? (d)->name : (d)->file->name)
 
 #ifndef CONFIG_WITH_ALLOC_CACHES
-#define alloc_dep()     (xcalloc (sizeof (struct dep)))
-#define free_ns(_n)     free (_n)
-#define free_dep(_d)    free_ns (_d)
+
+#define alloc_seq_elt(_t)   xcalloc (sizeof (_t))
+void free_ns_chain (struct nameseq *n);
+
+#if defined(MAKE_MAINTAINER_MODE) && defined(__GNUC__)
+/* Use inline to get real type-checking.  */
+#define SI static inline
+SI struct nameseq *alloc_ns()      { return alloc_seq_elt (struct nameseq); }
+SI struct dep *alloc_dep()         { return alloc_seq_elt (struct dep); }
+SI struct goaldep *alloc_goaldep() { return alloc_seq_elt (struct goaldep); }
+
+SI void free_ns(struct nameseq *n)      { free (n); }
+SI void free_dep(struct dep *d)         { free_ns ((struct nameseq *)d); }
+SI void free_goaldep(struct goaldep *g) { free_dep ((struct dep *)g); }
+
+SI void free_dep_chain(struct dep *d)      { free_ns_chain((struct nameseq *)d); }
+SI void free_goal_chain(struct goaldep *g) { free_dep_chain((struct dep *)g); }
 #else
-#define alloc_dep()     alloccache_calloc (&dep_cache)
-#define free_ns(_n)     alloccache_free (&nameseq_cache, _n)
-#define free_dep(_d)    alloccache_free (&dep_cache, _d)
+# define alloc_ns()          alloc_seq_elt (struct nameseq)
+# define alloc_dep()         alloc_seq_elt (struct dep)
+# define alloc_goaldep()     alloc_seq_elt (struct goaldep)
+
+# define free_ns(_n)         free (_n)
+# define free_dep(_d)        free_ns (_d)
+# define free_goaldep(_g)    free_dep (_g)
+
+# define free_dep_chain(_d)  free_ns_chain ((struct nameseq *)(_d))
+# define free_goal_chain(_g) free_ns_chain ((struct nameseq *)(_g))
 #endif
 
-struct dep *copy_dep_chain (const struct dep *d);
-void free_dep_chain (struct dep *d);
+#else /* CONFIG_WITH_ALLOC_CACHES */
+
+# include <k/kDefs.h>
+
+K_INLINE struct nameseq *alloc_ns (void)        { return (struct nameseq *)alloccache_calloc (&nameseq_cache); }
+K_INLINE void free_ns (struct nameseq *n)       { alloccache_free (&nameseq_cache, n); }
 void free_ns_chain (struct nameseq *n);
-struct dep *read_all_makefiles (const char **makefiles);
-void eval_buffer (char *buffer IF_WITH_VALUE_LENGTH(COMMA char *eos));
-int update_goal_chain (struct dep *goals);
+
+K_INLINE struct dep *alloc_dep (void)           { return (struct dep *)alloccache_calloc (&dep_cache); }
+K_INLINE void free_dep (struct dep *d)          { alloccache_free (&dep_cache, d); }
+void free_dep_chain (struct dep *d);
+
+K_INLINE struct goaldep *alloc_goaldep (void)   { return (struct goaldep *)alloccache_calloc (&goaldep_cache); }
+K_INLINE void free_goaldep (struct goaldep *g)  { alloccache_free (&goaldep_cache, g); }
+void free_goal_chain (struct goaldep *g);
+
+#endif  /* CONFIG_WITH_ALLOC_CACHES */
+
+struct dep *copy_dep_chain (const struct dep *d);
+
+struct goaldep *read_all_makefiles (const char **makefiles);
+void eval_buffer (char *buffer, const floc *floc IF_WITH_VALUE_LENGTH(COMMA char *eos));
+enum update_status update_goal_chain (struct goaldep *goals);
 
 #ifdef CONFIG_WITH_INCLUDEDEP
 /* incdep.c */
 enum incdep_op { incdep_read_it, incdep_queue, incdep_flush };
-void eval_include_dep (const char *name, struct floc *f, enum incdep_op op);
+void eval_include_dep (const char *name, floc *f, enum incdep_op op);
 void incdep_flush_and_term (void);
 #endif
 
