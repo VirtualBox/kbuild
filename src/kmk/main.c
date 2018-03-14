@@ -3228,7 +3228,7 @@ main (int argc, char **argv, char **envp)
       O (error, NILF,
          _("warning:  Clock skew detected.  Your build may be incomplete."));
 
-    MAKE_STATS_2(if (uStartTick) printf("main ticks elapsed: %ull\n", (unsigned long long)(CURRENT_CLOCK_TICK() - uStartTick)) );
+    MAKE_STATS_2(if (uStartTick) printf("main ticks elapsed: %llu\n", (unsigned long long)(CURRENT_CLOCK_TICK() - uStartTick)) );
     /* Exit.  */
     die (makefile_status);
   }

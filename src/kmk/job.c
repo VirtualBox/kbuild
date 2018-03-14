@@ -1079,7 +1079,7 @@ free_child (struct child *child)
 
   if (!jobserver_tokens)
     ONS (fatal, NILF, "INTERNAL: Freeing child %p (%s) but no tokens left!\n",
-         child, child->file->name);
+         (void *)child, child->file->name);
 
   /* If we're using the jobserver and this child is not the only outstanding
      job, put a token back into the pipe for it.  */
@@ -1167,10 +1167,6 @@ start_job_command (struct child *child)
   char *argv;
 #else
   char **argv;
-# if !defined(__MSDOS__) && !defined(_AMIGA) && !defined(WINDOWS32) && !defined(VMS)
-  char ** volatile volatile_argv;
-  int volatile volatile_flags;
-# endif
 #endif
 
   /* If we have a completely empty commandset, stop now.  */
@@ -2789,12 +2785,12 @@ construct_command_argv_internal (char *line, char **restp, const char *shell,
      to that of sh_chars immediately above.  */
   static const char *sh_chars_sh =  "#;\"*?[]&|<>(){}$`^~!";
 # endif  /* HAVE_DOS_PATHS */
-  char*  sh_chars = sh_chars_sh;                                                /* kmk: +_sh */
-  char** sh_cmds = sh_cmds_sh;                                                  /* kmk: +_sh */
+  char const *  sh_chars = sh_chars_sh;                                                /* kmk: +_sh +const */
+  char const * const * sh_cmds = sh_cmds_sh;                                           /* kmk: +_sh +const*2 */
 #endif
 #ifdef KMK
-  static char sh_chars_kash[] = "#;*?[]&|<>(){}$`^~!";                          /* note: no \" - good idea? */
-  static char *sh_cmds_kash[] = {
+  static const char sh_chars_kash[] = "#;*?[]&|<>(){}$`^~!";                          /* note: no \" - good idea? */
+  static const char * const sh_cmds_kash[] = {
       ".", ":", "break", "case", "cd", "continue", "echo", "eval", "exec", "exit", 
       "export", "for", "if", "login", "logout", "read", "readonly", "set", 
       "shift", "switch", "test", "times", "trap", "umask", "wait", "while", 0 /* +echo, -ulimit, -unset */

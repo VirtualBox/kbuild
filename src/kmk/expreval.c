@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 3141 2018-03-14 21:58:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -32,8 +32,8 @@
 
 #include <glob.h>
 
-#include "dep.h"
 #include "filedef.h"
+#include "dep.h"
 #include "job.h"
 #include "commands.h"
 #include "variable.h"

@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 3141 2018-03-14 21:58:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -550,11 +550,11 @@ incdep_read_file (struct incdep *cur, floc *f)
 
       /* bail out */
 
-      error (f, "%s: read: %s", cur->name, strerror (errno));
+      OSS (error, f, "%s: read: %s", cur->name, strerror (errno));
       incdep_xfree (cur, cur->file_base);
     }
   else
-    error (f, "%s: fstat: %s", cur->name, strerror (errno));
+    OSS (error, f, "%s: fstat: %s", cur->name, strerror (errno));
 
   close (fd);
 #endif /* !INCDEP_USE_KFSCACHE */

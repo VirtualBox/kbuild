@@ -1,4 +1,4 @@
-/* $Id: append.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 3141 2018-03-14 21:58:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - append text to file.
  */
@@ -82,7 +82,9 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     int fDefine = 0;
     int fVariables = 0;
     int fCommands = 0;
+#ifndef kmk_builtin_append
     int fLookForInserts = 0;
+#endif
 
     g_progname = argv[0];
 
