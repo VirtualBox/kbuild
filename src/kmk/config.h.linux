@@ -60,9 +60,6 @@
    */
 #define HAVE_ALLOCA_H 1
 
-/* Define to 1 if your compiler conforms to the ANSI C standard. */
-#define HAVE_ANSI_COMPILER 1
-
 /* Define to 1 if you have the `atexit' function. */
 #define HAVE_ATEXIT 1
 
@@ -74,7 +71,19 @@
 
 /* Define to 1 if you have the declaration of `bsd_signal', and to 0 if you
    don't. */
-#define HAVE_DECL_BSD_SIGNAL 1
+/* #define HAVE_DECL_BSD_SIGNAL 1 */
+
+/* Define to 1 if you have the declaration of `dlerror', and to 0 if you
+   don't. */
+#define HAVE_DECL_DLERROR 1
+
+/* Define to 1 if you have the declaration of `dlopen', and to 0 if you don't.
+   */
+#define HAVE_DECL_DLOPEN 1
+
+/* Define to 1 if you have the declaration of `dlsym', and to 0 if you don't.
+   */
+#define HAVE_DECL_DLSYM 1
 
 /* Define to 1 if you have the declaration of `sys_siglist', and to 0 if you
    don't. */
@@ -92,11 +101,11 @@
    */
 #define HAVE_DIRENT_H 1
 
-/* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
-/* #undef HAVE_DOPRNT */
-
 /* Use platform specific coding */
 /* #undef HAVE_DOS_PATHS */
+
+/* Define to 1 if you have the `dup' function. */
+#define HAVE_DUP 1
 
 /* Define to 1 if you have the `dup2' function. */
 #define HAVE_DUP2 1
@@ -134,8 +143,14 @@
 /* Define to 1 if you have a standard gettimeofday function */
 #define HAVE_GETTIMEOFDAY 1
 
+/* Embed GNU Guile support */
+/* #undef HAVE_GUILE */
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
+
+/* Define to 1 if you have the `isatty' function. */
+#define HAVE_ISATTY 1
 
 /* Define to 1 if you have the `dgc' library (-ldgc). */
 /* #undef HAVE_LIBDGC */
@@ -172,6 +187,9 @@
 
 /* Define to 1 if you have the `pipe' function. */
 #define HAVE_PIPE 1
+
+/* Define to 1 if you have the `pselect' function. */
+#define HAVE_PSELECT 1
 
 /* Define to 1 if you have the `pstat_getdynamic' function. */
 /* #undef HAVE_PSTAT_GETDYNAMIC */
@@ -217,9 +235,6 @@
 
 /* Define to 1 if you have the `socket' function. */
 /* #undef HAVE_SOCKET */
-
-/* Define to 1 if you have the <stdarg.h> header file. */
-#define HAVE_STDARG_H 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
@@ -284,6 +299,9 @@
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #define HAVE_SYS_RESOURCE_H 1
 
+/* Define to 1 if you have the <sys/select.h> header file. */
+#define HAVE_SYS_SELECT_H 1
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
 
@@ -299,23 +317,26 @@
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #define HAVE_SYS_WAIT_H 1
 
-/* Define to 1 if you have the \`union wait' type in <sys/wait.h>. */
+/* Define to 1 if you have the `ttyname' function. */
+#define HAVE_TTYNAME 1
+
+/* Define to 1 if the system has the type `uintmax_t'. */
+#define HAVE_UINTMAX_T 1
+
+/* Define to 1 if you have the 'union wait' type in <sys/wait.h>. */
 /* #undef HAVE_UNION_WAIT */
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
-/* Define to 1 if you have the <varargs.h> header file. */
-/* #undef HAVE_VARARGS_H */
+/* Define to 1 if the system has the type `unsigned long long int'. */
+#define HAVE_UNSIGNED_LONG_LONG_INT 1
 
 /* Define to 1 if you have the `vfork' function. */
 #define HAVE_VFORK 1
 
 /* Define to 1 if you have the <vfork.h> header file. */
 /* #undef HAVE_VFORK_H */
-
-/* Define to 1 if you have the `vprintf' function. */
-#define HAVE_VPRINTF 1
 
 /* Define to 1 if you have the `wait3' function. */
 #define HAVE_WAIT3 1
@@ -335,6 +356,9 @@
 /* Define to 1 to enable job server support in GNU make. */
 #define MAKE_JOBSERVER 1
 
+/* Define to 1 to enable 'load' support in GNU make. */
+/* #undef MAKE_LOAD */
+
 /* Define to 1 to enable symbolic link timestamp checking. */
 #define MAKE_SYMLINKS 1
 
@@ -344,9 +368,6 @@
 
 /* Define to 1 if struct nlist.n_name is a pointer rather than an array. */
 /* #undef NLIST_STRUCT */
-
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-/* #undef NO_MINUS_C_MINUS_O */
 
 /* Name of package */
 #define PACKAGE "make"
@@ -358,7 +379,7 @@
 #define PACKAGE_NAME "GNU make"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "GNU make 3.82"
+#define PACKAGE_STRING "GNU make 4.2.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "make"
@@ -367,13 +388,10 @@
 #define PACKAGE_URL "http://kbuild.org/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.82"
+#define PACKAGE_VERSION "4.2.1"
 
 /* Define to the character that separates directories in PATH. */
 #define PATH_SEPARATOR_CHAR ':'
-
-/* Define to 1 if the C compiler supports function prototypes. */
-#define PROTOTYPES 1
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -383,11 +401,6 @@
 
 /* Define to 1 if the SCCS 'get' command understands the '-G<file>' option. */
 /* #undef SCCS_GET_MINUS_G */
-
-/* Define to 1 if the `setvbuf' function takes the buffering type as its
-   second argument and the buffer pointer as the third, as on System V before
-   release 3. */
-/* #undef SETVBUF_REVERSED */
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
@@ -425,7 +438,7 @@
 
 
 /* Version number of package */
-#define VERSION "3.82"
+#define VERSION "4.2.1"
 
 /* Use platform specific coding */
 /* #undef WINDOWS32 */
@@ -433,11 +446,9 @@
 /* Define if using the dmalloc debugging malloc package */
 /* #undef WITH_DMALLOC */
 
-/* Define to 1 if on AIX 3.
-   System headers sometimes define this.
-   We just want to avoid a redefinition error message.  */
-#ifndef _ALL_SOURCE
-/* # undef _ALL_SOURCE */
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
 #endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
@@ -456,14 +467,14 @@
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 /* #undef _POSIX_SOURCE */
 
-/* Define like PROTOTYPES; this can be used by system headers. */
-#define __PROTOTYPES 1
-
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
 
 /* Define to `int' if <sys/types.h> doesn't define. */
 /* #undef gid_t */
+
+/* Define to `long int' if <sys/types.h> does not define. */
+/* #undef off_t */
 
 /* Define to `int' if <sys/types.h> does not define. */
 /* #undef pid_t */
@@ -471,10 +482,14 @@
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */
 
+/* Define to `int' if <sys/types.h> does not define. */
+/* #undef ssize_t */
+
 /* Define to `int' if <sys/types.h> doesn't define. */
 /* #undef uid_t */
 
-/* Define uintmax_t if not defined in <stdint.h> or <inttypes.h>. */
+/* Define to the widest unsigned integer type if <stdint.h> and <inttypes.h>
+   do not define. */
 /* #undef uintmax_t */
 
 /* Define as `fork' if `vfork' does not work. */
