@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 3028 2017-04-13 13:31:34Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 3143 2018-03-14 23:00:29Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -151,7 +151,7 @@ $(OUTDIR)/kmk/ts-autoreconf:
 $(OUTDIR)/kmk/ts-configured: \
 		$(OUTDIR)/kmk/ts-autoreconf \
 		$(OUTDIR)/kmk/fts.h
-	cd $(OUTDIR)/kmk && $(SRCDIR)/src/kmk/configure
+	cd $(OUTDIR)/kmk && $(SRCDIR)/src/kmk/configure --disable-load --without-guile
 	echo done > $@
 
 ifeq ($(KBUILD_HOST),solaris)

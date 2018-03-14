@@ -29,7 +29,8 @@ AC_CONFIG_HEADERS([config.h])
 # We have to enable "foreign" because ChangeLog is auto-generated
 # We cannot enable -Werror because gettext 0.18.1 has invalid content
 # When we update gettext to 0.18.3 or better we can add it again.
-AM_INIT_AUTOMAKE([1.15 foreign -Werror -Wall])
+# bird: Added subdir-objects
+AM_INIT_AUTOMAKE([1.15 foreign -Werror -Wall subdir-objects])
 
 # Checks for programs.
 AC_USE_SYSTEM_EXTENSIONS
@@ -51,8 +52,9 @@ AC_ISC_POSIX
 AC_MINIX
 
 # Enable gettext, in "external" mode.
-AM_GNU_GETTEXT_VERSION([0.19.4])
-AM_GNU_GETTEXT([external])
+# bird: causes trouble when it doesn't find 'po' in SUBDIRS, so skip it.
+#AM_GNU_GETTEXT_VERSION([0.19.4])
+#AM_GNU_GETTEXT([external])
 
 # This test must come as early as possible after the compiler configuration
 # tests, because the choice of the file model can (in principle) affect
