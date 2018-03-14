@@ -2140,9 +2140,9 @@ func_eval_optimize_variable (char *o, char **argv, const char *funcname)
     {
       struct variable *v = lookup_variable (argv[i], strlen (argv[i]));
 # ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
-      if (v && !v->origin != o_automatic && !v->rdonly_val)
+      if (v && v->origin != o_automatic && !v->rdonly_val)
 # else
-      if (v && !v->origin != o_automatic)
+      if (v && v->origin != o_automatic)
 # endif
         {
           char *eos, *src;

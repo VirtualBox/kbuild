@@ -1,4 +1,4 @@
-/* $Id: alloccache.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
+/* $Id: alloccache.c 3141 2018-03-14 21:58:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * alloccache - Fixed sized allocation cache.
  *
@@ -38,6 +38,7 @@
 *   Header Files                                                               *
 *******************************************************************************/
 #include "makeint.h"
+#include "filedef.h"
 #include "dep.h"
 #include "debug.h"
 #include <assert.h>
