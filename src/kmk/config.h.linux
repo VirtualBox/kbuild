@@ -376,7 +376,11 @@
 #define STDC_HEADERS 1
 
 /* Define if struct stat contains a nanoseconds field */
-#define ST_MTIM_NSEC tv_nsec
+#ifdef __USE_XOPEN2K8
+# define ST_MTIM_NSEC st_mtim.tv_nsec
+#else
+# define ST_MTIM_NSEC st_mtimensec
+#endif
 
 /* Define to 1 on System V Release 4. */
 /* #undef SVR4 */

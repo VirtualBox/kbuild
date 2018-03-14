@@ -1,4 +1,4 @@
-/* $Id: kbuild.h 2717 2013-12-30 00:58:43Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.h 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -57,16 +57,16 @@ int                 is_kbuild_object_variable_accessor(const char *pchName, size
 struct variable    *try_define_kbuild_object_variable_via_accessor(const char *pszName, size_t cchName,
                                                                    const char *pszValue, size_t cchValue, int fDuplicateValue,
                                                                    enum variable_origin enmOrigin, int fRecursive,
-                                                                   struct floc const *pFileLoc);
+                                                                   floc const *pFileLoc);
 struct variable    *define_kbuild_object_variable_in_top_obj(const char *pszName, size_t cchName,
                                                              const char *pszValue, size_t cchValue, int fDuplicateValue,
                                                              enum variable_origin enmOrigin, int fRecursive,
-                                                             struct floc const *pFileLoc);
+                                                             floc const *pFileLoc);
 struct variable    *kbuild_object_variable_pre_append(const char *pchName, size_t cchName,
                                                       const char *pchValue, size_t cchValue, int fSimpleValue,
                                                       enum variable_origin enmOrigin, int fAppend,
-                                                      const struct floc *pFileLoc);
-int                 eval_kbuild_read_hook(struct kbuild_eval_data **kdata, const struct floc *flocp,
+                                                      const floc *pFileLoc);
+int                 eval_kbuild_read_hook(struct kbuild_eval_data **kdata, const floc *flocp,
                                           const char *word, size_t wlen, const char *line, const char *eos, int ignoring);
 void                print_kbuild_data_base(void);
 void                print_kbuild_define_stats(void);

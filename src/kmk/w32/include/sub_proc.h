@@ -1,6 +1,5 @@
 /* Definitions for Windows process invocation.
-Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+Copyright (C) 1996-2016 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -21,11 +20,11 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 /*
  * Component Name:
  *
- * $Date: 2010/07/13 01:20:43 $
+ * $Date$
  *
- * $Source: /sources/make/make/w32/include/sub_proc.h,v $
+ * $Source$
  *
- * $Id: sub_proc.h,v 1.12 2010/07/13 01:20:43 psmith Exp $
+ * $Id$
  */
 
 #define EXTERN_DECL(entry, args) extern entry args
@@ -33,20 +32,23 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 EXTERN_DECL(HANDLE process_init, (VOID_DECL));
 EXTERN_DECL(HANDLE process_init_fd, (HANDLE stdinh, HANDLE stdouth,
-	HANDLE stderrh));
+                                     HANDLE stderrh));
 EXTERN_DECL(long process_begin, (HANDLE proc, char **argv, char **envp,
-	char *exec_path, char *as_user));
+                                 char *exec_path, char *as_user));
 EXTERN_DECL(long process_pipe_io, (HANDLE proc, char *stdin_data,
-	int stdin_data_len));
+                                   int stdin_data_len));
 #ifndef KMK /* unused */
 EXTERN_DECL(long process_file_io, (HANDLE proc));
 #endif
 EXTERN_DECL(void process_cleanup, (HANDLE proc));
-EXTERN_DECL(HANDLE process_wait_for_any, (VOID_DECL));
+EXTERN_DECL(HANDLE process_wait_for_any, (int block, DWORD* pdwWaitStatus));
 EXTERN_DECL(void process_register, (HANDLE proc));
-EXTERN_DECL(HANDLE process_easy, (char** argv, char** env));
+EXTERN_DECL(HANDLE process_easy, (char** argv, char** env,
+                                  int outfd, int errfd));
 EXTERN_DECL(BOOL process_kill, (HANDLE proc, int signal));
 EXTERN_DECL(int process_used_slots, (VOID_DECL));
+EXTERN_DECL(DWORD process_set_handles, (HANDLE *handles));
+
 #ifdef KMK
 EXTERN_DECL(int process_kmk_register_submit, (HANDLE hEvent, intptr_t clue, pid_t *pPid));
 EXTERN_DECL(int process_kmk_register_redirect, (HANDLE hProcess, pid_t *pPid));
@@ -62,5 +64,6 @@ EXTERN_DECL(char * process_errbuf, (HANDLE proc));
 EXTERN_DECL(int process_outcnt, (HANDLE proc));
 EXTERN_DECL(int process_errcnt, (HANDLE proc));
 EXTERN_DECL(void process_pipes, (HANDLE proc, int pipes[3]));
+EXTERN_DECL(void process_noinherit, (int fildes));
 
 #endif

@@ -1,7 +1,5 @@
 /* Implicit rule searching for GNU Make.
-Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-2010 Free Software Foundation, Inc.
+Copyright (C) 1988-2016 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -16,7 +14,7 @@ A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "make.h"
+#include "makeint.h"
 #include "filedef.h"
 #include "rule.h"
 #include "dep.h"
@@ -37,7 +35,7 @@ static int pattern_search (struct file *file, int archive,
 int
 try_implicit_rule (struct file *file, unsigned int depth)
 {
-  DBF (DB_IMPLICIT, _("Looking for an implicit rule for `%s'.\n"));
+  DBF (DB_IMPLICIT, _("Looking for an implicit rule for '%s'.\n"));
 
   /* The order of these searches was previously reversed.  My logic now is
      that since the non-archive search uses more information in the target
@@ -53,7 +51,7 @@ try_implicit_rule (struct file *file, unsigned int depth)
   if (ar_name (file->name))
     {
       DBF (DB_IMPLICIT,
-           _("Looking for archive-member implicit rule for `%s'.\n"));
+           _("Looking for archive-member implicit rule for '%s'.\n"));
       if (pattern_search (file, 1, depth, 0))
         return 1;
     }
@@ -74,8 +72,7 @@ get_next_word (const char *buffer, unsigned int *length)
   char c;
 
   /* Skip any leading whitespace.  */
-  while (isblank ((unsigned char)*p))
-    ++p;
+  NEXT_TOKEN (p);
 
   beg = p;
   c = *(p++);
@@ -223,12 +220,9 @@ pattern_search (struct file *file, int archive,
   struct file *int_file = 0;
 
   /* List of dependencies found recursively.  */
-  struct patdeps *deplist
-    = xmalloc (max_pattern_deps * sizeof (struct patdeps));
+  unsigned int max_deps = max_pattern_deps;
+  struct patdeps *deplist = xmalloc (max_deps * sizeof (struct patdeps));
   struct patdeps *pat = deplist;
-
-  /* All the prerequisites actually found for a rule, after expansion.  */
-  struct dep *deps;
 
   /* Names of possible dependencies are constructed in this buffer.  */
   char *depname = alloca (namelen + max_pattern_dep_length);
@@ -255,10 +249,8 @@ pattern_search (struct file *file, int archive,
   int file_vars_initialized = 0;
 
   /* Nonzero if we have matched a pattern-rule target
-     that is not just `%'.  */
+     that is not just '%'.  */
   int specific_rule_matched = 0;
-
-  struct dep dep_simple;
 
   unsigned int ri;  /* uninit checks OK */
   struct rule *rule;
@@ -277,12 +269,15 @@ pattern_search (struct file *file, int archive,
       /* Set LASTSLASH to point at the last slash in FILENAME
          but not counting any slash at the end.  (foo/bar/ counts as
          bar/ in directory foo/, not empty in directory foo/bar/.)  */
-#ifdef VMS
-      lastslash = strrchr (filename, ']');
-      if (lastslash == 0)
-        lastslash = strrchr (filename, ':');
-#else
       lastslash = strrchr (filename, '/');
+#ifdef VMS
+      if (lastslash == NULL)
+        lastslash = strrchr (filename, ']');
+      if (lastslash == NULL)
+        lastslash = strrchr (filename, '>');
+      if (lastslash == NULL)
+        lastslash = strrchr (filename, ':');
+#endif
 #ifdef HAVE_DOS_PATHS
       /* Handle backslashes (possibly mixed with forward slashes)
          and the case of "d:file".  */
@@ -293,7 +288,6 @@ pattern_search (struct file *file, int archive,
         if (lastslash == 0 && filename[0] && filename[1] == ':')
           lastslash = filename + 1;
       }
-#endif
 #endif
       if (lastslash != 0 && lastslash[1] == '\0')
         lastslash = 0;
@@ -326,7 +320,7 @@ pattern_search (struct file *file, int archive,
         {
           const char *target = rule->targets[ti];
           const char *suffix = rule->suffixes[ti];
-          int check_lastslash;
+          char check_lastslash;
 
           /* Rules that can match any filename and are not terminal
              are ignored if we're recursing, so that they cannot be
@@ -350,10 +344,10 @@ pattern_search (struct file *file, int archive,
           if (lastslash)
             {
 #ifdef VMS
-              check_lastslash = (strchr (target, ']') == 0
-                                 && strchr (target, ':') == 0);
+              check_lastslash = strpbrk (target, "/]>:") == NULL;
 #else
               check_lastslash = strchr (target, '/') == 0;
+#endif
 #ifdef HAVE_DOS_PATHS
               /* Didn't find it yet: check for DOS-type directories.  */
               if (check_lastslash)
@@ -361,7 +355,6 @@ pattern_search (struct file *file, int archive,
                   char *b = strchr (target, '\\');
                   check_lastslash = !(b || (target[0] && target[1] == ':'));
                 }
-#endif
 #endif
             }
           if (check_lastslash)
@@ -406,10 +399,10 @@ pattern_search (struct file *file, int archive,
              target in MATCHES.  If several targets of the same rule match,
              that rule will be in TRYRULES more than once.  */
           tryrules[nrules].rule = rule;
-	  tryrules[nrules].matches = ti;
+          tryrules[nrules].matches = ti;
           tryrules[nrules].stemlen = stemlen + (check_lastslash ? pathlen : 0);
           tryrules[nrules].order = nrules;
-	  tryrules[nrules].checked_lastslash = check_lastslash;
+          tryrules[nrules].checked_lastslash = check_lastslash;
           ++nrules;
         }
     }
@@ -448,7 +441,7 @@ pattern_search (struct file *file, int archive,
       for (ri = 0; ri < nrules; ri++)
         {
           struct dep *dep;
-          int check_lastslash;
+          char check_lastslash;
           unsigned int failed = 0;
           int file_variables_set = 0;
           unsigned int deps_found = 0;
@@ -492,7 +485,14 @@ pattern_search (struct file *file, int archive,
               dir = pathdir;
             }
 
-          DBS (DB_IMPLICIT, (_("Trying pattern rule with stem `%.*s'.\n"),
+          if (stemlen > GET_PATH_MAX)
+            {
+              DBS (DB_IMPLICIT, (_("Stem too long: '%.*s'.\n"),
+                                 (int) stemlen, stem));
+              continue;
+            }
+
+          DBS (DB_IMPLICIT, (_("Trying pattern rule with stem '%.*s'.\n"),
                              (int) stemlen, stem));
 
           strncpy (stem_str, stem, stemlen);
@@ -534,11 +534,9 @@ pattern_search (struct file *file, int archive,
               /* If we don't need a second expansion, just replace the %.  */
               if (! dep->need_2nd_expansion)
                 {
-                  dep_simple = *dep;
-                  dep_simple.next = 0;
                   p = strchr (nptr, '%');
                   if (p == 0)
-                    dep_simple.name = nptr;
+                    strcpy (depname, nptr);
                   else
                     {
                       char *o = depname;
@@ -552,13 +550,19 @@ pattern_search (struct file *file, int archive,
                       memcpy (o, stem_str, stemlen);
                       o += stemlen;
                       strcpy (o, p + 1);
-                      dep_simple.name = strcache_add (depname);
                     }
-                  dl = &dep_simple;
+
+                  /* Parse the expanded string.  It might have wildcards.  */
+                  p = depname;
+                  dl = PARSE_SIMPLE_SEQ (&p, struct dep);
+                  for (d = dl; d != NULL; d = d->next)
+                    {
+                      ++deps_found;
+                      d->ignore_mtime = dep->ignore_mtime;
+                    }
 
                   /* We've used up this dep, so next time get a new one.  */
                   nptr = 0;
-                  ++deps_found;
                 }
 
               /* We have to perform second expansion on this prereq.  In an
@@ -574,6 +578,7 @@ pattern_search (struct file *file, int archive,
                 {
                   int add_dir = 0;
                   unsigned int len;
+                  struct dep **dptr;
 
                   nptr = get_next_word (nptr, &len);
                   if (nptr == 0)
@@ -616,6 +621,9 @@ pattern_search (struct file *file, int archive,
                         add_dir = 1;
                     }
 
+                  /* Set up for the next word.  */
+                  nptr += len;
+
                   /* Initialize and set file variables if we haven't already
                      done so. */
                   if (!file_vars_initialized)
@@ -638,32 +646,47 @@ pattern_search (struct file *file, int archive,
 
                   /* Perform the 2nd expansion.  */
                   p = variable_expand_for_file (depname, file);
+                  dptr = &dl;
 
-                  /* Parse the expanded string. */
-                  dl = PARSE_FILE_SEQ (&p, struct dep, order_only ? '\0' : '|',
-                                       add_dir ? dir : NULL, 0);
-
-                  for (d = dl; d != NULL; d = d->next)
+                  /* Parse the results into a deps list.  */
+                  do
                     {
-                      ++deps_found;
-                      if (order_only)
-                        d->ignore_mtime = 1;
-                    }
+                      /* Parse the expanded string. */
+                      struct dep *dp = PARSE_FILE_SEQ (&p, struct dep,
+                                                       order_only ? MAP_NUL : MAP_PIPE,
+                                                       add_dir ? dir : NULL, PARSEFS_NONE);
+                      *dptr = dp;
 
-                  /* Set up for the next word.  */
-                  nptr += len;
+                      for (d = dp; d != NULL; d = d->next)
+                        {
+                          ++deps_found;
+                          if (order_only)
+                            d->ignore_mtime = 1;
+                          dptr = &d->next;
+                        }
+
+                      /* If we stopped due to an order-only token, note it.  */
+                      if (*p == '|')
+                        {
+                          order_only = 1;
+                          ++p;
+                        }
+                    }
+                  while (*p != '\0');
                 }
 
               /* If there are more than max_pattern_deps prerequisites (due to
                  2nd expansion), reset it and realloc the arrays.  */
 
-              if (deps_found > max_pattern_deps)
+              if (deps_found > max_deps)
                 {
                   unsigned int l = pat - deplist;
+                  /* This might have changed due to recursion.  */
+                  max_pattern_deps = MAX(max_pattern_deps, deps_found);
+                  max_deps = max_pattern_deps;
                   deplist = xrealloc (deplist,
-                                      deps_found * sizeof (struct patdeps));
+                                      max_deps * sizeof (struct patdeps));
                   pat = deplist + l;
-                  max_pattern_deps = deps_found;
                 }
 
               /* Go through the nameseq and handle each as a prereq name.  */
@@ -679,8 +702,8 @@ pattern_search (struct file *file, int archive,
                          second pass either since we know that will fail.  */
                       DBS (DB_IMPLICIT,
                            (is_rule
-                            ? _("Rejecting impossible rule prerequisite `%s'.\n")
-                            : _("Rejecting impossible implicit prerequisite `%s'.\n"),
+                            ? _("Rejecting impossible rule prerequisite '%s'.\n")
+                            : _("Rejecting impossible implicit prerequisite '%s'.\n"),
                             d->name));
                       tryrules[ri].rule = 0;
 
@@ -693,8 +716,8 @@ pattern_search (struct file *file, int archive,
 
                   DBS (DB_IMPLICIT,
                        (is_rule
-                        ? _("Trying rule prerequisite `%s'.\n")
-                        : _("Trying implicit prerequisite `%s'.\n"), d->name));
+                        ? _("Trying rule prerequisite '%s'.\n")
+                        : _("Trying implicit prerequisite '%s'.\n"), d->name));
 
                   /* If this prereq is also explicitly mentioned for FILE,
                      skip all tests below since it must be built no matter
@@ -733,7 +756,7 @@ pattern_search (struct file *file, int archive,
                     if (vname)
                       {
                         DBS (DB_IMPLICIT,
-                             (_("Found prerequisite `%s' as VPATH `%s'\n"),
+                             (_("Found prerequisite '%s' as VPATH '%s'\n"),
                               d->name, vname));
                         (pat++)->name = d->name;
                         continue;
@@ -747,7 +770,7 @@ pattern_search (struct file *file, int archive,
                   if (intermed_ok)
                     {
                       DBS (DB_IMPLICIT,
-                           (_("Looking for a rule with intermediate file `%s'.\n"),
+                           (_("Looking for a rule with intermediate file '%s'.\n"),
                             d->name));
 
                       if (int_file == 0)
@@ -763,8 +786,8 @@ pattern_search (struct file *file, int archive,
                           pat->pattern = int_file->name;
                           int_file->name = d->name;
                           pat->file = int_file;
-                          (pat++)->name = d->name;
                           int_file = 0;
+                          (pat++)->name = d->name;
                           continue;
                         }
 
@@ -785,8 +808,7 @@ pattern_search (struct file *file, int archive,
                 }
 
               /* Free the ns chain.  */
-              if (dl != &dep_simple)
-                free_dep_chain (dl);
+              free_dep_chain (dl);
 
               if (failed)
                 break;
@@ -796,17 +818,14 @@ pattern_search (struct file *file, int archive,
 
           file->stem = 0;
 
-          /* This rule is no longer `in use' for recursive searches.  */
+          /* This rule is no longer 'in use' for recursive searches.  */
           rule->in_use = 0;
 
           if (! failed)
             /* This pattern rule does apply.  Stop looking for one.  */
             break;
 
-          /* This pattern rule does not apply. If some of its dependencies
-             succeeded, free the data structure describing them.  */
-          /* free_idep_chain (deps); */
-          deps = 0;
+          /* This pattern rule does not apply.  Keep looking.  */
         }
 
       /* If we found an applicable rule without intermediate files, don't try
@@ -852,9 +871,10 @@ pattern_search (struct file *file, int archive,
 
           /* We don't want to delete an intermediate file that happened
              to be a prerequisite of some (other) target. Mark it as
-             precious.  */
+             secondary.  We don't want it to be precious as that disables
+             DELETE_ON_ERROR etc.  */
           if (f != 0)
-            f->precious = 1;
+            f->secondary = 1;
           else
             f = enter_file (imf->name);
 
@@ -898,8 +918,8 @@ pattern_search (struct file *file, int archive,
           /* If the file actually existed (was not an intermediate file), and
              the rule that found it was a terminal one, then we want to mark
              the found file so that it will not have implicit rule search done
-             for it.  If we are not entering a `struct file' for it now, we
-             indicate this with the `changed' flag.  */
+             for it.  If we are not entering a 'struct file' for it now, we
+             indicate this with the 'changed' flag.  */
           if (dep->file == 0)
             dep->changed = 1;
           else
@@ -947,7 +967,7 @@ pattern_search (struct file *file, int archive,
   }
 
   /* If this rule builds other targets, too, put the others into FILE's
-     `also_make' member.  */
+     'also_make' member.  */
 
   if (rule->num > 1)
     for (ri = 0; ri < rule->num; ++ri)

@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 3092 2017-10-11 17:55:09Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
@@ -109,11 +109,12 @@ typedef signed short   int16_t;
 typedef signed int     int32_t;
 #endif
 
-struct timeval
+struct msc_timeval
 {
     __time64_t tv_sec;
     long tv_usec;
 };
+#define timeval msc_timeval
 
 struct iovec
 {
@@ -159,11 +160,11 @@ int snprintf(char *buf, size_t size, const char *fmt, ...);
 #define snprintf _snprintf
 #endif
 int symlink(const char *pszDst, const char *pszLink);
-int utimes(const char *pszPath, const struct timeval *paTimes);
-int lutimes(const char *pszPath, const struct timeval *paTimes);
+int utimes(const char *pszPath, const struct msc_timeval *paTimes);
+int lutimes(const char *pszPath, const struct msc_timeval *paTimes);
 ssize_t writev(int fd, const struct iovec *vector, int count);
 
-int gettimeofday(struct timeval *pNow, void *pvIgnored);
+int gettimeofday(struct msc_timeval *pNow, void *pvIgnored);
 struct tm *localtime_r(const __time64_t *pNow, struct tm *pResult);
 __time64_t timegm(struct tm *pNow);
 #undef mktime

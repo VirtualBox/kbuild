@@ -32,7 +32,6 @@ static int		 to_integer(struct val *);
 static void		 to_string(struct val *);
 static int		 is_zero_or_null(struct val *);
 static void		 nexttoken(int);
-static void	 	 error(void);
 static struct val	*eval6(void);
 static struct val	*eval5(void);
 static struct val	*eval4(void);
@@ -282,6 +281,9 @@ nexttoken(int pat)
 
 #ifdef __GNUC__
 __attribute__((noreturn))
+#endif
+#ifdef _MSC_VER
+__declspec(noreturn)
 #endif
 static void
 error(void)

@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 3117 2017-10-30 17:49:42Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -43,10 +43,6 @@
 #include "nt/ntutimes.h"
 #undef utimes
 #undef lutimes
-
-#define timeval windows_timeval
-#include <Windows.h>
-#undef timeval
 
 extern ssize_t maybe_con_write(int, void const *, size_t);
 
@@ -661,7 +657,7 @@ int vasprintf(char **strp, const char *fmt, va_list va)
 }
 
 
-int utimes(const char *pszPath, const struct timeval *paTimes)
+int utimes(const char *pszPath, const struct msc_timeval *paTimes)
 {
     if (paTimes)
     {
@@ -676,7 +672,7 @@ int utimes(const char *pszPath, const struct timeval *paTimes)
 }
 
 
-int lutimes(const char *pszPath, const struct timeval *paTimes)
+int lutimes(const char *pszPath, const struct msc_timeval *paTimes)
 {
     if (paTimes)
     {
@@ -691,7 +687,7 @@ int lutimes(const char *pszPath, const struct timeval *paTimes)
 }
 
 
-int gettimeofday(struct timeval *pNow, void *pvIgnored)
+int gettimeofday(struct msc_timeval *pNow, void *pvIgnored)
 {
     struct __timeb64 Now;
     int rc = _ftime64_s(&Now);

@@ -1,4 +1,4 @@
-/* $Id: kDep.c 3114 2017-10-29 18:02:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -33,7 +33,7 @@
 *   Header Files                                                               *
 *******************************************************************************/
 #ifdef KMK /* For when it gets compiled and linked into kmk. */
-# include "make.h"
+# include "makeint.h"
 #endif
 #include <stdio.h>
 #include <stdlib.h>

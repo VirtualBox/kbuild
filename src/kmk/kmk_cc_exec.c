@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2817 2016-08-14 12:18:20Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -28,7 +28,7 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
-#include "make.h"
+#include "makeint.h"
 
 #include "dep.h"
 #include "variable.h"
@@ -2113,7 +2113,7 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
 
                         if (   cchName >= MIN_FUNCTION_LENGTH
                             && cchName <= MAX_FUNCTION_LENGTH
-                            && (isblank(ch) || ch == chClose || cchName == cchStr)
+                            && (ISBLANK(ch) || ch == chClose || cchName == cchStr)
                             && (pfnFunction = lookup_function_for_compiler(pchStr, cchName, &cMinArgs, &cMaxArgs,
                                                                            &fExpandArgs, &pszFunction)) != NULL)
                         {
@@ -2127,7 +2127,7 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
                             {
                                 /* Skip leading spaces before the first arg. */
                                 cchName++;
-                                while (cchName < cchStr && isblank((unsigned char)pchStr[cchName]))
+                                while (cchName < cchStr && ISBLANK(pchStr[cchName]))
                                     cchName++;
 
                                 pchStr += cchName;

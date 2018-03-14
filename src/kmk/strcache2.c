@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 3091 2017-10-04 14:31:04Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -26,7 +26,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
-#include "make.h"
+#include "makeint.h"
 #include "strcache2.h"
 
 #include <assert.h>

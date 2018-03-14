@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3110 2017-10-20 19:14:56Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -53,6 +53,7 @@ TEMPLATE_BIN-KMK_DEPS.win     = \
 	$(kmk_0_OUTDIR)/inttypes.h
 TEMPLATE_BIN-KMK_CFLAGS.win.amd64 = $(TEMPLATE_BIN-THREADED_CFLAGS.win.amd64) -wd4244 -wd4267
 TEMPLATE_BIN-KMK_CLEAN.win = $(TEMPLATE_BIN-KMK_DEPS.win)
+TEMPLATE_BIN-KMK_DEFS.debug = $(TEMPLATE_BIN-KMK_DEPS.debug) MAKE_MAINTAINER_MODE
 TEMPLATE_BIN-KMK_INCS = $(kmk_0_OUTDIR) . $(TEMPLATE_BIN-THREADED_INCS)
 ifneq ($(KBUILD_TARGET),os2)
  TEMPLATE_BIN-KMK_INCS += glob
@@ -143,7 +144,8 @@ kmkmissing_SOURCES.win += \
 	w32/subproc/misc.c \
 	w32/subproc/w32err.c \
 	w32/pathstuff.c \
-	w32/imagecache.c
+	w32/imagecache.c \
+ 	w32/compat/posixfcn.c
 
 #
 # kmk
@@ -212,7 +214,7 @@ kmk_DEFS = \
 # kmk_DEFS += CONFIG_WITH_COMPILER  # experimental, doesn't work 101% right it seems.
 kmk_DEFS.x86 = CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.amd64 = CONFIG_WITH_OPTIMIZATION_HACKS
-kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT CONFIG_WITH_FAST_IS_SPACE
+kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT
 kmk_DEFS.debug = CONFIG_WITH_MAKE_STATS
 ifdef CONFIG_WITH_MAKE_STATS
  kmk_DEFS += CONFIG_WITH_MAKE_STATS
@@ -240,12 +242,15 @@ kmk_SOURCES = \
 	implicit.c \
 	job.c \
 	misc.c \
+	output.c \
 	remake.c \
 	rule.c \
 	signame.c \
 	version.c \
 	vpath.c \
 	remote-stub.c \
+	guile.c \
+	load.c \
        \
 	alloccache.c \
 	expreval.c \
@@ -255,9 +260,13 @@ kmk_SOURCES = \
 	kbuild.c \
 	kbuild-object.c
 ifeq ($(KBUILD_TARGET),win)
- kmk_SOURCES += dir-nt-bird.c
+ kmk_SOURCES += \
+ 	dir-nt-bird.c \
+ 	w32/w32os.c
 else
- kmk_SOURCES += dir.c
+ kmk_SOURCES += \
+ 	dir.c \
+ 	posixos.c
 endif
 
 kmk_SOURCES.win = \
@@ -480,12 +489,22 @@ kmk_gmake_SOURCES = \
 	implicit.c \
 	job.c \
 	misc.c \
+	output.c \
 	remake.c \
 	rule.c \
 	signame.c \
 	version.c \
 	vpath.c \
-	remote-stub.c
+	remote-stub.c \
+	guile.c \
+	load.c
+ifeq ($(KBUILD_TARGET),win)
+ kmk_gmake_SOURCES += \
+ 	w32/w32os.c
+else
+ kmk_gmake_SOURCES += \
+ 	posixos.c
+endif
 
 kmk_gmake_SOURCES.win = \
 	w32/subproc/sub_proc.c
@@ -532,13 +551,24 @@ kmk_fgmake_SOURCES = \
 	implicit.c \
 	job.c \
 	misc.c \
+	output.c \
 	alloccache.c \
 	remake.c \
 	rule.c \
 	signame.c \
 	version.c \
 	vpath.c \
-	remote-stub.c
+	remote-stub.c \
+	guile.c \
+	load.c
+ifeq ($(KBUILD_TARGET),win)
+ kmk_fgmake_SOURCES += \
+ 	w32/w32os.c
+# @todo: dir-nt-bird.c for fgmake
+else
+ kmk_fgmake_SOURCES += \
+ 	posixos.c
+endif
 
 kmk_fgmake_SOURCES.win = \
 	w32/subproc/sub_proc.c

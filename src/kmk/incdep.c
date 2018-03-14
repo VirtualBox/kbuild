@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 3100 2017-10-20 09:49:58Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -37,7 +37,7 @@
 # endif
 #endif
 
-#include "make.h"
+#include "makeint.h"
 
 #if !defined(WINDOWS32) && !defined(__OS2__)
 # define HAVE_PTHREAD
@@ -47,8 +47,8 @@
 
 #include <glob.h>
 
-#include "dep.h"
 #include "filedef.h"
+#include "dep.h"
 #include "job.h"
 #include "commands.h"
 #include "variable.h"
@@ -107,14 +107,14 @@ struct incdep_variable_in_set
     enum variable_origin origin;
     int recursive;
     struct variable_set *set;
-    const struct floc *flocp;               /* NILF */
+    const floc *flocp;                      /* NILF */
 };
 
 struct incdep_variable_def
 {
     struct incdep_variable_def *next;
     /* the parameters */
-    const struct floc *flocp;               /* NILF */
+    const floc *flocp;                      /* NILF */
     struct strcache2_entry *name_entry;     /* dep strcache - WRONG */
     char *value;                            /* xmalloc'ed, free it */
     unsigned int value_length;
@@ -130,7 +130,7 @@ struct incdep_recorded_file
     /* the parameters */
     struct strcache2_entry *filename_entry; /* dep strcache; converted to a nameseq record. */
     struct dep *deps;                       /* All the names are dep strcache entries. */
-    const struct floc *flocp;               /* NILF */
+    const floc *flocp;                     /* NILF */
 };
 
 
@@ -237,10 +237,10 @@ static malloc_zone_t *incdep_zone;
 /*******************************************************************************
 *   Internal Functions                                                         *
 *******************************************************************************/
-static void incdep_flush_it (struct floc *);
-static void eval_include_dep_file (struct incdep *, struct floc *);
+static void incdep_flush_it (floc *);
+static void eval_include_dep_file (struct incdep *, floc *);
 static void incdep_commit_recorded_file (const char *filename, struct dep *deps,
-                                         const struct floc *flocp);
+                                         const floc *flocp);
 
 
 /* xmalloc wrapper.
@@ -495,7 +495,7 @@ incdep_wait_todo (void)
 
 /* Reads a dep file into memory. */
 static int
-incdep_read_file (struct incdep *cur, struct floc *f)
+incdep_read_file (struct incdep *cur, floc *f)
 {
 #ifdef INCDEP_USE_KFSCACHE
   size_t const cbFile = (size_t)cur->pFileObj->Stats.st_size;
@@ -512,32 +512,32 @@ incdep_read_file (struct incdep *cur, struct floc *f)
         }
       incdep_xfree (cur, cur->file_base);
     }
-  error (f, "%s/%s: error reading file", cur->pFileObj->pParent->Obj.pszName, cur->pFileObj->pszName);
+  OSS (error, f, "%s/%s: error reading file", cur->pFileObj->pParent->Obj.pszName, cur->pFileObj->pszName);
 
 #else /* !INCDEP_USE_KFSCACHE */
   int fd;
   struct stat st;
 
   errno = 0;
-#ifdef O_BINARY
+# ifdef O_BINARY
   fd = open (cur->name, O_RDONLY | O_BINARY, 0);
-#else
+# else
   fd = open (cur->name, O_RDONLY, 0);
-#endif
+# endif
   if (fd < 0)
     {
       /* ignore non-existing dependency files. */
       int err = errno;
       if (err == ENOENT || stat (cur->name, &st) != 0)
         return 1;
-      error (f, "%s: %s", cur->name, strerror (err));
+      OSS (error, f, "%s: %s", cur->name, strerror (err));
       return -1;
     }
-#ifdef KBUILD_OS_WINDOWS /* fewer kernel calls */
+# ifdef KBUILD_OS_WINDOWS /* fewer kernel calls */
   if (!birdStatOnFdJustSize (fd, &st.st_size))
-#else
+# else
   if (!fstat (fd, &st))
-#endif
+# endif
     {
       cur->file_base = incdep_xmalloc (cur, st.st_size + 1);
       if (read (fd, cur->file_base, st.st_size) == st.st_size)
@@ -672,7 +672,7 @@ incdep_are_threads_enabled (void)
   /* Generic overrides. */
   if (getenv ("KMK_THREADS_DISABLED"))
     {
-      message (1, "Threads disabled (environment)");
+      O (message, 1, "Threads disabled (environment)");
       return 0;
     }
   if (getenv ("KMK_THREADS_ENABLED"))
@@ -693,7 +693,7 @@ incdep_are_threads_enabled (void)
    || getenv ("FAKEROOT_FD_BASE")
    || getenv ("FAKEROOT_DB_SEARCH_PATHS"))
     {
-      message (1, "Threads disabled (fakeroot)");
+      O (message, 1, "Threads disabled (fakeroot)");
       return 0;
     }
 
@@ -701,7 +701,7 @@ incdep_are_threads_enabled (void)
      other ingenius library which cannot deal correctly with threads. */
   if (getenv ("LD_PRELOAD"))
     {
-      message (1, "Threads disabled (LD_PRELOAD)");
+      O (message, 1, "Threads disabled (LD_PRELOAD)");
       return 0;
     }
 
@@ -722,7 +722,7 @@ incdep_are_threads_enabled (void)
 
 /* Creates the the worker threads. */
 static void
-incdep_init (struct floc *f)
+incdep_init (floc *f)
 {
   unsigned i;
 #if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
@@ -753,22 +753,22 @@ incdep_init (struct floc *f)
 #if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
   rc = pthread_mutex_init (&incdep_mtx, NULL);
   if (rc)
-    fatal (f, _("pthread_mutex_init failed: err=%d"), rc);
+    ON (fatal, f, _("pthread_mutex_init failed: err=%d"), rc);
   rc = pthread_cond_init (&incdep_cond_todo, NULL);
   if (rc)
-    fatal (f, _("pthread_cond_init failed: err=%d"), rc);
+    ON (fatal, f, _("pthread_cond_init failed: err=%d"), rc);
   rc = pthread_cond_init (&incdep_cond_done, NULL);
   if (rc)
-    fatal (f, _("pthread_cond_init failed: err=%d"), rc);
+    ON (fatal, f, _("pthread_cond_init failed: err=%d"), rc);
 
 #elif defined (WINDOWS32)
   InitializeCriticalSection (&incdep_mtx);
   incdep_hev_todo = CreateEvent (NULL, TRUE /*bManualReset*/, FALSE /*bInitialState*/, NULL);
   if (!incdep_hev_todo)
-    fatal (f, _("CreateEvent failed: err=%d"), GetLastError());
+    ON (fatal, f, _("CreateEvent failed: err=%d"), GetLastError());
   incdep_hev_done = CreateEvent (NULL, TRUE /*bManualReset*/, FALSE /*bInitialState*/, NULL);
   if (!incdep_hev_done)
-    fatal (f, _("CreateEvent failed: err=%d"), GetLastError());
+    ON (fatal, f, _("CreateEvent failed: err=%d"), GetLastError());
   incdep_hev_todo_waiters = 0;
   incdep_hev_done_waiters = 0;
 
@@ -776,10 +776,10 @@ incdep_init (struct floc *f)
   _fmutex_create (&incdep_mtx, 0);
   rc = DosCreateEventSem (NULL, &incdep_hev_todo, 0, FALSE);
   if (rc)
-    fatal (f, _("DosCreateEventSem failed: rc=%d"), rc);
+    ON (fatal, f, _("DosCreateEventSem failed: rc=%d"), rc);
   rc = DosCreateEventSem (NULL, &incdep_hev_done, 0, FALSE);
   if (rc)
-    fatal (f, _("DosCreateEventSem failed: rc=%d"), rc);
+    ON (fatal, f, _("DosCreateEventSem failed: rc=%d"), rc);
   incdep_hev_todo_waiters = 0;
   incdep_hev_done_waiters = 0;
 #endif
@@ -826,15 +826,15 @@ incdep_init (struct floc *f)
 #if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
           rc = pthread_attr_init (&attr);
           if (rc)
-            fatal (f, _("pthread_attr_init failed: err=%d"), rc);
+            ON (fatal, f, _("pthread_attr_init failed: err=%d"), rc);
           /*rc = pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE); */
           rc = pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
           if (rc)
-            fatal (f, _("pthread_attr_setdetachstate failed: err=%d"), rc);
+            ON (fatal, f, _("pthread_attr_setdetachstate failed: err=%d"), rc);
           rc = pthread_create (&incdep_threads[i], &attr,
                                incdep_worker_pthread, (void *)(size_t)i);
           if (rc)
-            fatal (f, _("pthread_mutex_init failed: err=%d"), rc);
+            ON (fatal, f, _("pthread_mutex_init failed: err=%d"), rc);
           pthread_attr_destroy (&attr);
 
 #elif defined (WINDOWS32)
@@ -842,13 +842,13 @@ incdep_init (struct floc *f)
           hThread = _beginthreadex (NULL, 128*1024, incdep_worker_windows,
                                     (void *)i, 0, &tid);
           if (hThread == 0 || hThread == ~(uintptr_t)0)
-            fatal (f, _("_beginthreadex failed: err=%d"), errno);
+            ON (fatal, f, _("_beginthreadex failed: err=%d"), errno);
           incdep_threads[i] = (HANDLE)hThread;
 
 #elif defined (__OS2__)
           tid = _beginthread (incdep_worker_os2, NULL, 128*1024, (void *)i);
           if (tid <= 0)
-            fatal (f, _("_beginthread failed: err=%d"), errno);
+            ON (fatal, f, _("_beginthread failed: err=%d"), errno);
           incdep_threads[i] = tid;
 #endif
         }
@@ -926,9 +926,10 @@ incdep_flush_recorded_instructions (struct incdep *cur)
 
   if (cur->err_msg)
 #ifdef INCDEP_USE_KFSCACHE
-    error(NILF, "%s/%s(%d): %s", cur->pFileObj->pParent->Obj.pszName, cur->pFileObj->pszName, cur->err_line_no, cur->err_msg);
+    OSSNS (error, NILF, "%s/%s(%d): %s", cur->pFileObj->pParent->Obj.pszName, cur->pFileObj->pszName,
+           cur->err_line_no, cur->err_msg);
 #else
-    error(NILF, "%s(%d): %s", cur->name, cur->err_line_no, cur->err_msg);
+    OSNS (error,NILF, "%s(%d): %s", cur->name, cur->err_line_no, cur->err_msg);
 #endif
 
 
@@ -1007,9 +1008,9 @@ incdep_warn (struct incdep *cur, unsigned int line_no, const char *msg)
 {
   if (cur->worker_tid == -1)
 #ifdef INCDEP_USE_KFSCACHE
-    error (NILF, "%s/%s(%d): %s", cur->pFileObj->pParent->Obj.pszName, cur->pFileObj->pszName, line_no, msg);
+    OSSNS (error,NILF, "%s/%s(%d): %s", cur->pFileObj->pParent->Obj.pszName, cur->pFileObj->pszName, line_no, msg);
 #else
-    error (NILF, "%s(%d): %s", cur->name, line_no, msg);
+    OSNS (error, NILF, "%s(%d): %s", cur->name, line_no, msg);
 #endif
 #ifdef PARSE_IN_WORKER
   else
@@ -1078,7 +1079,7 @@ incdep_record_variable_in_set (struct incdep *cur,
                                enum variable_origin origin,
                                int recursive,
                                struct variable_set *set,
-                               const struct floc *flocp)
+                               const floc *flocp)
 {
   assert (!duplicate_value);
   if (cur->worker_tid == -1)
@@ -1111,7 +1112,7 @@ incdep_record_variable_in_set (struct incdep *cur,
 /* Record / perform a variable definition. The VALUE should be disposed of. */
 static void
 incdep_record_variable_def (struct incdep *cur,
-                            const struct floc *flocp,
+                            const floc *flocp,
                             const char *name,
                             unsigned int name_length,
                             char *value,
@@ -1151,7 +1152,7 @@ incdep_record_variable_def (struct incdep *cur,
 /* Similar to record_files in read.c, only much much simpler. */
 static void
 incdep_commit_recorded_file (const char *filename, struct dep *deps,
-                             const struct floc *flocp)
+                             const floc *flocp)
 {
   struct file *f;
 
@@ -1173,7 +1174,7 @@ incdep_commit_recorded_file (const char *filename, struct dep *deps,
          )
      )
     {
-      error (flocp, _("reserved filename '%s' used in dependency file, ignored"), filename);
+      OS (error, flocp, _("reserved filename '%s' used in dependency file, ignored"), filename);
       return;
     }
 
@@ -1181,7 +1182,7 @@ incdep_commit_recorded_file (const char *filename, struct dep *deps,
   f = enter_file (filename);
   if (f->double_colon)
     {
-      error (flocp, _("dependency file '%s' has a double colon entry already, ignoring"), filename);
+      OS (error, flocp, _("dependency file '%s' has a double colon entry already, ignoring"), filename);
       return;
     }
   f->is_target = 1;
@@ -1207,7 +1208,7 @@ static void
 incdep_record_file (struct incdep *cur,
                     const char *filename,
                     struct dep *deps,
-                    const struct floc *flocp)
+                    const floc *flocp)
 {
   if (cur->worker_tid == -1)
     incdep_commit_recorded_file (filename, deps, flocp);
@@ -1252,7 +1253,7 @@ incdep_record_file (struct incdep *cur,
 
    */
 static void
-eval_include_dep_file (struct incdep *curdep, struct floc *f)
+eval_include_dep_file (struct incdep *curdep, floc *f)
 {
   unsigned line_no = 1;
   const char *file_end = curdep->file_end;
@@ -1267,7 +1268,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
   while (cur < file_end)
     {
       /* skip empty lines */
-      while (cur < file_end && isspace ((unsigned char)*cur) && *cur != '\n')
+      while (cur < file_end && ISSPACE (*cur) && *cur != '\n')
         ++cur;
       if (cur >= file_end)
         break;
@@ -1311,12 +1312,12 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
           /* extract the variable name. */
           cur += 7;
-          while (isblank ((unsigned char)*cur))
+          while (ISBLANK (*cur))
             ++cur;
           value_start = endp = memchr (cur, '\n', file_end - cur);
           if (!endp)
               endp = cur;
-          while (endp > cur && isspace ((unsigned char)endp[-1]))
+          while (endp > cur && ISSPACE (endp[-1]))
             --endp;
           var_len = endp - cur;
           if (!var_len)
@@ -1336,7 +1337,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                   && strneq (cur, "endef", 5))
                 {
                   endp = cur + 5;
-                  while (endp < file_end && isspace ((unsigned char)*endp) && *endp != '\n')
+                  while (endp < file_end && ISSPACE (*endp) && *endp != '\n')
                     endp++;
                   if (endp >= file_end || *endp == '\n')
                     {
@@ -1447,7 +1448,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
               /* extract the variable name. */
               endp = flavor == f_recursive ? equalp : equalp - 1;
-              while (endp > cur && isblank ((unsigned char)endp[-1]))
+              while (endp > cur && ISBLANK (endp[-1]))
                 --endp;
               var_len = endp - cur;
               if (!var_len)
@@ -1466,7 +1467,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
               /* find the start of the value. */
               cur = equalp + 1;
-              while (cur < file_end && isblank ((unsigned char)*cur))
+              while (cur < file_end && ISBLANK (*cur))
                 cur++;
               value_start = cur;
 
@@ -1628,7 +1629,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
               /* Extract the first filename after trimming and basic checks. */
               fnend = colonp;
-              while ((uintptr_t)fnend > (uintptr_t)cur && isblank ((unsigned char)fnend[-1]))
+              while ((uintptr_t)fnend > (uintptr_t)cur && ISBLANK (fnend[-1]))
                 --fnend;
               if (cur == fnend)
                 {
@@ -1642,7 +1643,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                 }
 
               fnnext = cur;
-              while (fnnext != fnend && !isblank ((unsigned char)*fnnext))
+              while (fnnext != fnend && !ISBLANK (*fnnext))
                 fnnext++;
               filename = incdep_dep_strcache (curdep, cur, fnnext - cur);
 
@@ -1651,7 +1652,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
               while (cur < file_end)
                 {
                   /* skip blanks and count lines. */
-                  while (cur < file_end && isspace ((unsigned char)*cur) && *cur != '\n')
+                  while (cur < file_end && ISSPACE (*cur) && *cur != '\n')
                     ++cur;
                   if (cur >= file_end)
                     break;
@@ -1678,7 +1679,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
                   /* find the end of the filename */
                   endp = cur;
-                  while (endp < file_end && !isspace ((unsigned char)*endp))
+                  while (endp < file_end && !ISSPACE (*endp))
                     ++endp;
 
                   /* add it to the list. */
@@ -1699,13 +1700,13 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                   {
                     const char *filename_prev = filename;
                     const char *fnstart;
-                    while (fnnext != fnend && isblank ((unsigned char)*fnnext))
+                    while (fnnext != fnend && ISBLANK (*fnnext))
                       fnnext++;
                     if (fnnext == fnend)
                       break;
 
                     fnstart = fnnext;
-                    while (fnnext != fnend && !isblank ((unsigned char)*fnnext))
+                    while (fnnext != fnend && !ISBLANK (*fnnext))
                       fnnext++;
 
                     filename = incdep_dep_strcache (curdep, fnstart, fnnext - fnstart);
@@ -1723,7 +1724,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
 /* Flushes the incdep todo and done lists. */
 static void
-incdep_flush_it (struct floc *f)
+incdep_flush_it (floc *f)
 {
   incdep_lock ();
   for (;;)
@@ -1784,7 +1785,7 @@ incdep_flush_it (struct floc *f)
 /* splits up a list of file names and feeds it to eval_include_dep_file,
    employing threads to try speed up the file reading. */
 void
-eval_include_dep (const char *names, struct floc *f, enum incdep_op op)
+eval_include_dep (const char *names, floc *f, enum incdep_op op)
 {
   struct incdep *head = 0;
   struct incdep *tail = 0;

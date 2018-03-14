@@ -1,4 +1,4 @@
-/* $Id: append.c 3134 2018-03-01 18:42:56Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - append text to file.
  */
@@ -27,7 +27,7 @@
 *   Header Files                                                               *
 *******************************************************************************/
 #ifndef kmk_builtin_append
-# include "make.h"
+# include "makeint.h"
 # include "filedef.h"
 # include "variable.h"
 #else

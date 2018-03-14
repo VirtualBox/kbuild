@@ -1,6 +1,5 @@
 @echo off
-rem Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-rem 2008, 2009, 2010 Free Software Foundation, Inc.
+rem Copyright (C) 1998-2016 Free Software Foundation, Inc.
 rem This file is part of GNU Make.
 rem
 rem GNU Make is free software; you can redistribute it and/or modify it under
@@ -21,6 +20,7 @@ echo Building Make for MSDOS
 rem Echo ON so they will see what is going on.
 @echo on
 gcc  -c -I. -I./glob -DHAVE_CONFIG_H -O2 -g commands.c -o commands.o
+gcc  -c -I. -I./glob -DHAVE_CONFIG_H -O2 -g output.c -o output.o
 gcc  -c -I. -I./glob -DHAVE_CONFIG_H -O2 -g job.c -o job.o
 gcc  -c -I. -I./glob -DHAVE_CONFIG_H -O2 -g dir.c -o dir.o
 gcc  -c -I. -I./glob -DHAVE_CONFIG_H -O2 -g file.c -o file.o
@@ -52,9 +52,11 @@ ar rv libglob.a glob.o fnmatch.o
 @echo off
 cd ..
 echo commands.o > respf.$$$
-for %%f in (job dir file misc main read remake rule implicit default variable) do echo %%f.o >> respf.$$$
+for %%f in (job output dir file misc main read remake rule implicit default variable) do echo %%f.o >> respf.$$$
 for %%f in (expand function vpath hash strcache version ar arscan signame remote-stub getopt getopt1) do echo %%f.o >> respf.$$$
 echo glob/libglob.a >> respf.$$$
+rem gcc  -c -I. -I./glob -DHAVE_CONFIG_H -O2 -g guile.c -o guile.o
+rem echo guile.o >> respf.$$$
 @echo Linking...
 @echo on
 gcc -o make.new @respf.$$$

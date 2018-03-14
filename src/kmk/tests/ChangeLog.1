@@ -1,3 +1,354 @@
+2013-10-09  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/patspecific_vars: Typo fixes.
+
+2013-10-05  Paul Smith  <psmith@gnu.org>
+
+	* test_driver.pl (run_all_tests): Rewrite to be more clear.
+	* scripts/features/jobserver: Avoid using $ENV{HOME} as it doesn't
+	exist everywhere.
+	* scripts/features/default_names: End with 1;
+
+	* scripts/features/loadapi: Use new calling signatures.  Verify
+	the NOEXPAND flag works.  Test with all valid function name
+	characters.
+
+2013-09-29  Paul Smith  <psmith@gnu.org>
+
+	* scripts/variables/SHELL: Solaris /bin/sh can't handle options in
+	multiple words; skip that test.
+	* scripts/targets/ONESHELL: Ditto.
+
+	* scripts/variables/GNUMAKEFLAGS: Verify that GNUMAKEFLAGS is
+	cleared and options are not duplicated.
+
+2013-09-23  Paul Smith  <psmith@gnu.org>
+
+	* scripts/options/print-directory: Rename dash-w to
+	print-directory to avoid conflicts with dash-W on case-insensitive
+	filesystems.
+
+2013-09-22  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/se_implicit: Verify that order-only tokens
+	inside second expansion are parsed correctly.
+	Test for Savannah bug #31155.
+
+	* run_make_tests.pl (set_more_defaults): If we can't find
+	gnumake.h based on the make program we might be running from a
+	remote build directory.  Parse the Makefile for the right path.
+
+	Fix some test issues on Solaris.
+
+	* scripts/features/archives: Determine what output ar gives when
+	adding and replacing objects and compare with that.
+	* scripts/features/escape: Solaris /bin/sh doesn't properly handle
+	backslashes inside single quotes, so don't rely on it.
+	* scripts/features/output-sync: false(1) gives different exit
+	codes on different systems; use "exit 1" instead.
+	* scripts/features/parallelism: Increase the timeout for slower systems.
+
+2013-09-21  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/archives: Some versions of ar (MacOSX) generate
+	different output when creating archives.  Run it and verify the
+	real output.
+	* scripts/features/default_names: MacOSX is, like Windows,
+	case-preserving / case-insensitive.  Redo the test to avoid
+	checking for "UNIX".
+	* test_driver.pl (attach_default_output): Don't dup stdout into
+	stderr.  Reported by Denis Excoffier <bug-tar@Denis-Excoffier.org>
+
+	* scripts/features/se_explicit: Fix a test that behaves
+	differently with/without archive capability enabled.
+	* scripts/features/output-sync: Don't test output-sync if it's not
+	enabled.  We also skip it if parallelism is not enabled, although
+	strictly speaking some of the output-sync tests are valid even
+	without parallelism.
+	* scripts/features/jobserver: Move some tests that require the
+	jobserver from features/parallelism to a separate suite.  Only run
+	this if jobserver mode is enabled.
+
+	* scripts/features/output-sync: Test shell functions writing to
+	stderr in recipes: ensure it's captured via output-sync.  Test
+	output generated while reading makefiles and make sure it's
+	captured via output-sync.  Make sure that fatal errors dump the
+	output so it's not lost.
+
+	* scripts/options/dash-w: Add a test for -w flag.
+
+2013-09-15  Paul Smith  <psmith@gnu.org>
+
+	* scripts/misc/fopen-fail: Check for failure on infinite recursion.
+	* run_make_tests.pl (run_make_test): Allow the answer string to be
+	undef, which means that we shouldn't compare it at all.  Only the
+	exit code matters in this case.
+	* test_driver.pl (compare_output): Ditto.
+	Test for Savannah bug #27374.
+
+	* scripts/features/parallelism: Test broken jobserver on recursion.
+	Test for Savannah bug #39934.
+
+	* scripts/options/eval: Verify --eval during restart.
+	Test for Savannah bug #39203.
+
+2013-09-14  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/output-sync: Verify -Orecurse properly.
+
+2013-09-12  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/output-sync: Modify for output sync behavior.
+	* scripts/variables/MAKE_RESTARTS: Ditto.
+	* scripts/variables/MAKEFLAGS: Remove mode for --trace.
+	* scripts/variables/GNUMAKEFLAGS: Ditto.
+
+2013-07-22  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/rule_glob: Add tests for wildcards in rules.
+	Test for Savannah bug #39310.
+
+2013-07-09  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/se_implicit: Add a test for SE rules depending
+	on other SE rules to be built.
+
+2013-05-26  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/archives: Test for Savannah bug #38442.
+
+	* scripts/misc/bs-nl: Test for Savannah bug #39035.
+	Add a test for Savannah bug #38945.
+
+2013-05-22  Paul Smith  <psmith@gnu.org>
+
+	* scripts/options/dash-n: Fix results after MAKEFLAGS fixes.
+	* scripts/variables/MAKEFLAGS: Ditto.
+	* scripts/variables/GNUMAKEFLAGS: Ditto.
+
+2013-05-14  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/loadapi: Add plugin_is_GPL_compatible symbol.
+	* scripts/features/load: Ditto.
+
+2013-05-13  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/output-sync (output_sync_set): Update for new
+	--trace behavior.
+
+2013-05-05  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/output-sync (output_sync_set): Remove
+	extraneous enter/leave lines, which are no longer printed.
+	Add tests for syncing command line printing.
+	(output_sync_set): Rename options: "job"->"line"; "make"->"recurse"
+
+2013-05-04  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/loadapi: Use the new alloc functions.
+
+	* scripts/features/output-sync (output_sync_set): New test for
+	ordered recursive output for -Ojob / -Otarget.
+
+2013-05-03  Eli Zaretskii  <eliz@gnu.org>
+
+	* scripts/features/load: Fix signatures of testload_gmk_setup and
+	explicit_setup, to bring them in line with the documentation.
+
+2013-04-28  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/output-sync (output_sync_set): Add tests for
+	the per-job syntax mode.
+	(output_sync_set): Test improved error message location.
+
+2013-04-15  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/output-sync (output_sync_set): New arg syntax.
+
+2013-04-14  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/output-sync: Rewrite to be more reliable.
+
+	* test_driver.pl (_run_command): Don't set SIGALRM until after we
+	start the child.  Print errors to the top-level output, which will
+	be stderr.
+	(attach_default_output): Use a list of file handles as the stack.
+	(detach_default_output): Ditto.
+
+	* scripts/features/output-sync: Add a test for output-sync.
+
+2013-02-25  Paul Smith  <psmith@gnu.org>
+
+	* run_make_tests.pl (valid_option): Support the -srcdir flag.
+	(set_more_defaults): Set up $srcdir if it's not set yet.
+
+	* scripts/functions/guile: Verify gmk-eval doesn't expand twice.
+	* scripts/features/load: Rework to test just the load capability.
+	* scripts/features/loadapi: New set of tests for the load API.
+
+2013-01-19  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/load: Test loaded files with and without "./"
+	prefix.  Add tests for automatically rebuilding loaded files if
+	they are out of date or non-existent.
+
+2013-01-13  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/archives: Add a check targets that have parens,
+	but are not archives.  See Savannah bug #37878.
+
+	* scripts/options/dash-n: Verify -n is preserved after recursive /
+	re-exec.  See Savannah bug #38051.
+
+2013-01-12  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/parallelism: Change rule so it doesn't depend
+	on invocation order, etc.
+
+2012-10-29  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/load: New test suite for the "load" directive.
+
+2012-09-09  Paul Smith  <psmith@gnu.org>
+
+	* scripts/functions/file: Get errors in the C locale, not the
+	current locale.  Fixes Savannah bug #35764.
+
+	* scripts/features/escape: Check that backslashes before
+	non-special characters are not removed.
+
+	* scripts/features/utf8: New test for UTF-8 support.
+	See Savannah bug #36529.
+
+	* scripts/targets/POSIX: Add tests for default macro values as
+	specified by IEEE Std 1003.1-2008.  See Savannah bug #37069.
+
+2012-03-04  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/se_explicit: Test $(x:%=%) format in secondary
+	expansion prerequisite lists.  See Savannah bug #16545.
+
+	* scripts/features/escape: Test escaped ":" in prerequisite lists.
+	See Savannah bug #12126.
+
+	* scripts/variables/private: Test appending private variables in
+	pattern-specific target rules.  See Savannah bug #35468.
+
+2012-03-03  Paul Smith  <psmith@gnu.org>
+
+	* scripts/variables/SHELL: Ensure .SHELLFLAGS works with options
+	separated by whitespace.
+
+	* scripts/targets/ONESHELL: Try .ONESHELL in combination with
+	whitespace-separated options in .SHELLFLAGS.  See Savannah bug #35397.
+
+	* scripts/functions/filter-out: Add filter tests and test escape
+	operations.  See Savannah bug #35410.
+
+	* guile.supp: Suppress valgrind errors from Guile
+	* run_make_tests.pl: Use the Guile suppression file.
+
+	* scripts/misc/bs-nl: Check for POSIX and non-POSIX
+	backslash/newline handling.  Addresses Savannah bug #16670.
+
+2012-01-29  Paul Smith  <psmith@gnu.org>
+
+	* scripts/variables/flavors: Add tests for ::=
+	* scripts/variables/define: Ditto
+
+	* scripts/functions/file: Test the new $(file ...) function.
+
+2012-01-12  Paul Smith  <psmith@gnu.org>
+
+	* scripts/functions/guile: New regression tests for Guile support.
+
+2011-12-10  Paul Smith  <psmith@gnu.org>
+
+	* scripts/targets/SECONDARY: Add prereq statements to ensure rules
+	are printed in the right order for test #9
+
+2011-11-14  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/double_colon: Check double-colon with escaped
+	filenames.  See Savannah bug #33399.
+
+2011-09-18  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/parallelism: On re-exec make sure we preserve
+	the value of MAKEFLAGS when necessary.  See Savannah bug #33873.
+
+	* scripts/features/vpath3: Verify handling of -lfoo libraries
+	found via vpath vs. the standard directory search.
+	See Savannah bug #32511.
+
+2011-09-12  Paul Smith  <psmith@gnu.org>
+
+	* scripts/functions/call: Verify that using export in a $(call ...)
+	context creates a global variable.  See Savannah bug #32498.
+
+2011-09-02  Paul Smith  <psmith@gnu.org>
+
+	* scripts/options/dash-n: Verify that in "-n -t", the -n takes
+	priority.  Patch from Michael Witten <mfwitten@gmail.com>.
+
+2011-08-29  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/varnesting: Test resetting of variables while
+	expanding them.  See Savannah patch #7534
+
+2011-06-12  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/archives: Check archives with whitespace at the
+	beginning, end, and extra in the middle.
+	Another test for Savannah bug #30612.
+
+2011-05-07  Paul Smith  <psmith@gnu.org>
+
+	* scripts/variables/private: Ensure we skip private variables when
+	appending.  Test for Savannah bug #32872.
+
+	* scripts/functions/wildcard: Verify wildcard used to test for
+	file existence/non-existence.
+
+2011-05-02  Paul Smith  <psmith@gnu.org>
+
+	* scripts/functions/sort: Add a test for Savannah bug #33125.
+
+2011-04-17  David A. Wheeler  <dwheeler@dwheeler.com>
+
+	* scripts/features/shell_assignment: Regression for "!=" feature
+
+2010-11-06  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/targetvars: Fix known-good output for BS/NL changes.
+	* scripts/functions/call: Ditto.
+	* scripts/variables/special: Ditto.
+
+	* scripts/misc/bs-nl: New test suite for backslash/newline testing.
+
+2010-08-29  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/errors: Add new error message to output text.
+	* scripts/variables/SHELL: Ditto.
+	* scripts/targets/POSIX: Ditto.
+	* scripts/options/dash-k: Ditto.
+	* scripts/features/vpathplus: Ditto.
+	* scripts/features/patternrules: Ditto.
+	* scripts/features/parallelism: Ditto.
+
+2010-08-13  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/archives: New regression tests for archive
+	support.  Test for fix to Savannah bug #30612.
+
+	* run_make_tests.pl (set_more_defaults): Set a %FEATURES hash to
+	the features available in $(.FEATURES).
+
+2010-08-10  Paul Smith  <psmith@gnu.org>
+
+	* scripts/features/reinvoke: Ensure command line variable settings
+	are preserved across make re-exec.  Tests Savannah bug #30723.
+
 2010-07-28  Paul Smith  <psmith@gnu.org>
 
 	* scripts/targets/POSIX: Compatibility issues with Solaris (and
@@ -299,7 +650,7 @@
 	* test_driver.pl (toplevel): Skip all hidden files/directories (ones
 	beginning with ".").
 
-	* scripts/functions/andor: Tests for $(and ..) and $(or ...)
+	* scripts/functions/andor: Tests for $(and ...) and $(or ...)
 	functions.
 
 2006-02-08  Boris Kolpackov  <boris@kolpackov.net>
@@ -386,9 +737,9 @@
 
 2005-08-13  Boris Kolpackov  <boris@kolpackov.net>
 
-	* scripts/functions/wildcard: Wrap calls to $(wildcard ) with
+	* scripts/functions/wildcard: Wrap calls to $(wildcard) with
 	$(sort) so that the resulting order is no longer filesystem-
-	dependant.
+	dependent.
 
 2005-08-10  Boris Kolpackov  <boris@kolpackov.net>
 
@@ -459,7 +810,7 @@
 
 2005-06-09  Paul D. Smith  <psmith@gnu.org>
 
-        * scripts/functions/foreach: Add a test for Savannah bug #11913.
+	* scripts/functions/foreach: Add a test for Savannah bug #11913.
 
 2005-05-31  Boris Kolpackov  <boris@kolpackov.net>
 
@@ -479,7 +830,7 @@
 2005-05-02  Paul D. Smith  <psmith@gnu.org>
 
 	* scripts/features/parallelism: Add a test for exporting recursive
-	variables containing $(shell ) calls.  Rewrite this script to use
+	variables containing $(shell) calls.  Rewrite this script to use
 	run_make_test() everywhere.
 
 2005-04-07  Paul D. Smith  <psmith@gnu.org>
@@ -1062,8 +1413,7 @@
 	ChangeLog file for the test suite created.
 
 
-Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+Copyright (C) 1992-2016 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the

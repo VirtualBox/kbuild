@@ -8,6 +8,9 @@ $details = "";
 # bird: Modified this test to use ${PRE} instead of $(PRE) as it failes
 #       when make is built with NO_ARCHIVES defined.
 
+# If we don't support archives then the prerequisite is different
+my $prereq = exists $FEATURES{'archives'} ? '$' : '$(PRE)';
+
 run_make_test(q!
 ifdef SE
   .SECONDEXPANSION:
@@ -20,7 +23,7 @@ PRE = three four
 .DEFAULT: ; @echo '$@'
 !,
               '',
-              "\${PRE}\nbar\$biz\nfoo\$bar : bar\$baz bar\$biz");
+              "$prereq\nbar\$biz\nfoo\$bar : bar\$baz bar\$biz");
 
 run_make_test(undef, 'SE=1', "three\nfour\nbariz\nfoo\$bar : baraz bariz");
 
@@ -117,7 +120,7 @@ run_make_test(q!
 .SECONDEXPANSION:
 all : $$(eval $$(info test))
 !,
-            '', "test\n#MAKE#: Nothing to be done for `all'.\n");
+            '', "test\n#MAKE#: Nothing to be done for 'all'.\n");
 
 # TEST #5: (NEGATIVE) catch eval in a prereq list trying to create new
 # target/prereq relationships.
@@ -154,5 +157,13 @@ a%l: q1x $$+ q2x ; @echo '$+'
                   '', "q1x bar bar q2x bar bar\n");
 
 
-# This tells the test driver that the perl test script executed properly.
+# Allow patsubst shorthand in second expansion context.
+# Requires the colon to be quoted.  Savannah bug #16545
+run_make_test(q!
+.PHONY: foo.bar
+.SECONDEXPANSION:
+foo: $$(@\\:%=%.bar); @echo '$^'
+!,
+              '', "foo.bar\n");
+
 1;

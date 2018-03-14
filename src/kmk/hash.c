@@ -14,14 +14,12 @@ A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "make.h"
+#include "makeint.h"
 #include "hash.h"
 #ifdef CONFIG_WITH_STRCACHE2
 # include <assert.h>
 #endif
 
-
-/*#define	CALLOC(t, n) ((t *) calloc (sizeof (t), (n)))*/
 #define	CALLOC(t, n) ((t *) xcalloc (sizeof (t) * (n)))
 #define MALLOC(t, n) ((t *) xmalloc (sizeof (t) * (n)))
 #define REALLOC(o, t, n) ((t *) xrealloc ((o), sizeof (t) * (n)))
@@ -31,7 +29,7 @@ static void hash_rehash __P((struct hash_table* ht));
 static unsigned long round_up_2 __P((unsigned long rough));
 
 /* Implement double hashing with open addressing.  The table size is
-   always a power of two.  The secondary (`increment') hash function
+   always a power of two.  The secondary ('increment') hash function
    is forced to return an odd-value, in order to be relatively prime
    to the table size.  This guarantees that the increment can
    potentially hit every slot in the table during collision
@@ -53,7 +51,7 @@ hash_init (struct hash_table *ht, unsigned long size,
     {
       fprintf (stderr, _("can't allocate %lu bytes for hash table: memory exhausted"),
 	       ht->ht_size * (unsigned long) sizeof (struct token *));
-      exit (1);
+      exit (MAKE_TROUBLE);
     }
 
   ht->ht_capacity = ht->ht_size - (ht->ht_size / 16); /* 93.75% loading factor */
@@ -89,7 +87,7 @@ void hash_init_strcached (struct hash_table *ht, unsigned long size,
 }
 #endif /* CONFIG_WITH_STRCACHE2 */
 
-/* Load an array of items into `ht'.  */
+/* Load an array of items into 'ht'.  */
 
 void
 hash_load (struct hash_table *ht, void *item_table,
@@ -118,9 +116,9 @@ hash_load (struct hash_table *ht, void *item_table,
 #endif /* CONFIG_WITH_STRCACHE2 */
 }
 
-/* Returns the address of the table slot matching `key'.  If `key' is
+/* Returns the address of the table slot matching 'key'.  If 'key' is
    not found, return the address of an empty slot suitable for
-   inserting `key'.  The caller is responsible for incrementing
+   inserting 'key'.  The caller is responsible for incrementing
    ht_fill on insertion.  */
 
 void **

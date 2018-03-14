@@ -1,4 +1,4 @@
-/* $Id: alloccache.c 2633 2012-09-08 23:18:59Z knut.osmundsen@oracle.com $ */
+/* $Id: alloccache.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * alloccache - Fixed sized allocation cache.
  *
@@ -37,7 +37,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
-#include "make.h"
+#include "makeint.h"
 #include "dep.h"
 #include "debug.h"
 #include <assert.h>
@@ -66,9 +66,13 @@ alloccache_free (struct alloccache *cache, void *item)
   f->next = cache->free_head;
   cache->free_head = f;
   MAKE_STATS(cache->free_count++;);
-#else
-  free(item);
-#endif
+#else  /* CONFIG_WITH_ALLOCCACHE_DEBUG */
+
+  struct alloccache **ppcache = (struct alloccache **)item - 1;
+  MY_ASSERT_MSG (*ppcache == cache, ("*ppcache=%p cache=%p item=%p\n", *ppcache, cache, item));
+  *ppcache = NULL;
+  free(ppcache);
+#endif /* CONFIG_WITH_ALLOCCACHE_DEBUG */
 }
 
 /* Default allocator. */
@@ -98,9 +102,14 @@ alloccache_alloc_grow (struct alloccache *cache)
   cache->free_start += cache->size;
   /* caller counts */
   return (struct alloccache_free_ent *)item;
-#else
-  return (struct alloccache_free_ent *)xmalloc(cache->size);
-#endif
+#else  /* CONFIG_WITH_ALLOCCACHE_DEBUG */
+
+  /* Prefix the allocation with a cache pointer so alloccahce_free can better
+     catch incorrect calls. */
+  struct alloccache **ppcache = (struct alloccache **)xmalloc(sizeof(*ppcache) + cache->size);
+  *ppcache = cache;
+  return (struct alloccache_free_ent *)(ppcache + 1);
+#endif /* CONFIG_WITH_ALLOCCACHE_DEBUG */
 }
 
 /* List of alloc caches, for printing. */
