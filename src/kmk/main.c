@@ -4056,7 +4056,7 @@ print_version (void)
 #ifdef KMK
   printf ("\n\
 %skBuild modifications:\n\
-%s Copyright (c) 2005-2013 knut st. osmundsen.\n\
+%s Copyright (c) 2005-2018 knut st. osmundsen.\n\
 \n\
 %skmkbuiltin commands derived from *BSD sources:\n\
 %s Copyright (c) 1983 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994\n\
