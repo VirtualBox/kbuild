@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #include "err.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <fts.h>
+#include "fts.h"
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -47,7 +47,7 @@ static char sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
 
 #include "err.h"
 #include <errno.h>
-#include <fts.h>
+#include "fts.h"
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>

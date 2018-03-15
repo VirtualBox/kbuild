@@ -53,7 +53,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include "err.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <fts.h>
+#include "fts.h"
 #include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
