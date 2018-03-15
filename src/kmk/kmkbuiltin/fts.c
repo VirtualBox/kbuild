@@ -1423,8 +1423,13 @@ fts_safe_changedir(sp, p, fd, path)
 		return 0;
 
 #ifdef HAVE_FCHDIR
-	if (oldfd < 0 && (fd = open(path, O_RDONLY)) == -1)
-		return -1;
+	if (oldfd < 0) {
+		if (!path) /* shuts up gcc nonull checks*/
+			return -1;
+		fd = open(path, O_RDONLY);
+		if (fd == -1)
+			return -1;
+	}
 
 	if (fstat(fd, &sb) == -1)
 		goto bail;

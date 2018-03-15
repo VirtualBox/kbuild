@@ -426,6 +426,7 @@ copy(char *argv[], enum op type, int fts_options)
 				}
 				continue;
 			}
+			/* fall thru */
 		case FTS_DNR:
 		case FTS_ERR:
 			warnx("fts: %s: %s",

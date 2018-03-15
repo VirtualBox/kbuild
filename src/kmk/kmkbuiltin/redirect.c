@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3145 2018-03-15 00:00:09Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -1566,6 +1566,7 @@ int main(int argc, char **argv, char **envp)
                             fd = 0;
                             break;
                         }
+                        /* fall thru */
                     case '1':
                     case '2':
                     case '3':

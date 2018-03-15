@@ -3284,9 +3284,9 @@ func_xargs (char *o, char **argv, const char *funcname UNUSED)
   max_args = initial_cmd_len = strlen (initial_cmd);
 
   /* second: the command for the subsequent command lines. defaults to the initial cmd. */
-  subsequent_cmd = argc > 2 && argv[1][0] != '\0' ? argv[1] : "";
+  subsequent_cmd = argc > 2 && argv[1][0] != '\0' ? argv[1] : "\0";
   while (ISSPACE (*subsequent_cmd))
-    subsequent_cmd++;
+    subsequent_cmd++;   /* gcc 7.3.0 complains "offset ‘1’ outside bounds of constant string" if constant is "" rather than "\0". */
   if (*subsequent_cmd)
     {
       subsequent_cmd_len = strlen (subsequent_cmd);
@@ -3300,9 +3300,9 @@ func_xargs (char *o, char **argv, const char *funcname UNUSED)
     }
 
   /* third: the final command. defaults to the subseq cmd. */
-  final_cmd = argc > 3 && argv[2][0] != '\0' ? argv[2] : "";
+  final_cmd = argc > 3 && argv[2][0] != '\0' ? argv[2] : "\0";
   while (ISSPACE (*final_cmd))
-    final_cmd++;
+    final_cmd++;    /* gcc 7.3.0: same complaint as for subsequent_cmd++ */
   if (*final_cmd)
     {
       final_cmd_len = strlen (final_cmd);
