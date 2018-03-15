@@ -1,0 +1,29 @@
+# $Id: testcase-assignments.kmk 3154 2018-03-15 23:35:33Z knut.osmundsen@oracle.com $
+# Testcase for weird various assignment operators and parsing.
+
+
+
+SIMPLE1 := simple1
+ifneq ($(SIMPLE1),simple1)
+ $(error simple1 assignment no 1 failed: SIMPLE1=$(SIMPLE1))
+endif
+
+SIMPLE2 := simple2-$(SIMPLE1)
+ifneq ($(SIMPLE2),simple2-simple1)
+ $(error simple assignment no 2 failed: $(SIMPLE2))
+endif
+
+$(SIMPLE1)-3 := simple3-$(SIMPLE1)
+ifneq ($(simple1-3),simple3-simple1)
+ $(error simple assignment no 3 failed: $($(SIMPLE1)-3))
+endif
+
+$(subst 1,4,$(SIMPLE1)) := simple4
+ifneq ($(simple4),simple4)
+ $(error simple assignment no 4 failed: simple4=$(simple4)) # (Including an equal inside the error call here.)
+endif
+
+all:
+	@echo okay
+
+

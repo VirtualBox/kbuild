@@ -1,10 +1,10 @@
-/* $Id: kmk_cc_exec.h 2788 2015-09-06 15:43:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.h 3154 2018-03-15 23:35:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
 
 /*
- * Copyright (c) 2015 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2015-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef ___kmk_cc_and_exech
-#define ___kmk_cc_and_exech
+#ifndef ___kmk_cc_and_exec_h
+#define ___kmk_cc_and_exec_h
 #ifdef CONFIG_WITH_COMPILER
 
 #include <stdio.h>
