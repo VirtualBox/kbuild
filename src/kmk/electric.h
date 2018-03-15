@@ -1,4 +1,4 @@
-/* $Id: electric.h 2798 2015-09-19 20:35:03Z knut.osmundsen@oracle.com $ */
+/* $Id: electric.h 3150 2018-03-15 18:18:03Z knut.osmundsen@oracle.com $ */
 /** @file
  * A simple electric heap implementation, wrapper header.
  */
@@ -44,7 +44,8 @@ void *xrealloc_size_t (void *ptr, size_t size);
 
 
 #undef  free
-#define free(a)         xfree(a)
+//#define free(a)         xfree(a)
+#define free            xfree
 #undef  strdup
 #define strdup(a)       xstrdup(a)
 
