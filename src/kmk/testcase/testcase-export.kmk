@@ -1,0 +1,48 @@
+
+
+var0 = value0
+var1 = value1
+var2 = value2
+var3 = value3
+var4 = value4
+var5 = value5
+var6 = value6
+var7 = value7
+var8 = value8
+var9 = value9
+
+varname1 = var1
+varname2 = var2
+varname3 = var3
+varname4 = var4
+varname5 = var5
+varname5 = var5
+varname6 = var6
+varname7 = var7
+varname8 = var8
+varname9 = var9
+
+export var0 var8 $(varname1) $(subst foo,var,   foo2   )
+export $(foreach x, 3 4 \
+,$(subst \
+odd(, \
+   parenthesis parsing behaviour), dont-mind-this-type{ except if you put a ${dollar} in front of it, \
+$(varname$(x)) \
+)\
+)
+
+export ${foreach x, 5 \
+,${subst \
+odd{, \
+   parenthesis parsing behaviour}, dont-mind-this-type( \
+   except if you put a $(dollar) in front of it; two dollars $$(does do the trick though, \
+${varname$x}} \
+}\
+}
+
+export $ ${varname6}
+export $(varname7$)
+
+all:
+	kmk_ash -c "export | kmk_sed '/var/!d'
+

@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3151 2018-03-15 18:18:42Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3154 2018-03-15 23:35:33Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -227,6 +227,9 @@ endif
 ifdef CONFIG_WITH_COMPILE_EVERYTHING
  kmk_DEFS += CONFIG_WITH_COMPILE_EVERYTHING
 endif
+#ifeq ($(KBUILD_TYPE).$(USERNAME),debug.bird)
+# kmk_DEFS += CONFIG_WITH_COMPILER CONFIG_WITH_EVAL_COMPILER CONFIG_WITH_COMPILE_EVERYTHING
+#endif
 
 kmk_SOURCES = \
 	main.c \

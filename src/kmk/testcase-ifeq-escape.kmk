@@ -1,0 +1,18 @@
+# $Id: testcase-ifeq-escape.kmk 3154 2018-03-15 23:35:33Z knut.osmundsen@oracle.com $
+# Testcase for weird 'ifeq' and funny escapes.
+
+ifeq "1        	 \
+ \
+ \
+   \
+ \
+ " \
+"1 "
+$(info info: ifeq -> equal)
+else
+$(error info: ifeq -> not equal - wrong)
+endif
+
+all:
+	@echo okay
+
