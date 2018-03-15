@@ -50,11 +50,13 @@ USA.  */
    it is simpler to just do this in the source for each such file.  */
 
 #define GLOB_INTERFACE_VERSION 1
+#if 0 /* bird: Apparently this causes trouble for some debian builds. */
 #if !defined _LIBC && defined __GNU_LIBRARY__ && __GNU_LIBRARY__ > 1
 # include <gnu-versions.h>
 # if _GNU_GLOB_INTERFACE_VERSION == GLOB_INTERFACE_VERSION
 #  define ELIDE_CODE
 # endif
+#endif
 #endif
 
 #ifndef ELIDE_CODE
@@ -209,7 +211,7 @@ my_realloc (p, n)
 #endif /* __GNU_LIBRARY__ || __DJGPP__ */
 
 
-#if !defined __alloca && !defined __GNU_LIBRARY__
+#if !defined __alloca /*&& !defined __GNU_LIBRARY__ - bird: unresolved __alloca symbol if skipping this for gnu libc. duh. */
 
 # ifdef	__GNUC__
 #  undef alloca
@@ -226,7 +228,7 @@ extern char *alloca ();
 #    endif /* WINDOWS32 */
 #   endif /* Not _AIX.  */
 #  endif /* sparc or HAVE_ALLOCA_H.  */
-# endif	/* GCC.  */
+# endif	/* Not GCC.  */
 
 # define __alloca	alloca
 

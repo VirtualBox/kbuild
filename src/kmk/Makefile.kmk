@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3147 2018-03-15 17:29:12Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -125,7 +125,6 @@ kmkmissing_SOURCES.linux += \
 	kmkbuiltin/strlcpy.c
 
 kmkmissing_SOURCES.netbsd = \
-	glob/glob.c \
 	glob/fnmatch.c
 
 kmkmissing_SOURCES.openbsd = \
