@@ -178,10 +178,12 @@ extern void bcopy ();
 # define strcoll	strcmp
 #endif
 
+#if 0 /* bird: This messes with the electric.c heap (linux/amd64). Probably missing prototype, so int return. */
 #if !defined HAVE_MEMPCPY && __GLIBC__ - 0 == 2 && __GLIBC_MINOR__ >= 1
 # define HAVE_MEMPCPY	1
 # undef  mempcpy
 # define mempcpy(Dest, Src, Len) __mempcpy (Dest, Src, Len)
+#endif
 #endif
 
 #if !defined __GNU_LIBRARY__ && !defined __DJGPP__ && !defined ELECTRIC_HEAP && !defined __APPLE__ /* bird (last two) */
