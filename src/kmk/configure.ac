@@ -393,26 +393,29 @@ AS_IF([(/usr/sccs/admin -n s.conftest || admin -n s.conftest) >/dev/null 2>&1 &&
 ])
 rm -f s.conftest conftoast
 
+## bird: always use our glob impl. Avoids trouble with newish glibc.
 # Check the system to see if it provides GNU glob.  If not, use our
 # local version.
-AC_CACHE_CHECK([if system libc has GNU glob], [make_cv_sys_gnu_glob],
-[ AC_EGREP_CPP([gnu glob],[
-#include <features.h>
-#include <glob.h>
-#include <fnmatch.h>
-
-#define GLOB_INTERFACE_VERSION 1
-#if !defined _LIBC && defined __GNU_LIBRARY__ && __GNU_LIBRARY__ > 1
-# include <gnu-versions.h>
-# if _GNU_GLOB_INTERFACE_VERSION == GLOB_INTERFACE_VERSION
-   gnu glob
-# endif
-#endif],
-        [make_cv_sys_gnu_glob=yes],
-        [make_cv_sys_gnu_glob=no])])
-AS_IF([test "$make_cv_sys_gnu_glob" = no],
+#x# AC_CACHE_CHECK([if system libc has GNU glob], [make_cv_sys_gnu_glob],
+#x# [ AC_EGREP_CPP([gnu glob],[
+#x# #include <features.h>
+#x# #include <glob.h>
+#x# #include <fnmatch.h>
+#x#
+#x# #define GLOB_INTERFACE_VERSION 1
+#x# #if !defined _LIBC && defined __GNU_LIBRARY__ && __GNU_LIBRARY__ > 1
+#x# # include <gnu-versions.h>
+#x# # if _GNU_GLOB_INTERFACE_VERSION == GLOB_INTERFACE_VERSION
+#x#    gnu glob
+#x# # endif
+#x# #endif],
+#x#         [make_cv_sys_gnu_glob=yes],
+#x#         [make_cv_sys_gnu_glob=no])])
+#x# AS_IF([test "$make_cv_sys_gnu_glob" = no],
+AS_IF([test yes = yes],
 [ GLOBINC='-I$(srcdir)/glob'
   GLOBLIB=glob/libglob.a
+  make_cv_sys_gnu_glob=no
 ])
 AC_SUBST([GLOBINC])
 AC_SUBST([GLOBLIB])
