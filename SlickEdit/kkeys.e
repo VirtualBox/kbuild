@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 3015 2016-11-29 10:14:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 3146 2018-03-15 17:01:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -53,6 +53,12 @@ def  'C-DEL'    = kkeys_delete_right
 #if __VERSION__ >= 15.0
 def  'S-C-='    = svn_diff_with_base
 #endif
+#if __VERSION__ >= 22.0
+def  'C-='      = diff;
+def  'C--'      = nil;
+def  'S-A-C-='  = wfont_zoom_in;
+def  'S-A-C--'  = wfont_zoom_out;
+#endif
 #if __VERSION__ >= 14.0
 def  'C-/'      = kkeys_push_ref
 def  'S-C-/'    = push_ref
@@ -78,6 +84,10 @@ def  'M-g'      = goto_line
 def  'S-M-]'    = next_buff_tab
 def  'S-M-['    = prev_buff_tab
 def  'S-M-U'    = kkeys_gen_uuid
+#endif
+#if __VERSION__ >= 22.0
+def  'S-M-C-='  = wfont_zoom_in;
+def  'S-M-C--'  = wfont_zoom_out;
 #endif
 /* Fixing brainfucked slickedit silliness: */
 def  'M-v'      = paste

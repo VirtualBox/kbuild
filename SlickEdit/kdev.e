@@ -1,4 +1,4 @@
-/* $Id: kdev.e 3137 2018-03-06 22:29:41Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 3146 2018-03-15 17:01:15Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3564,7 +3564,9 @@ _command void kdev_load_settings()
     /*
      * Load the color profile (was lexer).
      */
-    cload(_strip_filename(__FILE__, 'N') '/user.vlx');
+    int rc = cload(_strip_filename(__FILE__, 'N') '/user.vlx');
+    if (rc != 0)
+        messageNwait('cload of user.vlx failed: ' rc);
 #endif
 
     /*
@@ -3575,6 +3577,17 @@ _command void kdev_load_settings()
     _default_option('R', '130');        /* Vertical line in column 130. */
     def_mfsearch_init_flags = 2 | 4;    /* MFSEARCH_INIT_CURWORD | MFSEARCH_INIT_SELECTION */
     def_line_insert = 'B';              /* insert before */
+    def_updown_col=0;                   /* cursor movement */
+    def_cursorwrap=0;                   /* ditto. */
+    def_click_past_end=1;               /* ditto */
+    def_start_on_first=1;               /* vs A B C; view A. */
+    def_vc_system='Subversion'          /* svn is default version control */
+#if __VERSION__ >= 16.0
+    def_auto_unsurround_block=0;        /* Delete line, not block. */
+#endif
+    _config_modify_flags(CFGMODIFY_DEFDATA);
+
+#if __VERSION__ < 21.0 /* I think this is obsolete... */
     def_file_types='All Files (*),'     /** @todo make this prettier */
                    'C/C++ Files (*.c;*.cc;*.cpp;*.cp;*.cxx;*.c++;*.h;*.hh;*.hpp;*.hxx;*.inl;*.xpm),'
                    'Assembler (*.s;*.asm;*.mac;*.S),'
@@ -3618,16 +3631,7 @@ _command void kdev_load_settings()
                    'Vera Files (*.vr;*.vrh),'
                    'Erlang Files (*.erl;*.hrl),'
                    ;
-
-    def_updown_col=0;                   /* cursor movement */
-    def_cursorwrap=0;                   /* ditto. */
-    def_click_past_end=1;               /* ditto */
-    def_start_on_first=1;               /* vs A B C; view A. */
-    def_vc_system='Subversion'          /* svn is default version control */
-#if __VERSION__ >= 16.0
-    def_auto_unsurround_block=0;        /* Delete line, not block. */
 #endif
-    _config_modify_flags(CFGMODIFY_DEFDATA);
 
     /* Make it grok:  # include <stuff.h> */
     for (i = 0; i < aCLikeIncs._length(); i++)
