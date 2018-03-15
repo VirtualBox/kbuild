@@ -83,7 +83,7 @@ extern size_t maybe_con_fwrite(void const *, size_t, size_t, FILE *);
 #endif
 
 
-#ifdef __GNUC__
+#if 0 /*def __GNUC__ - bird: gcc complains about non-ISO-standard escape. */
 #define ESCAPE '\e'
 #else
 #define ESCAPE 033

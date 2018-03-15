@@ -3382,6 +3382,7 @@ get_next_mword (char *buffer, char *delim, char **startp, unsigned int *length)
           wtype = w_varassign;
           break;
         }
+      /* fall thru */
 
     default:
       if (delim && strchr (delim, c))
