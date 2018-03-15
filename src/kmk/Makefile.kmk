@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3147 2018-03-15 17:29:12Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3151 2018-03-15 18:18:42Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -59,12 +59,15 @@ ifneq ($(KBUILD_TARGET),os2)
  TEMPLATE_BIN-KMK_INCS += glob
 endif
 TEMPLATE_BIN-KMK_LIBS = $(LIB_KUTIL) $(TEMPLATE_BIN-THREADED_LIBS) $(kmkmissing_1_TARGET) $(LIB_KUTIL)
-ifdef ELECTRIC_HEAP # for electric heap (see electric.c) - windows only.
+ifdef ELECTRIC_HEAP # for electric heap (see electric.c).
 ifeq ($(KBUILD_TARGET),win)
  TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN-THREADED_CFLAGS) /FI$(kmk_DEFPATH)/electric.h -DELECTRIC_HEAP=1
 else
  TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN-THREADED_CFLAGS) -include $(kmk_DEFPATH)/electric.h -DELECTRIC_HEAP=1
 endif
+endif
+ifdef CONFIG_WITH_ALLOCCACHE_DEBUG
+ TEMPLATE_BIN-KMK_DEFS += CONFIG_WITH_ALLOCCACHE_DEBUG
 endif
 # GCC sanitizers.
 ifdef GCC_SANITIZERS
