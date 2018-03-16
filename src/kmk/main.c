@@ -464,9 +464,19 @@ static const char *const usage[] =
     N_("\
   -o FILE, --old-file=FILE, --assume-old=FILE\n\
                               Consider FILE to be very old and don't remake it.\n"),
+#ifndef KMK
     N_("\
   -O[TYPE], --output-sync[=TYPE]\n\
                               Synchronize output of parallel jobs by TYPE.\n"),
+#else
+    N_("\
+  -O[TYPE], --output-sync[=TYPE]\n\
+                              Synchronize output of parallel jobs by TYPE:\n\
+                                none    = no synchronization (default).\n\
+                                line    = receip line output\n\
+                                target  = entire receip output\n\
+                                recurse = entire recursive invocation\n"),
+#endif
     N_("\
   -p, --print-data-base       Print make's internal database.\n"),
     N_("\
