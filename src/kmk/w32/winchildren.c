@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3156 2018-03-18 20:10:03Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3158 2018-03-18 21:25:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -119,6 +119,15 @@ typedef struct WINCHILD
             size_t          cbEnvStrings;
             /** The make shell to use (copy). */
             char           *pszShell;
+            /** Handle to use for standard out. */
+            HANDLE          hStdOut;
+            /** Handle to use for standard out. */
+            HANDLE          hStdErr;
+            /** Whether to close hStdOut after creating the process.  */
+            BOOL            fCloseStdOut;
+            /** Whether to close hStdErr after creating the process.  */
+            BOOL            fCloseStdErr;
+
             /** Child process handle. */
             HANDLE          hProcess;
         } Process;
@@ -310,21 +319,6 @@ void MkWinChildInit(unsigned int cJobSlots)
             g_pfnGetActiveProcessorGroupCount = NULL;
         }
     }
-}
-
-
-/**
- * Emulate execv() for restarting kmk after one ore more makefiles has been
- * made.
- *
- * Does not return.
- *
- * @param   papszArgs           The arguments.
- * @param   papszEnv            The environment.
- */
-void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
-{
-    fatal(NILF, 0, __FUNCTION__ "not implemented!\n");
 }
 
 /**
@@ -1035,7 +1029,7 @@ static int mkWinChildcareWorkerConvertEnvironment(char **papszEnv, size_t cbEnvS
     if (cbEnvStrings)
     {
         cwcDst = cbEnvStrings + 32;
-        pwszzDst = (WCHAR *)xmalloc(cwcDst);
+        pwszzDst = (WCHAR *)xmalloc(cwcDst * sizeof(WCHAR));
         cwcRc = MultiByteToWideChar(CP_ACP, 0 /*fFlags*/, papszEnv[0], cbEnvStrings, pwszzDst, cwcDst);
         if (cwcRc != 0)
         {
@@ -1216,6 +1210,18 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
         memset(&StartupInfo, 0, sizeof(StartupInfo));
         StartupInfo.cb = sizeof(StartupInfo);
         GetStartupInfoW(&StartupInfo);
+        if (   pChild->u.Process.hStdErr == INVALID_HANDLE_VALUE
+            && pChild->u.Process.hStdOut == INVALID_HANDLE_VALUE)
+            StartupInfo.dwFlags &= ~STARTF_USESTDHANDLES;
+        else
+        {
+            StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
+            StartupInfo.hStdOutput = pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE
+                                   ? pChild->u.Process.hStdOut : GetStdHandle(STD_OUTPUT_HANDLE);
+            StartupInfo.hStdError  = pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE
+                                   ? pChild->u.Process.hStdErr : GetStdHandle(STD_ERROR_HANDLE);
+            StartupInfo.hStdInput  = GetStdHandle(STD_INPUT_HANDLE);
+        }
 
         /*
          * Flags.
@@ -1240,6 +1246,7 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
         memset(&ProcInfo, 0, sizeof(ProcInfo));
         fRet = CreateProcessW(pwszImageName, pwszCommandLine, NULL /*pProcSecAttr*/, NULL /*pThreadSecAttr*/,
                               TRUE /*fInheritHandles*/, fFlags, pwszzEnvironment, NULL /*pwsz*/, &StartupInfo, &ProcInfo);
+        rc = GetLastError();
         if (fRet)
         {
             /*
@@ -1270,14 +1277,35 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
                 assert(fRet);
                 (void)fRet;
             }
+
+            /*
+             * Close unncessary handles.
+             */
             CloseHandle(ProcInfo.hThread);
             pChild->u.Process.hProcess = ProcInfo.hProcess;
+
+            if (   pChild->u.Process.fCloseStdOut
+                && pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE)
+            {
+                CloseHandle(pChild->u.Process.hStdOut);
+                pChild->u.Process.hStdOut      = INVALID_HANDLE_VALUE;
+                pChild->u.Process.fCloseStdOut = FALSE;
+            }
+            if (   pChild->u.Process.fCloseStdErr
+                && pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE)
+            {
+                CloseHandle(pChild->u.Process.hStdErr);
+                pChild->u.Process.hStdErr      = INVALID_HANDLE_VALUE;
+                pChild->u.Process.fCloseStdErr = FALSE;
+            }
 
             /*
              * Wait for the child to complete.
              */
             mkWinChildcareWorkerWaitForProcess(pWorker, pChild, ProcInfo.hProcess);
         }
+        else
+            pChild->iExitCode = rc;
     }
     else
         pChild->iExitCode = rc;
@@ -1592,6 +1620,20 @@ static void mkWinChildDelete(PWINCHILD pChild)
                 CloseHandle(pChild->u.Process.hProcess);
                 pChild->u.Process.hProcess = NULL;
             }
+            if (   pChild->u.Process.fCloseStdOut
+                && pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE)
+            {
+                CloseHandle(pChild->u.Process.hStdOut);
+                pChild->u.Process.hStdOut      = INVALID_HANDLE_VALUE;
+                pChild->u.Process.fCloseStdOut = FALSE;
+            }
+            if (   pChild->u.Process.fCloseStdErr
+                && pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE)
+            {
+                CloseHandle(pChild->u.Process.hStdErr);
+                pChild->u.Process.hStdErr      = INVALID_HANDLE_VALUE;
+                pChild->u.Process.fCloseStdErr = FALSE;
+            }
             break;
         }
 
@@ -1757,13 +1799,93 @@ int MkWinChildCreate(char **papszArgs, char **papszEnv, const char *pszShell, st
         pChild->u.Process.papszEnv = mkWinChildCopyStringArray(papszEnv, &pChild->u.Process.cbEnvStrings);
     if (pszShell)
         pChild->u.Process.pszShell = xstrdup(pszShell);
+    pChild->u.Process.hStdOut = INVALID_HANDLE_VALUE;
+    pChild->u.Process.hStdErr = INVALID_HANDLE_VALUE;
 
     return mkWinChildPushToCareWorker(pChild, pPid);
 }
 
+/**
+ * Creates a chile process with a pipe hooked up to stdout.
+ *
+ * @returns 0 on success, non-zero on failure.
+ * @param   papszArgs       The argument vector.
+ * @param   papszEnv        The environment vector (optional).
+ * @param   fdErr           File descriptor to hook up to stderr.
+ * @param   pPid            Where to return the pid.
+ * @param   pfdReadPipe     Where to return the read end of the pipe.
+ */
 int MkWinChildCreateWithStdOutPipe(char **papszArgs, char **papszEnv, int fdErr, pid_t *pPid, int *pfdReadPipe)
 {
-    fatal(NILF, 0, __FUNCTION__ "not implemented!\n");
+    /*
+     * Create the pipe.
+     */
+    HANDLE hReadPipe;
+    HANDLE hWritePipe;
+    if (CreatePipe(&hReadPipe, &hWritePipe, NULL, 0 /* default size */))
+    {
+        if (SetHandleInformation(hWritePipe, HANDLE_FLAG_INHERIT /* clear */ , HANDLE_FLAG_INHERIT /*set*/))
+        {
+            int fdReadPipe = _open_osfhandle((intptr_t)hReadPipe, O_RDONLY);
+            if (fdReadPipe >= 0)
+            {
+                PWINCHILD pChild;
+                int rc;
+
+                /*
+                 * Get a handle for fdErr.  Ignore failure.
+                 */
+                HANDLE hStdErr = INVALID_HANDLE_VALUE;
+                if (fdErr >= 0)
+                {
+                    HANDLE hNative = (HANDLE)_get_osfhandle(fdErr);
+                    if (!DuplicateHandle(GetCurrentProcess(), hNative, GetCurrentProcess(),
+                                         &hStdErr, 0 /*DesiredAccess*/, TRUE /*fInherit*/, DUPLICATE_SAME_ACCESS))
+                    {
+                        ONN(error, NILF, _("DuplicateHandle failed on stderr descriptor (%u): %u\n"), fdErr, GetLastError());
+                        hStdErr = INVALID_HANDLE_VALUE;
+                    }
+                }
+
+                /*
+                 * Push it off to the worker thread.
+                 */
+                pChild = mkWinChildNew(WINCHILDTYPE_PROCESS);
+                pChild->u.Process.papszArgs = mkWinChildCopyStringArray(papszArgs, &pChild->u.Process.cbArgsStrings);
+                pChild->u.Process.papszEnv  = mkWinChildCopyStringArray(papszEnv ? papszEnv : environ,
+                                                                        &pChild->u.Process.cbEnvStrings);
+                //if (pszShell)
+                //    pChild->u.Process.pszShell = xstrdup(pszShell);
+                pChild->u.Process.hStdOut   = hWritePipe;
+                pChild->u.Process.hStdErr   = hStdErr;
+                pChild->u.Process.fCloseStdErr = TRUE;
+                pChild->u.Process.fCloseStdOut = TRUE;
+
+                rc = mkWinChildPushToCareWorker(pChild, pPid);
+                if (rc == 0)
+                    *pfdReadPipe = fdReadPipe;
+                else
+                {
+                    ON(error, NILF, _("mkWinChildPushToCareWorker failed on pipe: %d\n"), rc);
+                    close(fdReadPipe);
+                    *pfdReadPipe = -1;
+                    *pPid = -1;
+                }
+                return rc;
+            }
+
+            ON(error, NILF, _("_open_osfhandle failed on pipe: %u\n"), errno);
+        }
+        else
+            ON(error, NILF, _("SetHandleInformation failed on pipe: %u\n"), GetLastError());
+        if (hReadPipe != INVALID_HANDLE_VALUE)
+            CloseHandle(hReadPipe);
+        CloseHandle(hWritePipe);
+    }
+    else
+        ON(error, NILF, _("CreatePipe failed: %u\n"), GetLastError());
+    *pfdReadPipe = -1;
+    *pPid = -1;
     return -1;
 }
 
@@ -1841,12 +1963,24 @@ int MkWinChildKill(pid_t pid, int iSignal, struct child *pMkChild)
     return -1;
 }
 
+/**
+ * Wait for a child process to complete
+ *
+ * @returns 0 on success, windows error code on failure.
+ * @param   fBlock          Whether to block.
+ * @param   pPid            Where to return the pid if a child process
+ *                          completed.  This is set to zero if none.
+ * @param   piExitCode      Where to return the exit code.
+ * @param   piSignal        Where to return the exit signal number.
+ * @param   pfCoreDumped    Where to return the core dumped indicator.
+ * @param   ppMkChild       Where to return the associated struct child pointer.
+ */
 int MkWinChildWait(int fBlock, pid_t *pPid, int *piExitCode, int *piSignal, int *pfCoreDumped, struct child **ppMkChild)
 {
     PWINCHILD pChild;
 
     *pPid         = 0;
-    *piExitCode   = 0;
+    *piExitCode   = -222222;
     *pfCoreDumped = 0;
     *ppMkChild    = NULL;
 
@@ -1899,6 +2033,90 @@ intptr_t MkWinChildGetCompleteEventHandle(void)
     return (intptr_t)g_hEvtWaitChildren;
 }
 
+
+/**
+ * Emulate execv() for restarting kmk after one ore more makefiles has been
+ * made.
+ *
+ * Does not return.
+ *
+ * @param   papszArgs           The arguments.
+ * @param   papszEnv            The environment.
+ */
+void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
+{
+    PROCESS_INFORMATION     ProcInfo;
+    STARTUPINFOW            StartupInfo;
+    WCHAR                  *pwszCommandLine;
+    WCHAR                  *pwszzEnvironment;
+    WCHAR                  *pwszPathIgnored;
+    int                     rc;
+
+/** @todo this code needs testing... */
+
+    /*
+     * Get the executable name.
+     */
+    WCHAR wszImageName[MKWINCHILD_MAX_PATH];
+    DWORD cwcImageName = GetModuleFileNameW(GetModuleHandle(NULL), wszImageName, MKWINCHILD_MAX_PATH);
+    if (cwcImageName == 0)
+        ON(fatal, NILF, _("MkWinChildReExecMake: GetModuleFileName failed: %u\n"), GetLastError());
+
+    /*
+     * Create the command line and environment.
+     */
+    rc = mkWinChildcareWorkerConvertCommandline(papszArgs, 0 /*fFlags*/, &pwszCommandLine);
+    if (rc != 0)
+        ON(fatal, NILF, _("MkWinChildReExecMake: mkWinChildcareWorkerConvertCommandline failed: %u\n"), rc);
+
+    rc = mkWinChildcareWorkerConvertEnvironment(papszEnv ? papszEnv : environ, 0 /*cbEnvStrings*/,
+                                                &pwszzEnvironment, &pwszPathIgnored);
+    if (rc != 0)
+        ON(fatal, NILF, _("MkWinChildReExecMake: mkWinChildcareWorkerConvertEnvironment failed: %u\n"), rc);
+
+
+    /*
+     * Fill out the startup info and try create the process.
+     */
+    memset(&ProcInfo, 0, sizeof(ProcInfo));
+    memset(&StartupInfo, 0, sizeof(StartupInfo));
+    StartupInfo.cb = sizeof(StartupInfo);
+    GetStartupInfoW(&StartupInfo);
+    if (!CreateProcessW(wszImageName, pwszCommandLine, NULL /*pProcSecAttr*/, NULL /*pThreadSecAttr*/,
+                        TRUE /*fInheritHandles*/, 0 /*fFlags*/, pwszzEnvironment, NULL /*pwsz*/,
+                        &StartupInfo, &ProcInfo))
+        ON(fatal, NILF, _("MkWinChildReExecMake: CreateProcessW failed: %u\n"), GetLastError());
+    CloseHandle(ProcInfo.hThread);
+
+    /*
+     * Wait for it to complete and forward the status code to our parent.
+     */
+    for (;;)
+    {
+        DWORD dwExitCode = -2222;
+        DWORD dwStatus = WaitForSingleObject(ProcInfo.hProcess, INFINITE);
+        if (   dwStatus == WAIT_IO_COMPLETION
+            || dwStatus == WAIT_TIMEOUT /* whatever */)
+            continue; /* however unlikely, these aren't fatal. */
+
+        /* Get the status code and terminate. */
+        if (dwStatus == WAIT_OBJECT_0)
+        {
+            if (GetExitCodeProcess(ProcInfo.hProcess, &dwExitCode))
+                ON(fatal, NILF, _("MkWinChildReExecMake: GetExitCodeProcess failed: %u\n"), GetLastError());
+            else
+                dwExitCode = -2222;
+        }
+        else if (dwStatus)
+            dwExitCode = dwStatus;
+
+        CloseHandle(ProcInfo.hProcess);
+        for (;;)
+            exit(dwExitCode);
+    }
+}
+
+
 int MkWinChildUnrelatedCloseOnExec(int fd)
 {
     if (fd >= 0)
@@ -1912,4 +2130,6 @@ int MkWinChildUnrelatedCloseOnExec(int fd)
     }
     return EINVAL;
 }
+
+
 
