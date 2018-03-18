@@ -23,6 +23,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #ifdef WINDOWS32
 #include <windows.h>
 #include "w32err.h"
+# ifdef CONFIG_NEW_WIN_CHILDREN
+#  include "w32/winchildren.h"
+# endif
 #endif
 #ifdef CONFIG_WITH_LAZY_DEPS_VARS
 # include <assert.h>
@@ -759,7 +762,11 @@ fatal_error_signal (int sig)
       struct child *c;
       for (c = children; c != 0; c = c->next)
         if (!c->remote)
+# if defined (CONFIG_NEW_WIN_CHILDREN) && defined (WINDOWS32)
+          MkWinChildKill (c->pid, SIGTERM, c);
+# else
           (void) kill (c->pid, SIGTERM);
+# endif
     }
 
   /* If we got a signal that means the user

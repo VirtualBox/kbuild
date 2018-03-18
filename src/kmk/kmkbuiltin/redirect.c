@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3145 2018-03-15 00:00:09Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3156 2018-03-18 20:10:03Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -69,12 +69,16 @@
 #endif
 #include "kmkbuiltin.h"
 #ifdef KMK
-# ifdef KBUILD_OS_WINDOWS
-#  include "sub_proc.h"
-#  include "pathstuff.h"
-# endif
 # include "job.h"
 # include "variable.h"
+# ifdef KBUILD_OS_WINDOWS
+#  ifndef CONFIG_NEW_WIN_CHILDREN
+#   include "sub_proc.h"
+#  else
+#   include "../w32/winchildren.h"
+#  endif
+#  include "pathstuff.h"
+# endif
 #endif
 
 #ifdef __OS2__
@@ -887,7 +891,11 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                 kRedirectRestoreFdOrders(cOrders, paOrders, &pWorkingStdErr);
                 if ((intptr_t)hProcess != -1)
                 {
+# ifndef CONFIG_NEW_WIN_CHILDREN
                     if (process_kmk_register_redirect(hProcess, pPidSpawned) == 0)
+# else
+                    if (MkWinChildCreateRedirect((intptr_t)hProcess, pPidSpawned) == 0)
+# endif
                     {
                         if (cVerbosity > 0)
                             warnx("debug: spawned %d", *pPidSpawned);
@@ -895,7 +903,11 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                     else
                     {
                         DWORD dwTmp;
+# ifndef CONFIG_NEW_WIN_CHILDREN
                         warn("sub_proc is out of slots, waiting for child...");
+# else
+                        warn("MkWinChildCreateRedirect failed...");
+# endif
                         dwTmp = WaitForSingleObject(hProcess, INFINITE);
                         if (dwTmp != WAIT_OBJECT_0)
                             warn("WaitForSingleObject failed: %#x\n", dwTmp);

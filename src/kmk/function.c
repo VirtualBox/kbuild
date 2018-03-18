@@ -28,6 +28,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #ifdef WINDOWS32 /* bird */
 # include "pathstuff.h"
+# ifdef CONFIG_NEW_WIN_CHILDREN
+#  include "w32/winchildren.h"
+# endif
 #endif
 
 #ifdef KMK_HELPERS
@@ -2285,10 +2288,10 @@ shell_completed (int exit_code, int exit_sig)
 #ifdef WINDOWS32
 /*untested*/
 
+# ifndef CONFIG_NEW_WIN_CHILDREN
 #include <windows.h>
 #include <io.h>
 #include "sub_proc.h"
-
 
 int
 windows32_openpipe (int *pipedes, int errfd, pid_t *pid_p, char **command_argv, char **envp)
@@ -2415,6 +2418,7 @@ windows32_openpipe (int *pipedes, int errfd, pid_t *pid_p, char **command_argv, 
       return -1;
     }
 }
+# endif /* !CONFIG_NEW_WIN_CHILDREN */
 #endif
 
 
@@ -2568,7 +2572,12 @@ func_shell_base (char *o, char **argv, int trim_newlines)
     }
 
 #elif defined(WINDOWS32)
+# ifdef CONFIG_NEW_WIN_CHILDREN
+  pipedes[1] = -1;
+  MkWinChildCreateWithStdOutPipe (command_argv, envp, errfd, &pid, &pipedes[0]);
+# else
   windows32_openpipe (pipedes, errfd, &pid, command_argv, envp);
+# endif
   /* Restore the value of just_print_flag.  */
   just_print_flag = j_p_f;
 

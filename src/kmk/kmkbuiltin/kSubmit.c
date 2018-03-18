@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3156 2018-03-18 20:10:03Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -50,7 +50,11 @@
 # include <unistd.h>
 #endif
 #ifdef KBUILD_OS_WINDOWS
-# include "sub_proc.h"
+# ifndef CONFIG_NEW_WIN_CHILDREN
+#  include "sub_proc.h"
+# else
+#  include "../w32/winchildren.h"
+# endif
 #endif
 
 #include "kbuild.h"
@@ -932,6 +936,7 @@ l_again:
     rc = kSubmitReadMoreResultWin(pWorker, "kSubmitMarkActive");
     if (rc == -1)
     {
+# ifndef CONFIG_NEW_WIN_CHILDREN
         if (process_kmk_register_submit(pWorker->OverlappedRead.hEvent, (intptr_t)pWorker, pPidSpawned) == 0)
         { /* likely */ }
         else
@@ -941,6 +946,17 @@ l_again:
             WaitForSingleObject(pWorker->OverlappedRead.hEvent, INFINITE);
             goto l_again;
         }
+# else
+        if (MkWinChildCreateSubmit((intptr_t)pWorker->OverlappedRead.hEvent, pWorker, pPidSpawned) == 0)
+        { /* likely */ }
+        else
+        {
+            /* We need to do the waiting here because sub_proc.c has too much to do. */
+            warnx("MkWinChildCreateSubmit failed!");
+            WaitForSingleObject(pWorker->OverlappedRead.hEvent, INFINITE);
+            goto l_again;
+        }
+# endif
     }
     else
     {

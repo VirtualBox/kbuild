@@ -116,7 +116,11 @@ static void vmsWaitForChildren (int *);
 # include <windows.h>
 # include <io.h>
 # include <process.h>
-# include "sub_proc.h"
+# ifdef CONFIG_NEW_WIN_CHILDREN
+#  include "w32/winchildren.h"
+# else
+#  include "sub_proc.h"
+# endif
 # include "w32err.h"
 # include "pathstuff.h"
 # define WAIT_NOHANG 1
@@ -259,6 +263,7 @@ unsigned int jobserver_tokens = 0;
 
 
 #ifdef WINDOWS32
+# ifndef CONFIG_NEW_WIN_CHILDREN /* (only used by commands.c) */
 /*
  * The macro which references this function is defined in makeint.h.
  */
@@ -267,6 +272,7 @@ w32_kill (pid_t pid, int sig)
 {
   return ((process_kill ((HANDLE)pid, sig) == TRUE) ? 0 : -1);
 }
+# endif /* !CONFIG_NEW_WIN_CHILDREN */
 
 /* This function creates a temporary file name with an extension specified
  * by the unixy arg.
@@ -802,6 +808,7 @@ reap_children (int block, int err)
           coredump = 0;
 #endif /* _AMIGA */
 #ifdef WINDOWS32
+# ifndef CONFIG_NEW_WIN_CHILDREN
           {
             HANDLE hPID;
             HANDLE hcTID, hcPID;
@@ -864,6 +871,26 @@ reap_children (int block, int err)
 
             pid = (pid_t) hPID;
           }
+# else  /* CONFIG_NEW_WIN_CHILDREN */
+          assert (!any_remote);
+          pid = 0;
+          coredump = exit_sig = exit_code = 0;
+          {
+            int rc = MkWinChildWait(block, &pid, &exit_code, &exit_sig, &coredump, &c);
+            if (rc != 0)
+                  ON (fatal, NILF, _("MkWinChildWait: %u"), rc);
+          }
+          if (pid == 0)
+            {
+              /* No more children, stop. */
+              reap_more = 0;
+              break;
+            }
+
+          /* If we have started jobs in this second, remove one.  */
+          if (job_counter)
+            --job_counter;
+# endif /* CONFIG_NEW_WIN_CHILDREN */
 #endif /* WINDOWS32 */
         }
 
@@ -1649,6 +1676,7 @@ start_job_command (struct child *child)
 #endif  /* Amiga */
 #ifdef WINDOWS32
   {
+#  ifndef CONFIG_NEW_WIN_CHILDREN
       HANDLE hPID;
       char* arg0;
       int outfd = FD_STDOUT;
@@ -1692,6 +1720,23 @@ start_job_command (struct child *child)
           fprintf (stderr, _("\nCounted %d args in failed launch\n"), i);
           goto error;
         }
+#  else   /* CONFIG_NEW_WIN_CHILDREN */
+    struct variable *shell_var = lookup_variable("SHELL", 5);
+    const char *shell_value = !shell_var ? NULL
+                            : !shell_var->recursive || strchr(shell_var->value, '$') == NULL
+                            ? shell_var->value : variable_expand (shell_var->value);
+    int rc = MkWinChildCreate(argv, child->environment, shell_value, child, &child->pid);
+    if (rc != 0)
+      {
+        int i;
+        unblock_sigs ();
+        fprintf (stderr, _("failed to launch process (rc=%d)\n"), rc);
+        for (i = 0; argv[i]; i++)
+          fprintf (stderr, "%s ", argv[i]);
+        fprintf (stderr, "\n", argv[i]);
+        goto error;
+      }
+#endif  /* CONFIG_NEW_WIN_CHILDREN */
   }
 #endif /* WINDOWS32 */
 #endif  /* __MSDOS__ or Amiga or WINDOWS32 */
@@ -1764,7 +1809,9 @@ start_waiting_job (struct child *c)
       && ((job_slots_used > 0 && load_too_high ())
 #endif
 #ifdef WINDOWS32
+# ifndef CONFIG_NEW_WIN_CHILDREN
           || (process_used_slots () >= MAXIMUM_WAIT_OBJECTS)
+# endif
 #endif
           ))
     {
@@ -2185,7 +2232,7 @@ load_too_high (void)
   double load, guess;
   time_t now;
 
-#ifdef WINDOWS32
+#if defined(WINDOWS32) && !defined(CONFIG_NEW_WIN_CHILDREN)
   /* sub_proc.c cannot wait for more than MAXIMUM_WAIT_OBJECTS children */
   if (process_used_slots () >= MAXIMUM_WAIT_OBJECTS)
     return 1;
@@ -2426,6 +2473,7 @@ child_execute_job (struct output *out, int good_stdin, char **argv, char **envp)
 #endif /* !AMIGA && !__MSDOS__ && !VMS */
 #endif /* !WINDOWS32 */
 
+#if !defined(WINDOWS32) || !defined(CONFIG_NEW_WIN_CHILDREN)
 #ifndef _AMIGA
 /* Replace the current process with one running the command in ARGV,
    with environment ENVP.  This function does not return.  */
@@ -2449,6 +2497,7 @@ exec_command (char **argv, char **envp)
   _exit (EXIT_FAILURE);
 #else
 #ifdef WINDOWS32
+# ifndef CONFIG_NEW_WIN_CHILDREN
   HANDLE hPID;
   HANDLE hWaitPID;
   int exit_code = EXIT_FAILURE;
@@ -2504,7 +2553,9 @@ exec_command (char **argv, char **envp)
 
   /* return child's exit code as our exit code */
   exit (exit_code);
+# else  /* CONFIG_NEW_WIN_CHILDREN */
 
+# endif /* CONFIG_NEW_WIN_CHILDREN */
 #else  /* !WINDOWS32 */
 
 # ifdef __EMX__
@@ -2638,6 +2689,7 @@ void clean_tmp (void)
 }
 
 #endif /* On Amiga */
+#endif /* !defined(WINDOWS32) || !defined(CONFIG_NEW_WIN_CHILDREN) */
 
 #ifndef VMS
 /* Figure out the argument list necessary to run LINE as a command.  Try to
@@ -2766,7 +2818,7 @@ construct_command_argv_internal (char *line, char **restp, const char *shell,
       0 };
 
   const char *sh_chars;
-  const char **sh_cmds;
+  char const * const * sh_cmds;                                                /* kmk: +_sh +const*2 */
 #elif defined(__riscos__)
   static const char *sh_chars = "";
   static const char *sh_cmds[] = { 0 };
@@ -3319,7 +3371,12 @@ construct_command_argv_internal (char *line, char **restp, const char *shell,
 
                 /* This is the start of a new recipe line.  Skip whitespace
                    and prefix characters but not newlines.  */
+#ifndef CONFIG_WITH_COMMANDS_FUNC
                 while (ISBLANK (*f) || *f == '-' || *f == '@' || *f == '+')
+#else
+                char ch;
+                while (ISBLANK ((ch = *f)) || ch == '-' || ch == '@' || ch == '+' || ch == '%')
+#endif
                   ++f;
 
                 /* Copy until we get to the next logical recipe line.  */
@@ -3371,7 +3428,12 @@ construct_command_argv_internal (char *line, char **restp, const char *shell,
               {
                 /* This is the start of a new recipe line.  Skip whitespace
                    and prefix characters but not newlines.  */
+#ifndef CONFIG_WITH_COMMANDS_FUNC
                 while (ISBLANK (*f) || *f == '-' || *f == '@' || *f == '+')
+#else
+                char ch;
+                while (ISBLANK ((ch = *f)) || ch == '-' || ch == '@' || ch == '+' || ch == '%')
+#endif
                   ++f;
 
                 /* Copy until we get to the next logical recipe line.  */
