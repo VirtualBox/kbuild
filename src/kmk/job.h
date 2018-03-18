@@ -146,7 +146,7 @@ int child_execute_job (struct output *out, int good_stdin, char **argv, char **e
 void exec_command (char **argv) __attribute__ ((noreturn));
 #elif defined(__EMX__)
 int exec_command (char **argv, char **envp);
-#else
+#elif !defined(WINDOWS32) || !defined(CONFIG_NEW_WIN_CHILDREN)
 void exec_command (char **argv, char **envp) __attribute__ ((noreturn));
 #endif
 

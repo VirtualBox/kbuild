@@ -37,7 +37,11 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 # include <windows.h>
 # include <io.h>
 # include "pathstuff.h"
-# include "sub_proc.h"
+# ifndef CONFIG_NEW_WIN_CHILDREN
+#  include "sub_proc.h"
+# else
+#  include "w32/winchildren.h"
+# endif
 # include "w32err.h"
 #endif
 #ifdef __EMX__
@@ -2198,6 +2202,11 @@ main (int argc, char **argv, char **envp)
 
  job_setup_complete:
 
+#if defined (WINDOWS32) && defined(CONFIG_NEW_WIN_CHILDREN)
+  /* Initialize the windows child management. */
+  MkWinChildInit(job_slots);
+#endif
+
   /* The extra indirection through $(MAKE_COMMAND) is done
      for hysterical raisins.  */
 
@@ -3115,7 +3124,11 @@ main (int argc, char **argv, char **envp)
           if (stack_limit.rlim_cur)
             setrlimit (RLIMIT_STACK, &stack_limit);
 #endif
+# if !defined(WINDOWS32) || !defined(CONFIG_NEW_WIN_CHILDREN)
           exec_command ((char **)nargv, environ);
+# else
+          MkWinChildReExecMake ((char **)nargv, environ);
+# endif
 #endif
           free (aargv);
           break;

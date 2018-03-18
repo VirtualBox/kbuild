@@ -32,7 +32,13 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #ifdef WINDOWS32
 #include <windows.h>
-#include "sub_proc.h"
+# ifndef _MSC_VER
+#  ifndef CONFIG_NEW_WIN_CHILDREN
+#   include "sub_proc.h"
+#  else
+#   include "w32/winchildren.h"
+#  endif
+# endif
 #else  /* !WINDOWS32 */
 #ifndef _AMIGA
 #ifndef VMS
@@ -419,7 +425,11 @@ eval_makefile (const char *filename, int flags)
         filename = expanded;
     }
 
+#ifdef _MSC_VER
+  ENULLLOOP (ebuf.fp, fopen (filename, "rN")); /* N == noinherit */
+#else
   ENULLLOOP (ebuf.fp, fopen (filename, "r"));
+#endif
 
   /* Save the error code so we print the right message later.  */
   makefile_errno = errno;
@@ -450,7 +460,11 @@ eval_makefile (const char *filename, int flags)
         {
           const char *included = concat (3, include_directories[i],
                                          "/", filename);
+#ifdef _MSC_VER
+          ebuf.fp = fopen (included, "rN"); /* N == noinherit */
+#else
           ebuf.fp = fopen (included, "r");
+#endif
           if (ebuf.fp)
             {
               filename = included;
@@ -492,8 +506,10 @@ eval_makefile (const char *filename, int flags)
 
   /* Set close-on-exec to avoid leaking the makefile to children, such as
      $(shell ...).  */
+#ifndef _MSC_VER /* not necessary, see fopen calls above. */
 #ifdef HAVE_FILENO
   CLOSE_ON_EXEC (fileno (ebuf.fp));
+#endif
 #endif
 
   /* Add this makefile to the list. */

@@ -16,6 +16,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #ifndef SUB_PROC_H
 #define SUB_PROC_H
+#ifdef CONFIG_NEW_WIN_CHILDREN
+# error "Just checking..."
+#endif
 
 /*
  * Component Name:

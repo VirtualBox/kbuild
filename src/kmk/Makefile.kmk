@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3154 2018-03-15 23:35:33Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3156 2018-03-18 20:10:03Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -53,7 +53,7 @@ TEMPLATE_BIN-KMK_DEPS.win     = \
 	$(kmk_0_OUTDIR)/inttypes.h
 TEMPLATE_BIN-KMK_CFLAGS.win.amd64 = $(TEMPLATE_BIN-THREADED_CFLAGS.win.amd64) -wd4244 -wd4267
 TEMPLATE_BIN-KMK_CLEAN.win = $(TEMPLATE_BIN-KMK_DEPS.win)
-TEMPLATE_BIN-KMK_DEFS.debug = $(TEMPLATE_BIN-KMK_DEPS.debug) MAKE_MAINTAINER_MODE
+TEMPLATE_BIN-KMK_DEFS.debug = $(TEMPLATE_BIN_DEFS.debug) MAKE_MAINTAINER_MODE
 TEMPLATE_BIN-KMK_INCS = $(kmk_0_OUTDIR) . $(TEMPLATE_BIN-THREADED_INCS)
 ifneq ($(KBUILD_TARGET),os2)
  TEMPLATE_BIN-KMK_INCS += glob
@@ -68,6 +68,9 @@ endif
 endif
 ifdef CONFIG_WITH_ALLOCCACHE_DEBUG
  TEMPLATE_BIN-KMK_DEFS += CONFIG_WITH_ALLOCCACHE_DEBUG
+endif
+ifdef CONFIG_NEW_WIN_CHILDREN
+ TEMPLATE_BIN-KMK_DEFS.win = $(TEMPLATE_BIN_DEFS.win) CONFIG_NEW_WIN_CHILDREN
 endif
 # GCC sanitizers.
 ifdef GCC_SANITIZERS
@@ -274,8 +277,13 @@ else
  	posixos.c
 endif
 
+ifndef CONFIG_NEW_WIN_CHILDREN
 kmk_SOURCES.win = \
 	w32/subproc/sub_proc.c
+else
+kmk_SOURCES.win = \
+	w32/winchildren.c
+endif
 
 kmk_DEFS.freebsd.x86 = CONFIG_WITHOUT_THREADS
 
@@ -511,8 +519,13 @@ else
  	posixos.c
 endif
 
+ifndef CONFIG_NEW_WIN_CHILDREN
 kmk_gmake_SOURCES.win = \
 	w32/subproc/sub_proc.c
+else
+kmk_gmake_SOURCES.win = \
+	w32/winchildren.c
+endif
 
 
 #

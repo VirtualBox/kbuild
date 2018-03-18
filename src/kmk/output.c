@@ -36,7 +36,11 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #ifdef WINDOWS32
 # include <windows.h>
 # include <io.h>
-# include "sub_proc.h"
+# ifndef CONFIG_NEW_WIN_CHILDREN
+#  include "sub_proc.h"
+# else
+#  include "w32/winchildren.h"
+# endif
 #endif /* WINDOWS32 */
 
 struct output *output_context = NULL;

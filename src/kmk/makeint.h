@@ -473,7 +473,9 @@ char *strsignal (int signum);
 # include <fcntl.h>
 # include <malloc.h>
 # define pipe(_p)        _pipe((_p), 512, O_BINARY)
+# ifndef CONFIG_NEW_WIN_CHILDREN /* (only used by commands.c) */
 # define kill(_pid,_sig) w32_kill((_pid),(_sig))
+# endif
 /* MSVC and Watcom C don't have ftruncate.  */
 # if defined(_MSC_VER) || defined(__WATCOMC__)
 #  define ftruncate(_fd,_len) _chsize(_fd,_len)
@@ -484,7 +486,9 @@ char *strsignal (int signum);
 # endif
 
 void sync_Path_environment (void);
+# ifndef CONFIG_NEW_WIN_CHILDREN /* (only used by commands.c) */
 int w32_kill (pid_t pid, int sig);
+# endif
 int find_and_set_default_shell (const char *token);
 
 /* indicates whether or not we have Bourne shell */
