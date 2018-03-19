@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3159 2018-03-19 13:37:13Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3161 2018-03-19 22:40:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -75,6 +75,7 @@
 #include "winchildren.h"
 
 #include <Windows.h>
+#include <Winternl.h>
 #include <assert.h>
 #include <process.h>
 
@@ -269,6 +270,10 @@ static WORD (WINAPI        *g_pfnGetActiveProcessorGroupCount)(VOID);
 static DWORD (WINAPI       *g_pfnGetActiveProcessorCount)(WORD);
 /** Kernel32!SetThreadGroupAffinity */
 static BOOL (WINAPI        *g_pfnSetThreadGroupAffinity)(HANDLE, CONST GROUP_AFFINITY *, GROUP_AFFINITY *);
+/** NTDLL!NtQueryInformationProcess */
+static NTSTATUS (NTAPI     *g_pfnNtQueryInformationProcess)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG);
+/** Set if the windows host is 64-bit. */
+static BOOL                 g_f64BitHost = (K_ARCH_BITS == 64);
 /** Windows version info.
  * @note Putting this before the volatile stuff, hoping to keep it in a
  *       different cache line than the static bits above. */
@@ -288,7 +293,7 @@ static unsigned volatile    g_cIdleChildcareWorkers = 0;
 /** Index of the last idle child careworker (just a hint). */
 static unsigned volatile    g_idxLastChildcareWorker = 0;
 
-/** Temporary RW lock for serializing kmkbuiltin_redirect and CreateProcess. */
+/** RW lock for serializing kmkbuiltin_redirect and CreateProcess. */
 static SRWLOCK              g_RWLock;
 
 
@@ -300,6 +305,8 @@ static SRWLOCK              g_RWLock;
  */
 void MkWinChildInit(unsigned int cJobSlots)
 {
+    HMODULE hmod;
+
     /*
      * Figure out how many childcare workers first.
      */
@@ -321,6 +328,26 @@ void MkWinChildInit(unsigned int cJobSlots)
         fatal(NILF, INTSTR_LENGTH, _("MkWinChildInit: CreateEvent failed: %u"), GetLastError());
 
     /*
+     * NTDLL imports that we need.
+     */
+    hmod = GetModuleHandleA("NTDLL.DLL");
+    *(FARPROC *)&g_pfnNtQueryInformationProcess = GetProcAddress(hmod, "NtQueryInformationProcess");
+    if (!g_pfnNtQueryInformationProcess)
+        fatal(NILF, 0, _("MkWinChildInit: NtQueryInformationProcess not found"));
+
+#if K_ARCH_BITS == 32
+    /*
+     * Initialize g_f64BitHost.
+     */
+    if (!IsWow64Process(GetCurrentProcess(), &g_f64BitHost))
+        fatal(NILF, INTSTR_LENGTH, _("MkWinChildInit: IsWow64Process failed: %u"), GetLastError());
+#elif K_ARCH_BITS == 64
+    assert(g_f64BitHost);
+#else
+# error "K_ARCH_BITS is bad/missing"
+#endif
+
+    /*
      * Figure out how many processor groups there are.
      * For that we need to first figure the windows version.
      */
@@ -333,7 +360,7 @@ void MkWinChildInit(unsigned int cJobSlots)
     }
     if (g_VersionInfo.dwMajorVersion >= 6)
     {
-        HMODULE hmod = GetModuleHandleA("KERNEL32.DLL");
+        hmod = GetModuleHandleA("KERNEL32.DLL");
         *(FARPROC *)&g_pfnGetActiveProcessorGroupCount = GetProcAddress(hmod, "GetActiveProcessorGroupCount");
         *(FARPROC *)&g_pfnGetActiveProcessorCount      = GetProcAddress(hmod, "GetActiveProcessorCount");
         *(FARPROC *)&g_pfnSetThreadGroupAffinity       = GetProcAddress(hmod, "SetThreadGroupAffinity");
@@ -364,7 +391,9 @@ void MkWinChildInit(unsigned int cJobSlots)
         }
     }
 
-    /* Temporary: */
+    /*
+     * For serializing with standard file handle manipulation (kmkbuiltin_redirect).
+     */
     InitializeSRWLock(&g_RWLock);
 }
 
@@ -464,6 +493,270 @@ static void mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWIN
         return;
     }
 }
+
+
+/**
+ * Does the actual process creation given.
+ *
+ * @returns 0 if there is anything to wait on, otherwise non-zero windows error.
+ * @param   pWorker             The childcare worker.
+ * @param   pChild              The child.
+ * @param   pwszImageName       The image path.
+ * @param   pwszCommandLine     The command line.
+ * @param   pwszzEnvironment    The enviornment block.
+ */
+static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild, WCHAR const *pwszImageName,
+                                             WCHAR const *pwszCommandLine, WCHAR const *pwszzEnvironment)
+{
+    PROCESS_INFORMATION ProcInfo;
+    STARTUPINFOW        StartupInfo;
+    DWORD               fFlags       = CREATE_UNICODE_ENVIRONMENT;
+    BOOL const          fHaveHandles = pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE
+                                    || pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE;
+    BOOL                fRet;
+    DWORD               dwErr;
+#ifdef KMK
+    extern int          process_priority;
+#endif
+
+    /*
+     * Populate startup info.
+     *
+     * Turns out we can get away without passing TRUE for the inherit handles
+     * parameter to CreateProcess when we're not using STARTF_USESTDHANDLES.
+     * At least on NT, which is all worth caring about at this point + context IMO.
+     *
+     * Not inherting the handles is a good thing because it means we won't
+     * accidentally end up with a pipe handle or such intended for a different
+     * child process, potentially causing the EOF/HUP event to be delayed.
+     *
+     * Since the present handle inhertiance requirements only involves standard
+     * output and error, we'll never set the inherit handles flag and instead
+     * do manual handle duplication and planting.
+     */
+    memset(&StartupInfo, 0, sizeof(StartupInfo));
+    StartupInfo.cb = sizeof(StartupInfo);
+    GetStartupInfoW(&StartupInfo);
+    if (!fHaveHandles)
+        StartupInfo.dwFlags &= ~STARTF_USESTDHANDLES;
+    else
+    {
+        fFlags |= CREATE_SUSPENDED;
+        StartupInfo.dwFlags &= ~STARTF_USESTDHANDLES;
+
+        /* Don't pass CRT inheritance info to the child (from our parent actually). */
+        StartupInfo.cbReserved2 = 0;
+        StartupInfo.lpReserved2 = 0;
+    }
+
+    /*
+     * Flags.
+     */
+#ifdef KMK
+    switch (process_priority)
+    {
+        case 1: fFlags |= CREATE_SUSPENDED | IDLE_PRIORITY_CLASS; break;
+        case 2: fFlags |= CREATE_SUSPENDED | BELOW_NORMAL_PRIORITY_CLASS; break;
+        case 3: fFlags |= CREATE_SUSPENDED | NORMAL_PRIORITY_CLASS; break;
+        case 4: fFlags |= CREATE_SUSPENDED | HIGH_PRIORITY_CLASS; break;
+        case 5: fFlags |= CREATE_SUSPENDED | REALTIME_PRIORITY_CLASS; break;
+    }
+#endif
+    if (g_cProcessorGroups > 1)
+        fFlags |= CREATE_SUSPENDED;
+
+    /*
+     * Try create the process.
+     */
+    DB(DB_JOBS, ("CreateProcessW(%ls, %ls,,, TRUE, %#x...)\n", pwszImageName, pwszCommandLine, fFlags));
+    memset(&ProcInfo, 0, sizeof(ProcInfo));
+    AcquireSRWLockShared(&g_RWLock);
+
+    fRet = CreateProcessW((WCHAR *)pwszImageName, (WCHAR *)pwszCommandLine, NULL /*pProcSecAttr*/, NULL /*pThreadSecAttr*/,
+                          FALSE /*fInheritHandles*/, fFlags, (WCHAR *)pwszzEnvironment, NULL /*pwsz*/, &StartupInfo, &ProcInfo);
+    dwErr = GetLastError();
+
+    ReleaseSRWLockShared(&g_RWLock);
+    if (fRet)
+        pChild->u.Process.hProcess = ProcInfo.hProcess;
+    else
+    {
+        fprintf(stderr, "CreateProcess(%ls) failed: %u\n", pwszImageName, dwErr);
+        return pChild->iExitCode = (int)dwErr;
+    }
+
+    /*
+     * If the child is suspended, we've got some adjustment work to be done.
+     */
+    dwErr = ERROR_SUCCESS;
+    if (fFlags & CREATE_SUSPENDED)
+    {
+        /*
+         * First do handle inhertiance as that's the most complicated.
+         */
+        if (fHaveHandles)
+        {
+            /*
+             * Get the PEB address and figure out the child process bit count.
+             */
+            ULONG                     cbActual1 = 0;
+            PROCESS_BASIC_INFORMATION BasicInfo = { 0, 0, };
+            NTSTATUS rcNt = g_pfnNtQueryInformationProcess(ProcInfo.hProcess, ProcessBasicInformation,
+                                                           &BasicInfo, sizeof(BasicInfo), &cbActual1);
+            if (NT_SUCCESS(rcNt))
+            {
+                /*
+                 * Read the user process parameter pointer from the PEB.
+                 *
+                 * Note! Seems WOW64 processes starts out with a 64-bit PEB and
+                 *       process parameter block.
+                 */
+                BOOL const   f32BitPeb  = !g_f64BitHost;
+                ULONG  const cbChildPtr = f32BitPeb ? 4 : 8;
+                PVOID        pvSrcInPeb = (char *)BasicInfo.PebBaseAddress + (f32BitPeb ? 0x10 : 0x20);
+                char *       pbDst      = 0;
+                SIZE_T       cbActual2  = 0;
+                if (ReadProcessMemory(ProcInfo.hProcess, pvSrcInPeb, &pbDst, cbChildPtr, &cbActual2))
+                {
+                    /*
+                     * Duplicate the handles into the child.
+                     */
+                    union
+                    {
+                        ULONGLONG   au64Bit[2];
+                        ULONG       au32Bit[2];
+                    } WriteBuf;
+                    ULONG  idx = 0;
+                    HANDLE hChildStdOut = INVALID_HANDLE_VALUE;
+                    HANDLE hChildStdErr = INVALID_HANDLE_VALUE;
+
+                    pbDst += (f32BitPeb ? 0x1c : 0x28);
+                    if (pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE)
+                    {
+                        if (DuplicateHandle(GetCurrentProcess(), pChild->u.Process.hStdOut, ProcInfo.hProcess,
+                                            &hChildStdOut, 0, TRUE /*fInheritable*/, DUPLICATE_SAME_ACCESS))
+                        {
+                            if (f32BitPeb)
+                                WriteBuf.au32Bit[idx++] = (DWORD)(uintptr_t)hChildStdOut;
+                            else
+                                WriteBuf.au64Bit[idx++] = (uintptr_t)hChildStdOut;
+                        }
+                        else
+                        {
+                            dwErr = GetLastError();
+                            fprintf(stderr, "Failed to duplicate %p (stdout) into the child: %u\n",
+                                    pChild->u.Process.hStdOut, dwErr);
+                        }
+                    }
+                    else
+                        pbDst += cbChildPtr;
+
+                    if (pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE)
+                    {
+                        if (DuplicateHandle(GetCurrentProcess(), pChild->u.Process.hStdErr, ProcInfo.hProcess,
+                                            &hChildStdErr, 0, TRUE /*fInheritable*/, DUPLICATE_SAME_ACCESS))
+                        {
+                            if (f32BitPeb)
+                                WriteBuf.au32Bit[idx++] = (DWORD)(uintptr_t)hChildStdOut;
+                            else
+                                WriteBuf.au64Bit[idx++] = (uintptr_t)hChildStdOut;
+                        }
+                        else
+                        {
+                            dwErr = GetLastError();
+                            fprintf(stderr, "Failed to duplicate %p (stderr) into the child: %u\n",
+                                    pChild->u.Process.hStdOut, dwErr);
+                        }
+                    }
+
+                    /*
+                     * Finally write the handle values into the child.
+                     */
+                    if (   idx > 0
+                        && !WriteProcessMemory(ProcInfo.hProcess, pbDst, &WriteBuf, idx * cbChildPtr, &cbActual2))
+                    {
+                        dwErr = GetLastError();
+                        fprintf(stderr, "Failed to write %p LB %u into child: %u\n", pbDst, idx * cbChildPtr, dwErr);
+                    }
+                }
+                else
+                {
+                    dwErr = GetLastError();
+                    fprintf(stderr, "Failed to read %p LB %u from the child: %u\n", pvSrcInPeb, cbChildPtr, dwErr);
+                }
+            }
+            else
+            {
+                fprintf(stderr, "NtQueryInformationProcess failed on child: %#x\n", rcNt);
+                dwErr = (DWORD)rcNt;
+            }
+        }
+
+        /*
+         * Assign processor group (ignore failure).
+         */
+        if (g_cProcessorGroups > 1)
+        {
+            GROUP_AFFINITY Affinity = { ~(ULONG_PTR)0, pWorker->iProcessorGroup, { 0, 0, 0 } };
+            fRet = g_pfnSetThreadGroupAffinity(ProcInfo.hThread, &Affinity, NULL);
+            assert(fRet);
+        }
+
+#ifdef KMK
+        /*
+         * Set priority (ignore failure).
+         */
+        switch (process_priority)
+        {
+            case 1: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_IDLE); break;
+            case 2: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_BELOW_NORMAL); break;
+            case 3: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_NORMAL); break;
+            case 4: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_HIGHEST); break;
+            case 5: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_TIME_CRITICAL); break;
+            default: fRet = TRUE;
+        }
+        assert(fRet);
+#endif
+
+        /*
+         * Resume the thread if the adjustments succeeded, otherwise kill it.
+         */
+        if (dwErr == ERROR_SUCCESS)
+        {
+            fRet = ResumeThread(ProcInfo.hThread);
+            assert(fRet);
+            if (!fRet)
+            {
+                dwErr = GetLastError();
+                fprintf(stderr, "ResumeThread failed on child process: %u\n", dwErr);
+            }
+        }
+        if (dwErr != ERROR_SUCCESS)
+            TerminateProcess(ProcInfo.hProcess, dwErr);
+    }
+
+    /*
+     * Close unnecessary handles.
+     */
+    if (   pChild->u.Process.fCloseStdOut
+        && pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(pChild->u.Process.hStdOut);
+        pChild->u.Process.hStdOut      = INVALID_HANDLE_VALUE;
+        pChild->u.Process.fCloseStdOut = FALSE;
+    }
+    if (   pChild->u.Process.fCloseStdErr
+        && pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(pChild->u.Process.hStdErr);
+        pChild->u.Process.hStdErr      = INVALID_HANDLE_VALUE;
+        pChild->u.Process.fCloseStdErr = FALSE;
+    }
+
+    CloseHandle(ProcInfo.hThread);
+    return 0;
+}
+
 
 #define MKWCCWCMD_F_CYGWIN_SHELL    1
 #define MKWCCWCMD_F_MKS_SHELL       2
@@ -1214,19 +1507,12 @@ static int mkWinChildcareWorkerConvertEnvironment(char **papszEnv, size_t cbEnvS
  */
 static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild)
 {
-    PROCESS_INFORMATION     ProcInfo;
-    STARTUPINFOW            StartupInfo;
     WCHAR const            *pwszPath         = NULL;
     WCHAR                  *pwszzEnvironment = NULL;
     WCHAR                  *pwszCommandLine  = NULL;
     WCHAR                  *pwszImageName    = NULL;
     BOOL                    fNeedShell       = FALSE;
-    DWORD                   fFlags = CREATE_UNICODE_ENVIRONMENT;
-    BOOL                    fRet;
     int                     rc;
-#ifdef KMK
-    extern int process_priority;
-#endif
 
     /*
      * First we convert the environment so we get the PATH we need to
@@ -1248,111 +1534,22 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
             rc = mkWinChildcareWorkerConvertCommandline(pChild->u.Process.papszArgs, 0 /*fFlags*/, &pwszCommandLine);
         else
             rc = mkWinChildcareWorkerConvertCommandlineWithShell(pwszImageName, pChild->u.Process.papszArgs, &pwszCommandLine);
-    }
-    if (rc == 0)
-    {
-        AcquireSRWLockShared(&g_RWLock); /* temporary */
 
         /*
-         * Populate startup info.
+         * Create the child process.
          */
-        memset(&StartupInfo, 0, sizeof(StartupInfo));
-        StartupInfo.cb = sizeof(StartupInfo);
-        GetStartupInfoW(&StartupInfo);
-        if (   pChild->u.Process.hStdErr == INVALID_HANDLE_VALUE
-            && pChild->u.Process.hStdOut == INVALID_HANDLE_VALUE)
-            StartupInfo.dwFlags &= ~STARTF_USESTDHANDLES;
-        else
+        if (rc == 0)
         {
-            StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
-            StartupInfo.hStdOutput = pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE
-                                   ? pChild->u.Process.hStdOut : GetStdHandle(STD_OUTPUT_HANDLE);
-            StartupInfo.hStdError  = pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE
-                                   ? pChild->u.Process.hStdErr : GetStdHandle(STD_ERROR_HANDLE);
-            StartupInfo.hStdInput  = GetStdHandle(STD_INPUT_HANDLE);
-        }
-
-        /*
-         * Flags.
-         */
-#ifdef KMK
-        switch (process_priority)
-        {
-            case 1: fFlags |= CREATE_SUSPENDED | IDLE_PRIORITY_CLASS; break;
-            case 2: fFlags |= CREATE_SUSPENDED | BELOW_NORMAL_PRIORITY_CLASS; break;
-            case 3: fFlags |= CREATE_SUSPENDED | NORMAL_PRIORITY_CLASS; break;
-            case 4: fFlags |= CREATE_SUSPENDED | HIGH_PRIORITY_CLASS; break;
-            case 5: fFlags |= CREATE_SUSPENDED | REALTIME_PRIORITY_CLASS; break;
-        }
-#endif
-        if (g_cProcessorGroups > 1)
-            fFlags |= CREATE_SUSPENDED;
-
-        /*
-         * Try create the process.
-         */
-        DB(DB_JOBS, ("CreateProcessW(%ls, %ls,,, TRUE, %#x...)\n", pwszImageName, pwszCommandLine, fFlags));
-        memset(&ProcInfo, 0, sizeof(ProcInfo));
-        fRet = CreateProcessW(pwszImageName, pwszCommandLine, NULL /*pProcSecAttr*/, NULL /*pThreadSecAttr*/,
-                              TRUE /*fInheritHandles*/, fFlags, pwszzEnvironment, NULL /*pwsz*/, &StartupInfo, &ProcInfo);
-        rc = GetLastError();
-        ReleaseSRWLockShared(&g_RWLock); /* temporary */
-        if (fRet)
-        {
-            /*
-             * Make thread priority and affinity changes if necessary.
-             */
-            if (fFlags & CREATE_SUSPENDED)
+            rc = mkWinChildcareWorkerCreateProcess(pWorker, pChild, pwszImageName, pwszCommandLine, pwszzEnvironment);
+            if (rc == 0)
             {
-                BOOL fRet;
-                if (g_cProcessorGroups > 1)
-                {
-                    GROUP_AFFINITY Affinity = { ~(ULONG_PTR)0, pWorker->iProcessorGroup, { 0, 0, 0 } };
-                    fRet = g_pfnSetThreadGroupAffinity(ProcInfo.hThread, &Affinity, NULL);
-                    assert(fRet);
-                }
-#ifdef KMK
-                switch (process_priority)
-                {
-                    case 1: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_IDLE); break;
-                    case 2: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_BELOW_NORMAL); break;
-                    case 3: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_NORMAL); break;
-                    case 4: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_HIGHEST); break;
-                    case 5: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_TIME_CRITICAL); break;
-                    default: fRet = TRUE;
-                }
-                assert(fRet);
-#endif
-                fRet = ResumeThread(ProcInfo.hThread);
-                assert(fRet);
-                (void)fRet;
+                /*
+                 * Wait for the child to complete.
+                 */
+                mkWinChildcareWorkerWaitForProcess(pWorker, pChild, pChild->u.Process.hProcess);
             }
-
-            /*
-             * Close unncessary handles.
-             */
-            CloseHandle(ProcInfo.hThread);
-            pChild->u.Process.hProcess = ProcInfo.hProcess;
-
-            if (   pChild->u.Process.fCloseStdOut
-                && pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE)
-            {
-                CloseHandle(pChild->u.Process.hStdOut);
-                pChild->u.Process.hStdOut      = INVALID_HANDLE_VALUE;
-                pChild->u.Process.fCloseStdOut = FALSE;
-            }
-            if (   pChild->u.Process.fCloseStdErr
-                && pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE)
-            {
-                CloseHandle(pChild->u.Process.hStdErr);
-                pChild->u.Process.hStdErr      = INVALID_HANDLE_VALUE;
-                pChild->u.Process.fCloseStdErr = FALSE;
-            }
-
-            /*
-             * Wait for the child to complete.
-             */
-            mkWinChildcareWorkerWaitForProcess(pWorker, pChild, ProcInfo.hProcess);
+            else
+                pChild->iExitCode = rc;
         }
         else
             pChild->iExitCode = rc;
@@ -1512,7 +1709,9 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
                     PWINCHILD pTailActual;
                     pChild->pNext = pTailExpect;
                     pTailActual = _InterlockedCompareExchangePointer(&g_pTailCompletedChildren, pChild, pTailExpect);
-                    if (pTailActual == pTailExpect)
+                    if (pTailActual != pTailExpect)
+                        pTailExpect = pTailActual;
+                    else
                     {
                         _InterlockedDecrement(&g_cPendingChildren);
                         if (pTailExpect)
@@ -2204,13 +2403,13 @@ void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
     }
 }
 
-/** Temporary serialization with kmkbuiltin_redirect. */
+/** Serialization with kmkbuiltin_redirect. */
 void MkWinChildExclusiveAcquire(void)
 {
     AcquireSRWLockExclusive(&g_RWLock);
 }
 
-/** Temporary serialization with kmkbuiltin_redirect. */
+/** Serialization with kmkbuiltin_redirect. */
 void MkWinChildExclusiveRelease(void)
 {
     ReleaseSRWLockExclusive(&g_RWLock);

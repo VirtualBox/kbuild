@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3159 2018-03-19 13:37:13Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3161 2018-03-19 22:40:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -38,6 +38,10 @@
 #include <fcntl.h>
 #if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
 # include <process.h>
+#endif
+#if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
+# include <Windows.h>
+# include <Winternl.h>
 #endif
 #if defined(_MSC_VER)
 # include <ctype.h>
@@ -90,8 +94,17 @@
 #endif
 
 
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
 /* String + strlen tuple. */
 #define TUPLE(a_sz)     a_sz, sizeof(a_sz) - 1
+
+/** Only standard handles on windows. */
+#ifdef KBUILD_OS_WINDOWS
+# define ONLY_TARGET_STANDARD_HANDLES
+#endif
+
 
 
 #if defined(_MSC_VER)
@@ -155,17 +168,19 @@ static int usage(FILE *pOut,  const char *argv0)
             "   e = stderr\n"
             "\n"
             "The -d switch duplicate the right hand file descriptor (src-fd) to the left\n"
-            "hand side one (fd).\n"
+            "hand side one (fd). The latter is limited to standard handles on windows.\n"
             "\n"
-            "The -c switch will close the specified file descriptor.\n"
+            "The -c switch will close the specified file descriptor. Limited to standard\n"
+            "handles on windows.\n"
             "\n"
             "The -Z switch zaps the environment.\n"
             "\n"
             "The -E switch is for making changes to the environment in a putenv\n"
             "fashion.\n"
             "\n"
-            "The -C switch is for changing the current directory. This takes immediate\n"
-            "effect, so be careful where you put it.\n"
+            "The -C switch is for changing the current directory.  Please specify an\n"
+            "absolute program path as it's platform dependent whether this takes effect\n"
+            "before or after the executable is located.\n"
             "\n"
             "The --wcc-brain-damage switch is to work around wcc and wcc386 (Open Watcom)\n"
             "not following normal quoting conventions on Windows, OS/2, and DOS.\n"
@@ -438,11 +453,13 @@ static int kRedirectOpenWithoutConflict(const char *pszFilename, int fOpen, mode
         fdOpened = open(pszFilename, fOpen | fNoInherit, fMode);
         if (fdOpened >= 0)
         {
+#ifndef KBUILD_OS_WINDOWS
             if (   !kRedirectHasConflict(fdOpened, cOrders, paOrders)
-#ifdef _MSC_VER
+# ifdef _MSC_VER
                 && fdOpened != fdTarget
-#endif
+# endif
                 )
+#endif
             {
 #ifndef _MSC_VER
 # ifdef USE_FD_CLOEXEC
@@ -509,7 +526,7 @@ static void kRedirectCleanupFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders,
 }
 
 
-#ifndef USE_POSIX_SPAWN
+#if !defined(USE_POSIX_SPAWN) && !defined(KBUILD_OS_WINDOWS)
 
 /**
  * Saves a file handle to one which isn't inherited and isn't affected by the
@@ -777,6 +794,337 @@ static int kRedirectExecFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders, FIL
 
 #endif /* !USE_POSIX_SPAWN */
 
+#ifdef KBUILD_OS_WINDOWS
+
+/**
+ * Tries to locate the executable image.
+ *
+ * This isn't quite perfect yet...
+ *
+ * @returns pszExecutable or pszBuf with valid string.
+ * @param   pszExecutable   The specified executable.
+ * @param   pszBuf          Buffer to return a modified path in.
+ * @param   cbBuf           Size of return buffer.
+ * @param   pszPath         The search path.
+ */
+static const char *kRedirectCreateProcessWindowsFindImage(const char *pszExecutable, char *pszBuf, size_t cbBuf,
+                                                          const char *pszPath)
+{
+    /*
+     * Analyze the name.
+     */
+    size_t const cchExecutable = strlen(pszExecutable);
+    BOOL         fHavePath = FALSE;
+    BOOL         fHaveSuffix = FALSE;
+    size_t       off = cchExecutable;
+    while (off > 0)
+    {
+        char ch = pszExecutable[--off];
+        if (ch == '.')
+        {
+            fHaveSuffix = TRUE;
+            break;
+        }
+        if (ch == '\\' || ch == '/' || ch == ':')
+        {
+            fHavePath = TRUE;
+            break;
+        }
+    }
+    if (!fHavePath)
+        while (off > 0)
+        {
+            char ch = pszExecutable[--off];
+            if (ch == '\\' || ch == '/' || ch == ':')
+            {
+                fHavePath = TRUE;
+                break;
+            }
+        }
+   /*
+    * If no path, search the path value.
+    */
+   if (!fHavePath)
+   {
+       char *pszFilename;
+       DWORD cchFound = SearchPathA(pszPath, pszExecutable, fHaveSuffix ? NULL : ".exe", cbBuf, pszBuf, &pszFilename);
+       if (cchFound)
+           return pszBuf;
+   }
+
+   /*
+    * If no suffix, try add .exe.
+    */
+   if (   !fHaveSuffix
+       && GetFileAttributesA(pszExecutable) == INVALID_FILE_ATTRIBUTES
+       && cchExecutable + 4 < cbBuf)
+   {
+       memcpy(pszBuf, pszExecutable, cchExecutable);
+       memcpy(&pszBuf[cchExecutable], ".exe", 5);
+       if (GetFileAttributesA(pszBuf) != INVALID_FILE_ATTRIBUTES)
+           return pszBuf;
+   }
+
+   return pszExecutable;
+}
+
+/**
+ * Alternative approach on windows that use CreateProcess and doesn't require
+ * any serialization wrt handles and CWD.
+ *
+ * @returns 0 on success, non-zero on failure to create.
+ * @param   pszExecutable       The child process executable.
+ * @param   cArgs               Number of arguments.
+ * @param   papszArgs           The child argument vector.
+ * @param   papszEnvVars        The child environment vector.
+ * @param   pszCwd              The current working directory of the child.
+ * @param   cOrders             Number of file operation orders.
+ * @param   paOrders            The file operation orders.
+ * @param   phProcess           Where to return process handle.
+ */
+static kRedirectCreateProcessWindows(const char *pszExecutable, int cArgs, char **papszArgs, char **papszEnvVars,
+                                     const char *pszCwd, unsigned cOrders, REDIRECTORDERS *paOrders, HANDLE *phProcess)
+{
+    static NTSTATUS (NTAPI *s_pfnNtQueryInformationProcess)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG) = NULL;
+    size_t cbArgs;
+    char  *pszCmdLine;
+    size_t cbEnv;
+    char  *pszzEnv;
+    char  *pch;
+    int    i;
+    int    rc;
+
+    /*
+     * Determin host bitness and APIs while we can still easily return.
+     */
+#if K_ARCH_BITS == 32
+    BOOL   f64BitHost = TRUE;
+    if (!IsWow64Process(GetCurrentProcess(), &f64BitHost))
+        return errx(9, "IsWow64Process failed: %u", GetLastError());
+#elif K_ARCH_BITS == 64
+    BOOL const f64BitHost = TRUE;
+#else
+# error "K_ARCH_BITS is bad/missing"
+#endif
+    if (cOrders > 0 && !s_pfnNtQueryInformationProcess)
+    {
+        *(FARPROC *)&s_pfnNtQueryInformationProcess = GetProcAddress(GetModuleHandleA("NTDLL.DLL"), "NtQueryInformationProcess");
+        if (!s_pfnNtQueryInformationProcess)
+            return errx(9, "NtQueryInformationProcess not found!");
+    }
+
+    /*
+     * Start by making the the command line.  We just need to put spaces
+     * between the arguments since quote_argv don't the quoting already.
+     */
+    cbArgs = 0;
+    for (i = 0; i < cArgs; i++)
+        cbArgs += strlen(papszArgs[i]) + 1;
+    pszCmdLine = pch = (char *)malloc(cbArgs);
+    if (!pszCmdLine)
+        return errx(9, "out of memory!");
+    for (i = 0; i < cArgs; i++)
+    {
+        size_t cch;
+        if (i != 0)
+            *pch++ = ' ';
+        cch = strlen(papszArgs[i]);
+        memcpy(pch, papszArgs[i], cch);
+        pch += cch;
+    }
+    *pch++ = '\0';
+    assert(pch - pszCmdLine == cbArgs);
+
+    /*
+     * The environment vector is also simple.
+     */
+    cbEnv = 0;
+    for (i = 0; papszEnvVars[i]; i++)
+        cbEnv += strlen(papszEnvVars[i]) + 1;
+    cbEnv++;
+    pszzEnv = pch = (char *)malloc(cbEnv);
+    if (pszzEnv)
+    {
+        char                szAbsExe[1024];
+        const char         *pszPathVal = NULL;
+        STARTUPINFOA        StartupInfo;
+        PROCESS_INFORMATION ProcInfo = { NULL, NULL, 0, 0 };
+
+        for (i = 0; papszEnvVars[i]; i++)
+        {
+            size_t cbSrc = strlen(papszEnvVars[i]) + 1;
+            memcpy(pch, papszEnvVars[i], cbSrc);
+            if (   !pszPathVal
+                && cbSrc >= 5
+                && pch[4] == '='
+                && (pch[0] == 'P' || pch[0] == 'p')
+                && (pch[1] == 'A' || pch[1] == 'a')
+                && (pch[2] == 'T' || pch[2] == 't')
+                && (pch[3] == 'H' || pch[3] == 'h'))
+                pszPathVal = &pch[5];
+            pch += cbSrc;
+        }
+        *pch++ = '\0';
+        assert(pch - pszzEnv == cbEnv);
+
+        /*
+         * Locate the executable.
+         */
+        pszExecutable = kRedirectCreateProcessWindowsFindImage(pszExecutable, szAbsExe, sizeof(szAbsExe), pszPathVal);
+
+        /*
+         * Do basic startup info preparation.
+         */
+        memset(&StartupInfo, 0, sizeof(StartupInfo));
+        StartupInfo.cb = sizeof(StartupInfo);
+        GetStartupInfoA(&StartupInfo);
+        StartupInfo.dwFlags &= ~STARTF_USESTDHANDLES;
+
+        /*
+         * If there are no redirection orders, we're good.
+         */
+        if (!cOrders)
+        {
+            if (CreateProcessA(pszExecutable, pszCmdLine, NULL /*pProcAttrs*/, NULL /*pThreadAttrs*/,
+                               FALSE /*fInheritHandles*/, 0 /*fFlags*/, pszzEnv, pszCwd, &StartupInfo, &ProcInfo))
+            {
+                CloseHandle(ProcInfo.hThread);
+                *phProcess = ProcInfo.hProcess;
+                rc = 0;
+            }
+            else
+                rc = errx(10, "CreateProcessA(%s) failed: %u", pszExecutable, GetLastError());
+        }
+        else
+        {
+            /*
+             * Execute the orders, ending up with three handles we need to
+             * implant into the guest process.
+             *
+             * This isn't 100% perfect wrt O_APPEND, but it'll have to do for now.
+             */
+            BOOL   afReplace[3] = { FALSE, FALSE, FALSE };
+            HANDLE ahChild[3]   = { NULL,  NULL,  NULL  };
+            rc = 0;
+            for (i = 0; i < (int)cOrders; i++)
+            {
+                int fdTarget = paOrders[i].fdTarget;
+                assert(fdTarget >= 0 && fdTarget < 3);
+                switch (paOrders[i].enmOrder)
+                {
+                    case kRedirectOrder_Open:
+                        if (   (paOrders[i].fOpen & O_APPEND)
+                            && lseek(paOrders[i].fdSource, 0, SEEK_END) < 0)
+                            rc = err(10, "lseek-to-end failed on %d (for %d)", paOrders[i].fdSource, fdTarget);
+                    case kRedirectOrder_Dup:
+                        ahChild[fdTarget] = (HANDLE)_get_osfhandle(paOrders[i].fdSource);
+                        if (ahChild[fdTarget] == NULL || ahChild[fdTarget] == INVALID_HANDLE_VALUE)
+                            rc = err(10, "_get_osfhandle failed on %d (for %d)", paOrders[i].fdSource, fdTarget);
+                        break;
+                    case kRedirectOrder_Close:
+                        ahChild[fdTarget] = NULL;
+                        break;
+                    default:
+                        assert(0);
+                }
+                afReplace[fdTarget] = TRUE;
+            }
+            if (rc == 0)
+            {
+                /*
+                 * Start the process in suspended animation so we can inject handles.
+                 *
+                 * We clear the reserved 2 pointer + size to avoid passing the wrong
+                 * filehandle info to the child.  We may later want to generate this.
+                 */
+                StartupInfo.cbReserved2 = 0;
+                StartupInfo.lpReserved2 = 0;
+
+                if (CreateProcessA(pszExecutable, pszCmdLine, NULL /*pProcAttrs*/, NULL /*pThreadAttrs*/,
+                                   FALSE /*fInheritHandles*/, CREATE_SUSPENDED, pszzEnv, pszCwd, &StartupInfo, &ProcInfo))
+                {
+                    /*
+                     * Figure out where we need to write the handles.
+                     */
+                    ULONG                     cbActual1 = 0;
+                    PROCESS_BASIC_INFORMATION BasicInfo = { 0, 0, };
+                    NTSTATUS rcNt = s_pfnNtQueryInformationProcess(ProcInfo.hProcess, ProcessBasicInformation,
+                                                                   &BasicInfo, sizeof(BasicInfo), &cbActual1);
+                    if (NT_SUCCESS(rcNt))
+                    {
+                        BOOL const   f32BitPeb  = !f64BitHost;
+                        ULONG  const cbChildPtr = f32BitPeb ? 4 : 8;
+                        PVOID        pvSrcInPeb = (char *)BasicInfo.PebBaseAddress + (f32BitPeb ? 0x10 : 0x20);
+                        char *       pbDst      = 0;
+                        SIZE_T       cbActual2  = 0;
+                        if (ReadProcessMemory(ProcInfo.hProcess, pvSrcInPeb, &pbDst, cbChildPtr, &cbActual2))
+                        {
+                            union
+                            {
+                                KU32 au32[3];
+                                KU64 au64[3];
+                            } uBuf;
+                            memset(&uBuf, 0, sizeof(uBuf));
+                            pbDst += f32BitPeb ? 0x18 : 0x20;
+                            if (   (afReplace[0] && afReplace[1] && afReplace[2])
+                                || ReadProcessMemory(ProcInfo.hProcess, pbDst, &uBuf, cbChildPtr * 3, &cbActual2))
+                            {
+                                for (i = 0; i < 3; i++)
+                                    if (afReplace[i])
+                                    {
+                                        HANDLE hInChild = INVALID_HANDLE_VALUE;
+                                        if (   ahChild[i] == NULL /* just closed*/
+                                            || DuplicateHandle(GetCurrentProcess(), ahChild[i], ProcInfo.hProcess, &hInChild,
+                                                               0, TRUE /*fInheriable*/, DUPLICATE_SAME_ACCESS))
+                                        {
+                                            if (f32BitPeb)
+                                                uBuf.au32[i] = (KU32)(uintptr_t)hInChild;
+                                            else
+                                                uBuf.au64[i] = (uintptr_t)hInChild;
+                                        }
+                                        else
+                                            rc = errx(10, "Error duplicating %p into the child: %u", ahChild[i], GetLastError());
+                                    }
+                                if (    rc == 0
+                                    && !WriteProcessMemory(ProcInfo.hProcess, pbDst, &uBuf, cbChildPtr * 3, &cbActual2))
+                                    rc = errx(10, "Error writing standard handles at %p LB %u in the child: %u",
+                                              pbDst, cbChildPtr * 3, GetLastError());
+                            }
+                            else
+                                rc = errx(10, "Error reading %p LB %u from the child: %u",
+                                          pbDst, cbChildPtr * 3, GetLastError());
+                        }
+                        else
+                            rc = errx(10, "Error reading %p LB %u from the child: %u", pvSrcInPeb, cbChildPtr);
+                    }
+                    else
+                        rc = errx(10, "NtQueryInformationProcess failed: %#x", rcNt);
+
+                    /* Resume the bugger... */
+                    if (   rc == 0
+                        && !ResumeThread(ProcInfo.hThread))
+                        rc = errx(10, "ResumeThread failed: %u", GetLastError());
+
+                    /* .. or kill it. */
+                    if (rc != 0)
+                        TerminateProcess(ProcInfo.hProcess, rc);
+
+                    CloseHandle(ProcInfo.hThread);
+                    *phProcess = ProcInfo.hProcess;
+                    rc = 0;
+                }
+                else
+                    rc = errx(10, "CreateProcessA(%s) failed: %u", pszExecutable, GetLastError());
+            }
+        }
+        free(pszzEnv);
+    }
+    else
+        rc = errx(9, "out of memory!");
+    free(pszCmdLine);
+    return rc;
+}
+#endif /* KBUILD_OS_WINDOWS */
 
 /**
  * Does the child spawning .
@@ -801,8 +1149,9 @@ static int kRedirectExecFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders, FIL
  * @param   pfIsChildExitCode   Where to indicate whether the return exit code
  *                              is from the child or from our setup efforts.
  */
-static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszArgs, int fWatcomBrainDamage, char **papszEnvVars,
-                            const char *pszCwd, const char *pszSavedCwd, unsigned cOrders, REDIRECTORDERS *paOrders,
+static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszArgs, int fWatcomBrainDamage,
+                            char **papszEnvVars, const char *pszCwd, const char *pszSavedCwd,
+                            unsigned cOrders, REDIRECTORDERS *paOrders,
 #ifdef USE_POSIX_SPAWN
                             posix_spawn_file_actions_t *pFileActions,
 #endif
@@ -862,6 +1211,7 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                 warnx("debug: chdir %s\n", pszCwd);
         }
 
+#ifndef KBUILD_OS_WINDOWS
         /*
          * Change working directory if so requested.
          */
@@ -870,40 +1220,48 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
             if (chdir(pszCwd) < 0)
                 rcExit = errx(10, "Failed to change directory to '%s'", pszCwd);
         }
+#endif /* KBUILD_OS_WINDOWS */
         if (rcExit == 0)
         {
-#ifndef USE_POSIX_SPAWN
+# if !defined(USE_POSIX_SPAWN) && !defined(KBUILD_OS_WINDOWS)
             /*
              * Execute the file orders.
              */
             FILE *pWorkingStdErr = NULL;
-# if defined(CONFIG_NEW_WIN_CHILDREN) && defined(KMK)
+#  if defined(CONFIG_NEW_WIN_CHILDREN) && defined(KMK)
             if (cOrders > 0)
                 MkWinChildExclusiveAcquire();
-# endif
+#  endif
             rcExit = kRedirectExecFdOrders(cOrders, paOrders, &pWorkingStdErr);
             if (rcExit == 0)
-#endif
+# endif
             {
-#ifdef KMK
+# ifdef KMK
                 /*
                  * We're spawning from within kmk.
                  */
-#if defined(KBUILD_OS_WINDOWS)
-                /* Windows is slightly complicated due to handles and sub_proc.c. */
+# if defined(KBUILD_OS_WINDOWS)
+                /* Windows is slightly complicated due to handles and winchildren.c. */
+#  if 1
+                HANDLE hProcess = INVALID_HANDLE_VALUE;
+                rcExit = kRedirectCreateProcessWindows(pszExecutable, cArgs, papszArgs, papszEnvVars, pszCwd,
+                                                       cOrders, paOrders, &hProcess);
+                if (rcExit == 0)
+#  else
                 HANDLE  hProcess = (HANDLE)_spawnvpe(_P_NOWAIT, pszExecutable, papszArgs, papszEnvVars);
                 kRedirectRestoreFdOrders(cOrders, paOrders, &pWorkingStdErr);
-# ifdef CONFIG_NEW_WIN_CHILDREN
+#  ifdef CONFIG_NEW_WIN_CHILDREN
                 if (cOrders > 0)
                     MkWinChildExclusiveRelease();
-# endif
+#  endif
                 if ((intptr_t)hProcess != -1)
-                {
-# ifndef CONFIG_NEW_WIN_CHILDREN
-                    if (process_kmk_register_redirect(hProcess, pPidSpawned) == 0)
-# else
-                    if (MkWinChildCreateRedirect((intptr_t)hProcess, pPidSpawned) == 0)
 # endif
+                {
+#  ifndef CONFIG_NEW_WIN_CHILDREN
+                    if (process_kmk_register_redirect(hProcess, pPidSpawned) == 0)
+#  else
+                    if (MkWinChildCreateRedirect((intptr_t)hProcess, pPidSpawned) == 0)
+#  endif
                     {
                         if (cVerbosity > 0)
                             warnx("debug: spawned %d", *pPidSpawned);
@@ -911,11 +1269,11 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                     else
                     {
                         DWORD dwTmp;
-# ifndef CONFIG_NEW_WIN_CHILDREN
+#  ifndef CONFIG_NEW_WIN_CHILDREN
                         warn("sub_proc is out of slots, waiting for child...");
-# else
+#  else
                         warn("MkWinChildCreateRedirect failed...");
-# endif
+#  endif
                         dwTmp = WaitForSingleObject(hProcess, INFINITE);
                         if (dwTmp != WAIT_OBJECT_0)
                             warn("WaitForSingleObject failed: %#x\n", dwTmp);
@@ -934,8 +1292,10 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                         *pfIsChildExitCode = K_TRUE;
                     }
                 }
+#  if 0
                 else
                     rcExit = err(10, "_spawnvpe(%s) failed", pszExecutable);
+#  endif
 
 # elif defined(KBUILD_OS_OS2)
                 *pPidSpawned = _spawnvpe(P_NOWAIT, pszExecutable, papszArgs, papszEnvVars);
@@ -950,7 +1310,7 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                     rcExit = err(10, "_spawnvpe(%s) failed", pszExecutable);
                     *pPidSpawned = 0;
                 }
-#else
+# else
                 rcExit = posix_spawnp(pPidSpawned, pszExecutable, pFileActions, NULL /*pAttr*/, papszArgs, papszEnvVars);
                 if (rcExit == 0)
                 {
@@ -962,13 +1322,31 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                     rcExit = errx(10, "posix_spawnp(%s) failed: %s", pszExecutable, strerror(rcExit));
                     *pPidSpawned = 0;
                 }
-#endif
+# endif
 
 #else  /* !KMK */
                 /*
                  * Spawning from inside the kmk_redirect executable.
                  */
-# if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
+# ifdef KBUILD_OS_WINDOWS
+                HANDLE hProcess = INVALID_HANDLE_VALUE;
+                rcExit = kRedirectCreateProcessWindows(pszExecutable, cArgs, papszArgs, papszEnvVars, pszCwd,
+                                                       cOrders, paOrders, &hProcess);
+                if (rcExit == 0)
+                {
+                    DWORD dwWait;
+                    do
+                        dwWait = WaitForSingleObject(hProcess, INFINITE);
+                    while (dwWait == WAIT_IO_COMPLETION || dwWait == WAIT_TIMEOUT);
+
+                    dwWait = 11;
+                    if (GetExitCodeProcess(hProcess, &dwWait))
+                        rcExit = dwWait;
+                    else
+                        rcExit = errx(11, "GetExitCodeProcess(%s) failed: %u", pszExecutable, GetLastError());
+                }
+
+#elif defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
                 errno  = 0;
 #  if defined(KBUILD_OS_WINDOWS)
                 rcExit = (int)_spawnvpe(_P_WAIT, pszExecutable, papszArgs, papszEnvVars);
@@ -1022,7 +1400,7 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
 # endif
 #endif /* !KMK */
             }
-#if defined(CONFIG_NEW_WIN_CHILDREN) && defined(KBUILD_OS_WINDOWS) && defined(KMK)
+#if defined(CONFIG_NEW_WIN_CHILDREN) && defined(KBUILD_OS_WINDOWS) && defined(KMK) && 0
             else if (cOrders > 0)
                 MkWinChildExclusiveRelease();
 #endif
@@ -1440,6 +1818,10 @@ int main(int argc, char **argv, char **envp)
                     rcExit = errx(2, "error: failed to convert '%s' to a number", pszValue);
                 else if (fd < 0)
                     rcExit = errx(2, "error: negative fd %d (%s)", fd, pszValue);
+#ifdef ONLY_TARGET_STANDARD_HANDLES
+                else if (fd > 2)
+                    rcExit = errx(2, "error: %d is not a standard descriptor number", fd);
+#endif
                 else
                 {
                     aOrders[cOrders].enmOrder = kRedirectOrder_Close;
@@ -1463,6 +1845,10 @@ int main(int argc, char **argv, char **envp)
                     rcExit = errx(2, "error: failed to convert target descriptor of '-d %s' to a number", pszValue);
                 else if (fd < 0)
                     rcExit = errx(2, "error: negative target descriptor %d ('-d %s')", fd, pszValue);
+#ifdef ONLY_TARGET_STANDARD_HANDLES
+                else if (fd > 2)
+                    rcExit = errx(2, "error: target %d is not a standard descriptor number", fd);
+#endif
                 else if (*pszEqual != '=')
                     rcExit = errx(2, "syntax error: expected '=' to follow target descriptor: '-d %s'", pszValue);
                 else
@@ -1607,6 +1993,10 @@ int main(int argc, char **argv, char **envp)
                             rcExit = errx(2, "error: failed to convert '%s' to a number", argv[iArg]);
                         else if (fd < 0)
                             rcExit = errx(2, "error: negative fd %d (%s)", fd, argv[iArg]);
+#ifdef ONLY_TARGET_STANDARD_HANDLES
+                        else if (fd > 2)
+                            rcExit = errx(2, "error: %d is not a standard descriptor number", fd);
+#endif
                         else
                             break;
                         continue;
@@ -1687,7 +2077,9 @@ int main(int argc, char **argv, char **envp)
         /*
          * Do the spawning in a separate function (main is far to large as it is by now).
          */
-        rcExit = kRedirectDoSpawn(pszExecutable, argc - iArg, &argv[iArg], fWatcomBrainDamage, papszEnvVars, szCwd, pszSavedCwd,
+        rcExit = kRedirectDoSpawn(pszExecutable, argc - iArg, &argv[iArg], fWatcomBrainDamage,
+                                  papszEnvVars,
+                                  szCwd, pszSavedCwd,
 #ifdef USE_POSIX_SPAWN
                                   cOrders, aOrders, &FileActions, cVerbosity,
 #else
