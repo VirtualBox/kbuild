@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 3160 2018-03-19 22:39:19Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -454,9 +454,9 @@ define TOOL_QT5_RCC_QRC_CMDS
 		$(flags)\
 		-o $(out)\
 		$(source)
-	$(QUIET2)$(APPEND) $(dep) '\'
-	$(QUIET2)$(APPEND) $(dep) '$(out): \'
-	$(QUIET2)$(APPEND) $(dep) '$(source) \'
+	$(QUIET2)$(APPEND) -n $(dep) '\' \
+		'$(out): \' \
+		'$(source) \'
 	$(QUIET2)$(SED) \
 		-e '/^[[:blank:]]*<file[[:blank:]][^>]*>/!d' \
 		-e 's/^.*<file[[:blank:]][^>]*>\([^<]*\)<\/file>.*$$$$/\1/' \
@@ -532,10 +532,17 @@ $(out) + $(more_output) +| $(maybe_output): \
 $(cmds)
 
 ifndef NO_COMPILE_CMDS_DEPS
+ifdef KBUILD_HAVE_OPTIMIZED_APPEND
+	%$$(QUIET2)$$(APPEND) -ni '$(dep)' \
+		'define $(target)_$(subst :,_,$(source))_QT5_LRC_CMDS_PREV_' \
+		'--insert-command=$(out)' \
+		'endef'
+else
 	%$$(QUIET2)$$(APPEND) '$(dep)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT5_LRC_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(out)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
+endif
 endif
 
 $(target)_CLEAN += $(out) $(more_output) $(maybe_output) $(dep)
@@ -620,10 +627,17 @@ $(cmds)
 
 	$(QUIET)$(CP) --changed -f $(out) $(realout)
 ifndef NO_COMPILE_CMDS_DEPS
+ifdef KBUILD_HAVE_OPTIMIZED_APPEND
+	%$$(QUIET2)$$(APPEND) -ni '$(dep)' \
+		'define $(target)_$(subst :,_,$(source))_QT5_RCC_CMDS_PREV_' \
+		'--insert-command=$(out)' \
+		'endef'
+else
 	%$$(QUIET2)$$(APPEND) '$(dep)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT5_RCC_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(out)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
+endif
 endif
 
 $(target)_INTERMEDIATES += $(realout)
@@ -707,10 +721,17 @@ $(cmds)
 
 	$(QUIET)$(CP) --changed -f $(out) $(realout)
 ifndef NO_COMPILE_CMDS_DEPS
+ifdef KBUILD_HAVE_OPTIMIZED_APPEND
+	%$$(QUIET2)$$(APPEND) -ni '$(dep)' \
+		'define $(target)_$(subst :,_,$(source))_QT5_UIC_CMDS_PREV_' \
+		'--insert-command=$(out)' \
+		'endef'
+else
 	%$$(QUIET2)$$(APPEND) '$(dep)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT5_UIC_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(out)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
+endif
 endif
 
 $(target)_INTERMEDIATES += $(realout)
@@ -793,10 +814,17 @@ $(cmds)
 
 	$(QUIET)$(CP) --changed -f $(out) $(realout)
 ifndef NO_COMPILE_CMDS_DEPS
+ifdef KBUILD_HAVE_OPTIMIZED_APPEND
+	%$$(QUIET2)$$(APPEND) -ni '$(dep)' \
+		'define $(target)_$(subst :,_,$(source))_QT5_MOC_HPP_CMDS_PREV_' \
+		'--insert-command=$(out)' \
+		'endef'
+else
 	%$$(QUIET2)$$(APPEND) '$(dep)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT5_MOC_HPP_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(out)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
+endif
 endif
 
 $(target)_INTERMEDIATES += $(realout)
@@ -886,10 +914,17 @@ $(cmds)
 
 	$(QUIET)$(CP) --changed -f $(out) $(realout)
 ifndef NO_COMPILE_CMDS_DEPS
+ifdef KBUILD_HAVE_OPTIMIZED_APPEND
+	%$$(QUIET2)$$(APPEND) -ni '$(dep)' \
+		'define $(target)_$(subst :,_,$(source))_QT5_MOC_CPP_CMDS_PREV_' \
+		'--insert-command=$(out)' \
+		'endef'
+else
 	%$$(QUIET2)$$(APPEND) '$(dep)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT5_MOC_CPP_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(out)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
+endif
 endif
 
 $(target)_INTERMEDIATES += $(realout)

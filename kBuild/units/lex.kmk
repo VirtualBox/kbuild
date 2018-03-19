@@ -1,4 +1,4 @@
-# $Id: lex.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: lex.kmk 3160 2018-03-19 22:39:19Z knut.osmundsen@oracle.com $
 ## @file
 # lex unit.
 #
@@ -71,10 +71,17 @@ $(out) + $(output_extra) +| $(output_maybe) : \
 $(cmds)
 
 ifndef NO_COMPILE_CMDS_DEPS
+ifdef KBUILD_HAVE_OPTIMIZED_APPEND
+	%$$(QUIET2)$$(APPEND) -ni '$(dep)' \
+		'define $(target)_$(subst :,_,$(source))_LEX_CMDS_PREV_' \
+		'--insert-command=$(out)' \
+		'endef'
+else
 	%$$(QUIET2)$$(APPEND) '$(dep)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_LEX_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(out)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
+endif
 endif
 
 # update globals

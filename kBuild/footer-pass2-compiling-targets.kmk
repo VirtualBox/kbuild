@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 3135 2018-03-01 18:45:26Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 3160 2018-03-19 22:39:19Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -46,12 +46,6 @@ ifndef NO_COMPILE_CMDS_DEPS
  endif
 else
  _DEP_COMPILE_CMDS =
-endif
-
-
-## Temporary for the compile rule below.
-if "$(KBUILD_KMK_REVISION)" >= 3134
- KBUILD_HAVE_OPTIMIZED_APPEND := 1
 endif
 
 
