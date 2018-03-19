@@ -1,4 +1,4 @@
-# $Id: header.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3160 2018-03-19 22:39:19Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3121 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3160 $  )
 
 
 #
@@ -970,6 +970,11 @@ endif
 # Somewhat simple solution for automatic command dependencies.
 #
 
+## Temporary for the compile rule below.
+if "$(KBUILD_KMK_REVISION)" >= 3134
+ KBUILD_HAVE_OPTIMIZED_APPEND := 1
+endif
+
 ##
 # Advanced version of KB_FN_AUTO_CMD_DEPS_COMMANDS_EX where you set
 # the dependency file name yourself.
@@ -977,12 +982,21 @@ endif
 # After or before the recipe do $(call KB_FN_AUTO_CMD_DEPS_EX,<recipe-target>,<dep-file>).
 #
 # @param 1    dep file.
+ifdef KBUILD_HAVE_OPTIMIZED_APPEND
+define KB_FN_AUTO_CMD_DEPS_COMMANDS_EX
+	%$(QUIET2)$(APPEND) -tin "$1" \
+		'define AUTO_CMD_DEP_$(translate $@,:,_)_PREV_CMDS' \
+       	'--insert-command=$@' \
+       	'endef'
+endef
+else
 define KB_FN_AUTO_CMD_DEPS_COMMANDS_EX
 	%$(QUIET2)$(RM) -f -- "$1"
-       %$(QUIET2)$(APPEND) "$1" 'define AUTO_CMD_DEP_$(translate $@,:,_)_PREV_CMDS'
-       %$(QUIET2)$(APPEND) -c "$1"  '$@'
-       %$(QUIET2)$(APPEND) "$1" 'endef'
+	%$(QUIET2)$(APPEND) "$1" 'define AUTO_CMD_DEP_$(translate $@,:,_)_PREV_CMDS'
+	%$(QUIET2)$(APPEND) -c "$1"  '$@'
+	%$(QUIET2)$(APPEND) "$1" 'endef'
 endef
+endif
 
 ##
 # Advanced version of KB_FN_AUTO_CMD_DEPS
@@ -995,12 +1009,21 @@ KB_FN_AUTO_CMD_DEPS_EX = $(eval includedep $2)$(eval _DEPFILES_INCLUDED += $2)$1
 # $(call KB_FN_AUTO_CMD_DEPS_COMMANDS) as the first command in a recipe to
 # automatically generate command dependencies.
 # After or before the recipe do $(call KB_FN_AUTO_CMD_DEPS,<recipe-target>).
+ifdef KBUILD_HAVE_OPTIMIZED_APPEND
+define KB_FN_AUTO_CMD_DEPS_COMMANDS
+	%$(QUIET2)$(APPEND) -tni "$@.auto-dep" \
+		'define AUTO_CMD_DEP_$(translate $@,:,_)_PREV_CMDS' \
+		'--insert-command="$@" \
+		'endef'
+endef
+else
 define KB_FN_AUTO_CMD_DEPS_COMMANDS
 	%$(QUIET2)$(RM) -f -- "$@.auto-dep"
        %$(QUIET2)$(APPEND) "$@.auto-dep" 'define AUTO_CMD_DEP_$(translate $@,:,_)_PREV_CMDS'
        %$(QUIET2)$(APPEND) -c "$@.auto-dep"  '$@'
        %$(QUIET2)$(APPEND) "$@.auto-dep" 'endef'
 endef
+endif
 
 ##
 # Call before or after defining a recipe that you want automatic command
