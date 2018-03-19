@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3156 2018-03-18 20:10:03Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3159 2018-03-19 13:37:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -877,6 +877,10 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
              * Execute the file orders.
              */
             FILE *pWorkingStdErr = NULL;
+# if defined(CONFIG_NEW_WIN_CHILDREN) && defined(KMK)
+            if (cOrders > 0)
+                MkWinChildExclusiveAcquire();
+# endif
             rcExit = kRedirectExecFdOrders(cOrders, paOrders, &pWorkingStdErr);
             if (rcExit == 0)
 #endif
@@ -889,6 +893,10 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                 /* Windows is slightly complicated due to handles and sub_proc.c. */
                 HANDLE  hProcess = (HANDLE)_spawnvpe(_P_NOWAIT, pszExecutable, papszArgs, papszEnvVars);
                 kRedirectRestoreFdOrders(cOrders, paOrders, &pWorkingStdErr);
+# ifdef CONFIG_NEW_WIN_CHILDREN
+                if (cOrders > 0)
+                    MkWinChildExclusiveRelease();
+# endif
                 if ((intptr_t)hProcess != -1)
                 {
 # ifndef CONFIG_NEW_WIN_CHILDREN
@@ -1014,6 +1022,11 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
 # endif
 #endif /* !KMK */
             }
+#if defined(CONFIG_NEW_WIN_CHILDREN) && defined(KBUILD_OS_WINDOWS) && defined(KMK)
+            else if (cOrders > 0)
+                MkWinChildExclusiveRelease();
+#endif
+
         }
 
         /*

@@ -3124,6 +3124,9 @@ main (int argc, char **argv, char **envp)
           if (stack_limit.rlim_cur)
             setrlimit (RLIMIT_STACK, &stack_limit);
 #endif
+fprintf(stderr, "respawning 1..\n");
+fprintf(stderr, "respawning 2..\n");
+fprintf(stderr, "respawning 3..!\n");
 # if !defined(WINDOWS32) || !defined(CONFIG_NEW_WIN_CHILDREN)
           exec_command ((char **)nargv, environ);
 # else

@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3158 2018-03-18 21:25:06Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3159 2018-03-19 13:37:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -24,6 +24,46 @@
  */
 
 /* No GNU coding style here atm, convert if upstreamed. */
+
+/** @page pg_win_children   Windows child process creation and managment
+ *
+ * This new implementation aims at addressing the following:
+ *
+ *      1. Speed up process creation by doing the expensive CreateProcess call
+ *         in a worker thread.
+ *
+ *      2. No 64 process limit imposed by WaitForMultipleObjects.
+ *
+ *      3. Better distribute jobs among processor groups.
+ *
+ *      4. Offloading more expensive kmkbuiltin operations to worker threads,
+ *         making the main thread focus on managing child processes.
+ *
+ *      5. Output synchronization using reusable pipes [not yet implemented].
+ *
+ *
+ * To be quite honest, the first item (CreateProcess expense) didn't occur to me
+ * at first and was more of a sideeffect discovered along the way.  A test
+ * rebuilding IPRT went from 4m52s to 3m19s on a 8 thread system.
+ *
+ * The 2nd and 3rd goals are related to newer build servers that have lots of
+ * CPU threads and various Windows NT (aka NT OS/2 at the time) design choices
+ * made in the late 1980ies.
+ *
+ * WaitForMultipleObjects does not support waiting for more than 64 objects,
+ * unlike poll and select.  This is just something everyone ends up having to
+ * work around in the end.
+ *
+ * Affinity masks are uintptr_t sized, so 64-bit hosts can only manage 64
+ * processors and 32-bit only 32.  Workaround was introduced with Windows 7
+ * (IIRC) and is called processor groups.  The CPU threads are grouped into 1 or
+ * more groups of up to 64 processors.  Processes are generally scheduled to a
+ * signle processor group at first, but threads may be changed to be scheduled
+ * on different groups.  This code will try distribute children evenly among the
+ * processor groups, using a very simple algorithm (see details in code).
+ *
+ */
+
 
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
@@ -65,12 +105,14 @@ typedef enum WINCHILDTYPE
     WINCHILDTYPE_INVALID = 0,
     /** Normal child process. */
     WINCHILDTYPE_PROCESS,
+#ifdef KMK
     /** kmkbuiltin command. */
     WINCHILDTYPE_BUILTIN,
     /** kSubmit job. */
     WINCHILDTYPE_SUBMIT,
     /** kmk_redirect job. */
     WINCHILDTYPE_REDIRECT,
+#endif
     /** End of valid child types. */
     WINCHILDTYPE_END
 } WINCHILDTYPE;
@@ -246,6 +288,8 @@ static unsigned volatile    g_cIdleChildcareWorkers = 0;
 /** Index of the last idle child careworker (just a hint). */
 static unsigned volatile    g_idxLastChildcareWorker = 0;
 
+/** Temporary RW lock for serializing kmkbuiltin_redirect and CreateProcess. */
+static SRWLOCK              g_RWLock;
 
 
 
@@ -319,6 +363,9 @@ void MkWinChildInit(unsigned int cJobSlots)
             g_pfnGetActiveProcessorGroupCount = NULL;
         }
     }
+
+    /* Temporary: */
+    InitializeSRWLock(&g_RWLock);
 }
 
 /**
@@ -1204,6 +1251,8 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
     }
     if (rc == 0)
     {
+        AcquireSRWLockShared(&g_RWLock); /* temporary */
+
         /*
          * Populate startup info.
          */
@@ -1247,6 +1296,7 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
         fRet = CreateProcessW(pwszImageName, pwszCommandLine, NULL /*pProcSecAttr*/, NULL /*pThreadSecAttr*/,
                               TRUE /*fInheritHandles*/, fFlags, pwszzEnvironment, NULL /*pwsz*/, &StartupInfo, &ProcInfo);
         rc = GetLastError();
+        ReleaseSRWLockShared(&g_RWLock); /* temporary */
         if (fRet)
         {
             /*
@@ -1314,6 +1364,8 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
     free(pwszzEnvironment);
 }
 
+#ifdef KMK
+
 /**
  * Childcare worker: handle builtin command.
  *
@@ -1365,6 +1417,8 @@ static void mkWinChildcareWorkerThreadHandleRedirect(PWINCHILDCAREWORKER pWorker
 {
     mkWinChildcareWorkerWaitForProcess(pWorker, pChild, pChild->u.Redirect.hProcess);
 }
+
+#endif /* KMK */
 
 /**
  * Childcare worker thread.
@@ -1434,6 +1488,7 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
                     case WINCHILDTYPE_PROCESS:
                         mkWinChildcareWorkerThreadHandleProcess(pWorker, pChild);
                         break;
+#ifdef KMK
                     case WINCHILDTYPE_BUILTIN:
                         mkWinChildcareWorkerThreadHandleBuiltin(pWorker, pChild);
                         break;
@@ -1443,6 +1498,9 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
                     case WINCHILDTYPE_REDIRECT:
                         mkWinChildcareWorkerThreadHandleRedirect(pWorker, pChild);
                         break;
+#endif
+                    default:
+                        assert(0);
                 }
 
                 /*
@@ -1637,6 +1695,8 @@ static void mkWinChildDelete(PWINCHILD pChild)
             break;
         }
 
+#ifdef KMK
+
         case WINCHILDTYPE_BUILTIN:
             assert(0);
             break;
@@ -1656,6 +1716,11 @@ static void mkWinChildDelete(PWINCHILD pChild)
                 pChild->u.Redirect.hProcess = NULL;
             }
             break;
+
+#endif /* KMK */
+
+        default:
+            assert(0);
     }
 
     free(pChild);
@@ -1889,6 +1954,8 @@ int MkWinChildCreateWithStdOutPipe(char **papszArgs, char **papszEnv, int fdErr,
     return -1;
 }
 
+#ifdef KMK
+
 /**
  * Interface used by kSubmit.c for registering stuff to wait on.
  *
@@ -1919,6 +1986,8 @@ int MkWinChildCreateRedirect(intptr_t hProcess, pid_t *pPid)
     return mkWinChildPushToCareWorker(pChild, pPid);
 }
 
+#endif /* CONFIG_NEW_WIN_CHILDREN */
+
 /**
  * Interface used to kill process when processing Ctrl-C and fatal errors.
  *
@@ -1943,6 +2012,8 @@ int MkWinChildKill(pid_t pid, int iSignal, struct child *pMkChild)
                     pChild->iSignal = iSignal;
                     break;
 
+#ifdef KMK
+
                 case WINCHILDTYPE_SUBMIT:
                 {
                     pChild->iSignal = iSignal;
@@ -1957,6 +2028,11 @@ int MkWinChildKill(pid_t pid, int iSignal, struct child *pMkChild)
 
                 case WINCHILDTYPE_BUILTIN:
                     break;
+
+#endif /* KMK */
+
+                default:
+                    assert(0);
             }
         }
     }
@@ -2014,25 +2090,38 @@ int MkWinChildWait(int fBlock, pid_t *pPid, int *piExitCode, int *piSignal, int 
     {
         case WINCHILDTYPE_PROCESS:
             break;
+#ifdef KMK
         case WINCHILDTYPE_BUILTIN:
             break;
         case WINCHILDTYPE_SUBMIT:
             break;
         case WINCHILDTYPE_REDIRECT:
             break;
+#endif /* KMK */
         default:
             assert(0);
     }
     mkWinChildDelete(pChild);
+
+#ifdef KMK
+    /* Flush the volatile directory cache. */
+    dir_cache_invalid_after_job();
+#endif
     return 0;
 }
 
-
+/**
+ * Get the child completed event handle.
+ *
+ * Needed when w32os.c is waiting for a job token to become available, given
+ * that completed children is the typical source of these tokens (esp. for kmk).
+ *
+ * @returns Event handle.
+ */
 intptr_t MkWinChildGetCompleteEventHandle(void)
 {
     return (intptr_t)g_hEvtWaitChildren;
 }
-
 
 /**
  * Emulate execv() for restarting kmk after one ore more makefiles has been
@@ -2051,8 +2140,6 @@ void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
     WCHAR                  *pwszzEnvironment;
     WCHAR                  *pwszPathIgnored;
     int                     rc;
-
-/** @todo this code needs testing... */
 
     /*
      * Get the executable name.
@@ -2083,7 +2170,7 @@ void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
     StartupInfo.cb = sizeof(StartupInfo);
     GetStartupInfoW(&StartupInfo);
     if (!CreateProcessW(wszImageName, pwszCommandLine, NULL /*pProcSecAttr*/, NULL /*pThreadSecAttr*/,
-                        TRUE /*fInheritHandles*/, 0 /*fFlags*/, pwszzEnvironment, NULL /*pwsz*/,
+                        TRUE /*fInheritHandles*/, CREATE_UNICODE_ENVIRONMENT, pwszzEnvironment, NULL /*pwsz*/,
                         &StartupInfo, &ProcInfo))
         ON(fatal, NILF, _("MkWinChildReExecMake: CreateProcessW failed: %u\n"), GetLastError());
     CloseHandle(ProcInfo.hThread);
@@ -2102,10 +2189,11 @@ void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
         /* Get the status code and terminate. */
         if (dwStatus == WAIT_OBJECT_0)
         {
-            if (GetExitCodeProcess(ProcInfo.hProcess, &dwExitCode))
+            if (!GetExitCodeProcess(ProcInfo.hProcess, &dwExitCode))
+            {
                 ON(fatal, NILF, _("MkWinChildReExecMake: GetExitCodeProcess failed: %u\n"), GetLastError());
-            else
                 dwExitCode = -2222;
+            }
         }
         else if (dwStatus)
             dwExitCode = dwStatus;
@@ -2116,7 +2204,24 @@ void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
     }
 }
 
+/** Temporary serialization with kmkbuiltin_redirect. */
+void MkWinChildExclusiveAcquire(void)
+{
+    AcquireSRWLockExclusive(&g_RWLock);
+}
 
+/** Temporary serialization with kmkbuiltin_redirect. */
+void MkWinChildExclusiveRelease(void)
+{
+    ReleaseSRWLockExclusive(&g_RWLock);
+}
+
+/**
+ * Implementation of the CLOSE_ON_EXEC macro.
+ *
+ * @returns errno value.
+ * @param   fd          The file descriptor to hide from children.
+ */
 int MkWinChildUnrelatedCloseOnExec(int fd)
 {
     if (fd >= 0)
@@ -2127,9 +2232,8 @@ int MkWinChildUnrelatedCloseOnExec(int fd)
             if (SetHandleInformation(hNative, HANDLE_FLAG_INHERIT /*clear*/ , 0 /*set*/))
                 return 0;
         }
+        return errno;
     }
     return EINVAL;
 }
-
-
 

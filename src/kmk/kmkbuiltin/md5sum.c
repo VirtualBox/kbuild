@@ -1,4 +1,4 @@
-/* $Id: md5sum.c 3131 2018-02-09 13:19:39Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 3159 2018-03-19 13:37:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
@@ -155,9 +155,11 @@ static void *open_file(const char *pszFilename, unsigned fText)
     FILE *pFile;
 
     errno = 0;
-    pFile = fopen(pszFilename, fText ? "r" : "rb");
+    pFile = fopen(pszFilename,
+                  fText ? "r"  KMK_FOPEN_NO_INHERIT_MODE
+                        : "rb" KMK_FOPEN_NO_INHERIT_MODE);
     if (!pFile && errno == EINVAL && !fText)
-        pFile = fopen(pszFilename, "r");
+        pFile = fopen(pszFilename, "r" KMK_FOPEN_NO_INHERIT_MODE);
     return pFile;
 
 #else
@@ -471,7 +473,7 @@ static int check_files(const char *pszFilename, int fText, int fBinaryTextOpt, i
     /*
      * Try open the md5.lst file and process it line by line.
      */
-    pFile = fopen(pszFilename, "r");
+    pFile = fopen(pszFilename, "r" KMK_FOPEN_NO_INHERIT_MODE);
     if (pFile)
     {
         int iLine = 0;
@@ -836,10 +838,10 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
             {
                 if (pOutput)
                     fclose(pOutput);
-                pOutput = fopen(pszOutput, "w");
+                pOutput = fopen(pszOutput, "w" KMK_FOPEN_NO_INHERIT_MODE);
                 if (!pOutput)
                 {
-                    rc = err(1, "fopen(\"%s\", \"w\") failed", pszOutput);
+                    rc = err(1, "fopen(\"%s\", \"w" KMK_FOPEN_NO_INHERIT_MODE "\") failed", pszOutput);
                     break;
                 }
                 pszOutput = NULL;

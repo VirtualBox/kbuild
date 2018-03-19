@@ -3047,13 +3047,21 @@ func_file (char *o, char **argv, const char *funcname UNUSED)
   if (fn[0] == '>')
     {
       FILE *fp;
+#ifdef KMK_FOPEN_NO_INHERIT_MODE
+      const char *mode = "w" KMK_FOPEN_NO_INHERIT_MODE;
+#else
       const char *mode = "w";
+#endif
 
       /* We are writing a file.  */
       ++fn;
       if (fn[0] == '>')
         {
+#ifdef KMK_FOPEN_NO_INHERIT_MODE
+          mode = "a" KMK_FOPEN_NO_INHERIT_MODE;
+#else
           mode = "a";
+#endif
           ++fn;
         }
       NEXT_TOKEN (fn);
@@ -3089,7 +3097,11 @@ func_file (char *o, char **argv, const char *funcname UNUSED)
       if (argv[1])
         O (fatal, *expanding_var, _("file: too many arguments"));
 
+#ifdef KMK_FOPEN_NO_INHERIT_MODE
+      ENULLLOOP (fp, fopen (fn, "r" KMK_FOPEN_NO_INHERIT_MODE));
+#else
       ENULLLOOP (fp, fopen (fn, "r"));
+#endif
       if (fp == NULL)
         {
           if (errno == ENOENT)
