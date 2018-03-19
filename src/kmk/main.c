@@ -1465,8 +1465,10 @@ get_online_cpu_count(void)
       }
     if (!cpus)
       cpus = 1;
+#  ifdef CONFIG_NEW_WIN_CHILDREN
     if (cpus > 64)
       cpus = 64; /* (wait for multiple objects limit) */
+#  endif
     return cpus;
 
 # elif defined(__OS2__)
@@ -3124,9 +3126,6 @@ main (int argc, char **argv, char **envp)
           if (stack_limit.rlim_cur)
             setrlimit (RLIMIT_STACK, &stack_limit);
 #endif
-fprintf(stderr, "respawning 1..\n");
-fprintf(stderr, "respawning 2..\n");
-fprintf(stderr, "respawning 3..!\n");
 # if !defined(WINDOWS32) || !defined(CONFIG_NEW_WIN_CHILDREN)
           exec_command ((char **)nargv, environ);
 # else
