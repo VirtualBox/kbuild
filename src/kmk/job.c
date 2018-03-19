@@ -41,7 +41,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 const char *default_shell = "sh.exe";
 int no_default_sh_exe = 1;
 int batch_mode_shell = 1;
+# ifndef CONFIG_NEW_WIN32_CTRL_EVENT
 HANDLE main_thread;
+# endif
 
 #elif defined (_AMIGA)
 
@@ -808,8 +810,8 @@ reap_children (int block, int err)
           coredump = 0;
 #endif /* _AMIGA */
 #ifdef WINDOWS32
-# ifndef CONFIG_NEW_WIN_CHILDREN
           {
+# ifndef CONFIG_NEW_WIN_CHILDREN
             HANDLE hPID;
             HANDLE hcTID, hcPID;
             DWORD dwWaitStatus = 0;
@@ -817,6 +819,7 @@ reap_children (int block, int err)
             exit_sig = 0;
             coredump = 0;
 
+#  ifndef CONFIG_NEW_WIN32_CTRL_EVENT
             /* Record the thread ID of the main process, so that we
                could suspend it in the signal handler.  */
             if (!main_thread)
@@ -834,6 +837,7 @@ reap_children (int block, int err)
                 else
                   DB (DB_VERBOSE, ("Main thread handle = %p\n", main_thread));
               }
+#  endif
 
             /* wait for anything to finish */
             hPID = process_wait_for_any (block, &dwWaitStatus);
@@ -870,27 +874,38 @@ reap_children (int block, int err)
               }
 
             pid = (pid_t) hPID;
-          }
 # else  /* CONFIG_NEW_WIN_CHILDREN */
-          assert (!any_remote);
-          pid = 0;
-          coredump = exit_sig = exit_code = 0;
-          {
-            int rc = MkWinChildWait(block, &pid, &exit_code, &exit_sig, &coredump, &c);
-            if (rc != 0)
-                  ON (fatal, NILF, _("MkWinChildWait: %u"), rc);
-          }
-          if (pid == 0)
-            {
-              /* No more children, stop. */
-              reap_more = 0;
-              break;
-            }
+#  ifndef CONFIG_NEW_WIN32_CTRL_EVENT
+            /* Ctrl-C handler needs to suspend the main thread handle to
+               prevent mayhem when concurrently calling reap_children.  */
+            if (   !main_thread
+                && !DuplicateHandle (GetCurrentProcess (), GetCurrentThread (),
+                                     GetCurrentProcess (), &main_thread, 0,
+                                     FALSE, DUPLICATE_SAME_ACCESS))
+              fprintf (stderr, "Failed to duplicate main thread handle: %u\n",
+                       GetLastError ());
+#  endif
 
-          /* If we have started jobs in this second, remove one.  */
-          if (job_counter)
-            --job_counter;
+            assert (!any_remote);
+            pid = 0;
+            coredump = exit_sig = exit_code = 0;
+            {
+              int rc = MkWinChildWait(block, &pid, &exit_code, &exit_sig, &coredump, &c);
+              if (rc != 0)
+                    ON (fatal, NILF, _("MkWinChildWait: %u"), rc);
+            }
+            if (pid == 0)
+              {
+                /* No more children, stop. */
+                reap_more = 0;
+                break;
+              }
+
+            /* If we have started jobs in this second, remove one.  */
+            if (job_counter)
+              --job_counter;
 # endif /* CONFIG_NEW_WIN_CHILDREN */
+          }
 #endif /* WINDOWS32 */
         }
 

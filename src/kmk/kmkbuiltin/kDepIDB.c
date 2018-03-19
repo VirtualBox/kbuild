@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 2955 2016-09-21 19:05:53Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 3159 2018-03-19 13:37:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
  */
@@ -731,7 +731,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                     if (pszOutput[0] == '-' && !pszOutput[1])
                         pOutput = stdout;
                     else
-                        pOutput = fopen(pszOutput, "w");
+                        pOutput = fopen(pszOutput, "w" KMK_FOPEN_NO_INHERIT_MODE);
                     if (!pOutput)
                     {
                         fprintf(stderr, "%s: error: Failed to create output file '%s'.\n", argv[0], pszOutput);
@@ -811,7 +811,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
         }
         else
         {
-            pInput = fopen(argv[i], "rb");
+            pInput = fopen(argv[i], "rb" KMK_FOPEN_NO_INHERIT_MODE);
             if (!pInput)
             {
                 fprintf(stderr, "%s: error: Failed to open input file '%s'.\n", argv[0], argv[i]);
