@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3162 2018-03-20 03:13:12Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3163 2018-03-20 03:28:01Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -106,37 +106,6 @@
 #endif
 
 
-
-#if defined(_MSC_VER)
-
-
-/** Used by safeCloseFd. */
-static void __cdecl ignore_invalid_parameter(const wchar_t *a, const wchar_t *b, const wchar_t *c, unsigned d, uintptr_t e)
-{
-}
-
-#endif /* _MSC_VER */
-
-#if 0 /* unused */
-/**
- * Safely works around MS CRT's pedantic close() function.
- *
- * @param   fd      The file handle.
- */
-static void safeCloseFd(int fd)
-{
-#ifdef _MSC_VER
-    _invalid_parameter_handler pfnOld = _get_invalid_parameter_handler();
-    _set_invalid_parameter_handler(ignore_invalid_parameter);
-    close(fd);
-    _set_invalid_parameter_handler(pfnOld);
-#else
-    close(fd);
-#endif
-}
-#endif /* unused */
-
-
 static const char *name(const char *pszName)
 {
     const char *psz = strrchr(pszName, '/');
@@ -229,6 +198,11 @@ typedef struct REDIRECTORDERS
 
 
 #ifdef _MSC_VER
+
+/** Used by mscGetOsHandle. */
+static void __cdecl ignore_invalid_parameter(const wchar_t *a, const wchar_t *b, const wchar_t *c, unsigned d, uintptr_t e)
+{
+}
 
 /**
  * Safe way of getting the OS handle of a file descriptor without triggering
@@ -374,9 +348,14 @@ static int mscDup3(int fdSource, int fdNew, int fFlags, FILE *pStdErr)
 
 static KBOOL kRedirectHasConflict(int fd, unsigned cOrders, REDIRECTORDERS *paOrders)
 {
+#ifdef ONLY_TARGET_STANDARD_HANDLES
+    if (fd >= 3)
+        return K_TRUE;
+#else
     while (cOrders-- > 0)
         if (paOrders[cOrders].fdTarget == fd)
             return K_TRUE;
+#endif
     return K_FALSE;
 }
 
@@ -433,14 +412,14 @@ static int kRedirectOpenWithoutConflict(const char *pszFilename, int fOpen, mode
     /* Check for conflicts. */
     if (!kRedirectHasConflict(fdOpened, cOrders, paOrders))
     {
+#ifndef KBUILD_OS_WINDOWS
         if (fdOpened != fdTarget)
             return fdOpened;
-#ifndef _MSC_VER /* Stupid, stupid MSVCRT!  No friggin way of making a handle inheritable (or not). */
 # ifndef USE_FD_CLOEXEC
         if (fcntl(fdOpened, F_SETFD, 0) != -1)
 # endif
-            return fdOpened;
 #endif
+            return fdOpened;
     }
 
     /*
@@ -453,15 +432,9 @@ static int kRedirectOpenWithoutConflict(const char *pszFilename, int fOpen, mode
         fdOpened = open(pszFilename, fOpen | fNoInherit, fMode);
         if (fdOpened >= 0)
         {
-#ifndef KBUILD_OS_WINDOWS
-            if (   !kRedirectHasConflict(fdOpened, cOrders, paOrders)
-# ifdef _MSC_VER
-                && fdOpened != fdTarget
-# endif
-                )
-#endif
+            if (!kRedirectHasConflict(fdOpened, cOrders, paOrders))
             {
-#ifndef _MSC_VER
+#ifndef KBUILD_OS_WINDOWS
 # ifdef USE_FD_CLOEXEC
                 if (   fdOpened == fdTarget
                     || fcntl(fdOpened, F_SETFD, FD_CLOEXEC) != -1)
@@ -549,57 +522,24 @@ static int kRedirectSaveHandle(REDIRECTORDERS *pToSave, unsigned cOrders, REDIRE
     /*
      * First, check if there's actually handle here that needs saving.
      */
-# ifdef KBUILD_OS_WINDOWS
-    HANDLE hToSave = mscGetOsHandle(fdToSave);
-    if (hToSave != INVALID_HANDLE_VALUE)
-    {
-        pToSave->fSaved = _setmode(fdToSave, _O_BINARY);
-        if (pToSave->fSaved != _O_BINARY)
-            _setmode(fdToSave, pToSave->fSaved);
-        if (!mscIsNativeHandleInheritable(hToSave))
-            pToSave->fSaved |= _O_NOINHERIT;
-    }
-    if (hToSave != INVALID_HANDLE_VALUE)
-# else
     pToSave->fSaved = fcntl(pToSave->fdTarget, F_GETFD, 0);
     if (pToSave->fSaved != -1)
-# endif
     {
         /*
          * Try up to 32 times to get a duplicate descriptor that doesn't conflict.
          */
-# ifdef KBUILD_OS_WINDOWS
-        HANDLE hCurProc = GetCurrentProcess();
-# endif
         int aFdTries[32];
         int cTries = 0;
         do
         {
             /* Duplicate the handle (windows makes this complicated). */
             int fdDup;
-# ifdef KBUILD_OS_WINDOWS
-            HANDLE hDup = INVALID_HANDLE_VALUE;
-            if (!DuplicateHandle(hCurProc, hToSave, hCurProc, &hDup, 0 /* DesiredAccess */,
-                                FALSE /*fInherit*/, DUPLICATE_SAME_ACCESS))
-            {
-                fprintf(*ppWorkingStdErr, "%s: DuplicateHandle(%#x) failed: %u\n", g_progname, hToSave, GetLastError());
-                break;
-            }
-            fdDup = _open_osfhandle((intptr_t)hDup, pToSave->fSaved | _O_NOINHERIT);
-            if (fdDup == -1)
-            {
-                fprintf(*ppWorkingStdErr, "%s: _open_osfhandle(%#x) failed: %u\n", g_progname, hDup, strerror(errno));
-                CloseHandle(hDup);
-                break;
-            }
-# else
             fdDup = dup(fdToSave);
             if (fdDup == -1)
             {
                 fprintf(*ppWorkingStdErr, "%s: dup(%#x) failed: %u\n", g_progname, fdToSave, strerror(errno));
                 break;
             }
-#endif
             /* Is the duplicate usable? */
             if (!kRedirectHasConflict(fdDup, cOrders, paOrders))
             {
@@ -661,12 +601,7 @@ static void kRedirectRestoreFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders,
         {
             KBOOL fRestoreStdErr = *ppWorkingStdErr != stderr
                                  && paOrders[i].fdSaved == fileno(*ppWorkingStdErr);
-
-#ifdef KBUILD_OS_WINDOWS
-            if (mscDup3(paOrders[i].fdSaved, paOrders[i].fdTarget, paOrders[i].fSaved, *ppWorkingStdErr) != -1)
-#else
             if (dup2(paOrders[i].fdSaved, paOrders[i].fdTarget) != -1)
-#endif
             {
                 close(paOrders[i].fdSaved);
                 paOrders[i].fdSaved = -1;
@@ -677,14 +612,11 @@ static void kRedirectRestoreFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders,
                     assert(fileno(stderr) == paOrders[i].fdTarget);
                 }
             }
-#ifndef KBUILD_OS_WINDOWS
             else
                 fprintf(*ppWorkingStdErr, "%s: dup2(%d,%d) failed: %s\n",
                         g_progname, paOrders[i].fdSaved, paOrders[i].fdTarget, strerror(errno));
-#endif
         }
 
-#ifndef KBUILD_OS_WINDOWS
         if (paOrders[i].fSaved != -1)
         {
             if (fcntl(paOrders[i].fdTarget, F_SETFD, paOrders[i].fSaved & FD_CLOEXEC) != -1)
@@ -693,7 +625,6 @@ static void kRedirectRestoreFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders,
                 fprintf(*ppWorkingStdErr, "%s: fcntl(%d,F_SETFD,%s) failed: %s\n",
                         g_progname, paOrders[i].fdTarget, paOrders[i].fSaved & FD_CLOEXEC ? "FD_CLOEXEC" : "0", strerror(errno));
         }
-#endif
     }
     errno = iSavedErrno;
 }
@@ -727,10 +658,6 @@ static int kRedirectExecFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders, FIL
                 for (j = i + 1; j < cOrders; j++)
                     if (paOrders[j].fdTarget == fdTarget)
                         break;
-# ifdef _MSC_VER
-                if (j >= cOrders && !mscIsInheritable(fdTarget))
-                    rcExit = 0;
-# else
                 if (j >= cOrders)
                 {
                     paOrders[j].fSaved = fcntl(fdTarget, F_GETFD, 0);
@@ -750,7 +677,6 @@ static int kRedirectExecFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders, FIL
                     else
                         fprintf(*ppWorkingStdErr, "%s: fcntl(%d,F_GETFD,0) failed: %s\n", g_progname, fdTarget, strerror(errno));
                 }
-# endif
                 else
                     rcExit = kRedirectSaveHandle(&paOrders[i], cOrders, paOrders, ppWorkingStdErr);
                 break;
@@ -793,7 +719,6 @@ static int kRedirectExecFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders, FIL
 }
 
 #endif /* !USE_POSIX_SPAWN */
-
 #ifdef KBUILD_OS_WINDOWS
 
 /**
@@ -1120,6 +1045,7 @@ static kRedirectCreateProcessWindows(const char *pszExecutable, int cArgs, char 
     free(pszCmdLine);
     return rc;
 }
+
 #endif /* KBUILD_OS_WINDOWS */
 
 /**
@@ -1224,10 +1150,6 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
              * Execute the file orders.
              */
             FILE *pWorkingStdErr = NULL;
-#  if defined(CONFIG_NEW_WIN_CHILDREN) && defined(KMK)
-            if (cOrders > 0)
-                MkWinChildExclusiveAcquire();
-#  endif
             rcExit = kRedirectExecFdOrders(cOrders, paOrders, &pWorkingStdErr);
             if (rcExit == 0)
 # endif
@@ -1236,22 +1158,12 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                 /*
                  * We're spawning from within kmk.
                  */
-# if defined(KBUILD_OS_WINDOWS)
+# ifdef KBUILD_OS_WINDOWS
                 /* Windows is slightly complicated due to handles and winchildren.c. */
-#  if 1
                 HANDLE hProcess = INVALID_HANDLE_VALUE;
                 rcExit = kRedirectCreateProcessWindows(pszExecutable, cArgs, papszArgs, papszEnvVars, pszCwd,
                                                        cOrders, paOrders, &hProcess);
                 if (rcExit == 0)
-#  else
-                HANDLE  hProcess = (HANDLE)_spawnvpe(_P_NOWAIT, pszExecutable, papszArgs, papszEnvVars);
-                kRedirectRestoreFdOrders(cOrders, paOrders, &pWorkingStdErr);
-#  ifdef CONFIG_NEW_WIN_CHILDREN
-                if (cOrders > 0)
-                    MkWinChildExclusiveRelease();
-#  endif
-                if ((intptr_t)hProcess != -1)
-# endif
                 {
 #  ifndef CONFIG_NEW_WIN_CHILDREN
                     if (process_kmk_register_redirect(hProcess, pPidSpawned) == 0)
@@ -1288,10 +1200,6 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                         *pfIsChildExitCode = K_TRUE;
                     }
                 }
-#  if 0
-                else
-                    rcExit = err(10, "_spawnvpe(%s) failed", pszExecutable);
-#  endif
 
 # elif defined(KBUILD_OS_OS2)
                 *pPidSpawned = _spawnvpe(P_NOWAIT, pszExecutable, papszArgs, papszEnvVars);
@@ -1342,13 +1250,9 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                         rcExit = errx(11, "GetExitCodeProcess(%s) failed: %u", pszExecutable, GetLastError());
                 }
 
-#elif defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
+#elif defined(KBUILD_OS_OS2)
                 errno  = 0;
-#  if defined(KBUILD_OS_WINDOWS)
-                rcExit = (int)_spawnvpe(_P_WAIT, pszExecutable, papszArgs, papszEnvVars);
-#  else
                 rcExit = (int)_spawnvpe(P_WAIT, pszExecutable, papszArgs, papszEnvVars);
-#  endif
                 kRedirectRestoreFdOrders(cOrders, paOrders, &pWorkingStdErr);
                 if (rcExit != -1 || errno == 0)
                 {
@@ -1392,17 +1296,12 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                 }
                 else
                     rcExit = errx(10, "posix_spawnp(%s) failed: %s", pszExecutable, strerror(rcExit));
-
 # endif
 #endif /* !KMK */
             }
-#if defined(CONFIG_NEW_WIN_CHILDREN) && defined(KBUILD_OS_WINDOWS) && defined(KMK) && 0
-            else if (cOrders > 0)
-                MkWinChildExclusiveRelease();
-#endif
-
         }
 
+#ifndef KBUILD_OS_WINDOWS
         /*
          * Restore the current directory.
          */
@@ -1411,6 +1310,7 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
             if (chdir(pszSavedCwd) < 0)
                 warn("Failed to restore directory to '%s'", pszSavedCwd);
         }
+#endif
     }
 #ifdef _MSC_VER
     else
