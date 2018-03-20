@@ -1,4 +1,4 @@
-# $Id: header.kmk 3160 2018-03-19 22:39:19Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3166 2018-03-20 12:42:52Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3160 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3166 $  )
 
 
 #
@@ -1013,7 +1013,7 @@ ifdef KBUILD_HAVE_OPTIMIZED_APPEND
 define KB_FN_AUTO_CMD_DEPS_COMMANDS
 	%$(QUIET2)$(APPEND) -tni "$@.auto-dep" \
 		'define AUTO_CMD_DEP_$(translate $@,:,_)_PREV_CMDS' \
-		'--insert-command="$@" \
+		'--insert-command=$@' \
 		'endef'
 endef
 else
