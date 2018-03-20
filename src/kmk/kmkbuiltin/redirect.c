@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3163 2018-03-20 03:28:01Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3164 2018-03-20 03:31:22Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -349,14 +349,13 @@ static int mscDup3(int fdSource, int fdNew, int fFlags, FILE *pStdErr)
 static KBOOL kRedirectHasConflict(int fd, unsigned cOrders, REDIRECTORDERS *paOrders)
 {
 #ifdef ONLY_TARGET_STANDARD_HANDLES
-    if (fd >= 3)
-        return K_TRUE;
+    return fd < 3;
 #else
     while (cOrders-- > 0)
         if (paOrders[cOrders].fdTarget == fd)
             return K_TRUE;
-#endif
     return K_FALSE;
+#endif
 }
 
 
