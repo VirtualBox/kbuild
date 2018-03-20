@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3162 2018-03-20 03:13:12Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3165 2018-03-20 03:31:34Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -293,8 +293,10 @@ static unsigned volatile    g_cIdleChildcareWorkers = 0;
 /** Index of the last idle child careworker (just a hint). */
 static unsigned volatile    g_idxLastChildcareWorker = 0;
 
+#ifdef WITH_RW_LOCK
 /** RW lock for serializing kmkbuiltin_redirect and CreateProcess. */
 static SRWLOCK              g_RWLock;
+#endif
 
 
 
@@ -391,10 +393,12 @@ void MkWinChildInit(unsigned int cJobSlots)
         }
     }
 
+#ifdef WITH_RW_LOCK
     /*
      * For serializing with standard file handle manipulation (kmkbuiltin_redirect).
      */
     InitializeSRWLock(&g_RWLock);
+#endif
 
     /*
      * This is dead code that was thought to fix a problem observed doing
@@ -635,13 +639,17 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, PWINCH
      */
     DB(DB_JOBS, ("CreateProcessW(%ls, %ls,,, TRUE, %#x...)\n", pwszImageName, pwszCommandLine, fFlags));
     memset(&ProcInfo, 0, sizeof(ProcInfo));
+#ifdef WITH_RW_LOCK
     AcquireSRWLockShared(&g_RWLock);
+#endif
 
     fRet = CreateProcessW((WCHAR *)pwszImageName, (WCHAR *)pwszCommandLine, NULL /*pProcSecAttr*/, NULL /*pThreadSecAttr*/,
                           FALSE /*fInheritHandles*/, fFlags, (WCHAR *)pwszzEnvironment, NULL /*pwsz*/, &StartupInfo, &ProcInfo);
     dwErr = GetLastError();
 
+#ifdef WITH_RW_LOCK
     ReleaseSRWLockShared(&g_RWLock);
+#endif
     if (fRet)
         pChild->u.Process.hProcess = ProcInfo.hProcess;
     else
@@ -2468,7 +2476,7 @@ void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
     }
 }
 
-#if 0  /* no longer needed */
+#ifdef WITH_RW_LOCK
 /** Serialization with kmkbuiltin_redirect. */
 void MkWinChildExclusiveAcquire(void)
 {
@@ -2480,7 +2488,7 @@ void MkWinChildExclusiveRelease(void)
 {
     ReleaseSRWLockExclusive(&g_RWLock);
 }
-#endif
+#endif /* WITH_RW_LOCK */
 
 /**
  * Implementation of the CLOSE_ON_EXEC macro.
