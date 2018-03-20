@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 3159 2018-03-19 13:37:13Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 3167 2018-03-20 21:47:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
  */
@@ -23,9 +23,10 @@
  *
  */
 
-/*******************************************************************************
-*   Header Files                                                               *
-*******************************************************************************/
+
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
 #include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,9 +48,9 @@
 #include "kmkbuiltin.h"
 
 
-/*******************************************************************************
-*   Defined Constants And Macros                                               *
-*******************************************************************************/
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
 /*#define DEBUG*/
 #ifdef DEBUG
 # define dprintf(a)             printf a
@@ -59,12 +60,15 @@
 # define dump(pb, cb, offBase)  do {} while (0)
 #endif
 
-
-/*******************************************************************************
-*   Global Variables                                                           *
-*******************************************************************************/
-/** the executable name. */
-static const char *argv0 = "";
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
+typedef struct KDEPIDBGLOBALS
+{
+    DEPGLOBALS  Core;
+    const char *argv0;
+} KDEPIDBGLOBALS;
+typedef KDEPIDBGLOBALS *PKDEPIDBGLOBALS;
 
 
 /**
@@ -72,12 +76,13 @@ static const char *argv0 = "";
  *
  * @returns 0 on success.
  * @returns !0 on failure.
+ * @param   pThis           The kDepIDB instance.
  * @param   pbStream        The stream bits.
  * @param   cbStream        The size of the stream.
  * @param   pszPrefix       The dependency prefix.
  * @param   cchPrefix       The size of the prefix.
  */
-static int ScanStream(KU8 *pbStream, size_t cbStream, const char *pszPrefix, size_t cchPrefix)
+static int ScanStream(PKDEPIDBGLOBALS pThis, KU8 *pbStream, size_t cbStream, const char *pszPrefix, size_t cchPrefix)
 {
     const KU8      *pbCur = pbStream;
     size_t          cbLeft = cbStream;
@@ -95,7 +100,7 @@ static int ScanStream(KU8 *pbStream, size_t cbStream, const char *pszPrefix, siz
             size_t cchDep;
             pbCur += cchPrefix;
             cchDep = strlen((const char *)pbCur);
-            depAdd((const char *)pbCur, cchDep);
+            depAdd(&pThis->Core, (const char *) pbCur, cchDep);
             dprintf(("%05x: '%s'\n", pbCur - pbStream, pbCur));
 
             pbCur += cchDep;
@@ -188,22 +193,22 @@ typedef struct PDB70NAMES
 #define PDB70NAMES_VERSION  20000404
 
 
-static int Pdb70ValidateHeader(PPDB70HDR pHdr, size_t cbFile)
+static int Pdb70ValidateHeader(PKDEPIDBGLOBALS pThis, PPDB70HDR pHdr, size_t cbFile)
 {
     if (pHdr->cbPage * pHdr->cPages != cbFile)
     {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - cbPage * cPages != cbFile.\n", argv0);
+        fprintf(stderr, "%s: error: Bad PDB 2.0 header - cbPage * cPages != cbFile.\n", pThis->argv0);
         return 1;
     }
     if (pHdr->iStartPage >= pHdr->cPages && pHdr->iStartPage <= 0)
     {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - iStartPage=%u cPages=%u.\n", argv0,
+        fprintf(stderr, "%s: error: Bad PDB 2.0 header - iStartPage=%u cPages=%u.\n", pThis->argv0,
                 pHdr->iStartPage, pHdr->cPages);
         return 1;
     }
     if (pHdr->iRootPages >= pHdr->cPages && pHdr->iRootPages <= 0)
     {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - iRootPages=%u cPage=%u.\n", argv0,
+        fprintf(stderr, "%s: error: Bad PDB 2.0 header - iRootPages=%u cPage=%u.\n", pThis->argv0,
                 pHdr->iStartPage, pHdr->cPages);
         return 1;
     }
@@ -226,7 +231,7 @@ static size_t Pdb70Pages(PPDB70HDR pHdr, size_t cb)
     return (cb + pHdr->cbPage - 1) / pHdr->cbPage;
 }
 
-static void *Pdb70AllocAndRead(PPDB70HDR pHdr, size_t cb, PPDB70PAGE paiPageMap)
+static void *Pdb70AllocAndRead(PKDEPIDBGLOBALS pThis, PPDB70HDR pHdr, size_t cb, PPDB70PAGE paiPageMap)
 {
     const size_t    cbPage = pHdr->cbPage;
     size_t          cPages = Pdb70Pages(pHdr, cb);
@@ -245,7 +250,7 @@ static void *Pdb70AllocAndRead(PPDB70HDR pHdr, size_t cb, PPDB70PAGE paiPageMap)
             }
             else
             {
-                fprintf(stderr, "%s: warning: Invalid page index %u (max %u)!\n", argv0,
+                fprintf(stderr, "%s: warning: Invalid page index %u (max %u)!\n", pThis->argv0,
                         (unsigned)off, pHdr->cPages);
                 memset(pbBuf + iPage * cbPage, 0, cbPage);
             }
@@ -255,18 +260,18 @@ static void *Pdb70AllocAndRead(PPDB70HDR pHdr, size_t cb, PPDB70PAGE paiPageMap)
         pbBuf[cPages * cbPage] = '\0';
     }
     else
-        fprintf(stderr, "%s: error: failed to allocate %lu bytes\n", argv0, (unsigned long)(cPages * cbPage + 1));
+        fprintf(stderr, "%s: error: failed to allocate %lu bytes\n", pThis->argv0, (unsigned long)(cPages * cbPage + 1));
     return pbBuf;
 }
 
-static PPDB70ROOT Pdb70AllocAndReadRoot(PPDB70HDR pHdr)
+static PPDB70ROOT Pdb70AllocAndReadRoot(PKDEPIDBGLOBALS pThis, PPDB70HDR pHdr)
 {
     /*
      * The tricky bit here is to find the right length. Really?
      * (Todo: Check if we can just use the stream #0 size..)
      */
     PPDB70PAGE piPageMap = (KU32 *)((KU8 *)pHdr + pHdr->iRootPages * pHdr->cbPage);
-    PPDB70ROOT pRoot = Pdb70AllocAndRead(pHdr, pHdr->cbRoot, piPageMap);
+    PPDB70ROOT pRoot = Pdb70AllocAndRead(pThis, pHdr, pHdr->cbRoot, piPageMap);
     if (pRoot)
     {
 #if 1
@@ -274,7 +279,7 @@ static PPDB70ROOT Pdb70AllocAndReadRoot(PPDB70HDR pHdr)
         /* size = stream header + array of stream. */
         size_t cb = K_OFFSETOF(PDB70ROOT, aStreams[pRoot->cStreams]);
         free(pRoot);
-        pRoot = Pdb70AllocAndRead(pHdr, cb, piPageMap);
+        pRoot = Pdb70AllocAndRead(pThis, pHdr, cb, piPageMap);
         if (pRoot)
         {
             /* size += page tables. */
@@ -283,7 +288,7 @@ static PPDB70ROOT Pdb70AllocAndReadRoot(PPDB70HDR pHdr)
                 if (pRoot->aStreams[iStream].cbStream != ~(KU32)0)
                     cb += Pdb70Pages(pHdr, pRoot->aStreams[iStream].cbStream) * sizeof(PDB70PAGE);
             free(pRoot);
-            pRoot = Pdb70AllocAndRead(pHdr, cb, piPageMap);
+            pRoot = Pdb70AllocAndRead(pThis, pHdr, cb, piPageMap);
             if (pRoot)
             {
                 /* validate? */
@@ -298,14 +303,14 @@ static PPDB70ROOT Pdb70AllocAndReadRoot(PPDB70HDR pHdr)
     return NULL;
 }
 
-static void *Pdb70AllocAndReadStream(PPDB70HDR pHdr, PPDB70ROOT pRoot, unsigned iStream, size_t *pcbStream)
+static void *Pdb70AllocAndReadStream(PKDEPIDBGLOBALS pThis, PPDB70HDR pHdr, PPDB70ROOT pRoot, unsigned iStream, size_t *pcbStream)
 {
     const size_t    cbStream = pRoot->aStreams[iStream].cbStream;
     PPDB70PAGE      paiPageMap;
     if (    iStream >= pRoot->cStreams
         ||  cbStream == ~(KU32)0)
     {
-        fprintf(stderr, "%s: error: Invalid stream %d\n", argv0, iStream);
+        fprintf(stderr, "%s: error: Invalid stream %d\n", pThis->argv0, iStream);
         return NULL;
     }
 
@@ -316,10 +321,10 @@ static void *Pdb70AllocAndReadStream(PPDB70HDR pHdr, PPDB70ROOT pRoot, unsigned 
 
     if (pcbStream)
         *pcbStream = cbStream;
-    return Pdb70AllocAndRead(pHdr, cbStream, paiPageMap);
+    return Pdb70AllocAndRead(pThis, pHdr, cbStream, paiPageMap);
 }
 
-static int Pdb70Process(KU8 *pbFile, size_t cbFile)
+static int Pdb70Process(PKDEPIDBGLOBALS pThis, KU8 *pbFile, size_t cbFile)
 {
     PPDB70HDR   pHdr = (PPDB70HDR)pbFile;
     PPDB70ROOT  pRoot;
@@ -333,9 +338,9 @@ static int Pdb70Process(KU8 *pbFile, size_t cbFile)
     /*
      * Validate the header and read the root stream.
      */
-    if (Pdb70ValidateHeader(pHdr, cbFile))
+    if (Pdb70ValidateHeader(pThis, pHdr, cbFile))
         return 1;
-    pRoot = Pdb70AllocAndReadRoot(pHdr);
+    pRoot = Pdb70AllocAndReadRoot(pThis, pHdr);
     if (!pRoot)
         return 1;
 
@@ -343,7 +348,7 @@ static int Pdb70Process(KU8 *pbFile, size_t cbFile)
      * The names we want are usually all found in the 'Names' stream, that is #1.
      */
     dprintf(("Reading the names stream....\n"));
-    pNames = Pdb70AllocAndReadStream(pHdr, pRoot, 1, &cbStream);
+    pNames = Pdb70AllocAndReadStream(pThis, pHdr, pRoot, 1, &cbStream);
     if (pNames)
     {
         dprintf(("Names: Version=%u cbNames=%u (%#x)\n", pNames->Version, pNames->cbNames, pNames->cbNames));
@@ -365,7 +370,7 @@ static int Pdb70Process(KU8 *pbFile, size_t cbFile)
                 if (   cch >= sizeof("/mr/inversedeps/")
                     && !memcmp(psz, "/mr/inversedeps/", sizeof("/mr/inversedeps/") - 1))
                 {
-                    depAdd(psz + sizeof("/mr/inversedeps/") - 1, cch - (sizeof("/mr/inversedeps/") - 1));
+                    depAdd(&pThis->Core, psz + sizeof("/mr/inversedeps/") - 1, cch - (sizeof("/mr/inversedeps/") - 1));
                     fAdded = 1;
                 }
                 dprintf(("%#06x #%d: %6d bytes  %s%s\n", off, iStream,
@@ -407,10 +412,10 @@ static int Pdb70Process(KU8 *pbFile, size_t cbFile)
                 continue;
             dprintf(("Stream #%d: %#x bytes (%#x aligned)\n", iStream, pRoot->aStreams[iStream].cbStream,
                      Pdb70Align(pHdr, pRoot->aStreams[iStream].cbStream)));
-            pbStream = (KU8 *)Pdb70AllocAndReadStream(pHdr, pRoot, iStream, &cbStream);
+            pbStream = (KU8 *)Pdb70AllocAndReadStream(pThis, pHdr, pRoot, iStream, &cbStream);
             if (pbStream)
             {
-                rc = ScanStream(pbStream, cbStream, "/mr/inversedeps/", sizeof("/mr/inversedeps/") - 1);
+                rc = ScanStream(pThis, pbStream, cbStream, "/mr/inversedeps/", sizeof("/mr/inversedeps/") - 1);
                 free(pbStream);
             }
             else
@@ -484,16 +489,16 @@ typedef struct PDB20ROOT
 } PDB20ROOT, *PPDB20ROOT;
 
 
-static int Pdb20ValidateHeader(PPDB20HDR pHdr, size_t cbFile)
+static int Pdb20ValidateHeader(PKDEPIDBGLOBALS pThis, PPDB20HDR pHdr, size_t cbFile)
 {
     if (pHdr->cbPage * pHdr->cPages != cbFile)
     {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - cbPage * cPages != cbFile.\n", argv0);
+        fprintf(stderr, "%s: error: Bad PDB 2.0 header - cbPage * cPages != cbFile.\n", pThis->argv0);
         return 1;
     }
     if (pHdr->iStartPage >= pHdr->cPages && pHdr->iStartPage <= 0)
     {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - cbPage * cPages != cbFile.\n", argv0);
+        fprintf(stderr, "%s: error: Bad PDB 2.0 header - cbPage * cPages != cbFile.\n", pThis->argv0);
         return 1;
     }
     return 0;
@@ -506,7 +511,7 @@ static size_t Pdb20Pages(PPDB20HDR pHdr, size_t cb)
     return (cb + pHdr->cbPage - 1) / pHdr->cbPage;
 }
 
-static void *Pdb20AllocAndRead(PPDB20HDR pHdr, size_t cb, PPDB20PAGE paiPageMap)
+static void *Pdb20AllocAndRead(PKDEPIDBGLOBALS pThis, PPDB20HDR pHdr, size_t cb, PPDB20PAGE paiPageMap)
 {
     size_t cPages = Pdb20Pages(pHdr, cb);
     KU8   *pbBuf = malloc(cPages * pHdr->cbPage + 1);
@@ -523,23 +528,23 @@ static void *Pdb20AllocAndRead(PPDB20HDR pHdr, size_t cb, PPDB20PAGE paiPageMap)
         pbBuf[cPages * pHdr->cbPage] = '\0';
     }
     else
-        fprintf(stderr, "%s: error: failed to allocate %lu bytes\n", argv0, (unsigned long)(cPages * pHdr->cbPage + 1));
+        fprintf(stderr, "%s: error: failed to allocate %lu bytes\n", pThis->argv0, (unsigned long)(cPages * pHdr->cbPage + 1));
     return pbBuf;
 }
 
-static PPDB20ROOT Pdb20AllocAndReadRoot(PPDB20HDR pHdr)
+static PPDB20ROOT Pdb20AllocAndReadRoot(PKDEPIDBGLOBALS pThis, PPDB20HDR pHdr)
 {
     /*
      * The tricky bit here is to find the right length.
      * (Todo: Check if we can just use the stream size..)
      */
-    PPDB20ROOT pRoot = Pdb20AllocAndRead(pHdr, sizeof(*pRoot), &pHdr->aiRootPageMap[0]);
+    PPDB20ROOT pRoot = Pdb20AllocAndRead(pThis, pHdr, sizeof(*pRoot), &pHdr->aiRootPageMap[0]);
     if (pRoot)
     {
         /* size = stream header + array of stream. */
         size_t cb = K_OFFSETOF(PDB20ROOT, aStreams[pRoot->cStreams]);
         free(pRoot);
-        pRoot = Pdb20AllocAndRead(pHdr, cb, &pHdr->aiRootPageMap[0]);
+        pRoot = Pdb20AllocAndRead(pThis, pHdr, cb, &pHdr->aiRootPageMap[0]);
         if (pRoot)
         {
             /* size += page tables. */
@@ -548,7 +553,7 @@ static PPDB20ROOT Pdb20AllocAndReadRoot(PPDB20HDR pHdr)
                 if (pRoot->aStreams[iStream].cbStream != ~(KU32)0)
                     cb += Pdb20Pages(pHdr, pRoot->aStreams[iStream].cbStream) * sizeof(PDB20PAGE);
             free(pRoot);
-            pRoot = Pdb20AllocAndRead(pHdr, cb, &pHdr->aiRootPageMap[0]);
+            pRoot = Pdb20AllocAndRead(pThis, pHdr, cb, &pHdr->aiRootPageMap[0]);
             if (pRoot)
             {
                 /* validate? */
@@ -560,14 +565,14 @@ static PPDB20ROOT Pdb20AllocAndReadRoot(PPDB20HDR pHdr)
 
 }
 
-static void *Pdb20AllocAndReadStream(PPDB20HDR pHdr, PPDB20ROOT pRoot, unsigned iStream, size_t *pcbStream)
+static void *Pdb20AllocAndReadStream(PKDEPIDBGLOBALS pThis, PPDB20HDR pHdr, PPDB20ROOT pRoot, unsigned iStream, size_t *pcbStream)
 {
     size_t      cbStream = pRoot->aStreams[iStream].cbStream;
     PPDB20PAGE  paiPageMap;
     if (    iStream >= pRoot->cStreams
         ||  cbStream == ~(KU32)0)
     {
-        fprintf(stderr, "%s: error: Invalid stream %d\n", argv0, iStream);
+        fprintf(stderr, "%s: error: Invalid stream %d\n", pThis->argv0, iStream);
         return NULL;
     }
 
@@ -578,10 +583,10 @@ static void *Pdb20AllocAndReadStream(PPDB20HDR pHdr, PPDB20ROOT pRoot, unsigned 
 
     if (pcbStream)
         *pcbStream = cbStream;
-    return Pdb20AllocAndRead(pHdr, cbStream, paiPageMap);
+    return Pdb20AllocAndRead(pThis, pHdr, cbStream, paiPageMap);
 }
 
-static int Pdb20Process(KU8 *pbFile, size_t cbFile)
+static int Pdb20Process(PKDEPIDBGLOBALS pThis, KU8 *pbFile, size_t cbFile)
 {
     PPDB20HDR   pHdr = (PPDB20HDR)pbFile;
     PPDB20ROOT  pRoot;
@@ -591,9 +596,9 @@ static int Pdb20Process(KU8 *pbFile, size_t cbFile)
     /*
      * Validate the header and read the root stream.
      */
-    if (Pdb20ValidateHeader(pHdr, cbFile))
+    if (Pdb20ValidateHeader(pThis, pHdr, cbFile))
         return 1;
-    pRoot = Pdb20AllocAndReadRoot(pHdr);
+    pRoot = Pdb20AllocAndReadRoot(pThis, pHdr);
     if (!pRoot)
         return 1;
 
@@ -607,10 +612,10 @@ static int Pdb20Process(KU8 *pbFile, size_t cbFile)
         KU8 *pbStream;
         if (pRoot->aStreams[iStream].cbStream == ~(KU32)0)
             continue;
-        pbStream = (KU8 *)Pdb20AllocAndReadStream(pHdr, pRoot, iStream, NULL);
+        pbStream = (KU8 *)Pdb20AllocAndReadStream(pThis, pHdr, pRoot, iStream, NULL);
         if (pbStream)
         {
-            rc = ScanStream(pbStream, pRoot->aStreams[iStream].cbStream, "/ipm/header/", sizeof("/ipm/header/") - 1);
+            rc = ScanStream(pThis, pbStream, pRoot->aStreams[iStream].cbStream, "/ipm/header/", sizeof("/ipm/header/") - 1);
             free(pbStream);
         }
         else
@@ -625,7 +630,7 @@ static int Pdb20Process(KU8 *pbFile, size_t cbFile)
 /**
  * Make an attempt at parsing a Visual C++ IDB file.
  */
-static int ProcessIDB(FILE *pInput)
+static int ProcessIDB(PKDEPIDBGLOBALS pThis, FILE *pInput)
 {
     size_t      cbFile;
     KU8        *pbFile;
@@ -643,12 +648,12 @@ static int ProcessIDB(FILE *pInput)
      * Figure out which parser to use.
      */
     if (!memcmp(pbFile, PDB_SIGNATURE_700, sizeof(PDB_SIGNATURE_700)))
-        rc = Pdb70Process(pbFile, cbFile);
+        rc = Pdb70Process(pThis, pbFile, cbFile);
     else if (!memcmp(pbFile, PDB_SIGNATURE_200, sizeof(PDB_SIGNATURE_200)))
-        rc = Pdb20Process(pbFile, cbFile);
+        rc = Pdb20Process(pThis, pbFile, cbFile);
     else
     {
-        fprintf(stderr, "%s: error: Doesn't recognize the header of the Visual C++ IDB file.\n", argv0);
+        fprintf(stderr, "%s: error: Doesn't recognize the header of the Visual C++ IDB file.\n", pThis->argv0);
         rc = 1;
     }
 
@@ -657,7 +662,7 @@ static int ProcessIDB(FILE *pInput)
 }
 
 
-static void usage(const char *a_argv0)
+static void kDepIDBUsage(const char *a_argv0)
 {
     printf("usage: %s -o <output> -t <target> [-fqs] <vc idb-file>\n"
            "   or: %s --help\n"
@@ -668,7 +673,8 @@ static void usage(const char *a_argv0)
 
 int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
 {
-    int         i;
+    int             i;
+    KDEPIDBGLOBALS  This;
 
     /* Arguments. */
     FILE       *pOutput = NULL;
@@ -681,14 +687,15 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
     int         fInput = 0;             /* set when we've found input argument. */
     int         fQuiet = 0;
 
-    argv0 = argv[0];
+    /* Init the instance data. */
+    This.argv0 = argv[0];
 
     /*
      * Parse arguments.
      */
     if (argc <= 1)
     {
-        usage(argv[0]);
+        kDepIDBUsage(This.argv0);
         return 1;
     }
     for (i = 1; i < argc; i++)
@@ -716,14 +723,14 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                     pszOutput = &argv[i][2];
                     if (pOutput)
                     {
-                        fprintf(stderr, "%s: syntax error: only one output file!\n", argv[0]);
+                        fprintf(stderr, "%s: syntax error: only one output file!\n", This.argv0);
                         return 1;
                     }
                     if (!*pszOutput)
                     {
                         if (++i >= argc)
                         {
-                            fprintf(stderr, "%s: syntax error: The '-o' argument is missing the filename.\n", argv[0]);
+                            fprintf(stderr, "%s: syntax error: The '-o' argument is missing the filename.\n", This.argv0);
                             return 1;
                         }
                         pszOutput = argv[i];
@@ -734,7 +741,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                         pOutput = fopen(pszOutput, "w" KMK_FOPEN_NO_INHERIT_MODE);
                     if (!pOutput)
                     {
-                        fprintf(stderr, "%s: error: Failed to create output file '%s'.\n", argv[0], pszOutput);
+                        fprintf(stderr, "%s: error: Failed to create output file '%s'.\n", This.argv0, pszOutput);
                         return 1;
                     }
                     break;
@@ -747,7 +754,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                 {
                     if (pszTarget)
                     {
-                        fprintf(stderr, "%s: syntax error: only one target!\n", argv[0]);
+                        fprintf(stderr, "%s: syntax error: only one target!\n", This.argv0);
                         return 1;
                     }
                     pszTarget = &argv[i][2];
@@ -755,7 +762,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                     {
                         if (++i >= argc)
                         {
-                            fprintf(stderr, "%s: syntax error: The '-t' argument is missing the target name.\n", argv[0]);
+                            fprintf(stderr, "%s: syntax error: The '-t' argument is missing the target name.\n", This.argv0);
                             return 1;
                         }
                         pszTarget = argv[i];
@@ -794,18 +801,18 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                  * The mandatory version & help.
                  */
                 case '?':
-                    usage(argv[0]);
+                    kDepIDBUsage(This.argv0);
                     return 0;
                 case 'V':
                 case 'v':
-                    return kbuild_version(argv[0]);
+                    return kbuild_version(This.argv0);
 
                 /*
                  * Invalid argument.
                  */
                 default:
-                    fprintf(stderr, "%s: syntax error: Invalid argument '%s'.\n", argv[0], argv[i]);
-                    usage(argv[0]);
+                    fprintf(stderr, "%s: syntax error: Invalid argument '%s'.\n", This.argv0, argv[i]);
+                    kDepIDBUsage(This.argv0);
                     return 1;
             }
         }
@@ -814,7 +821,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
             pInput = fopen(argv[i], "rb" KMK_FOPEN_NO_INHERIT_MODE);
             if (!pInput)
             {
-                fprintf(stderr, "%s: error: Failed to open input file '%s'.\n", argv[0], argv[i]);
+                fprintf(stderr, "%s: error: Failed to open input file '%s'.\n", This.argv0, argv[i]);
                 return 1;
             }
             fInput = 1;
@@ -827,7 +834,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
         {
             if (++i < argc)
             {
-                fprintf(stderr, "%s: syntax error: No arguments shall follow the input spec.\n", argv[0]);
+                fprintf(stderr, "%s: syntax error: No arguments shall follow the input spec.\n", This.argv0);
                 return 1;
             }
             break;
@@ -839,24 +846,25 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
      */
     if (!pInput)
     {
-        fprintf(stderr, "%s: syntax error: No input!\n", argv[0]);
+        fprintf(stderr, "%s: syntax error: No input!\n", This.argv0);
         return 1;
     }
     if (!pOutput)
     {
-        fprintf(stderr, "%s: syntax error: No output!\n", argv[0]);
+        fprintf(stderr, "%s: syntax error: No output!\n", This.argv0);
         return 1;
     }
     if (!pszTarget)
     {
-        fprintf(stderr, "%s: syntax error: No target!\n", argv[0]);
+        fprintf(stderr, "%s: syntax error: No target!\n", This.argv0);
         return 1;
     }
 
     /*
      * Do the parsing.
      */
-    i = ProcessIDB(pInput);
+    depInit(&This.Core);
+    i = ProcessIDB(&This, pInput);
     fclose(pInput);
 
     /*
@@ -864,11 +872,11 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
      */
     if (!i)
     {
-        depOptimize(fFixCase, fQuiet, NULL /*pszIgnoredExt*/);
+        depOptimize(&This.Core, fFixCase, fQuiet, NULL /*pszIgnoredExt*/);
         fprintf(pOutput, "%s:", pszTarget);
-        depPrint(pOutput);
+        depPrint(&This.Core, pOutput);
         if (fStubs)
-            depPrintStubs(pOutput);
+            depPrintStubs(&This.Core, pOutput);
     }
 
     /*
@@ -877,16 +885,16 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
     if (!i && ferror(pOutput))
     {
         i = 1;
-        fprintf(stderr, "%s: error: Error writing to '%s'.\n", argv[0], pszOutput);
+        fprintf(stderr, "%s: error: Error writing to '%s'.\n", This.argv0, pszOutput);
     }
     fclose(pOutput);
     if (i)
     {
         if (unlink(pszOutput))
-            fprintf(stderr, "%s: warning: failed to remove output file '%s' on failure.\n", argv[0], pszOutput);
+            fprintf(stderr, "%s: warning: failed to remove output file '%s' on failure.\n", This.argv0, pszOutput);
     }
 
-    depCleanup();
+    depCleanup(&This.Core);
     return i;
 }
 

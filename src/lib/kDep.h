@@ -1,4 +1,4 @@
-/* $Id: kDep.h 2955 2016-09-21 19:05:53Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.h 3167 2018-03-20 21:47:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -45,12 +45,21 @@ typedef struct DEP
     char        szFilename[4];
 } DEP, *PDEP;
 
+typedef struct DEPGLOBALS
+{
+    /** List of dependencies. */
+    PDEP pDeps;
 
-extern PDEP depAdd(const char *pszFilename, size_t cchFilename);
-extern void depOptimize(int fFixCase, int fQuiet, const char *pszIgnoredExt);
-extern void depPrint(FILE *pOutput);
-extern void depPrintStubs(FILE *pOutput);
-extern void depCleanup(void);
+} DEPGLOBALS;
+typedef DEPGLOBALS *PDEPGLOBALS;
+
+extern void depInit(PDEPGLOBALS pThis);
+extern void depCleanup(PDEPGLOBALS pThis);
+extern PDEP depAdd(PDEPGLOBALS pThis, const char *pszFilename, size_t cchFilename);
+extern void depOptimize(PDEPGLOBALS pThis, int fFixCase, int fQuiet, const char *pszIgnoredExt);
+extern void depPrint(PDEPGLOBALS pThis, FILE *pOutput);
+extern void depPrintStubs(PDEPGLOBALS pThis, FILE *pOutput);
+
 extern void *depReadFileIntoMemory(FILE *pInput, size_t *pcbFile, void **ppvOpaque);
 extern void depFreeFileMemory(void *pvFile, void *pvOpaque);
 #ifdef ___k_kTypes_h___
