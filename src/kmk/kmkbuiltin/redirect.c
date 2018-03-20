@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3161 2018-03-19 22:40:35Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3162 2018-03-20 03:13:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -978,6 +978,8 @@ static kRedirectCreateProcessWindows(const char *pszExecutable, int cArgs, char 
         memset(&StartupInfo, 0, sizeof(StartupInfo));
         StartupInfo.cb = sizeof(StartupInfo);
         GetStartupInfoA(&StartupInfo);
+        StartupInfo.lpReserved2 = 0; /* No CRT file handle + descriptor info possible, sorry. */
+        StartupInfo.cbReserved2 = 0;
         StartupInfo.dwFlags &= ~STARTF_USESTDHANDLES;
 
         /*
@@ -1033,13 +1035,7 @@ static kRedirectCreateProcessWindows(const char *pszExecutable, int cArgs, char 
             {
                 /*
                  * Start the process in suspended animation so we can inject handles.
-                 *
-                 * We clear the reserved 2 pointer + size to avoid passing the wrong
-                 * filehandle info to the child.  We may later want to generate this.
                  */
-                StartupInfo.cbReserved2 = 0;
-                StartupInfo.lpReserved2 = 0;
-
                 if (CreateProcessA(pszExecutable, pszCmdLine, NULL /*pProcAttrs*/, NULL /*pThreadAttrs*/,
                                    FALSE /*fInheritHandles*/, CREATE_SUSPENDED, pszzEnv, pszCwd, &StartupInfo, &ProcInfo))
                 {

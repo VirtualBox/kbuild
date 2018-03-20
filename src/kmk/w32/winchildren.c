@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3161 2018-03-19 22:40:35Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3162 2018-03-20 03:13:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -395,6 +395,73 @@ void MkWinChildInit(unsigned int cJobSlots)
      * For serializing with standard file handle manipulation (kmkbuiltin_redirect).
      */
     InitializeSRWLock(&g_RWLock);
+
+    /*
+     * This is dead code that was thought to fix a problem observed doing
+     * `tcc.exe /c "kmk |& tee bld.log"` and leading to a crash in cl.exe
+     * when spawned with fInheritHandles = FALSE, see hStdErr=NULL in the
+     * child.  However, it turns out this was probably caused by not clearing
+     * the CRT file descriptor and handle table in the startup info.
+     * Leaving the code here in case it comes in handy after all.
+     */
+#if 0
+    {
+        struct
+        {
+            DWORD  uStdHandle;
+            HANDLE hHandle;
+        } aHandles[3] = { { STD_INPUT_HANDLE, NULL }, { STD_OUTPUT_HANDLE, NULL }, { STD_ERROR_HANDLE, NULL } };
+        int i;
+
+        for (i = 0; i < 3; i++)
+            aHandles[i].hHandle = GetStdHandle(aHandles[i].uStdHandle);
+
+        for (i = 0; i < 3; i++)
+            if (   aHandles[i].hHandle == NULL
+                || aHandles[i].hHandle == INVALID_HANDLE_VALUE)
+            {
+                int fd = open("nul", _O_RDWR);
+                if (fd >= 0)
+                {
+                    if (_dup2(fd, i) >= 0)
+                    {
+                        assert((HANDLE)_get_osfhandle(i) != aHandles[i].hHandle);
+                        assert((HANDLE)_get_osfhandle(i) == GetStdHandle(aHandles[i].uStdHandle));
+                    }
+                    else
+                        ONNNS(fatal, NILF, "_dup2(%d('nul'), %d) failed: %u (%s)", fd, i, errno, strerror(errno));
+                    if (fd != i)
+                        close(fd);
+                }
+                else
+                    ONNS(fatal, NILF, "open(nul,RW) failed: %u (%s)", i, errno, strerror(errno));
+            }
+            else
+            {
+                int j;
+                for (j = i + 1; j < 3; j++)
+                    if (aHandles[j].hHandle == aHandles[i].hHandle)
+                    {
+                        int fd = _dup(j);
+                        if (fd >= 0)
+                        {
+                            if (_dup2(fd, j) >= 0)
+                            {
+                                aHandles[j].hHandle = (HANDLE)_get_osfhandle(j);
+                                assert(aHandles[j].hHandle != aHandles[i].hHandle);
+                                assert(aHandles[j].hHandle == GetStdHandle(aHandles[j].uStdHandle));
+                            }
+                            else
+                                ONNNS(fatal, NILF, "_dup2(%d, %d) failed: %u (%s)", fd, j, errno, strerror(errno));
+                            if (fd != j)
+                                close(fd);
+                        }
+                        else
+                            ONNS(fatal, NILF, "_dup(%d) failed: %u (%s)", j, errno, strerror(errno));
+                    }
+            }
+    }
+#endif
 }
 
 /**
@@ -537,16 +604,14 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, PWINCH
     memset(&StartupInfo, 0, sizeof(StartupInfo));
     StartupInfo.cb = sizeof(StartupInfo);
     GetStartupInfoW(&StartupInfo);
+    StartupInfo.lpReserved2 = 0; /* No CRT file handle + descriptor info possible, sorry. */
+    StartupInfo.cbReserved2 = 0;
     if (!fHaveHandles)
         StartupInfo.dwFlags &= ~STARTF_USESTDHANDLES;
     else
     {
         fFlags |= CREATE_SUSPENDED;
         StartupInfo.dwFlags &= ~STARTF_USESTDHANDLES;
-
-        /* Don't pass CRT inheritance info to the child (from our parent actually). */
-        StartupInfo.cbReserved2 = 0;
-        StartupInfo.lpReserved2 = 0;
     }
 
     /*
@@ -2403,6 +2468,7 @@ void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
     }
 }
 
+#if 0  /* no longer needed */
 /** Serialization with kmkbuiltin_redirect. */
 void MkWinChildExclusiveAcquire(void)
 {
@@ -2414,6 +2480,7 @@ void MkWinChildExclusiveRelease(void)
 {
     ReleaseSRWLockExclusive(&g_RWLock);
 }
+#endif
 
 /**
  * Implementation of the CLOSE_ON_EXEC macro.
