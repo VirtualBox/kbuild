@@ -1,4 +1,4 @@
-/* $Id: kDep.c 3167 2018-03-20 21:47:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 3174 2018-03-21 21:37:52Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -282,6 +282,7 @@ void depOptimize(PDEPGLOBALS pThis, int fFixCase, int fQuiet, const char *pszIgn
         /*
          * Check that the file exists before we start depending on it.
          */
+        errno = 0;
 #ifdef KWORKER
         if (!kwFsPathExists(pszFilename))
 #elif defined(KMK)
