@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3111 2017-10-22 11:38:15Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3175 2018-03-21 21:38:50Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -52,6 +52,7 @@ else ifneq ($(wildcard $(PATH_ROOT)/.svn/ $(PATH_ROOT)/../.svn/),)
 # Generate from svn info
 KBUILD_SVN_INFO_KMK := $(PATH_OBJ)/SvnInfo.kmk
 KBUILD_SVN_INFO_DEP := $(KBUILD_SVN_INFO_KMK)
+KBUILD_SVN_TOOL     := svn
 
 $(PATH_OBJ)/SvnInfo.ts +| $(KBUILD_SVN_INFO_KMK): $(wildcard $(addprefix $(PATH_ROOT)/.svn/ $(PATH_ROOT)/../.svn/,\
 		. \
@@ -66,7 +67,7 @@ $(PATH_OBJ)/SvnInfo.ts +| $(KBUILD_SVN_INFO_KMK): $(wildcard $(addprefix $(PATH_
 	$(call MSG_GENERATE,,$(KBUILD_SVN_INFO_KMK))
 	@$(RM) -f $@ $@.tmp
 	@$(MKDIR) -p $(@D)
-	@$(REDIRECT) -o $@.tmp -E 'LC_ALL=C' -- svn info $(DEPTH)
+	@$(REDIRECT) -o $@.tmp -E 'LC_ALL=C' -- $(KBUILD_SVN_TOOL) info $(DEPTH)
 	@$(SED) \
 		-e 's/^URL: */KBUILD_SVN_URL := /' \
 		-e 's/Revision: */KBUILD_SVN_REV := /' \
