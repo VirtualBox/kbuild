@@ -1,4 +1,4 @@
-/* $Id: common-env-and-cwd-opt.c 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $ */
+/* $Id: common-env-and-cwd-opt.c 3177 2018-03-21 22:06:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - Commmon environment and CWD option handling code.
  */
@@ -57,7 +57,7 @@
  */
 static char **kBuiltinOptEnvDuplicate(char **papszEnv, unsigned cEnvVars, unsigned *pcAllocatedEnvVars, int cVerbosity)
 {
-    unsigned cAllocatedEnvVars = (cEnvVars + 2 + 0xf) * ~(unsigned)0xf;
+    unsigned cAllocatedEnvVars = (cEnvVars + 2 + 0xf) & ~(unsigned)0xf;
     char    **papszEnvNew      = malloc(cAllocatedEnvVars * sizeof(papszEnvNew[0]));
     assert(*pcAllocatedEnvVars == 0);
     if (papszEnvNew)
@@ -71,7 +71,7 @@ static char **kBuiltinOptEnvDuplicate(char **papszEnv, unsigned cEnvVars, unsign
                 while (i-- > 0)
                     free(papszEnvNew[i]);
                 free(papszEnvNew);
-                errx(1, "out of memory");
+                errx(1, "out of memory for duplicating environment variables!", i);
                 return NULL;
             }
         }
@@ -79,7 +79,7 @@ static char **kBuiltinOptEnvDuplicate(char **papszEnv, unsigned cEnvVars, unsign
         *pcAllocatedEnvVars = cAllocatedEnvVars;
     }
     else
-        errx(1, "out of memory");
+        errx(1, "out of memory for duplicating environment vector!");
     return papszEnvNew;
 }
 
@@ -108,12 +108,12 @@ static int kBuiltinOptEnvAddVar(char ***ppapszEnv, unsigned *pcEnvVars, unsigned
         *pcAllocatedEnvVars = (cEnvVars + 2 + 0xf) & ~(unsigned)0xf;
         papszEnv = (char **)realloc(papszEnv, *pcAllocatedEnvVars * sizeof(papszEnv[0]));
         if (!papszEnv)
-            return errx(1, "out of memory!");
+            return errx(1, "out of memory growing environment vector!");
         *ppapszEnv = papszEnv;
     }
     papszEnv[cEnvVars] = strdup(pszValue);
     if (!papszEnv[cEnvVars])
-        return errx(1, "out of memory!");
+        return errx(1, "out of memory adding environment variable!");
     papszEnv[++cEnvVars]   = NULL;
     *pcEnvVars = cEnvVars;
     if (cVerbosity > 0)
@@ -180,7 +180,7 @@ int kBuiltinOptEnvSet(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAlloca
         {
             papszEnv = kBuiltinOptEnvDuplicate(papszEnv, cEnvVars, pcAllocatedEnvVars, cVerbosity);
             if (!papszEnv)
-                return errx(1, "out of memory!");
+                return errx(1, "out of memory duplicating enviornment (setenv)!");
             *ppapszEnv = papszEnv;
         }
 
@@ -195,7 +195,7 @@ int kBuiltinOptEnvSet(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAlloca
                 free(papszEnv[iEnvVar]);
                 papszEnv[iEnvVar] = strdup(pszValue);
                 if (!papszEnv[iEnvVar])
-                    return errx(1, "out of memory!");
+                    return errx(1, "out of memory for modified environment variable!");
 
                 return kBuiltinOptEnvRemoveDuplicates(papszEnv, cEnvVars, cVerbosity, pszValue, cchVar, iEnvVar);
             }
@@ -233,7 +233,7 @@ static int kBuiltinOptEnvAppendPrepend(char ***ppapszEnv, unsigned *pcEnvVars, u
         {
             papszEnv = kBuiltinOptEnvDuplicate(papszEnv, cEnvVars, pcAllocatedEnvVars, cVerbosity);
             if (!papszEnv)
-                return errx(1, "out of memory!");
+                return errx(1, "out of memory duplicating environment (append)!");
             *ppapszEnv = papszEnv;
         }
 
@@ -247,7 +247,7 @@ static int kBuiltinOptEnvAppendPrepend(char ***ppapszEnv, unsigned *pcEnvVars, u
                 size_t cchNewValue = strlen(pszValue) - cchVar - 1;
                 char  *pszNew      = malloc(cchVar + 1 + cchOldValue + cchNewValue + 1);
                 if (!pszNew)
-                    return errx(1, "out of memory!");
+                    return errx(1, "out of memory appending to environment variable!");
                 if (fAppend)
                 {
                     memcpy(pszNew, pszCur, cchVar + 1 + cchOldValue);
@@ -344,7 +344,7 @@ int kBuiltinOptEnvUnset(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllo
                 {
                     papszEnv = kBuiltinOptEnvDuplicate(papszEnv, cEnvVars, pcAllocatedEnvVars, cVerbosity);
                     if (!papszEnv)
-                        return errx(1, "out of memory!");
+                        return errx(1, "out of memory duplicating environment (unset)!");
                     *ppapszEnv = papszEnv;
                 }
 

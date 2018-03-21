@@ -1,4 +1,4 @@
-/* $Id: append.c 3172 2018-03-21 14:21:23Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 3177 2018-03-21 22:06:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - append text to file.
  */
@@ -122,6 +122,7 @@ static void write_to_buf(KMKBUILTINAPPENDBUF *pBuf, const char *pch, size_t cch)
             free(pBuf->pszBuf);
             pBuf->pszBuf = NULL;
             pBuf->cbBuf  = 0;
+            pBuf->offBuf = offNew;
             pBuf->fOutOfMemory = 1;
             return;
         }
@@ -447,7 +448,7 @@ int main(int argc, char **argv, char **envp)
         free(OutBuf.pszBuf);
     }
     else
-        rc = errx(1, "out of memory!");
+        rc = errx(1, "out of memory for output buffer! (%u needed)", OutBuf.offBuf + 1);
     return rc;
 }
 
