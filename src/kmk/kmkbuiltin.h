@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3159 2018-03-19 13:37:13Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3169 2018-03-21 11:27:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -61,6 +61,37 @@
 struct child;
 int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned);
 int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned);
+
+/**
+ * kmk built-in command entry.
+ */
+typedef struct KMKBUILTINENTRY
+{
+    union
+    {
+        struct
+        {
+            char    cch;
+            char    sz[15];
+        } s;
+        size_t      cchAndStart;
+    } uName;
+    union
+    {
+        uintptr_t uPfn;
+#define FN_SIG_MAIN             0
+        int (* pfnMain)(int argc, char **argv, char **envp);
+#define FN_SIG_MAIN_SPAWNS      1
+        int (* pfnMainSpawns)(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPid);
+#define FN_SIG_MAIN_TO_SPAWN    2
+        int (* pfnMainToSpawn)(int argc, char **argv, char **envp, char ***ppapszArgvToSpawn);
+    } u;
+    size_t      uFnSignature : 8;
+    size_t      fMpSafe : 1;
+    size_t      fNeedEnv : 1;
+} KMKBUILTINENTRY;
+/** Pointer to kmk built-in command entry. */
+typedef KMKBUILTINENTRY const *PCKMKBUILTINENTRY;
 
 extern int kmk_builtin_append(int argc, char **argv, char **envp);
 extern int kmk_builtin_cp(int argc, char **argv, char **envp);
