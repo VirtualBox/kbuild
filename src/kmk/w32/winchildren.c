@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3169 2018-03-21 11:27:47Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3172 2018-03-21 14:21:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -109,6 +109,8 @@ typedef enum WINCHILDTYPE
 #ifdef KMK
     /** kmkbuiltin command. */
     WINCHILDTYPE_BUILT_IN,
+    /** kmkbuiltin_append result write out. */
+    WINCHILDTYPE_APPEND,
     /** kSubmit job. */
     WINCHILDTYPE_SUBMIT,
     /** kmk_redirect job. */
@@ -187,6 +189,19 @@ typedef struct WINCHILD
             /** Environment vector.  Only a copy if fEnvIsCopy is set. */
             char          **papszEnv;
         } BuiltIn;
+
+        /** Data for WINCHILDTYPE_APPEND.   */
+        struct
+        {
+            /** The filename. */
+            char           *pszFilename;
+            /** How much to append. */
+            size_t          cbAppend;
+            /** What to append. */
+            char           *pszAppend;
+            /** Whether to truncate the file. */
+            int             fTruncate;
+        } Append;
 
         /** Data for WINCHILDTYPE_SUBMIT.   */
         struct
@@ -1671,6 +1686,43 @@ static void mkWinChildcareWorkerThreadHandleBuiltIn(PWINCHILDCAREWORKER pWorker,
 }
 
 /**
+ * Childcare worker: handle append write-out.
+ *
+ * @param   pWorker             The worker.
+ * @param   pChild              The kSubmit child.
+ */
+static void mkWinChildcareWorkerThreadHandleAppend(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild)
+{
+    int fd = open(pChild->u.Append.pszFilename,
+                  pChild->u.Append.fTruncate
+                  ? O_WRONLY | O_TRUNC  | O_CREAT | _O_NOINHERIT | _O_BINARY
+                  : O_WRONLY | O_APPEND | O_CREAT | _O_NOINHERIT | _O_BINARY,
+                  0666);
+    if (fd >= 0)
+    {
+        ssize_t cbWritten = write(fd, pChild->u.Append.pszAppend, pChild->u.Append.cbAppend);
+        if (cbWritten == (ssize_t)pChild->u.Append.cbAppend)
+        {
+            if (close(fd) >= 0)
+            {
+                pChild->iExitCode = 0;
+                return;
+            }
+            fprintf(stderr, "kmk_builtin_append: close failed on '%s': %u (%s)\n",
+                    pChild->u.Append.pszFilename, errno, strerror(errno));
+        }
+        else
+            fprintf(stderr, "kmk_builtin_append: error writing %lu bytes to on '%s': %u (%s)\n",
+                    pChild->u.Append.cbAppend, pChild->u.Append.pszFilename, errno, strerror(errno));
+        close(fd);
+    }
+    else
+        fprintf(stderr, "kmk_builtin_append: error opening '%s': %u (%s)\n",
+                pChild->u.Append.pszFilename, errno, strerror(errno));
+    pChild->iExitCode = 1;
+}
+
+/**
  * Childcare worker: handle kSubmit job.
  *
  * @param   pWorker             The worker.
@@ -1783,6 +1835,9 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
 #ifdef KMK
                     case WINCHILDTYPE_BUILT_IN:
                         mkWinChildcareWorkerThreadHandleBuiltIn(pWorker, pChild);
+                        break;
+                    case WINCHILDTYPE_APPEND:
+                        mkWinChildcareWorkerThreadHandleAppend(pWorker, pChild);
                         break;
                     case WINCHILDTYPE_SUBMIT:
                         mkWinChildcareWorkerThreadHandleSubmit(pWorker, pChild);
@@ -2000,6 +2055,19 @@ static void mkWinChildDelete(PWINCHILD pChild)
             {
                 free(pChild->u.BuiltIn.papszEnv);
                 pChild->u.BuiltIn.papszEnv = NULL;
+            }
+            break;
+
+        case WINCHILDTYPE_APPEND:
+            if (pChild->u.Append.pszFilename)
+            {
+                free(pChild->u.Append.pszFilename);
+                pChild->u.Append.pszFilename = NULL;
+            }
+            if (pChild->u.Append.pszAppend)
+            {
+                free(pChild->u.Append.pszAppend);
+                pChild->u.Append.pszAppend = NULL;
             }
             break;
 
@@ -2282,6 +2350,36 @@ int MkWinChildCreateBuiltIn(PCKMKBUILTINENTRY pBuiltIn, int cArgs, char **papszA
 }
 
 /**
+ * Interface used by append.c for do the slow file system part.
+ *
+ * This will append the given buffer to the specified file and free the buffer.
+ *
+ * @returns 0 on success, windows status code on failure.
+ *
+ * @param   pszFilename     The name of the file to append to.
+ * @param   ppszAppend      What to append.  The pointer pointed to is set to
+ *                          NULL once we've taken ownership of the buffer and
+ *                          promise to free it.
+ * @param   cbAppend        How much to append.
+ * @param   fTruncate       Whether to truncate the file before appending to it.
+ * @param   pMkChild        The make child structure.
+ * @param   pPid            Where to return the pid.
+ */
+int MkWinChildCreateAppend(const char *pszFilename, char **ppszAppend, size_t cbAppend, int fTruncate,
+                           struct child *pMkChild, pid_t *pPid)
+{
+    size_t    cbFilename = strlen(pszFilename) + 1;
+    PWINCHILD pChild     = mkWinChildNew(WINCHILDTYPE_APPEND);
+    pChild->pMkChild            = pMkChild;
+    pChild->u.Append.fTruncate  = fTruncate;
+    pChild->u.Append.pszAppend  = *ppszAppend;
+    pChild->u.Append.cbAppend   = cbAppend;
+    pChild->u.Append.pszFilename = (char *)memcpy(xmalloc(cbFilename), pszFilename, cbFilename);
+    *ppszAppend = NULL;
+    return mkWinChildPushToCareWorker(pChild, pPid);
+}
+
+/**
  * Interface used by kSubmit.c for registering stuff to wait on.
  *
  * @returns 0 on success, windows status code on failure.
@@ -2336,9 +2434,7 @@ int MkWinChildKill(pid_t pid, int iSignal, struct child *pMkChild)
                     TerminateProcess(pChild->u.Process.hProcess, DBG_TERMINATE_PROCESS);
                     pChild->iSignal = iSignal;
                     break;
-
 #ifdef KMK
-
                 case WINCHILDTYPE_SUBMIT:
                 {
                     pChild->iSignal = iSignal;
@@ -2355,7 +2451,6 @@ int MkWinChildKill(pid_t pid, int iSignal, struct child *pMkChild)
                     break;
 
 #endif /* KMK */
-
                 default:
                     assert(0);
             }
@@ -2417,9 +2512,8 @@ int MkWinChildWait(int fBlock, pid_t *pPid, int *piExitCode, int *piSignal, int 
             break;
 #ifdef KMK
         case WINCHILDTYPE_BUILT_IN:
-            break;
+        case WINCHILDTYPE_APPEND:
         case WINCHILDTYPE_SUBMIT:
-            break;
         case WINCHILDTYPE_REDIRECT:
             break;
 #endif /* KMK */

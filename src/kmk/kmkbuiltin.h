@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3170 2018-03-21 12:32:27Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3172 2018-03-21 14:21:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -93,7 +93,9 @@ typedef struct KMKBUILTINENTRY
 /** Pointer to kmk built-in command entry. */
 typedef KMKBUILTINENTRY const *PCKMKBUILTINENTRY;
 
-extern int kmk_builtin_append(int argc, char **argv, char **envp);
+#ifndef kmk_builtin_append
+extern int kmk_builtin_append(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPidSpawned);
+#endif
 extern int kmk_builtin_cp(int argc, char **argv, char **envp);
 extern int kmk_builtin_cat(int argc, char **argv, char **envp);
 extern int kmk_builtin_chmod(int argc, char **argv, char **envp);
@@ -139,7 +141,7 @@ extern int kBuiltinOptEnvUnset(char **papszEnv, unsigned *pcEnvVars, int cVerbos
 extern int kBuiltinOptChDir(char *pszCwd, size_t cbCwdBuf, const char *pszValue);
 
 #ifdef CONFIG_WITH_KMK_BUILTIN_STATS
-int kmk_builtin_print_stats(FILE *pOutput, const char *pszPrefix);
+extern void kmk_builtin_print_stats(FILE *pOutput, const char *pszPrefix);
 #endif
 
 #endif
