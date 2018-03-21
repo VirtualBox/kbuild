@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 3169 2018-03-21 11:27:47Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3170 2018-03-21 12:32:27Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -35,9 +35,10 @@
 #ifdef _MSC_VER
 # include <io.h>
 #endif
+
+#include "makeint.h"
+#include "job.h"
 #if defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
-# include "makeint.h"
-# include "job.h"
 # include "w32/winchildren.h"
 #endif
 #include "kmkbuiltin/err.h"
@@ -230,7 +231,7 @@ int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapsz
 /**
  * kmk built command.
  */
-static const KMKBUILTINENTRY g_aBuiltins[] =
+static const KMKBUILTINENTRY g_aBuiltIns[] =
 {
 #define BUILTIN_ENTRY(a_fn, a_sz, a_uFnSignature, fMpSafe, fNeedEnv) \
     {  { { sizeof(a_sz) - 1, a_sz, } }, \
@@ -264,6 +265,16 @@ static const KMKBUILTINENTRY g_aBuiltins[] =
     BUILTIN_ENTRY(kmk_builtin_sleep,    "sleep",        FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_dircache, "dircache",     FN_SIG_MAIN,            0, 0),
 };
+
+#ifdef CONFIG_WITH_KMK_BUILTIN_STATS
+/** Statistics running in parallel to g_aBuiltIns. */
+struct
+{
+    big_int         cNs;
+    unsigned        cTimes;
+    unsigned        cAsyncTimes;
+} g_aBuiltInStats[sizeof(g_aBuiltIns) / sizeof(g_aBuiltIns[0])];
+#endif
 
 
 int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned)
@@ -324,8 +335,8 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
         /*
          * Look up the builtin command in the table.
          */
-        pEntry  = &g_aBuiltins[0];
-        cLeft   = sizeof(g_aBuiltins) / sizeof(g_aBuiltins[0]);
+        pEntry  = &g_aBuiltIns[0];
+        cLeft   = sizeof(g_aBuiltIns) / sizeof(g_aBuiltIns[0]);
         while (cLeft-- > 0)
             if (   pEntry->uName.cchAndStart != cchAndStart
                 || (   pEntry->uName.s.cch >= sizeof(cchAndStart)
@@ -339,8 +350,13 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
                 int rc;
 #if defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
                 if (pEntry->fMpSafe)
+                {
                     rc = MkWinChildCreateBuiltIn(pEntry, argc, argv, pEntry->fNeedEnv ? pChild->environment : NULL,
                                                  pChild, pPidSpawned);
+# ifdef CONFIG_WITH_KMK_BUILTIN_STATS
+                    g_aBuiltInStats[pEntry - &g_aBuiltIns[0]].cAsyncTimes++;
+# endif
+                }
                 else
 #endif
                 {
@@ -349,6 +365,9 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
                     /*
                      * Call the worker function, making sure to preserve umask.
                      */
+#ifdef CONFIG_WITH_KMK_BUILTIN_STATS
+                    big_int nsStart = nano_timestamp();
+#endif
                     int const iUmask = umask(0);        /* save umask */
                     umask(iUmask);
 
@@ -385,8 +404,14 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
                     }
                     else
                         rc = 99;
+
                     g_progname = "kmk";                 /* paranoia, make sure it's not pointing at a freed argv[0]. */
                     umask(iUmask);                      /* restore it */
+
+#ifdef CONFIG_WITH_KMK_BUILTIN_STATS
+                    g_aBuiltInStats[pEntry - &g_aBuiltIns[0]].cTimes++;
+                    g_aBuiltInStats[pEntry - &g_aBuiltIns[0]].cNs += nano_timestamp() - nsStart;
+#endif
                 }
                 return rc;
             }
@@ -407,6 +432,31 @@ int kmk_builtin_dircache(int argc, char **argv, char **envp)
 {
     (void)argc; (void)argv; (void)envp;
     return 0;
+}
+#endif
+
+#ifdef CONFIG_WITH_KMK_BUILTIN_STATS
+/**
+ * Prints the statistiscs to the given output stream.
+ */
+int kmk_builtin_print_stats(FILE *pOutput, const char *pszPrefix)
+{
+    const unsigned  cEntries = sizeof(g_aBuiltInStats) / sizeof(g_aBuiltInStats[0]);
+    unsigned i;
+    fprintf(pOutput, "\n%skmk built-in command statistics:\n", pszPrefix);
+    for (i = 0; i < cEntries; i++)
+        if (g_aBuiltInStats[i].cTimes > 0)
+        {
+            char szTotal[64];
+            char szAvg[64];
+            format_elapsed_nano(szTotal, sizeof(szTotal), g_aBuiltInStats[i].cNs);
+            format_elapsed_nano(szAvg, sizeof(szAvg), g_aBuiltInStats[i].cNs / g_aBuiltInStats[i].cTimes);
+            fprintf(pOutput, "%s kmk_builtin_%-9s: %4lu times, %9s total, %9s/call\n",
+                    pszPrefix, g_aBuiltIns[i].uName.s.sz, g_aBuiltInStats[i].cTimes, szTotal, szAvg);
+        }
+        else if (g_aBuiltInStats[i].cAsyncTimes > 0)
+            fprintf(pOutput, "%s kmk_builtin_%-9s: %4lu times in worker thread\n",
+                    pszPrefix, g_aBuiltIns[i].uName.s.sz, g_aBuiltInStats[i].cAsyncTimes);
 }
 #endif
 
