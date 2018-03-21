@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 3059 2017-09-21 13:34:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3168 2018-03-21 00:04:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -222,118 +222,160 @@ int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapsz
 }
 
 
+/**
+ * kmk built command.
+ */
+static struct KMKBUILTINENTRY
+{
+    const char *pszName;
+    size_t      cchName;
+    union
+    {
+        uintptr_t uPfn;
+#define FN_SIG_MAIN             0
+        int (* pfnMain)(int argc, char **argv, char **envp);
+#define FN_SIG_MAIN_SPAWNS      1
+        int (* pfnMainSpawns)(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPid);
+#define FN_SIG_MAIN_TO_SPAWN    2
+        int (* pfnMainToSpawn)(int argc, char **argv, char **envp, char ***ppapszArgvToSpawn);
+    } u;
+    size_t      uFnSignature : 8;
+    size_t      fMpSafe : 1;
+    size_t      fNeedEnv : 1;
+} const g_aBuiltins[] =
+{
+#define BUILTIN_ENTRY(a_fn, a_uFnSignature, fMpSafe, fNeedEnv) \
+    { &(#a_fn)[12], sizeof(#a_fn) - 12 - 1, \
+       (uintptr_t)a_fn,                     a_uFnSignature,  fMpSafe, fNeedEnv }
+
+    /* More frequently used commands: */
+    BUILTIN_ENTRY(kmk_builtin_append,       FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_printf,       FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_echo,         FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_install,      FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_kDepObj,      FN_SIG_MAIN,            0, 0),
+#ifdef KBUILD_OS_WINDOWS
+    BUILTIN_ENTRY(kmk_builtin_kSubmit,      FN_SIG_MAIN_SPAWNS,     0, 0),
+#endif
+    BUILTIN_ENTRY(kmk_builtin_mkdir,        FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_mv,           FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_redirect,     FN_SIG_MAIN_SPAWNS,     0, 0),
+    BUILTIN_ENTRY(kmk_builtin_rm,           FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_rmdir,        FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_test,         FN_SIG_MAIN_TO_SPAWN,   0, 0),
+    /* Less frequently used commands: */
+    BUILTIN_ENTRY(kmk_builtin_kDepIDB,      FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_chmod,        FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_cp,           FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_expr,         FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_ln,           FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_md5sum,       FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_cmp,          FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_cat,          FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_touch,        FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_sleep,        FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_dircache,     FN_SIG_MAIN,            0, 0),
+};
+
+
 int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned)
 {
-    const char *pszCmd = argv[0];
-    int         iUmask;
-    int         rc;
-
     /*
      * Check and skip the prefix.
      */
-    if (strncmp(pszCmd, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
+    static const char s_szPrefix[] = "kmk_builtin_";
+    const char *pszCmd = argv[0];
+    if (strncmp(pszCmd, s_szPrefix, sizeof(s_szPrefix) - 1) == 0)
     {
-        fprintf(stderr, "kmk_builtin: Invalid command prefix '%s'!\n", pszCmd);
-        return 1;
-    }
-    pszCmd += sizeof("kmk_builtin_") - 1;
+        struct KMKBUILTINENTRY const *pEntry;
+        size_t cchCmd;
+        char ch0;
+        int  cLeft;
 
-    /*
-     * String switch on the command (frequent stuff at the top).
-     */
-    iUmask = umask(0);
-    umask(iUmask);
-    if (!strcmp(pszCmd, "append"))
-        rc = kmk_builtin_append(argc, argv, environ);
-    else if (!strcmp(pszCmd, "printf"))
-        rc = kmk_builtin_printf(argc, argv, environ);
-    else if (!strcmp(pszCmd, "echo"))
-        rc = kmk_builtin_echo(argc, argv, environ);
-    else if (!strcmp(pszCmd, "install"))
-        rc = kmk_builtin_install(argc, argv, environ);
-    else if (!strcmp(pszCmd, "kDepIDB"))
-        rc = kmk_builtin_kDepIDB(argc, argv, environ);
-#ifdef KBUILD_OS_WINDOWS
-    else if (!strcmp(pszCmd, "kSubmit"))
-        rc = kmk_builtin_kSubmit(argc, argv, environ, pChild, pPidSpawned);
+        pszCmd += sizeof(s_szPrefix) - 1;
+
+        /*
+         * Look up the builtin command in the table.
+         */
+        cchCmd  = strlen(pszCmd);
+        ch0     = *pszCmd;
+        pEntry  = &g_aBuiltins[0];
+        cLeft   = sizeof(g_aBuiltins) / sizeof(g_aBuiltins[0]);
+        while (cLeft-- > 0)
+            if (   *pEntry->pszName != ch0
+                || pEntry->cchName != cchCmd
+                || memcmp(pEntry->pszName, pszCmd, cchCmd) != 0)
+                pEntry++;
+            else
+            {
+                int rc;
+#if defined(KBUILD_OS_WINDOWS) && CONFIG_NEW_WIN_CHILDREN
+                if (pEntry->fMpSafe)
+                {
+                    rc = 98;
+                }
+                else
 #endif
-    else if (!strcmp(pszCmd, "mkdir"))
-        rc = kmk_builtin_mkdir(argc, argv, environ);
-    else if (!strcmp(pszCmd, "mv"))
-        rc = kmk_builtin_mv(argc, argv, environ);
-    else if (!strcmp(pszCmd, "redirect"))
-        rc = kmk_builtin_redirect(argc, argv, environ, pChild, pPidSpawned);
-    else if (!strcmp(pszCmd, "rm"))
-        rc = kmk_builtin_rm(argc, argv, environ);
-    else if (!strcmp(pszCmd, "rmdir"))
-        rc = kmk_builtin_rmdir(argc, argv, environ);
-    else if (!strcmp(pszCmd, "test"))
-        rc = kmk_builtin_test(argc, argv, environ, ppapszArgvToSpawn);
-    /* rarely used commands: */
-    else if (!strcmp(pszCmd, "kDepObj"))
-        rc = kmk_builtin_kDepObj(argc, argv, environ);
-    else if (!strcmp(pszCmd, "chmod"))
-        rc = kmk_builtin_chmod(argc, argv, environ);
-    else if (!strcmp(pszCmd, "cp"))
-        rc = kmk_builtin_cp(argc, argv, environ);
-    else if (!strcmp(pszCmd, "expr"))
-        rc = kmk_builtin_expr(argc, argv, environ);
-    else if (!strcmp(pszCmd, "ln"))
-        rc = kmk_builtin_ln(argc, argv, environ);
-    else if (!strcmp(pszCmd, "md5sum"))
-        rc = kmk_builtin_md5sum(argc, argv, environ);
-    else if (!strcmp(pszCmd, "cmp"))
-        rc = kmk_builtin_cmp(argc, argv, environ);
-    else if (!strcmp(pszCmd, "cat"))
-        rc = kmk_builtin_cat(argc, argv, environ);
-    else if (!strcmp(pszCmd, "touch"))
-        rc = kmk_builtin_touch(argc, argv, environ);
-    else if (!strcmp(pszCmd, "sleep"))
-        rc = kmk_builtin_sleep(argc, argv, environ);
-    else if (!strcmp(pszCmd, "dircache"))
-#ifdef KBUILD_OS_WINDOWS
-        rc = kmk_builtin_dircache(argc, argv, environ);
-#else
-        rc = 0;
-#endif
+                {
+                    char **envp = environ; /** @todo fixme? */
+
+                    /*
+                     * Call the worker function, making sure to preserve umask.
+                     */
+                    int const iUmask = umask(0);        /* save umask */
+                    umask(iUmask);
+
+                    if (pEntry->uFnSignature == FN_SIG_MAIN)
+                        rc = pEntry->u.pfnMain(argc, argv, envp);
+                    else if (pEntry->uFnSignature == FN_SIG_MAIN_SPAWNS)
+                        rc = pEntry->u.pfnMainSpawns(argc, argv, envp, pChild, pPidSpawned);
+                    else if (pEntry->uFnSignature == FN_SIG_MAIN_TO_SPAWN)
+                    {
+                        /*
+                         * When we got something to execute, check if the child is a kmk_builtin thing.
+                         * We recurse here, both because I'm lazy and because it's easier to debug a
+                         * problem then (the call stack shows what's been going on).
+                         */
+                        rc = pEntry->u.pfnMainToSpawn(argc, argv, envp, ppapszArgvToSpawn);
+                        if (   !rc
+                            && *ppapszArgvToSpawn
+                            && !strncmp(**ppapszArgvToSpawn, s_szPrefix, sizeof(s_szPrefix) - 1))
+                        {
+                            char **argv_new = *ppapszArgvToSpawn;
+                            int argc_new = 1;
+                            while (argv_new[argc_new])
+                              argc_new++;
+
+                            assert(argv_new[0] != argv[0]);
+                            assert(!*pPidSpawned);
+
+                            *ppapszArgvToSpawn = NULL;
+                            rc = kmk_builtin_command_parsed(argc_new, argv_new, pChild, ppapszArgvToSpawn, pPidSpawned);
+
+                            free(argv_new[0]);
+                            free(argv_new);
+                        }
+                    }
+                    else
+                        rc = 99;
+                    g_progname = "kmk";                 /* paranoia, make sure it's not pointing at a freed argv[0]. */
+                    umask(iUmask);                      /* restore it */
+                }
+                return rc;
+            }
+        fprintf(stderr, "kmk_builtin: Unknown command '%s%s'!\n", s_szPrefix, pszCmd);
+    }
     else
-    {
-        fprintf(stderr, "kmk_builtin: Unknown command '%s'!\n", pszCmd);
-        return 1;
-    }
-
-    /*
-     * Cleanup.
-     */
-    g_progname = "kmk";                 /* paranoia, make sure it's not pointing at a freed argv[0]. */
-    umask(iUmask);
-
-
-    /*
-     * If we've executed a conditional test or something that wishes to execute
-     * some child process, check if the child is a kmk_builtin thing. We recurse
-     * here, both because I'm lazy and because it's easier to debug a problem then
-     * (the call stack shows what's been going on).
-     */
-    if (    !rc
-        &&  *ppapszArgvToSpawn
-        &&  !strncmp(**ppapszArgvToSpawn, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
-    {
-        char **argv_new = *ppapszArgvToSpawn;
-        int argc_new = 1;
-        while (argv_new[argc_new])
-          argc_new++;
-
-        assert(argv_new[0] != argv[0]);
-        assert(!*pPidSpawned);
-
-        *ppapszArgvToSpawn = NULL;
-        rc = kmk_builtin_command_parsed(argc_new, argv_new, pChild, ppapszArgvToSpawn, pPidSpawned);
-
-        free(argv_new[0]);
-        free(argv_new);
-    }
-
-    return rc;
+        fprintf(stderr, "kmk_builtin: Invalid command prefix '%s'!\n", pszCmd);
+    return 1;
 }
+
+#ifndef KBUILD_OS_WINDOWS
+/** Dummy. */
+int kmk_builtin_dircache(int argc, char **argv, char **envp)
+{
+    (void)argc; (void)argv; (void)envp;
+    return 0;
+}
+#endif
 
