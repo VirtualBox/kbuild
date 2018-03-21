@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3156 2018-03-18 20:10:03Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3170 2018-03-21 12:32:27Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -224,12 +224,16 @@ kmk_DEFS.debug = CONFIG_WITH_MAKE_STATS
 ifdef CONFIG_WITH_MAKE_STATS
  kmk_DEFS += CONFIG_WITH_MAKE_STATS
 endif
+ifdef CONFIG_WITH_KMK_BUILTIN_STATS
+ kmk_DEFS += CONFIG_WITH_KMK_BUILTIN_STATS
+endif
 ifdef CONFIG_WITH_EVAL_COMPILER
  kmk_DEFS += CONFIG_WITH_EVAL_COMPILER
 endif
 ifdef CONFIG_WITH_COMPILE_EVERYTHING
  kmk_DEFS += CONFIG_WITH_COMPILE_EVERYTHING
 endif
+
 #ifeq ($(KBUILD_TYPE).$(USERNAME),debug.bird)
 # kmk_DEFS += CONFIG_WITH_COMPILER CONFIG_WITH_EVAL_COMPILER CONFIG_WITH_COMPILE_EVERYTHING
 #endif

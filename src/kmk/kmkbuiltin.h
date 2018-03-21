@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3169 2018-03-21 11:27:47Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3170 2018-03-21 12:32:27Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -137,6 +137,10 @@ extern int kBuiltinOptEnvPrepend(char ***ppapszEnv, unsigned *pcEnvVars, unsigne
                                  int cVerbosity, const char *pszValue);
 extern int kBuiltinOptEnvUnset(char **papszEnv, unsigned *pcEnvVars, int cVerbosity, const char *pszVarToRemove);
 extern int kBuiltinOptChDir(char *pszCwd, size_t cbCwdBuf, const char *pszValue);
+
+#ifdef CONFIG_WITH_KMK_BUILTIN_STATS
+int kmk_builtin_print_stats(FILE *pOutput, const char *pszPrefix);
+#endif
 
 #endif
 

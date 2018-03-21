@@ -1141,7 +1141,7 @@ print_heap_stats (void)
 }
 #endif /* CONFIG_WITH_PRINT_STATS_SWITCH */
 
-#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+#if defined(CONFIG_WITH_PRINT_TIME_SWITCH) || defined(CONFIG_WITH_KMK_BUILTIN_STATS)
 /* Get a nanosecond timestamp, from a monotonic time source if
    possible.  Returns -1 after calling error() on failure.  */
 
@@ -1238,5 +1238,5 @@ format_elapsed_nano (char *buf, size_t size, big_int ts)
          sz, (unsigned long)size);
   return sz;
 }
-#endif /* CONFIG_WITH_PRINT_TIME_SWITCH */
+#endif /* CONFIG_WITH_PRINT_TIME_SWITCH || defined(CONFIG_WITH_KMK_BUILTIN_STATS) */
 

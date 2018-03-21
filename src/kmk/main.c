@@ -27,6 +27,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #ifdef KMK
 # include "kbuild.h"
 #endif
+#ifdef CONFIG_WITH_KMK_BUILTIN_STATS
+# include "kmkbuiltin.h"
+#endif
 
 #include <assert.h>
 #ifdef _AMIGA
@@ -4166,9 +4169,9 @@ print_stats ()
   printf (_("\n# Make statistics, printed on %s"), ctime (&when));
 
   /* Allocators: */
-#ifdef CONFIG_WITH_COMPILER
+# ifdef CONFIG_WITH_COMPILER
   kmk_cc_print_stats ();
-#endif
+# endif
 # ifndef CONFIG_WITH_STRCACHE2
   strcache_print_stats ("#");
 # else
@@ -4186,6 +4189,9 @@ print_stats ()
 # ifdef KMK
   print_kbuild_define_stats ();
 # endif
+# ifdef CONFIG_WITH_KMK_BUILTIN_STATS
+  kmk_builtin_print_stats (stdout, "# ");
+# endif
 # ifdef CONFIG_WITH_COMPILER
   kmk_cc_print_stats ();
 # endif
@@ -4193,7 +4199,7 @@ print_stats ()
   when = time ((time_t *) 0);
   printf (_("\n# Finished Make statistics on %s\n"), ctime (&when));
 }
-#endif
+#endif /* CONFIG_WITH_PRINT_STATS_SWITCH */
 
 static void
 clean_jobserver (int status)

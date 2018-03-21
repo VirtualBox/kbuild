@@ -1174,7 +1174,7 @@ extern int dir_cache_deleted_directory(const char *pszDir);
 # endif
 #endif
 
-#if defined (CONFIG_WITH_NANOTS) || defined (CONFIG_WITH_PRINT_TIME_SWITCH)
+#if defined (CONFIG_WITH_NANOTS) || defined (CONFIG_WITH_PRINT_TIME_SWITCH) || defined(CONFIG_WITH_KMK_BUILTIN_STATS)
 /* misc.c */
 extern big_int nano_timestamp (void);
 extern int format_elapsed_nano (char *buf, size_t size, big_int ts);
