@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 3168 2018-03-21 00:04:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3169 2018-03-21 11:27:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -34,6 +34,11 @@
 #include <sys/stat.h>
 #ifdef _MSC_VER
 # include <io.h>
+#endif
+#if defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
+# include "makeint.h"
+# include "job.h"
+# include "w32/winchildren.h"
 #endif
 #include "kmkbuiltin/err.h"
 #include "kmkbuiltin.h"
@@ -225,56 +230,39 @@ int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapsz
 /**
  * kmk built command.
  */
-static struct KMKBUILTINENTRY
+static const KMKBUILTINENTRY g_aBuiltins[] =
 {
-    const char *pszName;
-    size_t      cchName;
-    union
-    {
-        uintptr_t uPfn;
-#define FN_SIG_MAIN             0
-        int (* pfnMain)(int argc, char **argv, char **envp);
-#define FN_SIG_MAIN_SPAWNS      1
-        int (* pfnMainSpawns)(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPid);
-#define FN_SIG_MAIN_TO_SPAWN    2
-        int (* pfnMainToSpawn)(int argc, char **argv, char **envp, char ***ppapszArgvToSpawn);
-    } u;
-    size_t      uFnSignature : 8;
-    size_t      fMpSafe : 1;
-    size_t      fNeedEnv : 1;
-} const g_aBuiltins[] =
-{
-#define BUILTIN_ENTRY(a_fn, a_uFnSignature, fMpSafe, fNeedEnv) \
-    { &(#a_fn)[12], sizeof(#a_fn) - 12 - 1, \
-       (uintptr_t)a_fn,                     a_uFnSignature,  fMpSafe, fNeedEnv }
+#define BUILTIN_ENTRY(a_fn, a_sz, a_uFnSignature, fMpSafe, fNeedEnv) \
+    {  { { sizeof(a_sz) - 1, a_sz, } }, \
+       (uintptr_t)a_fn,                                 a_uFnSignature,   fMpSafe, fNeedEnv }
 
     /* More frequently used commands: */
-    BUILTIN_ENTRY(kmk_builtin_append,       FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_printf,       FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_echo,         FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_install,      FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_kDepObj,      FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_append,   "append",       FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_printf,   "printf",       FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_echo,     "echo",         FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_install,  "install",      FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_kDepObj,  "kDepObj",      FN_SIG_MAIN,            1, 0),
 #ifdef KBUILD_OS_WINDOWS
-    BUILTIN_ENTRY(kmk_builtin_kSubmit,      FN_SIG_MAIN_SPAWNS,     0, 0),
+    BUILTIN_ENTRY(kmk_builtin_kSubmit,  "kSubmit",      FN_SIG_MAIN_SPAWNS,     0, 0),
 #endif
-    BUILTIN_ENTRY(kmk_builtin_mkdir,        FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_mv,           FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_redirect,     FN_SIG_MAIN_SPAWNS,     0, 0),
-    BUILTIN_ENTRY(kmk_builtin_rm,           FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_rmdir,        FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_test,         FN_SIG_MAIN_TO_SPAWN,   0, 0),
+    BUILTIN_ENTRY(kmk_builtin_mkdir,    "mkdir",        FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_mv,       "mv",           FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_redirect, "redirect",     FN_SIG_MAIN_SPAWNS,     0, 1),
+    BUILTIN_ENTRY(kmk_builtin_rm,       "rm",           FN_SIG_MAIN,            0, 1),
+    BUILTIN_ENTRY(kmk_builtin_rmdir,    "rmdir",        FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_test,     "test",         FN_SIG_MAIN_TO_SPAWN,   0, 0),
     /* Less frequently used commands: */
-    BUILTIN_ENTRY(kmk_builtin_kDepIDB,      FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_chmod,        FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_cp,           FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_expr,         FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_ln,           FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_md5sum,       FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_cmp,          FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_cat,          FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_touch,        FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_sleep,        FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_dircache,     FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_kDepIDB,  "kDepIDB",      FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_chmod,    "chmod",        FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_cp,       "cp",           FN_SIG_MAIN,            0, 1),
+    BUILTIN_ENTRY(kmk_builtin_expr,     "expr",         FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_ln,       "ln",           FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_md5sum,   "md5sum",       FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_cmp,      "cmp",          FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_cat,      "cat",          FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_touch,    "touch",        FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_sleep,    "sleep",        FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_dircache, "dircache",     FN_SIG_MAIN,            0, 0),
 };
 
 
@@ -288,36 +276,75 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
     if (strncmp(pszCmd, s_szPrefix, sizeof(s_szPrefix) - 1) == 0)
     {
         struct KMKBUILTINENTRY const *pEntry;
-        size_t cchCmd;
-        char ch0;
-        int  cLeft;
+        size_t cchAndStart;
+        int    cLeft;
 
         pszCmd += sizeof(s_szPrefix) - 1;
 
         /*
+         * Calc the length and start word to avoid calling memcmp/strcmp on each entry.
+         */
+#if K_ARCH_BITS != 64 && K_ARCH_BITS != 32
+# error "PORT ME!"
+#endif
+        cchAndStart = strlen(pszCmd);
+#if K_ENDIAN == K_ENDIAN_BIG
+        cchAndStart <<= K_ARCH_BITS - 8;
+        switch (cchAndStart)
+        {
+            default:                                   /* fall thru */
+# if K_ARCH_BITS >= 64
+            case 7: cchAndStart |= (size_t)pszCmd[6] << (K_ARCH_BITS - 56); /* fall thru */
+            case 6: cchAndStart |= (size_t)pszCmd[5] << (K_ARCH_BITS - 48); /* fall thru */
+            case 5: cchAndStart |= (size_t)pszCmd[4] << (K_ARCH_BITS - 40); /* fall thru */
+            case 4: cchAndStart |= (size_t)pszCmd[3] << (K_ARCH_BITS - 32); /* fall thru */
+# endif
+            case 3: cchAndStart |= (size_t)pszCmd[2] << (K_ARCH_BITS - 24); /* fall thru */
+            case 2: cchAndStart |= (size_t)pszCmd[1] << (K_ARCH_BITS - 16); /* fall thru */
+            case 1: cchAndStart |= (size_t)pszCmd[0] << (K_ARCH_BITS -  8); /* fall thru */
+            case 0: break;
+        }
+#else
+        switch (cchAndStart)
+        {
+            default:                                   /* fall thru */
+# if K_ARCH_BITS >= 64
+            case 7: cchAndStart |= (size_t)pszCmd[6] << 56; /* fall thru */
+            case 6: cchAndStart |= (size_t)pszCmd[5] << 48; /* fall thru */
+            case 5: cchAndStart |= (size_t)pszCmd[4] << 40; /* fall thru */
+            case 4: cchAndStart |= (size_t)pszCmd[3] << 32; /* fall thru */
+# endif
+            case 3: cchAndStart |= (size_t)pszCmd[2] << 24; /* fall thru */
+            case 2: cchAndStart |= (size_t)pszCmd[1] << 16; /* fall thru */
+            case 1: cchAndStart |= (size_t)pszCmd[0] <<  8; /* fall thru */
+            case 0: break;
+        }
+#endif
+
+        /*
          * Look up the builtin command in the table.
          */
-        cchCmd  = strlen(pszCmd);
-        ch0     = *pszCmd;
         pEntry  = &g_aBuiltins[0];
         cLeft   = sizeof(g_aBuiltins) / sizeof(g_aBuiltins[0]);
         while (cLeft-- > 0)
-            if (   *pEntry->pszName != ch0
-                || pEntry->cchName != cchCmd
-                || memcmp(pEntry->pszName, pszCmd, cchCmd) != 0)
+            if (   pEntry->uName.cchAndStart != cchAndStart
+                || (   pEntry->uName.s.cch >= sizeof(cchAndStart)
+                    && memcmp(pEntry->uName.s.sz, pszCmd, pEntry->uName.s.cch) != 0) )
                 pEntry++;
             else
             {
+                /*
+                 * That's a match!
+                 */
                 int rc;
-#if defined(KBUILD_OS_WINDOWS) && CONFIG_NEW_WIN_CHILDREN
+#if defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
                 if (pEntry->fMpSafe)
-                {
-                    rc = 98;
-                }
+                    rc = MkWinChildCreateBuiltIn(pEntry, argc, argv, pEntry->fNeedEnv ? pChild->environment : NULL,
+                                                 pChild, pPidSpawned);
                 else
 #endif
                 {
-                    char **envp = environ; /** @todo fixme? */
+                    char **envp = pChild->environment ? pChild->environment : environ;
 
                     /*
                      * Call the worker function, making sure to preserve umask.
@@ -363,6 +390,10 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
                 }
                 return rc;
             }
+
+        /*
+         * No match! :-(
+         */
         fprintf(stderr, "kmk_builtin: Unknown command '%s%s'!\n", s_szPrefix, pszCmd);
     }
     else

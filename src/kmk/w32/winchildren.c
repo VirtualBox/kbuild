@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3165 2018-03-20 03:31:34Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3169 2018-03-21 11:27:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -108,7 +108,7 @@ typedef enum WINCHILDTYPE
     WINCHILDTYPE_PROCESS,
 #ifdef KMK
     /** kmkbuiltin command. */
-    WINCHILDTYPE_BUILTIN,
+    WINCHILDTYPE_BUILT_IN,
     /** kSubmit job. */
     WINCHILDTYPE_SUBMIT,
     /** kmk_redirect job. */
@@ -174,6 +174,19 @@ typedef struct WINCHILD
             /** Child process handle. */
             HANDLE          hProcess;
         } Process;
+
+        /** Data for WINCHILDTYPE_BUILT_IN.   */
+        struct
+        {
+            /** The built-in command. */
+            PCKMKBUILTINENTRY pBuiltIn;
+            /** Number of arguments. */
+            int             cArgs;
+            /** Argument vector (single allocation, strings following array). */
+            char          **papszArgs;
+            /** Environment vector.  Only a copy if fEnvIsCopy is set. */
+            char          **papszEnv;
+        } BuiltIn;
 
         /** Data for WINCHILDTYPE_SUBMIT.   */
         struct
@@ -1642,10 +1655,19 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
  * @param   pWorker             The worker.
  * @param   pChild              The kSubmit child.
  */
-static void mkWinChildcareWorkerThreadHandleBuiltin(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild)
+static void mkWinChildcareWorkerThreadHandleBuiltIn(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild)
 {
-    /** @todo later.    */
-__debugbreak();
+    PCKMKBUILTINENTRY pBuiltIn = pChild->u.BuiltIn.pBuiltIn;
+    if (pBuiltIn->uFnSignature == FN_SIG_MAIN)
+        pChild->iExitCode = pBuiltIn->u.pfnMain(pChild->u.BuiltIn.cArgs, pChild->u.BuiltIn.papszArgs, pChild->u.BuiltIn.papszEnv);
+    else if (pBuiltIn->uFnSignature == FN_SIG_MAIN_SPAWNS)
+        pChild->iExitCode = pBuiltIn->u.pfnMainSpawns(pChild->u.BuiltIn.cArgs, pChild->u.BuiltIn.papszArgs,
+                                                      pChild->u.BuiltIn.papszEnv, pChild->pMkChild, NULL);
+    else
+    {
+        assert(0);
+        pChild->iExitCode = 98;
+    }
 }
 
 /**
@@ -1759,8 +1781,8 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
                         mkWinChildcareWorkerThreadHandleProcess(pWorker, pChild);
                         break;
 #ifdef KMK
-                    case WINCHILDTYPE_BUILTIN:
-                        mkWinChildcareWorkerThreadHandleBuiltin(pWorker, pChild);
+                    case WINCHILDTYPE_BUILT_IN:
+                        mkWinChildcareWorkerThreadHandleBuiltIn(pWorker, pChild);
                         break;
                     case WINCHILDTYPE_SUBMIT:
                         mkWinChildcareWorkerThreadHandleSubmit(pWorker, pChild);
@@ -1968,9 +1990,17 @@ static void mkWinChildDelete(PWINCHILD pChild)
         }
 
 #ifdef KMK
-
-        case WINCHILDTYPE_BUILTIN:
-            assert(0);
+        case WINCHILDTYPE_BUILT_IN:
+            if (pChild->u.BuiltIn.papszArgs)
+            {
+                free(pChild->u.BuiltIn.papszArgs);
+                pChild->u.BuiltIn.papszArgs = NULL;
+            }
+            if (pChild->u.BuiltIn.papszEnv)
+            {
+                free(pChild->u.BuiltIn.papszEnv);
+                pChild->u.BuiltIn.papszEnv = NULL;
+            }
             break;
 
         case WINCHILDTYPE_SUBMIT:
@@ -1988,7 +2018,6 @@ static void mkWinChildDelete(PWINCHILD pChild)
                 pChild->u.Redirect.hProcess = NULL;
             }
             break;
-
 #endif /* KMK */
 
         default:
@@ -2229,6 +2258,30 @@ int MkWinChildCreateWithStdOutPipe(char **papszArgs, char **papszEnv, int fdErr,
 #ifdef KMK
 
 /**
+ * Interface used by kmkbuiltin.c for executing builtin commands on threads.
+ *
+ * @returns 0 on success, windows status code on failure.
+ * @param   pBuiltIn        The kmk built-in command entry.
+ * @param   cArgs           The number of arguments in papszArgs.
+ * @param   papszArgs       The argument vector.
+ * @param   papszEnv        The environment vector, optional.
+ * @param   pMkChild        The make child structure.
+ * @param   pPid            Where to return the pid.
+ */
+int MkWinChildCreateBuiltIn(PCKMKBUILTINENTRY pBuiltIn, int cArgs, char **papszArgs, char **papszEnv,
+                            struct child *pMkChild, pid_t *pPid)
+{
+    size_t    cbIgnored;
+    PWINCHILD pChild = mkWinChildNew(WINCHILDTYPE_BUILT_IN);
+    pChild->pMkChild            = pMkChild;
+    pChild->u.BuiltIn.pBuiltIn  = pBuiltIn;
+    pChild->u.BuiltIn.cArgs     = cArgs;
+    pChild->u.BuiltIn.papszArgs = mkWinChildCopyStringArray(papszArgs, &cbIgnored);
+    pChild->u.BuiltIn.papszEnv  = papszEnv ? mkWinChildCopyStringArray(papszEnv, &cbIgnored) : NULL;
+    return mkWinChildPushToCareWorker(pChild, pPid);
+}
+
+/**
  * Interface used by kSubmit.c for registering stuff to wait on.
  *
  * @returns 0 on success, windows status code on failure.
@@ -2298,7 +2351,7 @@ int MkWinChildKill(pid_t pid, int iSignal, struct child *pMkChild)
                     pChild->iSignal = iSignal;
                     break;
 
-                case WINCHILDTYPE_BUILTIN:
+                case WINCHILDTYPE_BUILT_IN:
                     break;
 
 #endif /* KMK */
@@ -2363,7 +2416,7 @@ int MkWinChildWait(int fBlock, pid_t *pPid, int *piExitCode, int *piSignal, int 
         case WINCHILDTYPE_PROCESS:
             break;
 #ifdef KMK
-        case WINCHILDTYPE_BUILTIN:
+        case WINCHILDTYPE_BUILT_IN:
             break;
         case WINCHILDTYPE_SUBMIT:
             break;
