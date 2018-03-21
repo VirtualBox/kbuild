@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 3170 2018-03-21 12:32:27Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3172 2018-03-21 14:21:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -238,7 +238,7 @@ static const KMKBUILTINENTRY g_aBuiltIns[] =
        (uintptr_t)a_fn,                                 a_uFnSignature,   fMpSafe, fNeedEnv }
 
     /* More frequently used commands: */
-    BUILTIN_ENTRY(kmk_builtin_append,   "append",       FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_append,   "append",       FN_SIG_MAIN_SPAWNS,     0, 0),
     BUILTIN_ENTRY(kmk_builtin_printf,   "printf",       FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_echo,     "echo",         FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_install,  "install",      FN_SIG_MAIN,            0, 0),
@@ -439,7 +439,7 @@ int kmk_builtin_dircache(int argc, char **argv, char **envp)
 /**
  * Prints the statistiscs to the given output stream.
  */
-int kmk_builtin_print_stats(FILE *pOutput, const char *pszPrefix)
+extern void kmk_builtin_print_stats(FILE *pOutput, const char *pszPrefix)
 {
     const unsigned  cEntries = sizeof(g_aBuiltInStats) / sizeof(g_aBuiltInStats[0]);
     unsigned i;

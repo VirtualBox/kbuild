@@ -1,4 +1,4 @@
-/* $Id: append.c 3171 2018-03-21 13:26:36Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 3172 2018-03-21 14:21:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - append text to file.
  */
@@ -44,6 +44,9 @@
 #endif
 #ifdef HAVE_ALLOCA_H
 # include <alloca.h>
+#endif
+#if !defined(kmk_builtin_append) && defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
+# include "../w32/winchildren.h"
 #endif
 #include "err.h"
 #include "kmkbuiltin.h"
@@ -168,8 +171,18 @@ static int kmk_builtin_append_usage(const char *arg0, FILE *pf)
 /**
  * Appends text to a textfile, creating the textfile if necessary.
  */
-int kmk_builtin_append(int argc, char **argv, char **envp)
+#ifndef kmk_builtin_append
+int kmk_builtin_append(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPidSpawned)
+#else
+int main(int argc, char **argv, char **envp)
+#endif
 {
+#if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
+    static const char s_szNewLine[] = "\r\n";
+#else
+    static const char s_szNewLine[] = "\n";
+#endif
+    KMKBUILTINAPPENDBUF OutBuf = { NULL, 0, 0, 0 };
     const char *pszFilename;
     int rc = 88;
     int i;
@@ -183,12 +196,6 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
 #ifndef kmk_builtin_append
     int fLookForInserts = 0;
 #endif
-#if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
-    static const char s_szNewLine[] = "\r\n";
-#else
-    static const char s_szNewLine[] = "\n";
-#endif
-    KMKBUILTINAPPENDBUF OutBuf = { NULL, 0, 0, 0 };
 
     g_progname = argv[0];
 
@@ -408,6 +415,17 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     /*
      * Write the buffer (unless we ran out of heap already).
      */
+#if !defined(kmk_builtin_append) && defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
+    if (!OutBuf.fOutOfMemory)
+    {
+        rc = MkWinChildCreateAppend(pszFilename, &OutBuf.pszBuf, OutBuf.offBuf, fTruncate, pChild, pPidSpawned);
+        if (rc != 0)
+            rc = errx(rc, "MkWinChildCreateAppend failed: %u", rc);
+        if (OutBuf.pszBuf)
+            free(OutBuf.pszBuf);
+    }
+    else
+#endif
     if (!OutBuf.fOutOfMemory)
     {
         int fd = open(pszFilename,
