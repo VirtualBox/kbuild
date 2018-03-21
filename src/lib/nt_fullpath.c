@@ -1,4 +1,4 @@
-/* $Id: nt_fullpath.c 2849 2016-08-30 14:28:46Z knut.osmundsen@oracle.com $ */
+/* $Id: nt_fullpath.c 3174 2018-03-21 21:37:52Z knut.osmundsen@oracle.com $ */
 /** @file
  * fixcase - fixes the case of paths, windows specific.
  */
@@ -43,8 +43,10 @@
  */
 static void w32_fixcase(char *pszPath)
 {
+#if 0 /* no mp safe */
     static char     s_szLast[260];
     size_t          cchLast;
+#endif
 
 #ifndef NDEBUG
 # define my_assert(expr) \
@@ -106,6 +108,7 @@ static void w32_fixcase(char *pszPath)
         psz += 3;
     }
 
+#if 0 /* not mp safe */
     /*
      * Try make use of the result from the previous call.
      * This is ignorant to slashes and similar, but may help even so.
@@ -145,6 +148,7 @@ static void w32_fixcase(char *pszPath)
         if (psz != pszDst0)
             memcpy(pszDst0, pszSrc0, psz - pszDst0);
     }
+#endif
 
     /*
      * Pointing to the first char after the unc or drive specifier,
@@ -178,9 +182,11 @@ static void w32_fixcase(char *pszPath)
         pszEnd[1] = chSaved1;
         if (!hDir)
         {
+#if 0 /* not MP safe */
             cchLast = psz - pszPath;
             memcpy(s_szLast, pszPath, cchLast + 1);
             s_szLast[cchLast + 1] = '\0';
+#endif
             pszEnd[0] = chSaved0;
             return;
         }
@@ -190,9 +196,11 @@ static void w32_fixcase(char *pszPath)
         {
             if (!FindNextFile(hDir, &FindFileData))
             {
+#if 0 /* not MP safe */
                 cchLast = psz - pszPath;
                 memcpy(s_szLast, pszPath, cchLast + 1);
                 s_szLast[cchLast + 1] = '\0';
+#endif
                 pszEnd[0] = chSaved0;
                 return;
             }
@@ -237,9 +245,11 @@ static void w32_fixcase(char *pszPath)
         my_assert(*psz != '/' && *psz != '\\');
     }
 
+#if 0 /* not MP safe */
     /* *psz == '\0', the end. */
     cchLast = psz - pszPath;
     memcpy(s_szLast, pszPath, cchLast + 1);
+#endif
 #undef my_assert
 }
 
@@ -311,12 +321,12 @@ static LONG (NTAPI *g_pfnNtQueryVolumeInformationFile)(HANDLE FileHandle,
 int
 nt_get_filename_info(const char *pszPath, char *pszFull, size_t cchFull)
 {
-    static char                     abBuf[8192];
+    char                            abBuf[8192];
     PMY_FILE_NAME_INFORMATION       pFileNameInfo = (PMY_FILE_NAME_INFORMATION)abBuf;
     PMY_FILE_FS_VOLUME_INFORMATION  pFsVolInfo = (PMY_FILE_FS_VOLUME_INFORMATION)abBuf;
     MY_IO_STATUS_BLOCK              Ios;
     LONG                            rcNt;
-    HANDLE                      hFile;
+    HANDLE                          hFile;
     int                             cchOut;
     char                           *psz;
     int                             iDrv;
