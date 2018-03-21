@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3170 2018-03-21 12:32:27Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -26,6 +26,8 @@
 SUB_DEPTH = ../..
 include $(KBUILD_PATH)/subheader.kmk
 
+# Enable new children handling for windows.
+CONFIG_NEW_WIN_CHILDREN = 1
 
 #
 # Template for kmk and the kmk_* binaries in this makefile.
@@ -224,9 +226,9 @@ kmk_DEFS.debug = CONFIG_WITH_MAKE_STATS
 ifdef CONFIG_WITH_MAKE_STATS
  kmk_DEFS += CONFIG_WITH_MAKE_STATS
 endif
-ifdef CONFIG_WITH_KMK_BUILTIN_STATS
+#ifdef CONFIG_WITH_KMK_BUILTIN_STATS
  kmk_DEFS += CONFIG_WITH_KMK_BUILTIN_STATS
-endif
+#endif
 ifdef CONFIG_WITH_EVAL_COMPILER
  kmk_DEFS += CONFIG_WITH_EVAL_COMPILER
 endif

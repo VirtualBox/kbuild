@@ -1061,7 +1061,7 @@ print_heap_stats (void)
   malloc_zone_statistics (NULL, &s);
   printf (_("\n# CRT Heap: %u bytes in use, in %u blocks, avg %u bytes/block\n"),
           (unsigned)s.size_in_use, (unsigned)s.blocks_in_use,
-          (unsigned)(s.size_in_use / s.blocks_in_use));
+          s.blocks_in_use ? (unsigned)(s.size_in_use / s.blocks_in_use : 0));
   printf (_("#           %u bytes max in use (high water mark)\n"),
           (unsigned)s.max_size_in_use);
   printf (_("#           %u bytes reserved,  %u bytes free (estimate)\n"),
@@ -1093,9 +1093,9 @@ print_heap_stats (void)
     }
 
   printf (_("\n# CRT Heap: %u bytes in use, in %u blocks, avg %u bytes/block\n"),
-          bytes_used, blocks_used, bytes_used / blocks_used);
+          bytes_used, blocks_used, blocks_used ? bytes_used / blocks_used : 0);
   printf (_("#           %u bytes avail, in %u blocks, avg %u bytes/block\n"),
-          bytes_avail, blocks_avail, bytes_avail / blocks_avail);
+          bytes_avail, blocks_avail, blocks_avail ? bytes_avail / blocks_avail : 0);
 # endif /* _MSC_VER */
 
   /* Darwin Libc sources indicates that something like this may be

@@ -1,10 +1,10 @@
-/* $Id: kmkbuiltin.c 3172 2018-03-21 14:21:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
 
 /*
- * Copyright (c) 2005-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2005-2018 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -23,9 +23,10 @@
  *
  */
 
-/*******************************************************************************
-*   Header Files                                                               *
-*******************************************************************************/
+
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -38,6 +39,7 @@
 
 #include "makeint.h"
 #include "job.h"
+#include "variable.h"
 #if defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
 # include "w32/winchildren.h"
 #endif
@@ -47,6 +49,15 @@
 #ifndef _MSC_VER
 extern char **environ;
 #endif
+
+
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
+#ifdef CONFIG_WITH_KMK_BUILTIN_STATS
+extern int print_stats_flag;
+#endif
+
 
 
 int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned)
@@ -233,9 +244,9 @@ int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapsz
  */
 static const KMKBUILTINENTRY g_aBuiltIns[] =
 {
-#define BUILTIN_ENTRY(a_fn, a_sz, a_uFnSignature, fMpSafe, fNeedEnv) \
+#define BUILTIN_ENTRY(a_fn, a_sz, a_uFnSignature, fMtSafe, fNeedEnv) \
     {  { { sizeof(a_sz) - 1, a_sz, } }, \
-       (uintptr_t)a_fn,                                 a_uFnSignature,   fMpSafe, fNeedEnv }
+       (uintptr_t)a_fn,                                 a_uFnSignature,   fMtSafe, fNeedEnv }
 
     /* More frequently used commands: */
     BUILTIN_ENTRY(kmk_builtin_append,   "append",       FN_SIG_MAIN_SPAWNS,     0, 0),
@@ -244,11 +255,11 @@ static const KMKBUILTINENTRY g_aBuiltIns[] =
     BUILTIN_ENTRY(kmk_builtin_install,  "install",      FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_kDepObj,  "kDepObj",      FN_SIG_MAIN,            1, 0),
 #ifdef KBUILD_OS_WINDOWS
-    BUILTIN_ENTRY(kmk_builtin_kSubmit,  "kSubmit",      FN_SIG_MAIN_SPAWNS,     0, 0),
+    BUILTIN_ENTRY(kmk_builtin_kSubmit,  "kSubmit",      FN_SIG_MAIN_SPAWNS,     0, 1),
 #endif
     BUILTIN_ENTRY(kmk_builtin_mkdir,    "mkdir",        FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_mv,       "mv",           FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_redirect, "redirect",     FN_SIG_MAIN_SPAWNS,     0, 1),
+    BUILTIN_ENTRY(kmk_builtin_redirect, "redirect",     FN_SIG_MAIN_SPAWNS,     1, 1),
     BUILTIN_ENTRY(kmk_builtin_rm,       "rm",           FN_SIG_MAIN,            0, 1),
     BUILTIN_ENTRY(kmk_builtin_rmdir,    "rmdir",        FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_test,     "test",         FN_SIG_MAIN_TO_SPAWN,   0, 0),
@@ -346,13 +357,27 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
             {
                 /*
                  * That's a match!
+                 *
+                 * First get the environment if it is actually needed.  This is
+                 * especially important when we run on a worker thread as it must
+                 * not under any circumstances do stuff like target_environment.
                  */
-                int rc;
-#if defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
-                if (pEntry->fMpSafe)
+                int    rc;
+                char **papszEnvVars = NULL;
+                if (pEntry->fNeedEnv)
                 {
-                    rc = MkWinChildCreateBuiltIn(pEntry, argc, argv, pEntry->fNeedEnv ? pChild->environment : NULL,
-                                                 pChild, pPidSpawned);
+                    papszEnvVars = pChild->environment;
+                    if (!papszEnvVars)
+                        pChild->environment = papszEnvVars = target_environment(pChild->file);
+                }
+
+#if defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
+                /*
+                 * If the built-in is multi thread safe, we will run it on a job slot thread.
+                 */
+                if (pEntry->fMtSafe)
+                {
+                    rc = MkWinChildCreateBuiltIn(pEntry, argc, argv, papszEnvVars, pChild, pPidSpawned);
 # ifdef CONFIG_WITH_KMK_BUILTIN_STATS
                     g_aBuiltInStats[pEntry - &g_aBuiltIns[0]].cAsyncTimes++;
 # endif
@@ -360,21 +385,19 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
                 else
 #endif
                 {
-                    char **envp = pChild->environment ? pChild->environment : environ;
-
                     /*
                      * Call the worker function, making sure to preserve umask.
                      */
 #ifdef CONFIG_WITH_KMK_BUILTIN_STATS
-                    big_int nsStart = nano_timestamp();
+                    big_int nsStart = print_stats_flag ? nano_timestamp() : 0;
 #endif
                     int const iUmask = umask(0);        /* save umask */
                     umask(iUmask);
 
                     if (pEntry->uFnSignature == FN_SIG_MAIN)
-                        rc = pEntry->u.pfnMain(argc, argv, envp);
+                        rc = pEntry->u.pfnMain(argc, argv, papszEnvVars);
                     else if (pEntry->uFnSignature == FN_SIG_MAIN_SPAWNS)
-                        rc = pEntry->u.pfnMainSpawns(argc, argv, envp, pChild, pPidSpawned);
+                        rc = pEntry->u.pfnMainSpawns(argc, argv, papszEnvVars, pChild, pPidSpawned);
                     else if (pEntry->uFnSignature == FN_SIG_MAIN_TO_SPAWN)
                     {
                         /*
@@ -382,7 +405,7 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
                          * We recurse here, both because I'm lazy and because it's easier to debug a
                          * problem then (the call stack shows what's been going on).
                          */
-                        rc = pEntry->u.pfnMainToSpawn(argc, argv, envp, ppapszArgvToSpawn);
+                        rc = pEntry->u.pfnMainToSpawn(argc, argv, papszEnvVars, ppapszArgvToSpawn);
                         if (   !rc
                             && *ppapszArgvToSpawn
                             && !strncmp(**ppapszArgvToSpawn, s_szPrefix, sizeof(s_szPrefix) - 1))
@@ -409,8 +432,12 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
                     umask(iUmask);                      /* restore it */
 
 #ifdef CONFIG_WITH_KMK_BUILTIN_STATS
-                    g_aBuiltInStats[pEntry - &g_aBuiltIns[0]].cTimes++;
-                    g_aBuiltInStats[pEntry - &g_aBuiltIns[0]].cNs += nano_timestamp() - nsStart;
+                    if (print_stats_flag)
+                    {
+                        uintptr_t iEntry = pEntry - &g_aBuiltIns[0];
+                        g_aBuiltInStats[iEntry].cTimes++;
+                        g_aBuiltInStats[iEntry].cNs += nano_timestamp() - nsStart;
+                    }
 #endif
                 }
                 return rc;
@@ -441,8 +468,9 @@ int kmk_builtin_dircache(int argc, char **argv, char **envp)
  */
 extern void kmk_builtin_print_stats(FILE *pOutput, const char *pszPrefix)
 {
-    const unsigned  cEntries = sizeof(g_aBuiltInStats) / sizeof(g_aBuiltInStats[0]);
+    const unsigned cEntries = sizeof(g_aBuiltInStats) / sizeof(g_aBuiltInStats[0]);
     unsigned i;
+    assert(print_stats_flag);
     fprintf(pOutput, "\n%skmk built-in command statistics:\n", pszPrefix);
     for (i = 0; i < cEntries; i++)
         if (g_aBuiltInStats[i].cTimes > 0)

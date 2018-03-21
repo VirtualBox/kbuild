@@ -186,17 +186,23 @@ jobserver_acquire (int timeout)
 #ifndef CONFIG_NEW_WIN_CHILDREN
     /* Build array of handles to wait for.  */
     dwHandleCount = 1 + process_set_handles (&handles[1]);
-#else
-    /* Add the completed children event as the 2nd one. */
-    handles[1] = (HANDLE)MkWinChildGetCompleteEventHandle();
-    dwHandleCount = 2;
-#endif
-
     dwEvent = WaitForMultipleObjects (
         dwHandleCount,  /* number of objects in array */
         handles,        /* array of objects */
         FALSE,          /* wait for any object */
         INFINITE);      /* wait until object is signalled */
+#else
+    /* Add the completed children event as the 2nd one. */
+    handles[1] = (HANDLE)MkWinChildGetCompleteEventHandle();
+    if (handles[1] == NULL)
+      return 0;
+    dwHandleCount = 2;
+    dwEvent = WaitForMultipleObjectsEx (dwHandleCount,
+                                        handles,
+                                        FALSE /*bWaitAll*/,
+                                        256, /* INFINITE - paranoia, only wait 256 ms before checking again. */
+                                        TRUE /*bAlertable*/);
+#endif
 
     if (dwEvent == WAIT_FAILED)
       {

@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3172 2018-03-21 14:21:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -87,8 +87,8 @@ typedef struct KMKBUILTINENTRY
         int (* pfnMainToSpawn)(int argc, char **argv, char **envp, char ***ppapszArgvToSpawn);
     } u;
     size_t      uFnSignature : 8;
-    size_t      fMpSafe : 1;
-    size_t      fNeedEnv : 1;
+    size_t      fMtSafe : 1;            /**< Safe for multi threaded execution. */
+    size_t      fNeedEnv : 1;           /**< Needs the (target) enviornment. */
 } KMKBUILTINENTRY;
 /** Pointer to kmk built-in command entry. */
 typedef KMKBUILTINENTRY const *PCKMKBUILTINENTRY;
@@ -137,7 +137,9 @@ extern int kBuiltinOptEnvAppend(char ***ppapszEnv, unsigned *pcEnvVars, unsigned
                                 int cVerbosity, const char *pszValue);
 extern int kBuiltinOptEnvPrepend(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
                                  int cVerbosity, const char *pszValue);
-extern int kBuiltinOptEnvUnset(char **papszEnv, unsigned *pcEnvVars, int cVerbosity, const char *pszVarToRemove);
+extern int kBuiltinOptEnvUnset(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars, int cVerbosity, const char *pszVarToRemove);
+extern int kBuiltinOptEnvZap(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars, int cVerbosity);
+extern void kBuiltinOptEnvCleanup(char ***ppapszEnv, unsigned cEnvVars, unsigned *pcAllocatedEnvVars);
 extern int kBuiltinOptChDir(char *pszCwd, size_t cbCwdBuf, const char *pszValue);
 
 #ifdef CONFIG_WITH_KMK_BUILTIN_STATS

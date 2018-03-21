@@ -1,4 +1,4 @@
-/* $Id: common-env-and-cwd-opt.c 3133 2018-02-23 21:33:27Z knut.osmundsen@oracle.com $ */
+/* $Id: common-env-and-cwd-opt.c 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - Commmon environment and CWD option handling code.
  */
@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "kmkbuiltin.h"
 #include "err.h"
@@ -42,6 +43,45 @@
 #else
 # define KSUBMIT_ENV_NCMP   strncmp
 #endif
+
+
+/**
+ * Duplicates a read-only enviornment vector.
+ *
+ * @returns The duplicate enviornment.
+ * @param   papszEnv            The read-only vector.
+ * @param   cEnvVars            The number of variables.
+ * @param   pcAllocatedEnvVars  The allocated papszEnv size.  This is zero on
+ *                              input and non-zero on successful return.
+ * @param   cVerbosity          The verbosity level.
+ */
+static char **kBuiltinOptEnvDuplicate(char **papszEnv, unsigned cEnvVars, unsigned *pcAllocatedEnvVars, int cVerbosity)
+{
+    unsigned cAllocatedEnvVars = (cEnvVars + 2 + 0xf) * ~(unsigned)0xf;
+    char    **papszEnvNew      = malloc(cAllocatedEnvVars * sizeof(papszEnvNew[0]));
+    assert(*pcAllocatedEnvVars == 0);
+    if (papszEnvNew)
+    {
+        unsigned i;
+        for (i = 0; i < cEnvVars; i++)
+        {
+            papszEnvNew[i] = strdup(papszEnv[i]);
+            if (!papszEnvNew)
+            {
+                while (i-- > 0)
+                    free(papszEnvNew[i]);
+                free(papszEnvNew);
+                errx(1, "out of memory");
+                return NULL;
+            }
+        }
+        papszEnvNew[i] = NULL;
+        *pcAllocatedEnvVars = cAllocatedEnvVars;
+    }
+    else
+        errx(1, "out of memory");
+    return papszEnvNew;
+}
 
 
 /**
@@ -135,6 +175,15 @@ int kBuiltinOptEnvSet(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAlloca
         unsigned iEnvVar;
         unsigned cEnvVars = *pcEnvVars;
         size_t const cchVar = pszEqual - pszValue;
+
+        if (!*pcAllocatedEnvVars)
+        {
+            papszEnv = kBuiltinOptEnvDuplicate(papszEnv, cEnvVars, pcAllocatedEnvVars, cVerbosity);
+            if (!papszEnv)
+                return errx(1, "out of memory!");
+            *ppapszEnv = papszEnv;
+        }
+
         for (iEnvVar = 0; iEnvVar < cEnvVars; iEnvVar++)
         {
             char *pszCur = papszEnv[iEnvVar];
@@ -179,6 +228,15 @@ static int kBuiltinOptEnvAppendPrepend(char ***ppapszEnv, unsigned *pcEnvVars, u
         unsigned iEnvVar;
         unsigned cEnvVars = *pcEnvVars;
         size_t const cchVar = pszEqual - pszValue;
+
+        if (!*pcAllocatedEnvVars)
+        {
+            papszEnv = kBuiltinOptEnvDuplicate(papszEnv, cEnvVars, pcAllocatedEnvVars, cVerbosity);
+            if (!papszEnv)
+                return errx(1, "out of memory!");
+            *ppapszEnv = papszEnv;
+        }
+
         for (iEnvVar = 0; iEnvVar < cEnvVars; iEnvVar++)
         {
             char *pszCur = papszEnv[iEnvVar];
@@ -256,16 +314,20 @@ int kBuiltinOptEnvPrepend(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAl
  * Handles the --unset var option.
  *
  * @returns 0 on success, non-zero exit code on error.
- * @param   papszEnv            The environment vector.
+ * @param   ppapszEnv           The environment vector pointer.
  * @param   pcEnvVars           Pointer to the variable holding the number of
  *                              environment variables held by @a papszEnv.
+ * @param   pcAllocatedEnvVars  Pointer to the size of the vector allocation.
+ *                              The size is zero when read-only (CRT, GNU make)
+ *                              environment.
  * @param   cVerbosity          The verbosity level.
  * @param   pszVarToRemove      The name of the variable to remove.
  */
-int kBuiltinOptEnvUnset(char **papszEnv, unsigned *pcEnvVars, int cVerbosity, const char *pszVarToRemove)
+int kBuiltinOptEnvUnset(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars, int cVerbosity, const char *pszVarToRemove)
 {
     if (strchr(pszVarToRemove, '=') == NULL)
     {
+        char       **papszEnv = *ppapszEnv;
         unsigned     cRemoved = 0;
         size_t const cchVar   = strlen(pszVarToRemove);
         unsigned     cEnvVars = *pcEnvVars;
@@ -277,6 +339,15 @@ int kBuiltinOptEnvUnset(char **papszEnv, unsigned *pcEnvVars, int cVerbosity, co
             {
                 if (cVerbosity > 0)
                     warnx(!cRemoved ? "removing '%s'" : "removing duplicate '%s'", papszEnv[iEnvVar]);
+
+                if (!*pcAllocatedEnvVars)
+                {
+                    papszEnv = kBuiltinOptEnvDuplicate(papszEnv, cEnvVars, pcAllocatedEnvVars, cVerbosity);
+                    if (!papszEnv)
+                        return errx(1, "out of memory!");
+                    *ppapszEnv = papszEnv;
+                }
+
                 free(papszEnv[iEnvVar]);
                 cEnvVars--;
                 if (iEnvVar != cEnvVars)
@@ -295,6 +366,68 @@ int kBuiltinOptEnvUnset(char **papszEnv, unsigned *pcEnvVars, int cVerbosity, co
     return 0;
 }
 
+
+/**
+ * Handles the --zap-env & --ignore-environment options.
+ *
+ * @returns 0 on success, non-zero exit code on error.
+ * @param   ppapszEnv           The environment vector pointer.
+ * @param   pcEnvVars           Pointer to the variable holding the number of
+ *                              environment variables held by @a papszEnv.
+ * @param   pcAllocatedEnvVars  Pointer to the size of the vector allocation.
+ *                              The size is zero when read-only (CRT, GNU make)
+ *                              environment.
+ * @param   cVerbosity          The verbosity level.
+ */
+int kBuiltinOptEnvZap(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars, int cVerbosity)
+{
+    if (*pcAllocatedEnvVars > 0)
+    {
+        char **papszEnv = *ppapszEnv;
+        unsigned i = *pcEnvVars;
+        while (i-- > 0)
+        {
+            free(papszEnv[i]);
+            papszEnv[i] = NULL;
+        }
+    }
+    else
+    {
+        char **papszEnv = calloc(4, sizeof(char *));
+        if (!papszEnv)
+            return err(1, "out of memory!");
+        *ppapszEnv = papszEnv;
+        *pcAllocatedEnvVars = 4;
+    }
+    *pcEnvVars = 0;
+    return 0;
+}
+
+
+/**
+ * Cleans up afterwards, if necessary.
+ *
+ * @param   ppapszEnv           The environment vector pointer.
+ * @param   cEnvVars            The number of variables in the vector.
+ * @param   pcAllocatedEnvVars  Pointer to the size of the vector allocation.
+ *                              The size is zero when read-only (CRT, GNU make)
+ *                              environment.
+ */
+void kBuiltinOptEnvCleanup(char ***ppapszEnv, unsigned cEnvVars, unsigned *pcAllocatedEnvVars)
+{
+    char **papszEnv = *ppapszEnv;
+    *ppapszEnv = NULL;
+    if (*pcAllocatedEnvVars > 0)
+    {
+        *pcAllocatedEnvVars = 0;
+        while (cEnvVars-- > 0)
+        {
+            free(papszEnv[cEnvVars]);
+            papszEnv[cEnvVars] = NULL;
+        }
+        free(papszEnv);
+    }
+}
 
 
 /**

@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3156 2018-03-18 20:10:03Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -1249,9 +1249,8 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
     int             rcExit = 0;
     int             iArg;
     unsigned        cAllocatedEnvVars;
-    unsigned        iEnvVar;
     unsigned        cEnvVars;
-    char          **papszEnv            = NULL;
+    char          **papszEnvVars;
     const char     *pszExecutable       = NULL;
     int             iPostCmd            = argc;
     int             cPostCmdArgs        = 0;
@@ -1266,19 +1265,21 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
 
     /*
      * Create default program environment.
+     *
+     * Note! We only clean up the environment on successful return, assuming
+     *       make will stop after that.
      */
     if (getcwd_fs(szCwd, cbCwdBuf) != NULL)
     { /* likely */ }
     else
         return err(1, "getcwd_fs failed\n");
 
-    papszEnv = pChild->environment;
-    if (!papszEnv)
-        pChild->environment = papszEnv = target_environment(pChild->file);
+    /* The environment starts out in read-only mode and will be duplicated if modified. */
+    cAllocatedEnvVars = 0;
+    papszEnvVars = envp;
     cEnvVars = 0;
-    while (papszEnv[cEnvVars] != NULL)
+    while (papszEnvVars[cEnvVars] != NULL)
         cEnvVars++;
-    cAllocatedEnvVars = cEnvVars;
 
     /*
      * Parse the command line.
@@ -1386,35 +1387,31 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                 {
                     case 'Z':
                     case 'i': /* GNU env compatibility. */
-                        for (iEnvVar = 0; iEnvVar < cEnvVars; iEnvVar++)
-                            free(papszEnv[iEnvVar]);
-                        papszEnv[0] = NULL;
-                        cEnvVars = 0;
-                        break;
+                        rcExit = kBuiltinOptEnvZap(&papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity);
+                        if (rcExit == 0)
+                            break;
+                        return rcExit;
 
                     case 'E':
-                        rcExit = kBuiltinOptEnvSet(&papszEnv, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
-                        pChild->environment = papszEnv;
+                        rcExit = kBuiltinOptEnvSet(&papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
                         if (rcExit == 0)
                             break;
                         return rcExit;
 
                     case 'A':
-                        rcExit = kBuiltinOptEnvAppend(&papszEnv, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
-                        pChild->environment = papszEnv;
+                        rcExit = kBuiltinOptEnvAppend(&papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
                         if (rcExit == 0)
                             break;
                         return rcExit;
 
                     case 'D':
-                        rcExit = kBuiltinOptEnvPrepend(&papszEnv, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
-                        pChild->environment = papszEnv;
+                        rcExit = kBuiltinOptEnvPrepend(&papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
                         if (rcExit == 0)
                             break;
                         return rcExit;
 
                     case 'U':
-                        rcExit = kBuiltinOptEnvUnset(papszEnv, &cEnvVars, cVerbosity, pszValue);
+                        rcExit = kBuiltinOptEnvUnset(&papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
                         if (rcExit == 0)
                             break;
                         return rcExit;
@@ -1457,9 +1454,11 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
 
                     case 'h':
                         usage(stdout, argv[0]);
+                        kBuiltinOptEnvCleanup(&papszEnvVars, cEnvVars, &cAllocatedEnvVars);
                         return 0;
 
                     case 'V':
+                        kBuiltinOptEnvCleanup(&papszEnvVars, cEnvVars, &cAllocatedEnvVars);
                         return kbuild_version(argv[0]);
                 }
             } while ((chOpt = *pszArg++) != '\0');
@@ -1477,7 +1476,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
     if (iArg < argc)
     {
         uint32_t        cbMsg;
-        void           *pvMsg   = kSubmitComposeJobMessage(pszExecutable, &argv[iArg], papszEnv, szCwd,
+        void           *pvMsg   = kSubmitComposeJobMessage(pszExecutable, &argv[iArg], papszEnvVars, szCwd,
                                                            fWatcomBrainDamage, fNoPchCaching,
                                                            &argv[iPostCmd], cPostCmdArgs, &cbMsg);
         PWORKERINSTANCE pWorker = kSubmitSelectWorkSpawnNewIfNecessary(cBitsWorker, cVerbosity);
@@ -1504,6 +1503,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
         rcExit = usage(stderr, argv[0]);
     }
 
+    kBuiltinOptEnvCleanup(&papszEnvVars, cEnvVars, &cAllocatedEnvVars);
     return rcExit;
 }
 

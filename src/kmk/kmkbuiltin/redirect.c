@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3164 2018-03-20 03:31:22Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -73,8 +73,6 @@
 #endif
 #include "kmkbuiltin.h"
 #ifdef KMK
-# include "job.h"
-# include "variable.h"
 # ifdef KBUILD_OS_WINDOWS
 #  ifndef CONFIG_NEW_WIN_CHILDREN
 #   include "sub_proc.h"
@@ -1160,14 +1158,15 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
 # ifdef KBUILD_OS_WINDOWS
                 /* Windows is slightly complicated due to handles and winchildren.c. */
                 HANDLE hProcess = INVALID_HANDLE_VALUE;
-                rcExit = kRedirectCreateProcessWindows(pszExecutable, cArgs, papszArgs, papszEnvVars, pszCwd,
-                                                       cOrders, paOrders, &hProcess);
+                rcExit = kRedirectCreateProcessWindows(pszExecutable, cArgs, papszArgs, papszEnvVars,
+                                                       pszSavedCwd ? pszCwd : NULL, cOrders, paOrders, &hProcess);
                 if (rcExit == 0)
                 {
 #  ifndef CONFIG_NEW_WIN_CHILDREN
                     if (process_kmk_register_redirect(hProcess, pPidSpawned) == 0)
 #  else
-                    if (MkWinChildCreateRedirect((intptr_t)hProcess, pPidSpawned) == 0)
+                    if (   pPidSpawned
+                        && MkWinChildCreateRedirect((intptr_t)hProcess, pPidSpawned) == 0)
 #  endif
                     {
                         if (cVerbosity > 0)
@@ -1179,7 +1178,8 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
 #  ifndef CONFIG_NEW_WIN_CHILDREN
                         warn("sub_proc is out of slots, waiting for child...");
 #  else
-                        warn("MkWinChildCreateRedirect failed...");
+                        if (pPidSpawned)
+                            warn("MkWinChildCreateRedirect failed...");
 #  endif
                         dwTmp = WaitForSingleObject(hProcess, INFINITE);
                         if (dwTmp != WAIT_OBJECT_0)
@@ -1195,7 +1195,8 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                         }
 
                         CloseHandle(hProcess);
-                        *pPidSpawned = 0;
+                        if (pPidSpawned)
+                            *pPidSpawned = 0;
                         *pfIsChildExitCode = K_TRUE;
                     }
                 }
@@ -1233,8 +1234,8 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                  */
 # ifdef KBUILD_OS_WINDOWS
                 HANDLE hProcess = INVALID_HANDLE_VALUE;
-                rcExit = kRedirectCreateProcessWindows(pszExecutable, cArgs, papszArgs, papszEnvVars, pszCwd,
-                                                       cOrders, paOrders, &hProcess);
+                rcExit = kRedirectCreateProcessWindows(pszExecutable, cArgs, papszArgs, papszEnvVars,
+                                                       pszSavedCwd ? pszCwd : NULL, cOrders, paOrders, &hProcess);
                 if (rcExit == 0)
                 {
                     DWORD dwWait;
@@ -1347,7 +1348,6 @@ int main(int argc, char **argv, char **envp)
     const char     *pszExecutable      = NULL;
     char          **papszEnvVars       = NULL;
     unsigned        cAllocatedEnvVars;
-    unsigned        iEnvVar;
     unsigned        cEnvVars;
     int             fWatcomBrainDamage = 0;
     int             cVerbosity         = 0;
@@ -1377,40 +1377,13 @@ int main(int argc, char **argv, char **envp)
     else
         return err(9, "getcwd failed");
 
-#if defined(KMK)
-    /* We get it from kmk and just count it:  */
-    papszEnvVars = pChild->environment;
-    if (!papszEnvVars)
-        pChild->environment = papszEnvVars = target_environment(pChild->file);
+    /* We start out with a read-only enviornment from kmk or the crt, and will
+       duplicate it if we make changes to it. */
+    cAllocatedEnvVars = 0;
+    papszEnvVars = envp;
     cEnvVars = 0;
     while (papszEnvVars[cEnvVars] != NULL)
         cEnvVars++;
-    cAllocatedEnvVars = cEnvVars;
-#else
-    /* We make a copy and we manage ourselves: */
-    cEnvVars = 0;
-    while (envp[cEnvVars] != NULL)
-        cEnvVars++;
-
-    cAllocatedEnvVars = cEnvVars + 4;
-    papszEnvVars = malloc((cAllocatedEnvVars + 1) * sizeof(papszEnvVars));
-    if (!papszEnvVars)
-        return errx(9, "out of memory!");
-
-    iEnvVar = cEnvVars;
-    papszEnvVars[iEnvVar] = NULL;
-    while (iEnvVar-- > 0)
-    {
-        papszEnvVars[iEnvVar] = strdup(envp[iEnvVar]);
-        if (!papszEnvVars[iEnvVar])
-        {
-            while (iEnvVar-- > 0)
-                free(papszEnvVars[iEnvVar]);
-            free(papszEnvVars);
-            return errx(9, "out of memory!");
-        }
-    }
-#endif
 
 #ifdef USE_POSIX_SPAWN
     /*
@@ -1577,19 +1550,14 @@ int main(int argc, char **argv, char **envp)
                 if (pchEqual)
                 {
                     if (pchEqual[1] != '\0')
-                    {
                         rcExit = kBuiltinOptEnvSet(&papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
-#ifdef KMK
-                        pChild->environment = papszEnvVars;
-#endif
-                    }
                     else
                     {
                         char *pszCopy = strdup(pszValue);
                         if (pszCopy)
                         {
                             pszCopy[pchEqual - pszValue] = '\0';
-                            rcExit = kBuiltinOptEnvUnset(papszEnvVars, &cEnvVars, cVerbosity, pszCopy);
+                            rcExit = kBuiltinOptEnvUnset(&papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszCopy);
                             free(pszCopy);
                         }
                         else
@@ -1632,7 +1600,7 @@ int main(int argc, char **argv, char **envp)
                     rcExit = errx(2, "error: '%s' cannot be unset, only set to an empty value using -E/--set.", pszValue);
                 else
 #endif
-                    rcExit = kBuiltinOptEnvUnset(papszEnvVars, &cEnvVars, cVerbosity, pszValue);
+                    rcExit = kBuiltinOptEnvUnset(&papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
                 continue;
             }
 
@@ -1642,10 +1610,7 @@ int main(int argc, char **argv, char **envp)
             if (   chOpt == 'Z'
                 || chOpt == 'i' /* GNU env compatibility. */ )
             {
-                for (iEnvVar = 0; iEnvVar < cEnvVars; iEnvVar++)
-                    free(papszEnvVars[iEnvVar]);
-                papszEnvVars[0] = NULL;
-                cEnvVars = 0;
+                rcExit = kBuiltinOptEnvZap(&papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity);
                 continue;
             }
 
@@ -1997,17 +1962,12 @@ int main(int argc, char **argv, char **envp)
     /*
      * Cleanup.
      */
+    kBuiltinOptEnvCleanup(&papszEnvVars, cEnvVars, &cAllocatedEnvVars);
     if (pszSavedCwd)
         free(pszSavedCwd);
     kRedirectCleanupFdOrders(cOrders, aOrders, rcExit != 0 && !fChildExitCode);
 #ifdef USE_POSIX_SPAWN
     posix_spawn_file_actions_destroy(&FileActions);
-#endif
-#ifndef KMK
-    iEnvVar = cEnvVars;
-    while (iEnvVar-- > 0)
-        free(papszEnvVars[iEnvVar]);
-    free(papszEnvVars);
 #endif
 #ifdef KBUILD_OS_OS2
     for (ulLibPath = 0; ulLibPath < K_ELEMENTS(apszSavedLibPaths); ulLibPath++)
