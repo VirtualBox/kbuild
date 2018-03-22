@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3179 2018-03-22 19:50:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -39,9 +39,8 @@
 #if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
 # include <process.h>
 #endif
-#if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
+#ifdef KBUILD_OS_WINDOWS
 # include <Windows.h>
-# include <Winternl.h>
 #endif
 #if defined(_MSC_VER)
 # include <ctype.h>
@@ -66,6 +65,9 @@
 #include <k/kTypes.h>
 #include "err.h"
 #include "kbuild_version.h"
+#ifdef KBUILD_OS_WINDOWS
+# include "nt/nt_child_inject_standard_handles.h"
+#endif
 #if defined(__gnu_hurd__) && !defined(kmk_builtin_redirect) /* need constant */
 # undef GET_PATH_MAX
 # undef PATH_MAX
@@ -790,6 +792,7 @@ static const char *kRedirectCreateProcessWindowsFindImage(const char *pszExecuta
    return pszExecutable;
 }
 
+
 /**
  * Alternative approach on windows that use CreateProcess and doesn't require
  * any serialization wrt handles and CWD.
@@ -804,10 +807,9 @@ static const char *kRedirectCreateProcessWindowsFindImage(const char *pszExecuta
  * @param   paOrders            The file operation orders.
  * @param   phProcess           Where to return process handle.
  */
-static kRedirectCreateProcessWindows(const char *pszExecutable, int cArgs, char **papszArgs, char **papszEnvVars,
-                                     const char *pszCwd, unsigned cOrders, REDIRECTORDERS *paOrders, HANDLE *phProcess)
+static int kRedirectCreateProcessWindows(const char *pszExecutable, int cArgs, char **papszArgs, char **papszEnvVars,
+                                         const char *pszCwd, unsigned cOrders, REDIRECTORDERS *paOrders, HANDLE *phProcess)
 {
-    static NTSTATUS (NTAPI *s_pfnNtQueryInformationProcess)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG) = NULL;
     size_t cbArgs;
     char  *pszCmdLine;
     size_t cbEnv;
@@ -815,25 +817,6 @@ static kRedirectCreateProcessWindows(const char *pszExecutable, int cArgs, char 
     char  *pch;
     int    i;
     int    rc;
-
-    /*
-     * Determin host bitness and APIs while we can still easily return.
-     */
-#if K_ARCH_BITS == 32
-    BOOL   f64BitHost = TRUE;
-    if (!IsWow64Process(GetCurrentProcess(), &f64BitHost))
-        return errx(9, "IsWow64Process failed: %u", GetLastError());
-#elif K_ARCH_BITS == 64
-    BOOL const f64BitHost = TRUE;
-#else
-# error "K_ARCH_BITS is bad/missing"
-#endif
-    if (cOrders > 0 && !s_pfnNtQueryInformationProcess)
-    {
-        *(FARPROC *)&s_pfnNtQueryInformationProcess = GetProcAddress(GetModuleHandleA("NTDLL.DLL"), "NtQueryInformationProcess");
-        if (!s_pfnNtQueryInformationProcess)
-            return errx(9, "NtQueryInformationProcess not found!");
-    }
 
     /*
      * Start by making the the command line.  We just need to put spaces
@@ -961,69 +944,15 @@ static kRedirectCreateProcessWindows(const char *pszExecutable, int cArgs, char 
                 if (CreateProcessA(pszExecutable, pszCmdLine, NULL /*pProcAttrs*/, NULL /*pThreadAttrs*/,
                                    FALSE /*fInheritHandles*/, CREATE_SUSPENDED, pszzEnv, pszCwd, &StartupInfo, &ProcInfo))
                 {
-                    /*
-                     * Figure out where we need to write the handles.
-                     */
-                    ULONG                     cbActual1 = 0;
-                    PROCESS_BASIC_INFORMATION BasicInfo = { 0, 0, };
-                    NTSTATUS rcNt = s_pfnNtQueryInformationProcess(ProcInfo.hProcess, ProcessBasicInformation,
-                                                                   &BasicInfo, sizeof(BasicInfo), &cbActual1);
-                    if (NT_SUCCESS(rcNt))
-                    {
-                        BOOL const   f32BitPeb  = !f64BitHost;
-                        ULONG  const cbChildPtr = f32BitPeb ? 4 : 8;
-                        PVOID        pvSrcInPeb = (char *)BasicInfo.PebBaseAddress + (f32BitPeb ? 0x10 : 0x20);
-                        char *       pbDst      = 0;
-                        SIZE_T       cbActual2  = 0;
-                        if (ReadProcessMemory(ProcInfo.hProcess, pvSrcInPeb, &pbDst, cbChildPtr, &cbActual2))
-                        {
-                            union
-                            {
-                                KU32 au32[3];
-                                KU64 au64[3];
-                            } uBuf;
-                            memset(&uBuf, 0, sizeof(uBuf));
-                            pbDst += f32BitPeb ? 0x18 : 0x20;
-                            if (   (afReplace[0] && afReplace[1] && afReplace[2])
-                                || ReadProcessMemory(ProcInfo.hProcess, pbDst, &uBuf, cbChildPtr * 3, &cbActual2))
-                            {
-                                for (i = 0; i < 3; i++)
-                                    if (afReplace[i])
-                                    {
-                                        HANDLE hInChild = INVALID_HANDLE_VALUE;
-                                        if (   ahChild[i] == NULL /* just closed*/
-                                            || DuplicateHandle(GetCurrentProcess(), ahChild[i], ProcInfo.hProcess, &hInChild,
-                                                               0, TRUE /*fInheriable*/, DUPLICATE_SAME_ACCESS))
-                                        {
-                                            if (f32BitPeb)
-                                                uBuf.au32[i] = (KU32)(uintptr_t)hInChild;
-                                            else
-                                                uBuf.au64[i] = (uintptr_t)hInChild;
-                                        }
-                                        else
-                                            rc = errx(10, "Error duplicating %p into the child: %u", ahChild[i], GetLastError());
-                                    }
-                                if (    rc == 0
-                                    && !WriteProcessMemory(ProcInfo.hProcess, pbDst, &uBuf, cbChildPtr * 3, &cbActual2))
-                                    rc = errx(10, "Error writing standard handles at %p LB %u in the child: %u",
-                                              pbDst, cbChildPtr * 3, GetLastError());
-                            }
-                            else
-                                rc = errx(10, "Error reading %p LB %u from the child: %u",
-                                          pbDst, cbChildPtr * 3, GetLastError());
-                        }
-                        else
-                            rc = errx(10, "Error reading %p LB %u from the child: %u", pvSrcInPeb, cbChildPtr);
-                    }
-                    else
-                        rc = errx(10, "NtQueryInformationProcess failed: %#x", rcNt);
-
-                    /* Resume the bugger... */
-                    if (   rc == 0
-                        && !ResumeThread(ProcInfo.hThread))
+                    /* Inject the handles and try make it start executing. */
+                    char szErrMsg[128];
+                    rc = nt_child_inject_standard_handles(ProcInfo.hProcess, afReplace, ahChild, szErrMsg, sizeof(szErrMsg));
+                    if (rc)
+                        rc = errx(10, "%s", szErrMsg);
+                    else if (!ResumeThread(ProcInfo.hThread))
                         rc = errx(10, "ResumeThread failed: %u", GetLastError());
 
-                    /* .. or kill it. */
+                    /* Kill it if any of that fails. */
                     if (rc != 0)
                         TerminateProcess(ProcInfo.hProcess, rc);
 

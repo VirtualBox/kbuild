@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3179 2018-03-22 19:50:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -78,6 +78,9 @@
 #include <Winternl.h>
 #include <assert.h>
 #include <process.h>
+#include <intrin.h>
+
+#include "nt/nt_child_inject_standard_handles.h"
 
 
 /*********************************************************************************************************************************
@@ -326,6 +329,14 @@ static unsigned volatile    g_idxLastChildcareWorker = 0;
 static SRWLOCK              g_RWLock;
 #endif
 
+
+#if K_ARCH_BITS == 32 && !defined(_InterlockedCompareExchangePointer)
+/** _InterlockedCompareExchangePointer is missing? (VS2010) */
+K_INLINE void *_InterlockedCompareExchangePointer(void * volatile *ppvDst, void *pvNew, void *pvOld)
+{
+    return (void *)_InterlockedCompareExchange((long volatile *)ppvDst, (intptr_t)pvNew, (intptr_t)pvOld);
+}
+#endif
 
 
 /**
@@ -697,100 +708,15 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, PWINCH
          */
         if (fHaveHandles)
         {
-            /*
-             * Get the PEB address and figure out the child process bit count.
-             */
-            ULONG                     cbActual1 = 0;
-            PROCESS_BASIC_INFORMATION BasicInfo = { 0, 0, };
-            NTSTATUS rcNt = g_pfnNtQueryInformationProcess(ProcInfo.hProcess, ProcessBasicInformation,
-                                                           &BasicInfo, sizeof(BasicInfo), &cbActual1);
-            if (NT_SUCCESS(rcNt))
-            {
-                /*
-                 * Read the user process parameter pointer from the PEB.
-                 *
-                 * Note! Seems WOW64 processes starts out with a 64-bit PEB and
-                 *       process parameter block.
-                 */
-                BOOL const   f32BitPeb  = !g_f64BitHost;
-                ULONG  const cbChildPtr = f32BitPeb ? 4 : 8;
-                PVOID        pvSrcInPeb = (char *)BasicInfo.PebBaseAddress + (f32BitPeb ? 0x10 : 0x20);
-                char *       pbDst      = 0;
-                SIZE_T       cbActual2  = 0;
-                if (ReadProcessMemory(ProcInfo.hProcess, pvSrcInPeb, &pbDst, cbChildPtr, &cbActual2))
-                {
-                    /*
-                     * Duplicate the handles into the child.
-                     */
-                    union
-                    {
-                        ULONGLONG   au64Bit[2];
-                        ULONG       au32Bit[2];
-                    } WriteBuf;
-                    ULONG  idx = 0;
-                    HANDLE hChildStdOut = INVALID_HANDLE_VALUE;
-                    HANDLE hChildStdErr = INVALID_HANDLE_VALUE;
+            char    szErrMsg[128];
+            BOOL    afReplace[3] =
+            { FALSE, pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE, pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE };
+            HANDLE  ahChild[3] =
+            { NULL,  pChild->u.Process.hStdOut,                         pChild->u.Process.hStdErr  };
 
-                    pbDst += (f32BitPeb ? 0x1c : 0x28);
-                    if (pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE)
-                    {
-                        if (DuplicateHandle(GetCurrentProcess(), pChild->u.Process.hStdOut, ProcInfo.hProcess,
-                                            &hChildStdOut, 0, TRUE /*fInheritable*/, DUPLICATE_SAME_ACCESS))
-                        {
-                            if (f32BitPeb)
-                                WriteBuf.au32Bit[idx++] = (DWORD)(uintptr_t)hChildStdOut;
-                            else
-                                WriteBuf.au64Bit[idx++] = (uintptr_t)hChildStdOut;
-                        }
-                        else
-                        {
-                            dwErr = GetLastError();
-                            fprintf(stderr, "Failed to duplicate %p (stdout) into the child: %u\n",
-                                    pChild->u.Process.hStdOut, dwErr);
-                        }
-                    }
-                    else
-                        pbDst += cbChildPtr;
-
-                    if (pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE)
-                    {
-                        if (DuplicateHandle(GetCurrentProcess(), pChild->u.Process.hStdErr, ProcInfo.hProcess,
-                                            &hChildStdErr, 0, TRUE /*fInheritable*/, DUPLICATE_SAME_ACCESS))
-                        {
-                            if (f32BitPeb)
-                                WriteBuf.au32Bit[idx++] = (DWORD)(uintptr_t)hChildStdOut;
-                            else
-                                WriteBuf.au64Bit[idx++] = (uintptr_t)hChildStdOut;
-                        }
-                        else
-                        {
-                            dwErr = GetLastError();
-                            fprintf(stderr, "Failed to duplicate %p (stderr) into the child: %u\n",
-                                    pChild->u.Process.hStdOut, dwErr);
-                        }
-                    }
-
-                    /*
-                     * Finally write the handle values into the child.
-                     */
-                    if (   idx > 0
-                        && !WriteProcessMemory(ProcInfo.hProcess, pbDst, &WriteBuf, idx * cbChildPtr, &cbActual2))
-                    {
-                        dwErr = GetLastError();
-                        fprintf(stderr, "Failed to write %p LB %u into child: %u\n", pbDst, idx * cbChildPtr, dwErr);
-                    }
-                }
-                else
-                {
-                    dwErr = GetLastError();
-                    fprintf(stderr, "Failed to read %p LB %u from the child: %u\n", pvSrcInPeb, cbChildPtr, dwErr);
-                }
-            }
-            else
-            {
-                fprintf(stderr, "NtQueryInformationProcess failed on child: %#x\n", rcNt);
-                dwErr = (DWORD)rcNt;
-            }
+            dwErr = nt_child_inject_standard_handles(ProcInfo.hProcess, afReplace, ahChild, szErrMsg, sizeof(szErrMsg));
+            if (dwErr != 0)
+                fprintf(stderr, "%s\n", szErrMsg);
         }
 
         /*
