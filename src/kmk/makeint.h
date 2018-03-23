@@ -718,6 +718,9 @@ const char *dir_name (const char *);
 void print_dir_data_base (void);
 void dir_setup_glob (glob_t *);
 void hash_init_directories (void);
+#if defined (KMK) && defined (KBUILD_OS_WINDOWS)
+int utf16_regular_file_p(const wchar_t *pwszPath);
+#endif
 
 void define_default_variables (void);
 void undefine_default_variables (void);

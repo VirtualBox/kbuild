@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2967 2016-09-26 18:14:13Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 3184 2018-03-23 22:36:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -54,6 +54,8 @@
 #define KFSCACHE_CFG_MAX_ANSI_NAME          (256*3 + 16)
 /** The max UTF-16 name length. */
 #define KFSCACHE_CFG_MAX_UTF16_NAME         (256*2 + 16)
+/** Enables locking of the cache and thereby making it thread safe. */
+#define KFSCACHE_CFG_LOCKING                1
 
 
 
@@ -374,6 +376,19 @@ typedef struct KFSHASHW
 #endif
 
 
+/** @def KFSCACHE_LOCK
+ *  Locks the cache exclusively. */
+/** @def KFSCACHE_UNLOCK
+ *  Counterpart to KFSCACHE_LOCK. */
+#ifdef KFSCACHE_CFG_LOCKING
+# define KFSCACHE_LOCK(a_pCache)        EnterCriticalSection(&(a_pCache)->u.CritSect)
+# define KFSCACHE_UNLOCK(a_pCache)      LeaveCriticalSection(&(a_pCache)->u.CritSect)
+#else
+# define KFSCACHE_LOCK(a_pCache)        do { } while (0)
+# define KFSCACHE_UNLOCK(a_pCache)      do { } while (0)
+#endif
+
+
 /** @name KFSCACHE_F_XXX
  * @{ */
 /** Whether to cache missing directory entries (KFSOBJ_TYPE_MISSING). */
@@ -438,6 +453,17 @@ typedef struct KFSCACHE
 
     /** The root directory. */
     KFSDIR              RootDir;
+
+#ifdef KFSCACHE_CFG_LOCKING
+    /** Critical section protecting the cache. */
+    union
+    {
+# ifdef _WINBASE_
+        CRITICAL_SECTION    CritSect;
+# endif
+        KU64                abPadding[2 * 4 + 4 * sizeof(void *)];
+    } u;
+#endif
 
     /** File system hash table for ANSI filename strings. */
     PKFSHASHA           apAnsiPaths[KFSCACHE_CFG_PATH_HASH_TAB_SIZE];
