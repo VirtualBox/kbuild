@@ -20,6 +20,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "pathstuff.h"
 #if 1 /* bird */
 # include "nt_fullpath.h"
+# include <assert.h>
 #endif
 
 /*
@@ -94,34 +95,67 @@ convert_Path_to_windows32(char *Path, char to_delim)
 }
 
 /*
+ * Convert to forward slashes directly (w32ify(filename, 0)).
+ */
+char *unix_slashes(char *filename) /* bird */
+{
+    char *slash = filename ;
+    while ((slash = strchr(slash, '\\')) != NULL)
+        *slash++ = '/';
+    return filename;
+}
+
+/*
+ * Resolve and convert to forward slashes directly (w32ify(filename, 1)).
+ * Returns if out of buffer space.
+ */
+char *unix_slashes_resolved(const char *src, char *dst, unsigned len)
+{
+    assert(len >= FILENAME_MAX);
+    *dst = '\0'; /** @todo nt_fullpath_cached needs to return some indication of overflow. */
+#if 1
+    nt_fullpath_cached(src, dst, len);
+#else
+    _fullpath(dst, src, len);
+#endif
+
+    return unix_slashes(dst);
+}
+
+#if 0 /* bird: replaced by unix_slashes and unix_slahes_resolved. */
+/*
  * Convert to forward slashes. Resolve to full pathname optionally
  */
 char *
 w32ify(const char *filename, int resolve)
 {
     static char w32_path[FILENAME_MAX];
-    char *p;
-
 #if 1 /* bird */
+
     if (resolve) {
         nt_fullpath_cached(filename, w32_path, sizeof(w32_path));
     } else {
         w32_path[0] = '\0';
         strncat(w32_path, filename, sizeof(w32_path));
     }
+    return unix_slashes(w32_path);
+
 #else   /* !bird */
+    char *p;
+
     if (resolve) {
         _fullpath(w32_path, filename, sizeof (w32_path));
     } else
         strncpy(w32_path, filename, sizeof (w32_path));
-#endif  /* !bird */
 
     for (p = w32_path; p && *p; p++)
         if (*p == '\\')
             *p = '/';
 
     return w32_path;
+#endif  /* !bird */
 }
+#endif
 
 char *
 getcwd_fs(char* buf, int len)
@@ -129,12 +163,16 @@ getcwd_fs(char* buf, int len)
         char *p = getcwd(buf, len);
 
         if (p) {
+#if 1
+                p = unix_slashes(p);
+#else
                 char *q = w32ify(buf, 0);
 #if 1  /* bird - UPSTREAM? */
-		buf[0] = '\0';
-		strncat(buf, q, len);
+                buf[0] = '\0';
+                strncat(buf, q, len);
 #else  /* !bird */
                 strncpy(buf, q, len);
+#endif
 #endif
         }
 

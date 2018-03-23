@@ -3819,8 +3819,12 @@ construct_command_argv (char *line, char **restp, struct file *file,
      */
     if (shell)
       {
+# if 1 /* bird */
+        unix_slashes (shell);
+# else
         char *p = w32ify (shell, 0);
         strcpy (shell, p);
+# endif
       }
 #endif
 #ifdef __EMX__

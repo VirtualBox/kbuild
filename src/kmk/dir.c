@@ -581,6 +581,7 @@ find_directory (const char *name)
           /* Search the contents hash table; device and inode are the key.  */
 
 #ifdef WINDOWS32
+          PATH_VAR (w32_fullpath);
           char *w32_path;
 #endif
           struct directory_contents *dc;
@@ -589,13 +590,13 @@ find_directory (const char *name)
 
           dc_key.dev = st.st_dev;
 #ifdef WINDOWS32
+          w32_path = unix_slashes_resolved (name, w32_fullpath, GET_PATH_MAX);
 # ifndef CONFIG_WITH_STRCACHE2
-	  dc_key.path_key = w32_path = w32ify (name, 1);
+          dc_key.path_key = w32_path; /* = w32ify (name, 1); - bird */
 # else  /* CONFIG_WITH_STRCACHE2 */
-	  w32_path = w32ify (name, 1);
-	  dc_key.path_key = strcache_add (w32_path);
+          dc_key.path_key = strcache_add (w32_path);
 # endif /* CONFIG_WITH_STRCACHE2 */
-	  dc_key.ctime = st.st_ctime;
+          dc_key.ctime = st.st_ctime;
 #else
 # ifdef VMS_INO_T
           dc_key.ino[0] = st.st_ino[0];
