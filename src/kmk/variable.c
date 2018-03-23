@@ -1695,6 +1695,12 @@ define_automatic_variables (void)
   ulMinor = parse_release_number (&val);
   ulPatch = parse_release_number (&val);
   ul4th   = parse_release_number (&val);
+
+  define_variable_cname ("KBUILD_HOST_UNAME_SYSNAME", uts.sysname, o_default, 0);
+  define_variable_cname ("KBUILD_HOST_UNAME_RELEASE", uts.release, o_default, 0);
+  define_variable_cname ("KBUILD_HOST_UNAME_VERSION", uts.version, o_default, 0);
+  define_variable_cname ("KBUILD_HOST_UNAME_MACHINE", uts.machine, o_default, 0);
+  define_variable_cname ("KBUILD_HOST_UNAME_NODENAME", uts.nodename, o_default, 0);
 #endif
 
   sprintf (buf, "%lu.%lu.%lu.%lu", ulMajor, ulMinor, ulPatch, ul4th);
