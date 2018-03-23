@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 3169 2018-03-21 11:27:47Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 3184 2018-03-23 22:36:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -30,6 +30,7 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
+#include <Windows.h> /* locking */
 #include "nt/kFsCache.h"
 #include "makeint.h"
 #if defined(KMK) && !defined(__OS2__)
@@ -146,24 +147,43 @@ int dir_file_exists_p(const char *pszDir, const char *pszName)
  *
  * @returns 1 if it does exist, 0 if it doesn't.
  * @param   pszPath     The path to check out.
+ * @note    Multi-thread safe.
  */
 int file_exists_p(const char *pszPath)
 {
-    int fRc;
-    if (GetCurrentThreadId() == g_idMainThread)
+    int             fRc;
+    KFSLOOKUPERROR  enmError;
+    PKFSOBJ         pPathObj = kFsCacheLookupA(g_pFsCache, pszPath, &enmError);
+    if (pPathObj)
     {
-        KFSLOOKUPERROR  enmError;
-        PKFSOBJ         pPathObj = kFsCacheLookupA(g_pFsCache, pszPath, &enmError);
-        if (pPathObj)
-        {
-            fRc = pPathObj->bObjType != KFSOBJ_TYPE_MISSING;
-            kFsCacheObjRelease(g_pFsCache, pPathObj);
-        }
-        else
-            fRc = 0;
+        fRc = pPathObj->bObjType != KFSOBJ_TYPE_MISSING;
+        kFsCacheObjRelease(g_pFsCache, pPathObj);
     }
     else
-        fRc = GetFileAttributesA(pszPath) != INVALID_FILE_ATTRIBUTES;
+        fRc = 0;
+    return fRc;
+}
+
+
+/**
+ * Checks if a file exists and is a regular file, given a UTF-16 string.
+ *
+ * @returns 1 if it regular file, 0 if doesn't exist or isn't a file
+ * @param   pwszPath    The UTF-16 path to check out.
+ * @note    Multi-thread safe.
+ */
+int utf16_regular_file_p(const wchar_t *pwszPath)
+{
+    int             fRc;
+    KFSLOOKUPERROR  enmError;
+    PKFSOBJ         pPathObj = kFsCacheLookupW(g_pFsCache, pwszPath, &enmError);
+    if (pPathObj)
+    {
+        fRc = pPathObj->bObjType == KFSOBJ_TYPE_FILE;
+        kFsCacheObjRelease(g_pFsCache, pPathObj);
+    }
+    else
+        fRc = 0;
     return fRc;
 }
 
@@ -482,88 +502,92 @@ void print_dir_data_base(void)
  * Note! Tries avoid to produce a result with spaces since they aren't supported by makefiles.  */
 void nt_fullpath_cached(const char *pszPath, char *pszFull, size_t cbFull)
 {
-    if (GetCurrentThreadId() == g_idMainThread)
+    KFSLOOKUPERROR  enmError;
+    PKFSOBJ         pPathObj;
+
+    KFSCACHE_LOCK(g_pFsCache); /* let's start out being careful. */
+
+    pPathObj = kFsCacheLookupA(g_pFsCache, pszPath, &enmError);
+    if (pPathObj)
     {
-        KFSLOOKUPERROR  enmError;
-        PKFSOBJ         pPathObj = kFsCacheLookupA(g_pFsCache, pszPath, &enmError);
-        if (pPathObj)
+        KSIZE off = pPathObj->cchParent;
+        if (off > 0)
         {
-            KSIZE off = pPathObj->cchParent;
-            if (off > 0)
+            KSIZE offEnd = off + pPathObj->cchName;
+            if (offEnd < cbFull)
             {
-                KSIZE offEnd = off + pPathObj->cchName;
-                if (offEnd < cbFull)
+                PKFSDIR pAncestor;
+
+                pszFull[offEnd] = '\0';
+                memcpy(&pszFull[off], pPathObj->pszName, pPathObj->cchName);
+
+                for (pAncestor = pPathObj->pParent; off > 0; pAncestor = pAncestor->Obj.pParent)
                 {
-                    PKFSDIR pAncestor;
-
-                    pszFull[offEnd] = '\0';
-                    memcpy(&pszFull[off], pPathObj->pszName, pPathObj->cchName);
-
-                    for (pAncestor = pPathObj->pParent; off > 0; pAncestor = pAncestor->Obj.pParent)
+                    kHlpAssert(off > 1);
+                    kHlpAssert(pAncestor != NULL);
+                    kHlpAssert(pAncestor->Obj.cchName > 0);
+                    pszFull[--off] = '/';
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                    if (   pAncestor->Obj.pszName == pAncestor->Obj.pszShortName
+                        || memchr(pAncestor->Obj.pszName, ' ', pAncestor->Obj.cchName) == NULL)
+#endif
                     {
-                        kHlpAssert(off > 1);
-                        kHlpAssert(pAncestor != NULL);
-                        kHlpAssert(pAncestor->Obj.cchName > 0);
-                        pszFull[--off] = '/';
-#ifdef KFSCACHE_CFG_SHORT_NAMES
-                        if (   pAncestor->Obj.pszName == pAncestor->Obj.pszShortName
-                            || memchr(pAncestor->Obj.pszName, ' ', pAncestor->Obj.cchName) == NULL)
-#endif
-                        {
-                            off -= pAncestor->Obj.cchName;
-                            kHlpAssert(pAncestor->Obj.cchParent == off);
-                            memcpy(&pszFull[off], pAncestor->Obj.pszName, pAncestor->Obj.cchName);
-                        }
-#ifdef KFSCACHE_CFG_SHORT_NAMES
-                        else
-                        {
-                            /*
-                             * The long name constains a space, so use the alternative name instead.
-                             * Most likely the alternative name differs in length, usually it's shorter,
-                             * so we have to shift the part of the path we've already assembled
-                             * accordingly.
-                             */
-                            KSSIZE cchDelta = (KSSIZE)pAncestor->Obj.cchShortName - (KSSIZE)pAncestor->Obj.cchName;
-                            if (cchDelta != 0)
-                            {
-                                if ((KSIZE)(offEnd + cchDelta) >= cbFull)
-                                    goto l_fallback;
-                                memmove(&pszFull[off + cchDelta], &pszFull[off], offEnd + 1 - off);
-                                off    += cchDelta;
-                                offEnd += cchDelta;
-                            }
-                            off -= pAncestor->Obj.cchShortName;
-                            kHlpAssert(pAncestor->Obj.cchParent == off);
-                            memcpy(&pszFull[off], pAncestor->Obj.pszShortName, pAncestor->Obj.cchShortName);
-                        }
-#endif
+                        off -= pAncestor->Obj.cchName;
+                        kHlpAssert(pAncestor->Obj.cchParent == off);
+                        memcpy(&pszFull[off], pAncestor->Obj.pszName, pAncestor->Obj.cchName);
                     }
-                    kFsCacheObjRelease(g_pFsCache, pPathObj);
-                    return;
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                    else
+                    {
+                        /*
+                         * The long name constains a space, so use the alternative name instead.
+                         * Most likely the alternative name differs in length, usually it's shorter,
+                         * so we have to shift the part of the path we've already assembled
+                         * accordingly.
+                         */
+                        KSSIZE cchDelta = (KSSIZE)pAncestor->Obj.cchShortName - (KSSIZE)pAncestor->Obj.cchName;
+                        if (cchDelta != 0)
+                        {
+                            if ((KSIZE)(offEnd + cchDelta) >= cbFull)
+                                goto l_fallback;
+                            memmove(&pszFull[off + cchDelta], &pszFull[off], offEnd + 1 - off);
+                            off    += cchDelta;
+                            offEnd += cchDelta;
+                        }
+                        off -= pAncestor->Obj.cchShortName;
+                        kHlpAssert(pAncestor->Obj.cchParent == off);
+                        memcpy(&pszFull[off], pAncestor->Obj.pszShortName, pAncestor->Obj.cchShortName);
+                    }
+#endif
                 }
+                kFsCacheObjRelease(g_pFsCache, pPathObj);
+                KFSCACHE_UNLOCK(g_pFsCache);
+                return;
             }
-            else
+        }
+        else
+        {
+            if ((size_t)pPathObj->cchName + 1 < cbFull)
             {
-                if ((size_t)pPathObj->cchName + 1 < cbFull)
-                {
-                    /* Assume no spaces here. */
-                    memcpy(pszFull, pPathObj->pszName, pPathObj->cchName);
-                    pszFull[pPathObj->cchName] = '/';
-                    pszFull[pPathObj->cchName + 1] = '\0';
+                /* Assume no spaces here. */
+                memcpy(pszFull, pPathObj->pszName, pPathObj->cchName);
+                pszFull[pPathObj->cchName] = '/';
+                pszFull[pPathObj->cchName + 1] = '\0';
 
-                    kFsCacheObjRelease(g_pFsCache, pPathObj);
-                    return;
-                }
+                kFsCacheObjRelease(g_pFsCache, pPathObj);
+                KFSCACHE_UNLOCK(g_pFsCache);
+                return;
             }
+        }
 
-            /* do fallback. */
+        /* do fallback. */
 #ifdef KFSCACHE_CFG_SHORT_NAMES
 l_fallback:
 #endif
-            kHlpAssertFailed();
-            kFsCacheObjRelease(g_pFsCache, pPathObj);
-        }
+        kHlpAssertFailed();
+        kFsCacheObjRelease(g_pFsCache, pPathObj);
     }
+    KFSCACHE_UNLOCK(g_pFsCache);
 
     nt_fullpath(pszPath, pszFull, cbFull);
 }

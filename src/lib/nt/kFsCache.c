@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 3082 2017-10-02 19:23:17Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 3184 2018-03-23 22:36:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -577,6 +577,8 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
     {
         KU8 *pbExtra = (KU8 *)pObj + cbObj;
 
+        KFSCACHE_LOCK(pCache); /** @todo reduce the amount of work done holding the lock */
+
         pCache->cbObjects += cbObj + cbNames;
         pCache->cObjects++;
 
@@ -661,6 +663,8 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
             pDirObj->iLastWrite         = 0;
             pDirObj->fPopulated         = K_FALSE;
         }
+
+        KFSCACHE_UNLOCK(pCache);
     }
     else
         *penmError = KFSLOOKUPERROR_OUT_OF_MEMORY;
@@ -709,6 +713,7 @@ PKFSOBJ kFsCacheCreateObjectW(PKFSCACHE pCache, PKFSDIR pParent, wchar_t const *
                                                    szShortName, sizeof(szShortName) - 1, NULL, NULL)) > 0)
 #endif
         {
+            /* No locking needed here, kFsCacheCreateObject takes care of that. */
             return kFsCacheCreateObject(pCache, pParent,
                                         szName, cchName, pwszName, cwcName,
 #ifdef KFSCACHE_CFG_SHORT_NAMES
@@ -1728,12 +1733,17 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
 KBOOL kFsCacheDirEnsurePopuplated(PKFSCACHE pCache, PKFSDIR pDir, KFSLOOKUPERROR *penmError)
 {
     KFSLOOKUPERROR enmIgnored;
+    KBOOL          fRet;
+    KFSCACHE_LOCK(pCache);
     if (   pDir->fPopulated
         && !pDir->fNeedRePopulating
         && (   pDir->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
             || pDir->Obj.uCacheGen == pCache->auGenerations[pDir->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN]) )
-        return K_TRUE;
-    return kFsCachePopuplateOrRefreshDir(pCache, pDir, penmError ? penmError : &enmIgnored);
+        fRet = K_TRUE;
+    else
+        fRet = kFsCachePopuplateOrRefreshDir(pCache, pDir, penmError ? penmError : &enmIgnored);
+    KFSCACHE_UNLOCK(pCache);
+    return fRet;
 }
 
 
@@ -2759,6 +2769,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
     KU32 off = 0;
     if (ppLastAncestor)
         *ppLastAncestor = NULL;
+    KFSCACHE_LOCK(pCache);
     for (;;)
     {
         PKFSOBJ pChild;
@@ -2797,6 +2808,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
         {
             if (ppLastAncestor)
                 *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+            KFSCACHE_UNLOCK(pCache);
             return NULL;
         }
 
@@ -2817,13 +2829,18 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
             if (cchSlashes == 0 || offEnd + cchSlashes >= cchPath)
             {
                 if (pChild)
-                    return kFsCacheObjRetainInternal(pChild);
+                {
+                    kFsCacheObjRetainInternal(pChild);
+                    KFSCACHE_UNLOCK(pCache);
+                    return pChild;
+                }
                 *penmError = KFSLOOKUPERROR_NOT_FOUND;
             }
             else
                 *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
             if (ppLastAncestor)
                 *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+            KFSCACHE_UNLOCK(pCache);
             return NULL;
         }
 
@@ -2842,9 +2859,12 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
             {
                 if (ppLastAncestor)
                     *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+                KFSCACHE_UNLOCK(pCache);
                 return NULL;
             }
-            return kFsCacheObjRetainInternal(pChild);
+            kFsCacheObjRetainInternal(pChild);
+            KFSCACHE_UNLOCK(pCache);
+            return pChild;
         }
 
         /*
@@ -2858,6 +2878,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_DIR;
             if (ppLastAncestor)
                 *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+            KFSCACHE_UNLOCK(pCache);
             return NULL;
         }
         else if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
@@ -2867,6 +2888,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
             if (ppLastAncestor)
                 *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+            KFSCACHE_UNLOCK(pCache);
             return NULL;
         }
         else if (kFsCacheRefreshMissingIntermediateDir(pCache, pChild, penmError))
@@ -2875,11 +2897,13 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
         {
             if (ppLastAncestor)
                 *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+            KFSCACHE_UNLOCK(pCache);
             return NULL;
         }
     }
 
     /* not reached */
+    KFSCACHE_UNLOCK(pCache);
     return NULL;
 }
 
@@ -2913,6 +2937,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
     KU32 off = 0;
     if (ppLastAncestor)
         *ppLastAncestor = NULL;
+    KFSCACHE_LOCK(pCache);
     for (;;)
     {
         PKFSOBJ pChild;
@@ -2951,6 +2976,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
         {
             if (ppLastAncestor)
                 *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+            KFSCACHE_UNLOCK(pCache);
             return NULL;
         }
 
@@ -2971,13 +2997,18 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
             if (cwcSlashes == 0 || offEnd + cwcSlashes >= cwcPath)
             {
                 if (pChild)
-                    return kFsCacheObjRetainInternal(pChild);
+                {
+                    kFsCacheObjRetainInternal(pChild);
+                    KFSCACHE_UNLOCK(pCache);
+                    return pChild;
+                }
                 *penmError = KFSLOOKUPERROR_NOT_FOUND;
             }
             else
                 *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
             if (ppLastAncestor)
                 *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+            KFSCACHE_UNLOCK(pCache);
             return NULL;
         }
 
@@ -2996,9 +3027,12 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
             {
                 if (ppLastAncestor)
                     *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+                KFSCACHE_UNLOCK(pCache);
                 return NULL;
             }
-            return kFsCacheObjRetainInternal(pChild);
+            kFsCacheObjRetainInternal(pChild);
+            KFSCACHE_UNLOCK(pCache);
+            return pChild;
         }
 
         /*
@@ -3012,6 +3046,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_DIR;
             if (ppLastAncestor)
                 *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+            KFSCACHE_UNLOCK(pCache);
             return NULL;
         }
         else if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
@@ -3022,6 +3057,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
             if (ppLastAncestor)
                 *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+            KFSCACHE_UNLOCK(pCache);
             return NULL;
         }
         else if (kFsCacheRefreshMissingIntermediateDir(pCache, pChild, penmError))
@@ -3030,10 +3066,12 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
         {
             if (ppLastAncestor)
                 *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
+            KFSCACHE_UNLOCK(pCache);
             return NULL;
         }
     }
 
+    KFSCACHE_UNLOCK(pCache);
     return NULL;
 }
 
@@ -3676,9 +3714,13 @@ static PKFSOBJ kFsCacheLookupHashedW(PKFSCACHE pCache, const wchar_t *pwcPath, K
  */
 PKFSOBJ kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *penmError)
 {
-    KU32 uHashPath;
-    KU32 cchPath = (KU32)kFsCacheStrHashEx(pszPath, &uHashPath);
-    return kFsCacheLookupHashedA(pCache, pszPath, cchPath, uHashPath, penmError);
+    KU32    uHashPath;
+    KU32    cchPath = (KU32)kFsCacheStrHashEx(pszPath, &uHashPath);
+    PKFSOBJ pObj;
+    KFSCACHE_LOCK(pCache);
+    pObj = kFsCacheLookupHashedA(pCache, pszPath, cchPath, uHashPath, penmError);
+    KFSCACHE_UNLOCK(pCache);
+    return pObj;
 }
 
 
@@ -3702,9 +3744,13 @@ PKFSOBJ kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *p
  */
 PKFSOBJ kFsCacheLookupW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERROR *penmError)
 {
-    KU32 uHashPath;
-    KU32 cwcPath = (KU32)kFsCacheUtf16HashEx(pwszPath, &uHashPath);
-    return kFsCacheLookupHashedW(pCache, pwszPath, cwcPath, uHashPath, penmError);
+    KU32    uHashPath;
+    KU32    cwcPath = (KU32)kFsCacheUtf16HashEx(pwszPath, &uHashPath);
+    PKFSOBJ pObj;
+    KFSCACHE_LOCK(pCache);
+    pObj = kFsCacheLookupHashedW(pCache, pwszPath, cwcPath, uHashPath, penmError);
+    KFSCACHE_UNLOCK(pCache);
+    return pObj;
 }
 
 
@@ -3730,7 +3776,12 @@ PKFSOBJ kFsCacheLookupW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERRO
  */
 PKFSOBJ kFsCacheLookupWithLengthA(PKFSCACHE pCache, const char *pchPath, KSIZE cchPath, KFSLOOKUPERROR *penmError)
 {
-    return kFsCacheLookupHashedA(pCache, pchPath, (KU32)cchPath, kFsCacheStrHashN(pchPath, cchPath), penmError);
+    KU32    uHashPath = kFsCacheStrHashN(pchPath, cchPath);
+    PKFSOBJ pObj;
+    KFSCACHE_LOCK(pCache);
+    pObj = kFsCacheLookupHashedA(pCache, pchPath, (KU32)cchPath, uHashPath, penmError);
+    KFSCACHE_UNLOCK(pCache);
+    return pObj;
 }
 
 
@@ -3756,7 +3807,12 @@ PKFSOBJ kFsCacheLookupWithLengthA(PKFSCACHE pCache, const char *pchPath, KSIZE c
  */
 PKFSOBJ kFsCacheLookupWithLengthW(PKFSCACHE pCache, const wchar_t *pwcPath, KSIZE cwcPath, KFSLOOKUPERROR *penmError)
 {
-    return kFsCacheLookupHashedW(pCache, pwcPath, (KU32)cwcPath, kFsCacheUtf16HashN(pwcPath, cwcPath), penmError);
+    KU32    uHashPath = kFsCacheUtf16HashN(pwcPath, cwcPath);
+    PKFSOBJ pObj;
+    KFSCACHE_LOCK(pCache);
+    pObj = kFsCacheLookupHashedW(pCache, pwcPath, (KU32)cwcPath, uHashPath, penmError);
+    KFSCACHE_UNLOCK(pCache);
+    return pObj;
 }
 
 
@@ -3774,15 +3830,21 @@ PKFSOBJ kFsCacheLookupWithLengthW(PKFSCACHE pCache, const wchar_t *pwcPath, KSIZ
  */
 PKFSOBJ kFsCacheLookupNoMissingA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *penmError)
 {
-    PKFSOBJ pObj = kFsCacheLookupA(pCache, pszPath, penmError);
+    PKFSOBJ pObj;
+    KFSCACHE_LOCK(pCache); /* probably not necessary */
+    pObj = kFsCacheLookupA(pCache, pszPath, penmError);
     if (pObj)
     {
         if (pObj->bObjType != KFSOBJ_TYPE_MISSING)
+        {
+            KFSCACHE_UNLOCK(pCache);
             return pObj;
+        }
 
         kFsCacheObjRelease(pCache, pObj);
         *penmError = KFSLOOKUPERROR_NOT_FOUND;
     }
+    KFSCACHE_UNLOCK(pCache);
     return NULL;
 }
 
@@ -3801,15 +3863,21 @@ PKFSOBJ kFsCacheLookupNoMissingA(PKFSCACHE pCache, const char *pszPath, KFSLOOKU
  */
 PKFSOBJ kFsCacheLookupNoMissingW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERROR *penmError)
 {
-    PKFSOBJ pObj = kFsCacheLookupW(pCache, pwszPath, penmError);
+    PKFSOBJ pObj;
+    KFSCACHE_LOCK(pCache); /* probably not necessary */
+    pObj = kFsCacheLookupW(pCache, pwszPath, penmError);
     if (pObj)
     {
         if (pObj->bObjType != KFSOBJ_TYPE_MISSING)
+        {
+            KFSCACHE_UNLOCK(pCache);
             return pObj;
+        }
 
         kFsCacheObjRelease(pCache, pObj);
         *penmError = KFSLOOKUPERROR_NOT_FOUND;
     }
+    KFSCACHE_UNLOCK(pCache);
     return NULL;
 }
 
@@ -3827,6 +3895,7 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj, const char *pszWhere)
     kHlpAssert(pObj->cRefs == 0);
     kHlpAssert(pObj->pParent == NULL);
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
+    KFSCACHE_LOCK(pCache);
 
     KFSCACHE_LOG(("Destroying %s/%s, type=%d, pObj=%p, pszWhere=%s\n",
                   pObj->pParent ? pObj->pParent->Obj.pszName : "", pObj->pszName, pObj->bObjType, pObj, pszWhere));
@@ -3890,6 +3959,7 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj, const char *pszWhere)
             break;
 
         default:
+            KFSCACHE_UNLOCK(pCache);
             return 0;
     }
 
@@ -3917,6 +3987,8 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj, const char *pszWhere)
         kHlpFree(pObj->pNameAlloc);
     }
 
+    KFSCACHE_UNLOCK(pCache);
+
     kHlpFree(pObj);
     return 0;
 }
@@ -3938,7 +4010,7 @@ KU32 kFsCacheObjRelease(PKFSCACHE pCache, PKFSOBJ pObj)
         kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
         kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
 
-        cRefs = --pObj->cRefs;
+        cRefs = _InterlockedDecrement(&pObj->cRefs);
         if (cRefs)
             return cRefs;
         return kFsCacheObjDestroy(pCache, pObj, "kFsCacheObjRelease");
@@ -3963,7 +4035,7 @@ KU32 kFsCacheObjReleaseTagged(PKFSCACHE pCache, PKFSOBJ pObj, const char *pszWhe
         kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
         kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
 
-        cRefs = --pObj->cRefs;
+        cRefs = _InterlockedDecrement(&pObj->cRefs);
         if (cRefs)
             return cRefs;
         return kFsCacheObjDestroy(pCache, pObj, pszWhere);
@@ -3984,7 +4056,7 @@ KU32 kFsCacheObjRetain(PKFSOBJ pObj)
     kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
 
-    cRefs = ++pObj->cRefs;
+    cRefs = _InterlockedIncrement(&pObj->cRefs);
     kHlpAssert(cRefs < 16384);
     return cRefs;
 }
@@ -4007,6 +4079,8 @@ KU32 kFsCacheObjRetain(PKFSOBJ pObj)
 PKFSUSERDATA kFsCacheObjAddUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey, KSIZE cbUserData)
 {
     kHlpAssert(cbUserData >= sizeof(*pNew));
+    KFSCACHE_LOCK(pCache);
+
     if (kFsCacheObjGetUserData(pCache, pObj, uKey) == NULL)
     {
         PKFSUSERDATA pNew = (PKFSUSERDATA)kHlpAllocZ(cbUserData);
@@ -4016,10 +4090,12 @@ PKFSUSERDATA kFsCacheObjAddUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey, 
             pNew->pfnDestructor = NULL;
             pNew->pNext         = pObj->pUserDataHead;
             pObj->pUserDataHead = pNew;
+            KFSCACHE_UNLOCK(pCache);
             return pNew;
         }
     }
 
+    KFSCACHE_UNLOCK(pCache);
     return NULL;
 }
 
@@ -4038,10 +4114,16 @@ PKFSUSERDATA kFsCacheObjGetUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey)
 
     kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
+    KFSCACHE_LOCK(pCache);
 
     for (pCur = pObj->pUserDataHead; pCur; pCur = pCur->pNext)
         if (pCur->uKey == uKey)
+        {
+            KFSCACHE_UNLOCK(pCache);
             return pCur;
+        }
+
+    KFSCACHE_UNLOCK(pCache);
     return NULL;
 }
 
@@ -4057,6 +4139,8 @@ PKFSUSERDATA kFsCacheObjGetUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey)
  */
 KBOOL kFsCacheObjGetFullPathA(PKFSOBJ pObj, char *pszPath, KSIZE cbPath, char chSlash)
 {
+    /** @todo No way of to do locking here w/o pCache parameter; need to verify
+     *        that we're only access static data! */
     KSIZE off = pObj->cchParent;
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
     if (off > 0)
@@ -4111,6 +4195,8 @@ KBOOL kFsCacheObjGetFullPathA(PKFSOBJ pObj, char *pszPath, KSIZE cbPath, char ch
  */
 KBOOL kFsCacheObjGetFullPathW(PKFSOBJ pObj, wchar_t *pwszPath, KSIZE cwcPath, wchar_t wcSlash)
 {
+    /** @todo No way of to do locking here w/o pCache parameter; need to verify
+     *        that we're only access static data! */
     KSIZE off = pObj->cwcParent;
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
     if (off > 0)
@@ -4167,6 +4253,8 @@ KBOOL kFsCacheObjGetFullPathW(PKFSOBJ pObj, wchar_t *pwszPath, KSIZE cwcPath, wc
  */
 KBOOL kFsCacheObjGetFullShortPathA(PKFSOBJ pObj, char *pszPath, KSIZE cbPath, char chSlash)
 {
+    /** @todo No way of to do locking here w/o pCache parameter; need to verify
+     *        that we're only access static data! */
     KSIZE off = pObj->cchShortParent;
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
     if (off > 0)
@@ -4221,6 +4309,8 @@ KBOOL kFsCacheObjGetFullShortPathA(PKFSOBJ pObj, char *pszPath, KSIZE cbPath, ch
  */
 KBOOL kFsCacheObjGetFullShortPathW(PKFSOBJ pObj, wchar_t *pwszPath, KSIZE cwcPath, wchar_t wcSlash)
 {
+    /** @todo No way of to do locking here w/o pCache parameter; need to verify
+     *        that we're only access static data! */
     KSIZE off = pObj->cwcShortParent;
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
     if (off > 0)
@@ -4302,6 +4392,7 @@ KBOOL kFsCacheFileSimpleOpenReadClose(PKFSCACHE pCache, PKFSOBJ pFileObj, KU64 o
     UniStr.Length        = (USHORT)(pFileObj->cwcName * sizeof(wchar_t));
     UniStr.MaximumLength = UniStr.Length + sizeof(wchar_t);
 
+/** @todo potential race against kFsCacheInvalidateDeletedDirectoryA   */
     MyInitializeObjectAttributes(&ObjAttr, &UniStr, OBJ_CASE_INSENSITIVE, pFileObj->pParent->hDir, NULL /*pSecAttr*/);
 
     rcNt = g_pfnNtCreateFile(&hFile,
@@ -4353,9 +4444,13 @@ KBOOL kFsCacheFileSimpleOpenReadClose(PKFSCACHE pCache, PKFSOBJ pFileObj, KU64 o
 void kFsCacheInvalidateMissing(PKFSCACHE pCache)
 {
     kHlpAssert(pCache->u32Magic == KFSOBJ_MAGIC);
+    KFSCACHE_LOCK(pCache);
+
     pCache->auGenerationsMissing[0]++;
     kHlpAssert(pCache->uGenerationMissing < KU32_MAX);
+
     KFSCACHE_LOG(("Invalidate missing %#x\n", pCache->auGenerationsMissing[0]));
+    KFSCACHE_UNLOCK(pCache);
 }
 
 
@@ -4367,6 +4462,7 @@ void kFsCacheInvalidateMissing(PKFSCACHE pCache)
 void kFsCacheInvalidateAll(PKFSCACHE pCache)
 {
     kHlpAssert(pCache->u32Magic == KFSOBJ_MAGIC);
+    KFSCACHE_LOCK(pCache);
 
     pCache->auGenerationsMissing[0]++;
     kHlpAssert(pCache->auGenerationsMissing[0] < KU32_MAX);
@@ -4381,6 +4477,7 @@ void kFsCacheInvalidateAll(PKFSCACHE pCache)
     KFSCACHE_LOG(("Invalidate all - default: %#x/%#x,  custom: %#x/%#x\n",
                   pCache->auGenerationsMissing[0], pCache->auGenerations[0],
                   pCache->auGenerationsMissing[1], pCache->auGenerations[1]));
+    KFSCACHE_UNLOCK(pCache);
 }
 
 
@@ -4393,9 +4490,13 @@ void kFsCacheInvalidateAll(PKFSCACHE pCache)
 void kFsCacheInvalidateCustomMissing(PKFSCACHE pCache)
 {
     kHlpAssert(pCache->u32Magic == KFSOBJ_MAGIC);
+    KFSCACHE_LOCK(pCache);
+
     pCache->auGenerationsMissing[1]++;
     kHlpAssert(pCache->auGenerationsMissing[1] < KU32_MAX);
+
     KFSCACHE_LOG(("Invalidate missing custom %#x\n", pCache->auGenerationsMissing[1]));
+    KFSCACHE_UNLOCK(pCache);
 }
 
 
@@ -4409,11 +4510,15 @@ void kFsCacheInvalidateCustomMissing(PKFSCACHE pCache)
 void kFsCacheInvalidateCustomBoth(PKFSCACHE pCache)
 {
     kHlpAssert(pCache->u32Magic == KFSOBJ_MAGIC);
+    KFSCACHE_LOCK(pCache);
+
     pCache->auGenerations[1]++;
     kHlpAssert(pCache->auGenerations[1] < KU32_MAX);
     pCache->auGenerationsMissing[1]++;
     kHlpAssert(pCache->auGenerationsMissing[1] < KU32_MAX);
+
     KFSCACHE_LOG(("Invalidate both custom %#x/%#x\n", pCache->auGenerationsMissing[1], pCache->auGenerations[1]));
+    KFSCACHE_UNLOCK(pCache);
 }
 
 
@@ -4459,10 +4564,12 @@ KBOOL kFsCacheSetupCustomRevisionForTree(PKFSCACHE pCache, PKFSOBJ pRoot)
 {
     if (pRoot)
     {
+        KFSCACHE_LOCK(pCache);
         if (pRoot->bObjType == KFSOBJ_TYPE_DIR)
             kFsCacheApplyFlagsToTree((PKFSDIR)pRoot, KU32_MAX, KFSOBJ_F_USE_CUSTOM_GEN);
         else
             pRoot->fFlags |= KFSOBJ_F_USE_CUSTOM_GEN;
+        KFSCACHE_UNLOCK(pCache);
         return K_TRUE;
     }
     return K_FALSE;
@@ -4481,6 +4588,8 @@ KBOOL kFsCacheInvalidateDeletedDirectoryA(PKFSCACHE pCache, const char *pszDir)
     KU32            cchDir = (KU32)kHlpStrLen(pszDir);
     KFSLOOKUPERROR  enmError;
     PKFSOBJ         pFsObj;
+
+    KFSCACHE_LOCK(pCache);
 
     /* Is absolute without any '..' bits? */
     if (   cchDir >= 3
@@ -4511,7 +4620,8 @@ KBOOL kFsCacheInvalidateDeletedDirectoryA(PKFSCACHE pCache, const char *pszDir)
                 }
                 pDir->fNeedRePopulating = K_TRUE;
                 pDir->Obj.uCacheGen = pCache->auGenerations[pDir->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN] - 1;
-                kFsCacheObjRetainInternal(&pDir->Obj);
+                kFsCacheObjRelease(pCache, &pDir->Obj);
+                KFSCACHE_UNLOCK(pCache);
                 return K_TRUE;
             }
             KFSCACHE_LOG(("kFsCacheInvalidateDeletedDirectoryA: Trying to invalidate a root directory was deleted! %s\n", pszDir));
@@ -4519,10 +4629,11 @@ KBOOL kFsCacheInvalidateDeletedDirectoryA(PKFSCACHE pCache, const char *pszDir)
         else
             KFSCACHE_LOG(("kFsCacheInvalidateDeletedDirectoryA: Trying to invalidate a non-directory: bObjType=%d %s\n",
                           pFsObj->bObjType, pszDir));
-        kFsCacheObjRetainInternal(pFsObj);
+        kFsCacheObjRelease(pCache, pFsObj);
     }
     else
         KFSCACHE_LOG(("kFsCacheInvalidateDeletedDirectoryA: '%s' was not found\n", pszDir));
+    KFSCACHE_UNLOCK(pCache);
     return K_FALSE;
 }
 
@@ -4596,6 +4707,10 @@ PKFSCACHE kFsCacheCreate(KU32 fFlags)
             pCache->cUtf16Paths             = 0;
             pCache->cUtf16PathCollisions    = 0;
             pCache->cbUtf16Paths            = 0;
+#endif
+
+#ifdef KFSCACHE_CFG_LOCKING
+            InitializeCriticalSection(&pCache->u.CritSect);
 #endif
             return pCache;
         }
