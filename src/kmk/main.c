@@ -1237,8 +1237,12 @@ find_and_set_default_shell (const char *token)
     {
       batch_mode_shell = 1;
       unixy_shell = 0;
+# if 1  /* bird: sprintf? wtf. */
+      default_shell = unix_slashes (xstrdup (search_token));
+# else
       sprintf (sh_path, "%s", search_token);
       default_shell = xstrdup (w32ify (sh_path, 0));
+# endif
       DB (DB_VERBOSE, (_("find_and_set_shell() setting default_shell = %s\n"),
                        default_shell));
       sh_found = 1;
@@ -1252,8 +1256,12 @@ find_and_set_default_shell (const char *token)
   else if (_access (search_token, 0) == 0)
     {
       /* search token path was found */
+# if 1  /* bird: sprintf? wtf. */
+      default_shell = unix_slashes (xstrdup (search_token));
+# else
       sprintf (sh_path, "%s", search_token);
       default_shell = xstrdup (w32ify (sh_path, 0));
+# endif
       DB (DB_VERBOSE, (_("find_and_set_shell() setting default_shell = %s\n"),
                        default_shell));
       sh_found = 1;
@@ -1275,10 +1283,18 @@ find_and_set_default_shell (const char *token)
             {
               *ep = '\0';
 
+# if 1 /* bird: insanity insurance */
+              _snprintf (sh_path, GET_PATH_MAX, "%s/%s", p, search_token);
+# else
               sprintf (sh_path, "%s/%s", p, search_token);
+# endif
               if (_access (sh_path, 0) == 0)
                 {
+# if 1  /* bird: we can modify sh_path directly. */
+                  default_shell = xstrdup (unix_slashes (sh_path));
+# else
                   default_shell = xstrdup (w32ify (sh_path, 0));
+# endif
                   sh_found = 1;
                   *ep = PATH_SEPARATOR_CHAR;
 
@@ -1297,10 +1313,18 @@ find_and_set_default_shell (const char *token)
           /* be sure to check last element of Path */
           if (p && *p)
             {
+# if 1 /* bird: insanity insurance */
+              _snprintf (sh_path, GET_PATH_MAX, "%s/%s", p, search_token);
+# else
               sprintf (sh_path, "%s/%s", p, search_token);
+# endif
               if (_access (sh_path, 0) == 0)
                 {
+# if 1  /* bird: we can modify sh_path directly. */
+                  default_shell = xstrdup (unix_slashes (sh_path));
+# else
                   default_shell = xstrdup (w32ify (sh_path, 0));
+# endif
                   sh_found = 1;
                 }
             }
@@ -2125,7 +2149,15 @@ main (int argc, char **argv, char **envp)
    */
   if (strpbrk (argv[0], "/:\\") || strstr (argv[0], "..")
       || strneq (argv[0], "//", 2))
-    argv[0] = xstrdup (w32ify (argv[0], 1));
+# if 1  /* bird */
+    {
+      PATH_VAR (tmp_path_buf);
+      argv[0] = xstrdup (unix_slashes_resolved (argv[0], tmp_path_buf,
+                                                GET_PATH_MAX));
+    }
+# else  /* bird */
+      //argv[0] = xstrdup (w32ify (argv[0], 1));
+# endif /* bird */
 #else /* WINDOWS32 */
 #if defined (__MSDOS__) || defined (__EMX__)
   if (strchr (argv[0], '\\'))

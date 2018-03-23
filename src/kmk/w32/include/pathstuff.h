@@ -19,7 +19,12 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 char *convert_Path_to_windows32(char *Path, char to_delim);
 char *convert_vpath_to_windows32(char *Path, char to_delim);
+#if 1
+char *unix_slashes(char *filename); /* bird */
+char *unix_slashes_resolved(const char *src, char *dst, unsigned len); /* bird */
+#else
 char *w32ify(const char *filename, int resolve);
+#endif
 char *getcwd_fs(char *buf, int len);
 
 #endif

@@ -2865,14 +2865,10 @@ abspath (const char *name, char *apath)
     return NULL;
 
 #ifdef WINDOWS32                                                    /* bird */
-  dest = w32ify((char *)name, 1);
+  dest = unix_slashes_resolved (name, apath, GET_PATH_MAX);
   if (!dest)
     return NULL;
-  {
-  size_t len = strlen(dest);
-  memcpy(apath, dest, len);
-  dest = apath + len;
-  }
+  dest = strchr(apath, '\0');
 
   (void)end; (void)start; (void)apath_limit;
 
