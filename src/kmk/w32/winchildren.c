@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3179 2018-03-22 19:50:04Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3182 2018-03-23 00:41:55Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -606,6 +606,30 @@ static void mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWIN
 
 
 /**
+ * Closes standard handles that need closing before destruction.
+ *
+ * @param   pChild          The child (WINCHILDTYPE_PROCESS).
+ */
+static void mkWinChildcareWorkerCloseStandardHandles(PWINCHILD pChild)
+{
+    if (   pChild->u.Process.fCloseStdOut
+        && pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(pChild->u.Process.hStdOut);
+        pChild->u.Process.hStdOut      = INVALID_HANDLE_VALUE;
+        pChild->u.Process.fCloseStdOut = FALSE;
+    }
+    if (   pChild->u.Process.fCloseStdErr
+        && pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(pChild->u.Process.hStdErr);
+        pChild->u.Process.hStdErr      = INVALID_HANDLE_VALUE;
+        pChild->u.Process.fCloseStdErr = FALSE;
+    }
+}
+
+
+/**
  * Does the actual process creation given.
  *
  * @returns 0 if there is anything to wait on, otherwise non-zero windows error.
@@ -765,21 +789,7 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, PWINCH
     /*
      * Close unnecessary handles.
      */
-    if (   pChild->u.Process.fCloseStdOut
-        && pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE)
-    {
-        CloseHandle(pChild->u.Process.hStdOut);
-        pChild->u.Process.hStdOut      = INVALID_HANDLE_VALUE;
-        pChild->u.Process.fCloseStdOut = FALSE;
-    }
-    if (   pChild->u.Process.fCloseStdErr
-        && pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE)
-    {
-        CloseHandle(pChild->u.Process.hStdErr);
-        pChild->u.Process.hStdErr      = INVALID_HANDLE_VALUE;
-        pChild->u.Process.fCloseStdErr = FALSE;
-    }
-
+    mkWinChildcareWorkerCloseStandardHandles(pChild);
     CloseHandle(ProcInfo.hThread);
     return 0;
 }
@@ -1018,16 +1028,18 @@ static int mkWinChildcareWorkerConvertCommandline(char **papszArgs, unsigned fFl
 
 static int mkWinChildcareWorkerConvertCommandlineWithShell(const WCHAR *pwszShell, char **papszArgs, WCHAR **ppwszCommandLine)
 {
-    return -2;
+    fprintf(stderr, "%s: not found!\n", papszArgs[0]);
+    return ERROR_FILE_NOT_FOUND;
 }
 
 /**
  * Searches the environment block for the PATH variable.
  *
- * @returns Pointer to the path in the block or ".".
+ * @returns Pointer to the path in the block or "." in pwszPathFallback.
  * @param   pwszzEnv            The UTF-16 environment block to search.
+ * @param   pwszPathFallback    Fallback.
  */
-static const WCHAR *mkWinChildcareWorkerFindPathValue(const WCHAR *pwszzEnv)
+static const WCHAR *mkWinChildcareWorkerFindPathValue(const WCHAR *pwszzEnv, WCHAR pwszPathFallback[4])
 {
     while (*pwszzEnv)
     {
@@ -1039,7 +1051,9 @@ static const WCHAR *mkWinChildcareWorkerFindPathValue(const WCHAR *pwszzEnv)
         else
             break;
     }
-    return L".";
+    pwszPathFallback[0] = L'.';
+    pwszPathFallback[1] = L'\0';
+    return pwszPathFallback;
 }
 
 /**
@@ -1087,8 +1101,8 @@ static BOOL mkWinChildcareWorkerCheckIfNeedShell(HANDLE hFile)
  *
  * @returns 0 on success, windows error code on failure.
  * @param   pszArg0         The first argument.
- * @param   pwszPath        The path if mkWinChildcareWorkerConvertEnvironment
- *                          found it.
+ * @param   pwszSearchPath  In case mkWinChildcareWorkerConvertEnvironment
+ *                          had a chance of locating the search path already.
  * @param   pwszzEnv        The environment block, in case we need to look for
  *                          the path.
  * @param   pszShell        The shell.
@@ -1096,7 +1110,7 @@ static BOOL mkWinChildcareWorkerCheckIfNeedShell(HANDLE hFile)
  *                          could be the shell.
  * @param   pfNeedShell     Where to return shell vs direct execution indicator.
  */
-static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR const *pwszPath, WCHAR const *pwszzEnv,
+static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchPath, WCHAR const *pwszzEnv,
                                          const char *pszShell, WCHAR **ppwszImagePath, BOOL *pfNeedShell)
 {
     /** @todo Slap a cache on this code. We usually end up executing the same
@@ -1210,9 +1224,11 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR const *pwszP
          */
         else
         {
-            BOOL fSearchedCwd = FALSE;
-            if (!pwszPath)
-                pwszPath = mkWinChildcareWorkerFindPathValue(pwszzEnv);
+            BOOL  fSearchedCwd = FALSE;
+            WCHAR wszPathFallback[4];
+            if (!pwszSearchPath)
+                pwszSearchPath = (WCHAR *)mkWinChildcareWorkerFindPathValue(pwszzEnv, wszPathFallback);
+
             for (;;)
             {
                 size_t cwcCombined;
@@ -1224,13 +1240,13 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR const *pwszP
                 WCHAR  wcEnd;
                 size_t cwcComponent = 0;
                 WCHAR  wc;
-                while ((wc = pwszPath[cwcComponent]) != L'\0')
+                while ((wc = pwszSearchPath[cwcComponent]) != L'\0')
                 {
                     if (wc != ';' && wc != ':')
                     { /* likely */ }
                     else if (wc == ';')
                         break;
-                    else if (cwcComponent != pwszPath[cwcComponent] != L'"' ? 1 : 2)
+                    else if (cwcComponent != (pwszSearchPath[cwcComponent] != L'"' ? 1 : 2))
                         break;
                    cwcComponent++;
                 }
@@ -1238,16 +1254,16 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR const *pwszP
 
                 /* Trim leading spaces and double quotes. */
                 while (   cwcComponent > 0
-                       && ((wc = *pwszPath) == L'"' || wc == L' ' || wc == L'\t'))
+                       && ((wc = *pwszSearchPath) == L'"' || wc == L' ' || wc == L'\t'))
                 {
-                    pwszPath++;
+                    pwszSearchPath++;
                     cwcComponent--;
                 }
                 cwcSkip = cwcComponent;
 
                 /* Trim trailing spaces & double quotes. */
                 while (   cwcComponent > 0
-                       && ((wc = pwszPath[cwcComponent - 1]) == L'"' || wc == L' ' || wc == L'\t'))
+                       && ((wc = pwszSearchPath[cwcComponent - 1]) == L'"' || wc == L' ' || wc == L'\t'))
                     cwcComponent--;
 
                 /*
@@ -1261,13 +1277,15 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR const *pwszP
 
                     /* Copy the component into wszPathBuf, maybe abspath'ing it. */
                     DWORD  cwcAbsPath = 0;
-                    if (   *pwszPath != L'\\'
-                        && (pwszPath[1] != ':' || pwszPath[2] != L'\\') )
+                    if (   *pwszSearchPath != L'\\'
+                        && (pwszSearchPath[1] != ':' || pwszSearchPath[2] != L'\\') )
                     {
-                        WCHAR const wcSaved = pwszPath[cwcCombined];
-                        *(WCHAR *)&pwszPath[cwcCombined] = '\0'; /* Pointing to our converted buffer, so this is okay for now. */
-                        cwcAbsPath = GetFullPathNameW(pwszPath, MKWINCHILD_MAX_PATH, wszPathBuf, NULL);
-                        *(WCHAR *)&pwszPath[cwcCombined] = wcSaved;
+                        /* To save an extra buffer + copying, we'll temporarily modify the PATH
+                           value in our converted UTF-16 environment block.  */
+                        WCHAR const wcSaved = pwszSearchPath[cwcComponent];
+                        pwszSearchPath[cwcComponent] = L'\0';
+                        cwcAbsPath = GetFullPathNameW(pwszSearchPath, MKWINCHILD_MAX_PATH, wszPathBuf, NULL);
+                        pwszSearchPath[cwcComponent] = wcSaved;
                         if (cwcAbsPath > 0 && cwcAbsPath + 1 + cwcArg0 <= MKWINCHILD_MAX_PATH)
                             cwcCombined = cwcAbsPath + 1 + cwcArg0;
                         else
@@ -1275,7 +1293,7 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR const *pwszP
                     }
                     if (cwcAbsPath == 0)
                     {
-                        memcpy(wszPathBuf, pwszPath, cwcComponent);
+                        memcpy(wszPathBuf, pwszSearchPath, cwcComponent * sizeof(WCHAR));
                         cwcAbsPath = cwcComponent;
                     }
 
@@ -1337,13 +1355,15 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR const *pwszP
                  * Advance to the next component.
                  */
                 if (wcEnd != '\0')
-                    pwszPath += cwcSkip + 1;
+                    pwszSearchPath += cwcSkip + 1;
                 else if (fSearchedCwd)
                     break;
                 else
                 {
                     fSearchedCwd = TRUE;
-                    pwszPath = L".";
+                    wszPathFallback[0] = L'.';
+                    wszPathFallback[1] = L'\0';
+                    pwszSearchPath = wszPathFallback;
                 }
             }
         }
@@ -1353,10 +1373,19 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR const *pwszP
          * image files and such.
          */
         *pfNeedShell = TRUE;
-        cwc = MultiByteToWideChar(CP_ACP, 0 /*fFlags*/, pszShell, strlen(pszShell), wszPathBuf, MKWINCHILD_MAX_PATH);
-        if (cwc > 0)
-            return mkWinChildDuplicateUtf16String(wszPathBuf, cwc, ppwszImagePath);
-        dwErr = GetLastError();
+        if (pszShell)
+        {
+            cwc = MultiByteToWideChar(CP_ACP, 0 /*fFlags*/, pszShell, strlen(pszShell) + 1, wszPathBuf, MKWINCHILD_MAX_PATH);
+            if (cwc > 0)
+                return mkWinChildDuplicateUtf16String(wszPathBuf, cwc, ppwszImagePath);
+            dwErr = GetLastError();
+            fprintf(stderr, _("MultiByteToWideChar failed to convert shell (%s): %u\n"), pszShell, dwErr);
+        }
+        else
+        {
+            fprintf(stderr, "%s: not found!\n", pszArg0);
+            dwErr = ERROR_FILE_NOT_FOUND;
+        }
     }
     else
     {
@@ -1375,20 +1404,20 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR const *pwszP
  *                          sequential in a block.  Otherwise, zero.
  * @param   ppwszEnv        Where to return the pointer to the environment
  *                          block.
- * @param   ppwszPath       Where to return the pointer to the path value within
- *                          the environment block.  This will not be set if
- *                          cbEnvStrings is non-zero, more efficient to let
+ * @param   ppwszSearchPath Where to return the pointer to the path value
+ *                          within the environment block.  This will not be set
+ *                          if cbEnvStrings is non-zero, more efficient to let
  *                          mkWinChildcareWorkerFindImage() search when needed.
  */
 static int mkWinChildcareWorkerConvertEnvironment(char **papszEnv, size_t cbEnvStrings,
-                                                  WCHAR **ppwszEnv, WCHAR const **ppwszPath)
+                                                  WCHAR **ppwszEnv, WCHAR const **ppwszSearchPath)
 {
     DWORD  dwErr;
     int    cwcRc;
     int    cwcDst;
     WCHAR *pwszzDst;
 
-    *ppwszPath = NULL;
+    *ppwszSearchPath = NULL;
 
     /*
      * We've got a little optimization here with help from mkWinChildCopyStringArray.
@@ -1518,7 +1547,7 @@ static int mkWinChildcareWorkerConvertEnvironment(char **papszEnv, size_t cbEnvS
         pwszzDst[offDst++] = '\0';
 
         if (offPathValue != ~(size_t)0)
-            *ppwszPath = &pwszzDst[offPathValue];
+            *ppwszSearchPath = &pwszzDst[offPathValue];
         *ppwszEnv = pwszzDst;
         return 0;
     }
@@ -1534,12 +1563,12 @@ static int mkWinChildcareWorkerConvertEnvironment(char **papszEnv, size_t cbEnvS
  */
 static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild)
 {
-    WCHAR const            *pwszPath         = NULL;
-    WCHAR                  *pwszzEnvironment = NULL;
-    WCHAR                  *pwszCommandLine  = NULL;
-    WCHAR                  *pwszImageName    = NULL;
-    BOOL                    fNeedShell       = FALSE;
-    int                     rc;
+    WCHAR  *pwszSearchPath   = NULL;
+    WCHAR  *pwszzEnvironment = NULL;
+    WCHAR  *pwszCommandLine  = NULL;
+    WCHAR  *pwszImageName    = NULL;
+    BOOL    fNeedShell       = FALSE;
+    int     rc;
 
     /*
      * First we convert the environment so we get the PATH we need to
@@ -1547,13 +1576,13 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
      */
     rc = mkWinChildcareWorkerConvertEnvironment(pChild->u.Process.papszEnv ? pChild->u.Process.papszEnv : environ,
                                                 pChild->u.Process.cbEnvStrings,
-                                                &pwszzEnvironment, &pwszPath);
+                                                &pwszzEnvironment, &pwszSearchPath);
     /*
      * Find the executable and maybe checking if it's a shell script, then
      * convert it to a command line.
      */
     if (rc == 0)
-        rc = mkWinChildcareWorkerFindImage(pChild->u.Process.papszArgs[0], pwszzEnvironment, pwszPath,
+        rc = mkWinChildcareWorkerFindImage(pChild->u.Process.papszArgs[0], pwszSearchPath, pwszzEnvironment,
                                            pChild->u.Process.pszShell, &pwszImageName, &fNeedShell);
     if (rc == 0)
     {
@@ -1586,6 +1615,11 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
     free(pwszCommandLine);
     free(pwszImageName);
     free(pwszzEnvironment);
+
+    /* In case we failed, we must make sure the child end of pipes
+       used by $(shell no_such_command.exe) are closed, otherwise
+       the main thread will be stuck reading the parent end.  */
+    mkWinChildcareWorkerCloseStandardHandles(pChild);
 }
 
 #ifdef KMK
@@ -1953,20 +1987,7 @@ static void mkWinChildDelete(PWINCHILD pChild)
                 CloseHandle(pChild->u.Process.hProcess);
                 pChild->u.Process.hProcess = NULL;
             }
-            if (   pChild->u.Process.fCloseStdOut
-                && pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE)
-            {
-                CloseHandle(pChild->u.Process.hStdOut);
-                pChild->u.Process.hStdOut      = INVALID_HANDLE_VALUE;
-                pChild->u.Process.fCloseStdOut = FALSE;
-            }
-            if (   pChild->u.Process.fCloseStdErr
-                && pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE)
-            {
-                CloseHandle(pChild->u.Process.hStdErr);
-                pChild->u.Process.hStdErr      = INVALID_HANDLE_VALUE;
-                pChild->u.Process.fCloseStdErr = FALSE;
-            }
+            mkWinChildcareWorkerCloseStandardHandles(pChild);
             break;
         }
 
