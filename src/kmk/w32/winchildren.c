@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3182 2018-03-23 00:41:55Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3185 2018-03-23 22:40:03Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -62,6 +62,27 @@
  * on different groups.  This code will try distribute children evenly among the
  * processor groups, using a very simple algorithm (see details in code).
  *
+ *
+ * @todo Output buffering using pipes, finally making 'link' output readable.
+ *
+ *
+ * @section sec_win_children_av     Remarks on Microsoft Defender and other AV
+ *
+ * Part of the motivation for writing this code was horrible CPU utilization on
+ * a brand new AMD Threadripper 1950X system with lots of memory and SSDs,
+ * running 64-bit Windows 10 build 16299.
+ *
+ * Turns out Microsoft defender adds some overhead to CreateProcess
+ * and other stuff:
+ *     - Old make with CreateProcess on main thread:
+ *          - With runtime defender enabled: 14 min  6 seconds
+ *          - With runtime defender disabled: 4 min 49 seconds
+ *     - New make with CreateProcess on worker thread (this code):
+ *          - With runtime defender enabled:  6 min 29 seconds
+ *          - With runtime defender disabled: 4 min 36 seconds
+ *          - With runtime defender disabled out dir only: 5 min 59 seconds
+ *
+ * See also kWorker / kSubmit for more bickering about AV & disk encryption.
  */
 
 
@@ -70,6 +91,7 @@
 *********************************************************************************************************************************/
 #include "../makeint.h"
 #include "../job.h"
+#include "../filedef.h"
 #include "../debug.h"
 #include "../kmkbuiltin.h"
 #include "winchildren.h"
@@ -575,13 +597,17 @@ static int mkWinChildDuplicateUtf16String(const WCHAR *pwszSrc, size_t cwcSrc, W
  * @param   pWorker             The worker.
  * @param   pChild              The child.
  * @param   hProcess            The process handle.
+ * @param   pwszJob             The job name.
  */
-static void mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild, HANDLE hProcess)
+static void mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild, HANDLE hProcess,
+                                               WCHAR const *pwszJob)
 {
+    DWORD const msStart = GetTickCount();
+    DWORD       msNextMsg = msStart + 15000;
     for (;;)
     {
         DWORD dwExitCode = -42;
-        DWORD dwStatus = WaitForSingleObject(hProcess, INFINITE);
+        DWORD dwStatus = WaitForSingleObject(hProcess, 15001 /*ms*/);
         assert(dwStatus != WAIT_FAILED);
         if (dwStatus == WAIT_OBJECT_0)
         {
@@ -592,9 +618,33 @@ static void mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWIN
                 return;
             }
         }
-        else if (   dwStatus == WAIT_IO_COMPLETION
-                 || dwStatus == WAIT_TIMEOUT /* whatever */)
-            continue; /* however unlikely, these aren't fatal. */
+        else if (   dwStatus == WAIT_TIMEOUT /* whatever */
+                 || dwStatus == WAIT_IO_COMPLETION)
+        {
+            DWORD msNow = GetTickCount();
+            if (msNow >= msNextMsg)
+            {
+                if (   !pChild->pMkChild
+                    || !pChild->pMkChild->recursive) /* ignore make recursions */
+                {
+                    if (   !pChild->pMkChild
+                        || !pChild->pMkChild->file
+                        || !pChild->pMkChild->file->name)
+                        printf("Pid %u ('%s') still running after %u seconds\n",
+                               GetProcessId(hProcess), pwszJob, (msNow - msStart) / 1000);
+                    else
+                        printf("Target '%s' (pid %u) still running after %u seconds\n",
+                               pChild->pMkChild->file->name, GetProcessId(hProcess), (msNow - msStart) / 1000);
+                }
+
+                /* After 15s, 30s, 60s, 120s, 180s, ... */
+                if (msNextMsg == msStart + 15000)
+                    msNextMsg += 15000;
+                else
+                    msNextMsg += 30000;
+            }
+            continue;
+        }
 
         /* Something failed. */
         pChild->iExitCode = GetLastError();
@@ -1029,6 +1079,7 @@ static int mkWinChildcareWorkerConvertCommandline(char **papszArgs, unsigned fFl
 static int mkWinChildcareWorkerConvertCommandlineWithShell(const WCHAR *pwszShell, char **papszArgs, WCHAR **ppwszCommandLine)
 {
     fprintf(stderr, "%s: not found!\n", papszArgs[0]);
+//__debugbreak();
     return ERROR_FILE_NOT_FOUND;
 }
 
@@ -1174,47 +1225,52 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
                 DWORD cwcAbsPath = GetFullPathNameW(wszArg0, MKWINCHILD_MAX_PATH, wszPathBuf, NULL);
                 if (cwcAbsPath > 0)
                 {
-                    cwcAbsPath = cwcPath + 1; /* include terminator, like MultiByteToWideChar does. */
+                    cwcPath  = cwcAbsPath + 1; /* include terminator, like MultiByteToWideChar does. */
                     pwszPath = wszPathBuf;
                 }
             }
 
             /*
-             * If there is an exectuable path, we only need to check that it exists.
+             * Check with .exe suffix first.
+             * We don't open .exe files and look for hash bang stuff, we just
+             * assume they are executable images that CreateProcess can deal with.
              */
-            if (fHasExeSuffix)
+            if (!fHasExeSuffix)
             {
-                DWORD dwAttribs = GetFileAttributesW(pwszPath);
-                if (dwAttribs != INVALID_FILE_ATTRIBUTES)
-                    return mkWinChildDuplicateUtf16String(pwszPath, cwcPath + 4, ppwszImagePath);
+                pwszPath[cwcPath - 1] = L'.';
+                pwszPath[cwcPath    ] = L'e';
+                pwszPath[cwcPath + 1] = L'x';
+                pwszPath[cwcPath + 2] = L'e';
+                pwszPath[cwcPath + 3] = L'\0';
             }
-            else
+
+#ifdef KMK
+            if (utf16_regular_file_p(pwszPath))
+#else
+            if (GetFileAttributesW(pwszPath) != INVALID_FILE_ATTRIBUTES)
+#endif
+                return mkWinChildDuplicateUtf16String(pwszPath, cwcPath + 4, ppwszImagePath);
+
+            /*
+             * If no suffix was specified, try without .exe too, but now we need
+             * to see if it's for the shell or CreateProcess.
+             */
+            if (!fHasExeSuffix)
             {
-                /*
-                 * No suffix, so try open it first to see if it's shell fooder.
-                 * Otherwise, append a .exe suffix and check if it exists.
-                 */
-                hFile = CreateFileW(pwszPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
-                                    NULL /*pSecAttr*/, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-                if (hFile != INVALID_HANDLE_VALUE)
+                pwszPath[cwcPath - 1] = L'\0';
+#ifdef KMK
+                if (utf16_regular_file_p(pwszPath))
+#endif
                 {
-                    *pfNeedShell = mkWinChildcareWorkerCheckIfNeedShell(hFile);
-                    CloseHandle(hFile);
-                    if (!*pfNeedShell)
-                        return mkWinChildDuplicateUtf16String(pwszPath, cwcPath, ppwszImagePath);
-                }
-                /* Append the .exe suffix and check if it exists. */
-                else
-                {
-                    DWORD dwAttribs;
-                    pwszPath[cwcPath - 1] = L'.';
-                    pwszPath[cwcPath    ] = L'e';
-                    pwszPath[cwcPath + 1] = L'x';
-                    pwszPath[cwcPath + 2] = L'e';
-                    pwszPath[cwcPath + 3] = L'\0';
-                    dwAttribs = GetFileAttributesW(pwszPath);
-                    if (dwAttribs != INVALID_FILE_ATTRIBUTES)
-                        return mkWinChildDuplicateUtf16String(pwszPath, cwcPath + 4, ppwszImagePath);
+                    hFile = CreateFileW(pwszPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+                                        NULL /*pSecAttr*/, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                    if (hFile != INVALID_HANDLE_VALUE)
+                    {
+                        *pfNeedShell = mkWinChildcareWorkerCheckIfNeedShell(hFile);
+                        CloseHandle(hFile);
+                        if (!*pfNeedShell)
+                            return mkWinChildDuplicateUtf16String(pwszPath, cwcPath, ppwszImagePath);
+                    }
                 }
             }
         }
@@ -1273,7 +1329,9 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
                 cwcCombined = cwcComponent + 1 + cwcArg0;
                 if (cwcComponent > 0 && cwcCombined <= MKWINCHILD_MAX_PATH)
                 {
+#ifndef KMK
                     DWORD dwAttribs;
+#endif
 
                     /* Copy the component into wszPathBuf, maybe abspath'ing it. */
                     DWORD  cwcAbsPath = 0;
@@ -1326,27 +1384,35 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
                         wszPathBuf[cwcCombined + 2] = L'e';
                         wszPathBuf[cwcCombined + 3] = L'\0';
                     }
+#ifdef KMK
+                    if (utf16_regular_file_p(wszPathBuf))
+#else
                     dwAttribs = GetFileAttributesW(wszPathBuf);
                     if (   dwAttribs != INVALID_FILE_ATTRIBUTES
                         && !(dwAttribs & FILE_ATTRIBUTE_DIRECTORY))
+#endif
                         return mkWinChildDuplicateUtf16String(wszPathBuf, cwcCombined + (fHasExeSuffix ? 0 : 4), ppwszImagePath);
                     if (!fHasExeSuffix)
                     {
                         wszPathBuf[cwcCombined - 1] = L'\0';
-
-                        /*
-                         * Check if the file exists w/o the added '.exe' suffix.  If it does,
-                         * we need to check if we can pass it to CreateProcess or need the shell.
-                         */
-                        hFile = CreateFileW(wszPathBuf, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
-                                            NULL /*pSecAttr*/, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-                        if (hFile != INVALID_HANDLE_VALUE)
+#ifdef KMK
+                        if (utf16_regular_file_p(wszPathBuf))
+#endif
                         {
-                            *pfNeedShell = mkWinChildcareWorkerCheckIfNeedShell(hFile);
-                            CloseHandle(hFile);
-                            if (!*pfNeedShell)
-                                return mkWinChildDuplicateUtf16String(wszPathBuf, cwcCombined, ppwszImagePath);
-                            break;
+                            /*
+                             * Check if the file exists w/o the added '.exe' suffix.  If it does,
+                             * we need to check if we can pass it to CreateProcess or need the shell.
+                             */
+                            hFile = CreateFileW(wszPathBuf, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+                                                NULL /*pSecAttr*/, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                            if (hFile != INVALID_HANDLE_VALUE)
+                            {
+                                *pfNeedShell = mkWinChildcareWorkerCheckIfNeedShell(hFile);
+                                CloseHandle(hFile);
+                                if (!*pfNeedShell)
+                                    return mkWinChildDuplicateUtf16String(wszPathBuf, cwcCombined, ppwszImagePath);
+                                break;
+                            }
                         }
                     }
                 }
@@ -1384,6 +1450,7 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
         else
         {
             fprintf(stderr, "%s: not found!\n", pszArg0);
+//__debugbreak();
             dwErr = ERROR_FILE_NOT_FOUND;
         }
     }
@@ -1602,7 +1669,7 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
                 /*
                  * Wait for the child to complete.
                  */
-                mkWinChildcareWorkerWaitForProcess(pWorker, pChild, pChild->u.Process.hProcess);
+                mkWinChildcareWorkerWaitForProcess(pWorker, pChild, pChild->u.Process.hProcess, pwszImageName);
             }
             else
                 pChild->iExitCode = rc;
@@ -1719,7 +1786,7 @@ static void mkWinChildcareWorkerThreadHandleSubmit(PWINCHILDCAREWORKER pWorker, 
  */
 static void mkWinChildcareWorkerThreadHandleRedirect(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild)
 {
-    mkWinChildcareWorkerWaitForProcess(pWorker, pChild, pChild->u.Redirect.hProcess);
+    mkWinChildcareWorkerWaitForProcess(pWorker, pChild, pChild->u.Redirect.hProcess, L"kmk_redirect");
 }
 
 #endif /* KMK */
@@ -1925,9 +1992,12 @@ static char **mkWinChildCopyStringArray(char **papszSrc, size_t *pcbStrings)
     /* Copy it. */
     for (i = 0; i < cStrings; i++)
     {
-        size_t cbString = strlen(papszSrc[i]) + 1;
-        papszDstArray[i] = (char *)memcpy(pszDstStr, papszSrc[i], cbString);
-        pszDstStr += cbString;
+        const char *pszSource = papszSrc[i];
+        size_t      cchString = strlen(pszSource);
+        papszDstArray[i] = pszDstStr;
+        memcpy(pszDstStr, pszSource, cchString);
+        pszDstStr += cchString;
+        *pszDstStr++ = '\0';
     }
     *pszDstStr = '\0';
     assert(&pszDstStr[1] - papszDstArray[0] == cbStrings);
@@ -2144,7 +2214,7 @@ static int mkWinChildPushToCareWorker(PWINCHILD pChild, pid_t *pPid)
             dwErr = GetLastError();
             assert(0);
             mkWinChildDelete(pChild);
-            return dwErr ? dwErr : -1;
+            return dwErr ? dwErr : -20;
         }
         pOldChild = pCurChild;
     }
@@ -2361,7 +2431,7 @@ int MkWinChildCreateRedirect(intptr_t hProcess, pid_t *pPid)
 /**
  * Interface used to kill process when processing Ctrl-C and fatal errors.
  *
- * @returns 0 on success, -1+errno on error.
+ * @returns 0 on success, -1 & errno on error.
  * @param   pid                 The process to kill (PWINCHILD).
  * @param   iSignal             What to kill it with.
  * @param   pMkChild            The make child structure for validation.
