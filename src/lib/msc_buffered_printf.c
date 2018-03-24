@@ -1,4 +1,4 @@
-/* $Id: msc_buffered_printf.c 2967 2016-09-26 18:14:13Z knut.osmundsen@oracle.com $ */
+/* $Id: msc_buffered_printf.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * printf, vprintf, fprintf, puts, fputs console optimizations for Windows/MSC.
  */
@@ -38,6 +38,7 @@
 #include <io.h>
 #include <conio.h>
 #include <malloc.h>
+#include "console.h"
 
 #undef printf
 #undef vprintf
@@ -52,7 +53,6 @@
 # define DLL_IMPORT
 #endif
 
-extern size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, FILE *pFile);
 
 
 /**
@@ -93,7 +93,7 @@ int __cdecl vprintf(const char *pszFormat, va_list va)
         int fd = fileno(stdout);
         if (fd >= 0)
         {
-            if (isatty(fd))
+            if (is_console(fd))
             {
                 char *pszTmp = (char *)alloca(16384);
                 va_list va2 = va;
@@ -134,7 +134,7 @@ int __cdecl fprintf(FILE *pFile, const char *pszFormat, ...)
         int fd = fileno(pFile);
         if (fd >= 0)
         {
-            if (isatty(fd))
+            if (is_console(fd))
             {
                 char *pszTmp = (char *)alloca(16384);
                 if (pszTmp)
@@ -181,7 +181,7 @@ int __cdecl puts(const char *pszString)
         int fd = fileno(stdout);
         if (fd >= 0)
         {
-            if (isatty(fd))
+            if (is_console(fd))
             {
                 HANDLE hCon = (HANDLE)_get_osfhandle(fd);
                 if (   hCon != INVALID_HANDLE_VALUE

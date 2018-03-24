@@ -1,10 +1,10 @@
-/* $Id: maybe_con_write.c 3065 2017-09-30 12:52:35Z knut.osmundsen@oracle.com $ */
+/* $Id: maybe_con_write.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * maybe_con_write - Optimized console output on windows.
  */
 
 /*
- * Copyright (c) 2016 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2016-2018 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,17 +32,15 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
+#include "console.h"
 #ifdef KBUILD_OS_WINDOWS
 # include <windows.h>
 #endif
 #include <errno.h>
 #ifdef _MSC_VER
-# include <io.h>
 # include <conio.h>
-typedef intptr_t ssize_t;
 typedef unsigned int to_write_t;
 #else
-# include <unistd.h>
 typedef size_t to_write_t;
 #endif
 
@@ -55,38 +53,43 @@ typedef size_t to_write_t;
  * @param   pvBuf               What to write.
  * @param   cbToWrite           How much to write.
  */
-ssize_t maybe_con_write(int fd, void *pvBuf, size_t cbToWrite)
+ssize_t maybe_con_write(int fd, void const *pvBuf, size_t cbToWrite)
 {
     ssize_t cbWritten;
+
 #ifdef KBUILD_OS_WINDOWS
     /*
      * If it's a TTY, do our own conversion to wide char and
      * call WriteConsoleW directly.
      */
-    if (cbToWrite > 0 && isatty(fd))
+    if (cbToWrite > 0)
     {
         HANDLE hCon = (HANDLE)_get_osfhandle(fd);
         if (   hCon != INVALID_HANDLE_VALUE
             && hCon != NULL)
         {
-            size_t   cwcTmp  = cbToWrite * 2 + 16;
-            wchar_t *pawcTmp = (wchar_t *)malloc(cwcTmp * sizeof(wchar_t));
-            if (pawcTmp)
+            if (is_console_handle((intptr_t)hCon))
             {
-                int           cwcToWrite;
-                static UINT s_uConsoleCp = 0;
-                if (s_uConsoleCp == 0)
-                    s_uConsoleCp = GetConsoleCP();
-
-                cwcToWrite = MultiByteToWideChar(s_uConsoleCp, 0 /*dwFlags*/, pvBuf, (int)cbToWrite, pawcTmp, (int)(cwcTmp - 1));
-                if (cwcToWrite > 0)
+                size_t   cwcTmp  = cbToWrite * 2 + 16;
+                wchar_t *pawcTmp = (wchar_t *)malloc(cwcTmp * sizeof(wchar_t));
+                if (pawcTmp)
                 {
-                    /* Let the CRT do the rest.  At least the Visual C++ 2010 CRT
-                       sources indicates _cputws will do the right thing we want.  */
-                    pawcTmp[cwcToWrite] = '\0';
-                    if (_cputws(pawcTmp) >= 0)
-                        return cbToWrite;
-                    return -1;
+                    int           cwcToWrite;
+                    static UINT s_uConsoleCp = 0;
+                    if (s_uConsoleCp == 0)
+                        s_uConsoleCp = GetConsoleCP();
+
+                    cwcToWrite = MultiByteToWideChar(s_uConsoleCp, 0 /*dwFlags*/, pvBuf, (int)cbToWrite,
+                                                     pawcTmp, (int)(cwcTmp - 1));
+                    if (cwcToWrite > 0)
+                    {
+                        /* Let the CRT do the rest.  At least the Visual C++ 2010 CRT
+                           sources indicates _cputws will do the right thing.  */
+                        pawcTmp[cwcToWrite] = '\0';
+                        if (_cputws(pawcTmp) >= 0)
+                            return cbToWrite;
+                        return -1;
+                    }
                 }
             }
         }
@@ -114,3 +117,4 @@ ssize_t maybe_con_write(int fd, void *pvBuf, size_t cbToWrite)
     }
     return cbWritten;
 }
+

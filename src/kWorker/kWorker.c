@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3089 2017-10-04 13:10:41Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -55,6 +55,7 @@
 #include "nt_fullpath.h"
 #include "quote_argv.h"
 #include "md5.h"
+#include "console.h"
 
 #include "../kmk/kmkbuiltin.h"
 
@@ -10715,7 +10716,6 @@ static void kwPrintStats(void)
     char  sz2[64];
     char  sz3[64];
     char  sz4[64];
-    extern size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, FILE *pFile);
 
     sprintf(szPrf, "%5d/%u:", getpid(), K_ARCH_BITS);
 
