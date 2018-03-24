@@ -1,4 +1,4 @@
-/* $Id: err.c 3065 2017-09-30 12:52:35Z knut.osmundsen@oracle.com $ */
+/* $Id: err.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * Override err.h so we get the program name right.
  */
@@ -35,9 +35,9 @@
 
 #ifdef KBUILD_OS_WINDOWS
 /* This is a trick to speed up console output on windows. */
+# include "console.h"
 # undef fwrite
 # define fwrite maybe_con_fwrite
-extern size_t maybe_con_fwrite(void const *, size_t, size_t, FILE *);
 #endif
 
 

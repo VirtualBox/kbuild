@@ -38,7 +38,7 @@
 #include "utils.h"
 
 #ifdef KBUILD_OS_WINDOWS /* bird: Way faster console output! */
-extern size_t maybe_con_fwrite(void const *, size_t, size_t, FILE *);
+# include "console.h"
 # define fwrite maybe_con_fwrite
 #endif
 

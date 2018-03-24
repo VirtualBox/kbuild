@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3179 2018-03-22 19:50:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -40,6 +40,7 @@ kUtil_SOURCES = \
 	md5.c \
 	maybe_con_write.c \
 	maybe_con_fwrite.c \
+	is_console.c \
        dos2unix.c \
 	kbuild_version.c
 kUtil_SOURCES.win = \

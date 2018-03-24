@@ -42,6 +42,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #  include "w32/winchildren.h"
 # endif
 #endif /* WINDOWS32 */
+#ifdef KBUILD_OS_WINDOWS
+# include "console.h"
+#endif
 
 struct output *output_context = NULL;
 unsigned int stdio_traced = 0;
@@ -65,7 +68,6 @@ _outputs (struct output *out, int is_err, const char *msg)
       FILE *f = is_err ? stderr : stdout;
 #ifdef KBUILD_OS_WINDOWS
       /** @todo check if fputs is also subject to char-by-char stupidity */
-      extern size_t maybe_con_fwrite(void const *, size_t, size_t, FILE *);
       maybe_con_fwrite(msg, strlen(msg), 1, f);
 #else
       fputs (msg, f);

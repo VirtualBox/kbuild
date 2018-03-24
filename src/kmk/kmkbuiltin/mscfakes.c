@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -44,7 +44,8 @@
 #undef utimes
 #undef lutimes
 
-extern ssize_t maybe_con_write(int, void const *, size_t);
+#include "console.h"
+
 
 
 /*******************************************************************************
@@ -476,7 +477,7 @@ ssize_t msc_write(int fd, const void *pvSrc, size_t cbSrc)
     if (cbSrc <= MSC_WRITE_MAX_CHUNK)
     {
         /* Console output optimization: */
-        if (cbSrc > 0 && isatty(fd))
+        if (cbSrc > 0 && is_console(fd))
             return maybe_con_write(fd, pvSrc, cbSrc);
 
 #ifndef MSC_WRITE_TEST
@@ -585,14 +586,47 @@ ssize_t msc_write(int fd, const void *pvSrc, size_t cbSrc)
 
 ssize_t writev(int fd, const struct iovec *vector, int count)
 {
-    int size = 0;
-    int i;
-    for (i = 0; i < count; i++)
+    ssize_t size = 0;
+    if (count > 0)
     {
-        int cb = msc_write(fd, vector[i].iov_base, (int)vector[i].iov_len);
-        if (cb < 0)
-            return cb;
-        size += cb;
+        int i;
+
+        /* To get consistent console output, we must try combine the segments
+           when outputing to the console. */
+        if (count > 1 && is_console(fd))
+        {
+            char   *pbTmp;
+            ssize_t cbTotal;
+            if (count == 1)
+                return maybe_con_write(fd, vector[0].iov_base, (int)vector[0].iov_len);
+
+            cbTotal = 0;
+            for (i = 0; i < count; i++)
+                cbTotal += vector[i].iov_len;
+            pbTmp = malloc(cbTotal);
+            if (pbTmp)
+            {
+                char *pbCur = pbTmp;
+                for (i = 0; i < count; i++)
+                {
+                    memcpy(pbCur, vector[i].iov_base, vector[i].iov_len);
+                    pbCur += vector[i].iov_len;
+                }
+                size = maybe_con_write(fd, pbTmp, cbTotal);
+                free(pbTmp);
+                return size;
+            }
+
+            /* fall back on segment by segment output. */
+        }
+
+        for (i = 0; i < count; i++)
+        {
+            int cb = msc_write(fd, vector[i].iov_base, (int)vector[i].iov_len);
+            if (cb < 0)
+                return cb;
+            size += cb;
+        }
     }
     return size;
 }

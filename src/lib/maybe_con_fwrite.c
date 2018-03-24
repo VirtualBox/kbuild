@@ -1,10 +1,10 @@
-/* $Id: maybe_con_fwrite.c 2906 2016-09-09 22:15:57Z knut.osmundsen@oracle.com $ */
+/* $Id: maybe_con_fwrite.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * maybe_con_write - Optimized console output on windows.
  */
 
 /*
- * Copyright (c) 2016 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2016-2018 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,16 +32,14 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
+#include "console.h"
 #ifdef KBUILD_OS_WINDOWS
 # include <windows.h>
 #endif
 #include <errno.h>
-#include <stdio.h>
 #ifdef _MSC_VER
-# include <io.h>
 # include <conio.h>
 #endif
-
 
 
 /**
@@ -68,11 +66,11 @@ size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, FILE *p
         int fd = fileno(pFile);
         if (fd >= 0)
         {
-            if (isatty(fd))
+            HANDLE hCon = (HANDLE)_get_osfhandle(fd);
+            if (   hCon != INVALID_HANDLE_VALUE
+                && hCon != NULL)
             {
-                HANDLE hCon = (HANDLE)_get_osfhandle(fd);
-                if (   hCon != INVALID_HANDLE_VALUE
-                    && hCon != NULL)
+                if (is_console_handle((intptr_t)hCon))
                 {
                     size_t   cbToWrite = cbUnit * cUnits;
                     size_t   cwcTmp    = cbToWrite * 2 + 16;
@@ -84,14 +82,15 @@ size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, FILE *p
                         if (s_uConsoleCp == 0)
                             s_uConsoleCp = GetConsoleCP();
 
-                        cwcToWrite = MultiByteToWideChar(s_uConsoleCp, 0 /*dwFlags*/, pvBuf, (int)cbToWrite, pawcTmp, (int)(cwcTmp - 1));
+                        cwcToWrite = MultiByteToWideChar(s_uConsoleCp, 0 /*dwFlags*/, pvBuf, (int)cbToWrite,
+                                                         pawcTmp, (int)(cwcTmp - 1));
                         if (cwcToWrite > 0)
                         {
                             int rc;
                             pawcTmp[cwcToWrite] = '\0';
 
                             /* Let the CRT do the rest.  At least the Visual C++ 2010 CRT
-                               sources indicates _cputws will do the right thing we want.  */
+                               sources indicates _cputws will do the right thing.  */
                             fflush(pFile);
                             rc = _cputws(pawcTmp);
                             free(pawcTmp);
@@ -112,3 +111,4 @@ size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, FILE *p
      */
     return fwrite(pvBuf, cbUnit, cUnits, pFile);
 }
+
