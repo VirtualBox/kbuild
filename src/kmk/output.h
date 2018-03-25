@@ -14,10 +14,46 @@ A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
+/*  Output run. */
+struct output_run
+{
+    unsigned int seqno;         /* For interleaving out/err output. */
+    unsigned int len;           /* The length of the output. */
+    struct output_run *next;    /* Pointer to the next run. */
+};
+
+/* Output segment. */
+struct output_segment
+{
+    struct output_segment *next;
+    size_t size;                 /* Segment size, everything included. */
+    struct output_run runs[1];
+};
+
+/* Output memory buffer. */
+struct output_membuf
+{
+    struct output_run     *head_run;
+    struct output_run     *tail_run; /* Always in tail_seg. */
+    struct output_segment *head_seg;
+    struct output_segment *tail_seg;
+    size_t left;                /* Number of bytes that can be appended to
+                                   the tail_run.  */
+    size_t total;               /* Total segment allocation size.  */
+};
+#endif /* CONFIG_WITH_OUTPUT_IN_MEMORY */
+
 struct output
   {
+#ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
+    struct output_membuf out;
+    struct output_membuf err;
+    unsigned int seqno;         /* The current run sequence number. */
+#else
     int out;
     int err;
+#endif
     unsigned int syncout:1;     /* True if we want to synchronize output.  */
  };
 

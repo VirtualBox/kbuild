@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3189 2018-03-25 17:05:19Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -221,7 +221,7 @@ kmk_DEFS = \
 # kmk_DEFS += CONFIG_WITH_COMPILER  # experimental, doesn't work 101% right it seems.
 kmk_DEFS.x86 = CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.amd64 = CONFIG_WITH_OPTIMIZATION_HACKS
-kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT
+kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT CONFIG_WITH_OUTPUT_IN_MEMORY
 kmk_DEFS.debug = CONFIG_WITH_MAKE_STATS
 ifdef CONFIG_WITH_MAKE_STATS
  kmk_DEFS += CONFIG_WITH_MAKE_STATS
