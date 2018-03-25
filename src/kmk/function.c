@@ -2560,8 +2560,12 @@ func_shell_base (char *o, char **argv, int trim_newlines)
   /* Set up the output in case the shell writes something.  */
   output_start ();
 
+#ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
+  errfd = -1; /** @todo fixme */
+#else
   errfd = (output_context && output_context->err >= 0
            ? output_context->err : FD_STDERR);
+#endif
 
 #if defined(__MSDOS__)
   fpipe = msdos_openpipe (pipedes, &pid, argv[0]);
