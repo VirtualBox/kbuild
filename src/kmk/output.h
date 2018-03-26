@@ -79,6 +79,10 @@ void output_start (void);
 
 /* Show a message on stdout or stderr.  Will start the output if needed.  */
 void outputs (int is_err, const char *msg);
+#ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
+void output_write_bin (struct output *out, int is_err, const char *src, size_t len);
+void output_write_text (struct output *out, int is_err, const char *src, size_t len);
+#endif
 
 #ifndef NO_OUTPUT_SYNC
 int output_tmpfd (void);
