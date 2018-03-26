@@ -71,6 +71,10 @@ static void *acquire_semaphore (void);
 static void  release_semaphore (void *);
 static int   log_working_directory (int);
 
+/* Is make's stdout going to the same place as stderr?
+   Also, did we already sync_init (== -1)?  */
+static int combined_output = -1;
+
 /* Internal worker for output_dump and membuf_dump_most. */
 static void membuf_dump (struct output *out)
 {
@@ -317,20 +321,27 @@ membuf_dump_most (struct output *out)
   /** @todo check last segment and make local copies.   */
   membuf_dump (out);
 }
+
 
-/* write/fwrite like function. */
+/* write/fwrite like function, binary mode. */
 void
-output_write (struct output *out, int is_err, const char *src, size_t len)
+output_write_bin (struct output *out, int is_err, const char *src, size_t len)
 {
   if (!out || !out->syncout)
     {
       FILE *f = is_err ? stderr : stdout;
-#ifdef KBUILD_OS_WINDOWS
+# ifdef KBUILD_OS_WINDOWS
+      /* On windows we need to disable \n -> \r\n convers that is common on
+         standard output/error.  Also optimize for console output. */
+      int fd = fileno (f);
+      int prev_mode = _setmode (fd, _O_BINARY);
       maybe_con_fwrite (src, len, 1, f);
-#else
-      fwrite (src, len, 1, f);
-#endif
       fflush (f);
+      _setmode (fd, prev_mode);
+# else
+      fwrite (src, len, 1, f);
+      fflush (f);
+# endif
     }
   else
     {
@@ -353,6 +364,42 @@ output_write (struct output *out, int is_err, const char *src, size_t len)
     }
 }
 
+/* write/fwrite like function, text mode. */
+void
+output_write_text (struct output *out, int is_err, const char *src, size_t len)
+{
+# if defined (KBUILD_OS_WINDOWS) || defined (KBUILD_OS_OS2) || defined (KBUILD_OS_DOS)
+  if (out && out->syncout)
+    {
+      /* ASSUME fwrite does the desired conversion. */
+      FILE *f = is_err ? stderr : stdout;
+# ifdef KBUILD_OS_WINDOWS
+      maybe_con_fwrite (src, len, 1, f);
+# else
+      fwrite (src, len, 1, f);
+# endif
+      fflush (f);
+    }
+  else
+    {
+      /* Work the buffer line by line, replacing each \n with \r\n. */
+      while (len > 0)
+        {
+          const char *nl = memchr ( src, '\n', len);
+          size_t line_len = nl ? nl - src : len;
+          output_write_bin (out, is_err, src, line_len);
+          if (!nl)
+              break;
+          output_write_bin (out, is_err, "\r\n", 2);
+          len -= line_len + 1;
+          src += line_len + 1;
+        }
+    }
+# else
+  output_write_bin (out, is_err, src, len);
+# endif
+}
+
 #endif /* CONFIG_WITH_OUTPUT_IN_MEMORY */
 
 
@@ -361,7 +408,7 @@ static void
 _outputs (struct output *out, int is_err, const char *msg)
 {
 #ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
-  output_write (out, is_err, msg, strlen (msg));
+  output_write_text (out, is_err, msg, strlen (msg));
 #else  /* !CONFIG_WITH_OUTPUT_IN_MEMORY */
   if (! out || ! out->syncout)
     {
@@ -907,7 +954,12 @@ output_close (struct output *out)
 void
 output_start (void)
 {
-#ifndef CONFIG_WITH_OUTPUT_IN_MEMORY
+#ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
+  /* If we're syncing output make sure the sempahore (win) is set up. */
+  if (output_context && output_context->syncout)
+    if (combined_output < 0)
+      combined_output = sync_init ();
+#else
 #ifndef NO_OUTPUT_SYNC
   /* If we're syncing output make sure the temporary file is set up.  */
   if (output_context && output_context->syncout)
