@@ -66,6 +66,8 @@ unsigned int stdio_traced = 0;
 # define MEMBUF_MAX_MOVE_LEN  (  MEMBUF_MIN_SEG_SIZE \
                                - offsetof (struct output_segment, runs) \
                                - sizeof (struct output_run))
+# define MEMBUF_MAX_TOTAL     (  sizeof (void *) <= 4 \
+                               ? (size_t)512*1024 : (size_t)16*1024*1024 )
 
 static void *acquire_semaphore (void);
 static void  release_semaphore (void *);
@@ -219,8 +221,9 @@ membuf_write_segment (struct output_membuf *membuf, struct output_segment *seg,
   return written;
 }
 
-/* Helper for membuf_new_segment_write that figures out now much data needs to
-   be moved from the previous run in order to make it end with a newline.  */
+/* Helper for membuf_write_new_segment and membuf_dump_most that figures out
+   now much data needs to be moved from the previous run in order to make it
+   end with a newline.  */
 static size_t membuf_calc_move_len (struct output_run *tail_run)
 {
   size_t to_move = 0;
@@ -241,7 +244,7 @@ static size_t membuf_calc_move_len (struct output_run *tail_run)
    This will take care to make sure the previous run terminates with
    a newline so that we pass whole lines to fwrite when dumping. */
 static size_t
-membuf_new_segment_write (struct output_membuf *membuf, const char *src,
+membuf_write_new_segment (struct output_membuf *membuf, const char *src,
                           size_t len, unsigned int *pseqno)
 {
   struct output_run     *prev_run = membuf->tail_run;
@@ -279,7 +282,7 @@ membuf_new_segment_write (struct output_membuf *membuf, const char *src,
   membuf->tail_seg = new_seg;
   membuf->tail_run = &new_seg->runs[0];
   membuf->total += segsize;
-  membuf->left = segsize - sizeof (struct output_run);
+  membuf->left = segsize - sizeof (struct output_run) - offset_runs;
 
   /* Initialize and write data to the first run. */
   dst = (char *)&new_seg->runs[0]; /* Try bypass gcc array size cleverness. */
@@ -313,13 +316,57 @@ membuf_new_segment_write (struct output_membuf *membuf, const char *src,
   return written;
 }
 
-/* Worker for output_write that will try dump as much as possible of the
-   output, but making sure to try leave unfinished lines. */
+/* Worker for output_write that will dump most of the output when we hit
+   MEMBUF_MAX_TOTAL on either of the two membuf structures, then free all the
+   output segments.  Incomplete lines will be held over to the next buffers
+   and copied into new segments. */
 static void
 membuf_dump_most (struct output *out)
 {
-  /** @todo check last segment and make local copies.   */
-  membuf_dump (out);
+  size_t out_to_move = membuf_calc_move_len (out->out.tail_run);
+  size_t err_to_move = membuf_calc_move_len (out->err.tail_run);
+  if (!out_to_move && !err_to_move)
+    membuf_dump (out);
+  else
+    {
+      /* Allocate a stack buffer for holding incomplete lines.  This should be
+         fine since we're only talking about max 2 * MEMBUF_MAX_MOVE_LEN.
+         The -1 on the sequence numbers, ise because membuf_write_new_segment
+         will increment them before use. */
+      unsigned int out_seqno = out_to_move ? out->out.tail_run->seqno - 1 : 0;
+      unsigned int err_seqno = err_to_move ? out->err.tail_run->seqno - 1 : 0;
+      char *tmp = alloca (out_to_move + err_to_move);
+      if (out_to_move)
+        {
+          out->out.tail_run->len -= out_to_move;
+          memcpy (tmp,
+                  (char *)(out->out.tail_run + 1) + out->out.tail_run->len,
+                  out_to_move);
+        }
+      if (err_to_move)
+        {
+          out->err.tail_run->len -= err_to_move;
+          memcpy (tmp + out_to_move,
+                  (char *)(out->err.tail_run + 1) + out->err.tail_run->len,
+                  err_to_move);
+        }
+
+      membuf_dump (out);
+
+      if (out_to_move)
+        {
+          size_t written = membuf_write_new_segment (&out->out, tmp,
+                                                     out_to_move, &out_seqno);
+          assert (written == out_to_move); (void)written;
+        }
+      if (err_to_move)
+        {
+          size_t written = membuf_write_new_segment (&out->err,
+                                                     tmp + out_to_move,
+                                                     err_to_move, &err_seqno);
+          assert (written == err_to_move); (void)written;
+        }
+    }
 }
 
 
@@ -351,9 +398,8 @@ output_write_bin (struct output *out, int is_err, const char *src, size_t len)
           size_t runlen = membuf_write_segment (membuf, membuf->tail_seg, src, len, &out->seqno);
           if (!runlen)
             {
-              size_t max_total = sizeof (membuf) <= 4 ? 512*1024 : 16*1024*1024;
-              if (membuf->total < max_total)
-                runlen = membuf_new_segment_write (membuf, src, len, &out->seqno);
+              if (membuf->total < MEMBUF_MAX_TOTAL)
+                runlen = membuf_write_new_segment (membuf, src, len, &out->seqno);
               else
                 membuf_dump_most (out);
             }

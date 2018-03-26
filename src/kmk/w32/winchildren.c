@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3190 2018-03-26 07:46:13Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3191 2018-03-26 09:16:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -676,7 +676,7 @@ static void mkWinChildcareWorkerCaughtMoreOutput(PWINCHILD pChild, PWINCCWPIPE p
 
         /* Move offPendingRead ahead by cbRead. */
         pPipe->offPendingRead += cbNewData;
-        assert(pPipe->offPendingRead < pPipe->cbBuffer);
+        assert(pPipe->offPendingRead <= pPipe->cbBuffer);
         if (pPipe->offPendingRead > pPipe->cbBuffer)
             pPipe->offPendingRead = pPipe->cbBuffer;
 
