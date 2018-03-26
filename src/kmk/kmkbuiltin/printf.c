@@ -45,7 +45,11 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 #endif
 #endif*/ /* not lint */
 
-#if !defined(kmk_builtin_printf) && !defined(BUILTIN) && !defined(SHELL)
+
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
+#if !defined(KMK_BUILTIN_STANDALONE) && !defined(BUILTIN) && !defined(SHELL)
 # include "../makeint.h"
 # include "../filedef.h"
 # include "../variable.h"
@@ -82,49 +86,7 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 # define fwrite maybe_con_fwrite
 #endif
 
-
-#if 0 /*def __GNUC__ - bird: gcc complains about non-ISO-standard escape. */
-#define ESCAPE '\e'
-#else
-#define ESCAPE 033
-#endif
-
-
-static size_t	b_length;
-static char	*b_fmt;
-static int	rval;
-static char  **gargv;
-#if !defined(kmk_builtin_printf) && !defined(BUILTIN) && !defined(SHELL)
-static char *g_o = NULL;
-#endif
-static struct option long_options[] =
-{
-    { "help",   					no_argument, 0, 261 },
-    { "version",   					no_argument, 0, 262 },
-    { 0, 0,	0, 0 },
-};
-
-
-static int	 common_printf(int argc, char *argv[]);
-static void	 conv_escape_str(char *, void (*)(int));
-static char	*conv_escape(char *, char *);
-static char	*conv_expand(const char *);
-static int	 getchr(void);
-static double	 getdouble(void);
-static int	 getwidth(void);
-static intmax_t	 getintmax(void);
-static uintmax_t getuintmax(void);
-static char	*getstr(void);
-static char	*mklong(const char *, int);
-static void      check_conversion(const char *, const char *);
-static int	 usage(FILE *);
-
-static int	flush_buffer(void);
-static void	b_count(int);
-static void	b_output(int);
-static int	wrap_putchar(int ch);
-static int	wrap_printf(const char *, ...);
-
+#if 0
 #ifdef BUILTIN		/* csh builtin */
 #define kmk_builtin_printf progprintf
 #endif
@@ -133,21 +95,28 @@ static int	wrap_printf(const char *, ...);
 #define kmk_builtin_printf printfcmd
 #include "../../bin/sh/bltin/bltin.h"
 #endif /* SHELL */
+#endif
 
-/* Buffer the output because windows doesn't do line buffering of stdout. */
-static char 	g_achBuf[256];
-static size_t	g_cchBuf;
+
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
+#if 0 /*def __GNUC__ - bird: gcc complains about non-ISO-standard escape. */
+#define ESCAPE '\e'
+#else
+#define ESCAPE 033
+#endif
 
 #define PF(f, func) { \
 	if (fieldwidth != -1) { \
 		if (precision != -1) \
-			(void)wrap_printf(f, fieldwidth, precision, func); \
+			(void)wrap_printf(pThis, f, fieldwidth, precision, func); \
 		else \
-			(void)wrap_printf(f, fieldwidth, func); \
+			(void)wrap_printf(pThis, f, fieldwidth, func); \
 	} else if (precision != -1) \
-		(void)wrap_printf(f, precision, func); \
+		(void)wrap_printf(pThis, f, precision, func); \
 	else \
-		(void)wrap_printf(f, func); \
+		(void)wrap_printf(pThis, f, func); \
 }
 
 #define APF(cpp, f, func) { \
@@ -162,83 +131,157 @@ static size_t	g_cchBuf;
 		(void)asprintf(cpp, f, func); \
 }
 
-int kmk_builtin_printf(int argc, char *argv[], char **envp)
+
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
+typedef struct PRINTFINSTANCE
 {
-	int rc;
+    PKMKBUILTINCTX pCtx;
+    size_t b_length;
+    char *b_fmt;
+    int	rval;
+    char **gargv;
+#ifndef KMK_BUILTIN_STANDALONE
+    char *g_o;
+#endif
+    /* Buffer the output because windows doesn't do line buffering of stdout. */
+    size_t g_cchBuf;
+    char g_achBuf[256];
+} PRINTFINSTANCE;
+typedef PRINTFINSTANCE *PPRINTFINSTANCE;
+
+
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
+
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
+static int	 common_printf(PPRINTFINSTANCE pThis, int argc, char *argv[]);
+static void	 conv_escape_str(PPRINTFINSTANCE, char *, void (*)(PPRINTFINSTANCE, int));
+static char	*conv_escape(PPRINTFINSTANCE, char *, char *);
+static char	*conv_expand(const char *);
+static int	 getchr(PPRINTFINSTANCE);
+static double	 getdouble(PPRINTFINSTANCE);
+static int	 getwidth(PPRINTFINSTANCE);
+static intmax_t	 getintmax(PPRINTFINSTANCE);
+static uintmax_t getuintmax(PPRINTFINSTANCE);
+static char	*getstr(PPRINTFINSTANCE);
+static char	*mklong(PPRINTFINSTANCE, const char *, int, char[64]);
+static void      check_conversion(PPRINTFINSTANCE, const char *, const char *);
+static int	 usage(PKMKBUILTINCTX, int);
+
+static int	flush_buffer(PPRINTFINSTANCE);
+static void	b_count(PPRINTFINSTANCE, int);
+static void	b_output(PPRINTFINSTANCE, int);
+static int	wrap_putchar(PPRINTFINSTANCE, int ch);
+static int	wrap_printf(PPRINTFINSTANCE, const char *, ...);
+
+
+
+int kmk_builtin_printf(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
+{
 	int ch;
+	PRINTFINSTANCE This;
+	This.pCtx = pCtx;
+	This.b_length = 0;
+	This.b_fmt = NULL;
+	This.rval = 0;
+	This.gargv = NULL;
+#ifndef KMK_BUILTIN_STANDALONE
+	This.g_o = NULL;
+#endif
+	This.g_cchBuf = 0;
 
 	/* kmk: reset getopt, set progname and reset buffer. */
-	g_progname = argv[0];
 	opterr = 1;
 	optarg = NULL;
 	optopt = 0;
 	optind = 0; /* init */
 
-#if !defined(SHELL) && !defined(BUILTIN) && !defined(kmk_builtin_printf) /* kmk did this already. */
-	(void)setlocale (LC_ALL, "");
-#endif
-
 	while ((ch = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
 		switch (ch) {
 		case 261:
-			usage(stdout);
+			usage(pCtx, 0);
 			return 0;
 		case 262:
 			return kbuild_version(argv[0]);
 		case '?':
 		default:
-			return usage(stderr);
+			return usage(pCtx, 1);
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
-	if (argc < 1) {
-		return usage(stderr);
-	}
-
-	rc = common_printf(argc, argv);
-	return rc;
+	if (argc < 1)
+		return usage(pCtx, 1);
+	return common_printf(&This, argc, argv);
 }
 
-#ifndef kmk_builtin_printf
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+	KMKBUILTINCTX Ctx = { "kmk_printf", NULL };
+	setlocale(LC_ALL, "");
+	return kmk_builtin_printf(argc, argv, envp, &Ctx);
+}
+#else /* KMK_BUILTIN_STANDALONE */
 /* entry point used by function.c $(printf ..,..). */
 char *kmk_builtin_func_printf(char *o, char **argv, const char *funcname)
 {
+	PRINTFINSTANCE This;
 	int rc;
 	int argc;
 
 	for (argc = 0; argv[argc] != NULL; argc++)
 		/* nothing */;
+	if (argc == 0)
+	    fatal(NILF, strlen(funcname) + INTSTR_LENGTH, _("$(%s): no format string\n"), funcname);
 
-	g_o = o;
-	rc = common_printf(argc, argv);
-	o = g_o;
-	g_o = NULL;
+	This.pCtx = NULL;
+	This.b_length = 0;
+	This.b_fmt = NULL;
+	This.rval = 0;
+	This.gargv = NULL;
+	This.g_cchBuf = 0;
+	This.g_o = o;
+
+	rc = common_printf(&This, argc, argv);
+	o = This.g_o;
 
 	if (rc != 0)
 		fatal(NILF, strlen(funcname) + INTSTR_LENGTH, _("$(%s): failure rc=%d\n"), funcname, rc);
 	return o;
 }
-#endif
+#endif /* KMK_BUILTIN_STANDALONE */
 
-static int common_printf(int argc, char *argv[])
+static int common_printf(PPRINTFINSTANCE pThis, int argc, char *argv[])
 {
 	char *fmt, *start;
 	int fieldwidth, precision;
 	char nextch;
 	char *format;
 	int ch;
+	char longbuf[64];
 
 	/* kmk: reinitialize globals */
-	b_length = 0;
-	b_fmt = NULL;
-	rval = 0;
-	gargv = NULL;
-	g_cchBuf = 0;
-
+	pThis->b_length = 0;
+	pThis->b_fmt = NULL;
+	pThis->rval = 0;
+	pThis->gargv = NULL;
+	pThis->g_cchBuf = 0;
 	format = *argv;
-	gargv = ++argv;
+	pThis->gargv = ++argv;
 
 #define SKIP1	"#-+ 0"
 #define SKIP2	"*0123456789"
@@ -256,12 +299,12 @@ static int common_printf(int argc, char *argv[])
 		for (fmt = format; (ch = *fmt++) != '\0';) {
 			if (ch == '\\') {
 				char c_ch;
-				fmt = conv_escape(fmt, &c_ch);
-				wrap_putchar(c_ch);
+				fmt = conv_escape(pThis, fmt, &c_ch);
+				wrap_putchar(pThis, c_ch);
 				continue;
 			}
 			if (ch != '%' || (*fmt == '%' && ++fmt)) {
-				(void)wrap_putchar(ch);
+				(void)wrap_putchar(pThis, ch);
 				continue;
 			}
 
@@ -271,20 +314,20 @@ static int common_printf(int argc, char *argv[])
 
 			/* skip to field width */
 			fmt += strspn(fmt, SKIP1);
-			fieldwidth = *fmt == '*' ? getwidth() : -1;
+			fieldwidth = *fmt == '*' ? getwidth(pThis) : -1;
 
 			/* skip to possible '.', get following precision */
 			fmt += strspn(fmt, SKIP2);
 			if (*fmt == '.')
 				++fmt;
-			precision = *fmt == '*' ? getwidth() : -1;
+			precision = *fmt == '*' ? getwidth(pThis) : -1;
 
 			fmt += strspn(fmt, SKIP2);
 
 			ch = *fmt;
 			if (!ch) {
-				flush_buffer();
-				warnx("missing format character");
+				flush_buffer(pThis);
+				warnx(pThis->pCtx, "missing format character");
 				return (1);
 			}
 			/* null terminate format string to we can use it
@@ -294,7 +337,7 @@ static int common_printf(int argc, char *argv[])
 			switch (ch) {
 
 			case 'B': {
-				const char *p = conv_expand(getstr());
+				const char *p = conv_expand(getstr(pThis));
 				*fmt = 's';
 				PF(start, p);
 				break;
@@ -304,7 +347,7 @@ static int common_printf(int argc, char *argv[])
 				 * but the string we generate might have
 				 * embedded nulls. */
 				static char *a, *t;
-				char *cp = getstr();
+				char *cp = getstr(pThis);
 				/* Free on entry in case shell longjumped out */
 				if (a != NULL)
 					free(a);
@@ -313,37 +356,37 @@ static int common_printf(int argc, char *argv[])
 					free(t);
 				t = NULL;
 				/* Count number of bytes we want to output */
-				b_length = 0;
-				conv_escape_str(cp, b_count);
-				t = malloc(b_length + 1);
+				pThis->b_length = 0;
+				conv_escape_str(pThis, cp, b_count);
+				t = malloc(pThis->b_length + 1);
 				if (t == NULL)
 					break;
-				memset(t, 'x', b_length);
-				t[b_length] = 0;
+				memset(t, 'x', pThis->b_length);
+				t[pThis->b_length] = 0;
 				/* Get printf to calculate the lengths */
 				*fmt = 's';
 				APF(&a, start, t);
-				b_fmt = a;
+				pThis->b_fmt = a;
 				/* Output leading spaces and data bytes */
-				conv_escape_str(cp, b_output);
+				conv_escape_str(pThis, cp, b_output);
 				/* Add any trailing spaces */
-				wrap_printf("%s", b_fmt);
+				wrap_printf(pThis, "%s", pThis->b_fmt);
 				break;
 			}
 			case 'c': {
-				char p = getchr();
+				char p = getchr(pThis);
 				PF(start, p);
 				break;
 			}
 			case 's': {
-				char *p = getstr();
+				char *p = getstr(pThis);
 				PF(start, p);
 				break;
 			}
 			case 'd':
 			case 'i': {
-				intmax_t p = getintmax();
-				char *f = mklong(start, ch);
+				intmax_t p = getintmax(pThis);
+				char *f = mklong(pThis, start, ch, longbuf);
 				PF(f, p);
 				break;
 			}
@@ -351,8 +394,8 @@ static int common_printf(int argc, char *argv[])
 			case 'u':
 			case 'x':
 			case 'X': {
-				uintmax_t p = getuintmax();
-				char *f = mklong(start, ch);
+				uintmax_t p = getuintmax(pThis);
+				char *f = mklong(pThis, start, ch, longbuf);
 				PF(f, p);
 				break;
 			}
@@ -361,27 +404,27 @@ static int common_printf(int argc, char *argv[])
 			case 'f':
 			case 'g':
 			case 'G': {
-				double p = getdouble();
+				double p = getdouble(pThis);
 				PF(start, p);
 				break;
 			}
 			default:
-				flush_buffer();
-				warnx("%s: invalid directive", start);
+				flush_buffer(pThis);
+				warnx(pThis->pCtx, "%s: invalid directive", start);
 				return 1;
 			}
 			*fmt++ = ch;
 			*fmt = nextch;
 			/* escape if a \c was encountered */
-			if (rval & 0x100) {
-				flush_buffer();
-				return rval & ~0x100;
+			if (pThis->rval & 0x100) {
+				flush_buffer(pThis);
+				return pThis->rval & ~0x100;
 			}
 		}
-	} while (gargv != argv && *gargv);
+	} while (pThis->gargv != argv && *pThis->gargv);
 
-	flush_buffer();
-	return rval;
+	flush_buffer(pThis);
+	return pThis->rval;
 }
 
 
@@ -389,55 +432,55 @@ static int common_printf(int argc, char *argv[])
 
 static void
 /*ARGSUSED*/
-b_count(int ch)
+b_count(PPRINTFINSTANCE pThis, int ch)
 {
-	b_length++;
+	pThis->b_length++;
 	(void)ch;
 }
 
 /* Output one converted character for every 'x' in the 'format' */
 
 static void
-b_output(int ch)
+b_output(PPRINTFINSTANCE pThis, int ch)
 {
 	for (;;) {
-		switch (*b_fmt++) {
+		switch (*pThis->b_fmt++) {
 		case 0:
-			b_fmt--;
+			pThis->b_fmt--;
 			return;
 		case ' ':
-			wrap_putchar(' ');
+			wrap_putchar(pThis, ' ');
 			break;
 		default:
-			wrap_putchar(ch);
+			wrap_putchar(pThis, ch);
 			return;
 		}
 	}
 }
 
-static int wrap_putchar(int ch)
+static int wrap_putchar(PPRINTFINSTANCE pThis, int ch)
 {
-#ifndef kmk_builtin_printf
-	if (g_o) {
+#ifndef KMK_BUILTIN_STANDALONE
+	if (pThis->g_o) {
 		char sz[2];
 		sz[0] = ch; sz[1] = '\0';
-		g_o = variable_buffer_output(g_o, sz, 1);
-		return ch;
+		pThis->g_o = variable_buffer_output(pThis->g_o, sz, 1);
 	}
+	else
 #endif
 	/* Buffered output. */
-	if (g_cchBuf + 1 < sizeof(g_achBuf)) {
-		g_achBuf[g_cchBuf++] = ch;
+	if (pThis->g_cchBuf + 1 < sizeof(pThis->g_achBuf)) {
+		pThis->g_achBuf[pThis->g_cchBuf++] = ch;
 	} else {
-		int rc = flush_buffer();
-		g_achBuf[g_cchBuf++] = ch;
+		int rc = flush_buffer(pThis);
+		pThis->g_achBuf[pThis->g_cchBuf++] = ch;
 		if (rc)
 			return -1;
 	}
 	return 0;
 }
 
-static int wrap_printf(const char * fmt, ...)
+static int wrap_printf(PPRINTFINSTANCE pThis, const char * fmt, ...)
 {
 	ssize_t cchRet;
 	va_list va;
@@ -447,16 +490,16 @@ static int wrap_printf(const char * fmt, ...)
 	cchRet = vasprintf(&pszTmp, fmt, va);
 	va_end(va);
 	if (cchRet >= 0) {
-#ifndef kmk_builtin_printf
-		if (g_o) {
-			g_o = variable_buffer_output(g_o, pszTmp, cchRet);
+#ifndef KMK_BUILTIN_STANDALONE
+		if (pThis->g_o) {
+			pThis->g_o = variable_buffer_output(pThis->g_o, pszTmp, cchRet);
 		} else
 #endif
 		{
-			if (cchRet + g_cchBuf <= sizeof(g_achBuf)) {
+			if (cchRet + pThis->g_cchBuf <= sizeof(pThis->g_achBuf)) {
 				/* We've got space in the buffer. */
-				memcpy(&g_achBuf[g_cchBuf], pszTmp, cchRet);
-				g_cchBuf += cchRet;
+				memcpy(&pThis->g_achBuf[pThis->g_cchBuf], pszTmp, cchRet);
+				pThis->g_cchBuf += cchRet;
 			} else {
 				/* Try write out complete lines. */
 				const char *pszLeft = pszTmp;
@@ -465,16 +508,20 @@ static int wrap_printf(const char * fmt, ...)
 				while (cchLeft > 0) {
 					const char *pchNewLine = strchr(pszLeft, '\n');
 					ssize_t     cchLine    = pchNewLine ? pchNewLine - pszLeft + 1 : cchLeft;
-					if (g_cchBuf + cchLine <= sizeof(g_achBuf)) {
-						memcpy(&g_achBuf[g_cchBuf], pszLeft, cchLine);
-						g_cchBuf += cchLine;
+					if (pThis->g_cchBuf + cchLine <= sizeof(pThis->g_achBuf)) {
+						memcpy(&pThis->g_achBuf[pThis->g_cchBuf], pszLeft, cchLine);
+						pThis->g_cchBuf += cchLine;
 					} else {
-						if (flush_buffer() < 0) {
+						if (flush_buffer(pThis) < 0) {
 							return -1;
 						}
-						if (fwrite(pszLeft, cchLine, 1, stdout) < 1) {
+#ifndef KMK_BUILTIN_STANDALONE
+						if (output_write_text(pThis->pCtx->pOut, 0,pszLeft, cchLine) < 1)
+#else
+						if (fwrite(pszLeft, cchLine, 1, stdout) < 1)
+#endif
+
 							return -1;
-						}
 					}
 					pszLeft += cchLine;
 					cchLeft -= cchLine;
@@ -489,12 +536,16 @@ static int wrap_printf(const char * fmt, ...)
 /**
  * Flushes the g_abBuf/g_cchBuf.
  */
-static int flush_buffer(void)
+static int flush_buffer(PPRINTFINSTANCE pThis)
 {
-    if (g_cchBuf > 0) {
-		ssize_t cchToWrite = g_cchBuf;
-		ssize_t cchWritten = fwrite(g_achBuf, 1, g_cchBuf, stdout);
-		g_cchBuf = 0;
+    ssize_t cchToWrite = pThis->g_cchBuf;
+    if (cchToWrite > 0) {
+#ifndef KMK_BUILTIN_STANDALONE
+		ssize_t cchWritten = output_write_text(pThis->pCtx->pOut, 0, pThis->g_achBuf, cchToWrite);
+#else
+		ssize_t cchWritten = fwrite(pThis->g_achBuf, 1, cchToWrite, stdout);
+#endif
+		pThis->g_cchBuf = 0;
 		if (cchWritten >= cchToWrite) {
 			/* likely */
 		} else {
@@ -508,7 +559,11 @@ static int flush_buffer(void)
 			}
 
 			while (off < cchToWrite) {
-				cchWritten = fwrite(&g_achBuf[off], 1, cchToWrite - off, stdout);
+#ifndef KMK_BUILTIN_STANDALONE
+				cchWritten = output_write_text(pThis->pCtx->pOut, 0, &pThis->g_achBuf[off], cchToWrite - off);
+#else
+				cchWritten = fwrite(&pThis->g_achBuf[off], 1, cchToWrite - off, stdout);
+#endif
 				if (cchWritten > 0) {
 					off += cchWritten;
 				} else if (errno == EINTR) {
@@ -529,7 +584,7 @@ static int flush_buffer(void)
  *	Halts processing string if a \c escape is encountered.
  */
 static void
-conv_escape_str(char *str, void (*do_putchar)(int))
+conv_escape_str(PPRINTFINSTANCE pThis, char *str, void (*do_putchar)(PPRINTFINSTANCE, int))
 {
 	int value;
 	int ch;
@@ -537,14 +592,14 @@ conv_escape_str(char *str, void (*do_putchar)(int))
 
 	while ((ch = *str++) != '\0') {
 		if (ch != '\\') {
-			do_putchar(ch);
+			do_putchar(pThis, ch);
 			continue;
 		}
 
 		ch = *str++;
 		if (ch == 'c') {
 			/* \c as in SYSV echo - abort all processing.... */
-			rval |= 0x100;
+			pThis->rval |= 0x100;
 			break;
 		}
 
@@ -560,13 +615,13 @@ conv_escape_str(char *str, void (*do_putchar)(int))
 					break;
 				octnum = (octnum << 3) | (*str++ - '0');
 			}
-			do_putchar(octnum);
+			do_putchar(pThis, octnum);
 			continue;
 		}
 
 		/* \[M][^|-]C as defined by vis(3) */
 		if (ch == 'M' && *str == '-') {
-			do_putchar(0200 | str[1]);
+			do_putchar(pThis, 0200 | str[1]);
 			str += 2;
 			continue;
 		}
@@ -582,13 +637,13 @@ conv_escape_str(char *str, void (*do_putchar)(int))
 				value |= 0177;
 			else
 				value |= ch & 037;
-			do_putchar(value);
+			do_putchar(pThis, value);
 			continue;
 		}
 
 		/* Finally test for sequences valid in the format string */
-		str = conv_escape(str - 1, &c);
-		do_putchar(c);
+		str = conv_escape(pThis, str - 1, &c);
+		do_putchar(pThis, c);
 	}
 }
 
@@ -596,7 +651,7 @@ conv_escape_str(char *str, void (*do_putchar)(int))
  * Print "standard" escape characters
  */
 static char *
-conv_escape(char *str, char *conv_ch)
+conv_escape(PPRINTFINSTANCE pThis, char *str, char *conv_ch)
 {
 	int value;
 	int ch;
@@ -642,8 +697,8 @@ conv_escape(char *str, char *conv_ch)
 	case 'v':	value = '\v';	break;	/* vertical-tab */
 
 	default:
-		warnx("unknown escape sequence `\\%c'", ch);
-		rval = 1;
+		warnx(pThis->pCtx, "unknown escape sequence `\\%c'", ch);
+		pThis->rval = 1;
 		value = ch;
 		break;
 	}
@@ -719,14 +774,13 @@ conv_expand(const char *str)
 }
 
 static char *
-mklong(const char *str, int ch)
+mklong(PPRINTFINSTANCE pThis, const char *str, int ch, char copy[64])
 {
-	static char copy[64];
 	size_t len;
 
 	len = strlen(str) - 1;
-	if (len > sizeof(copy) - 5) {
-		warnx("format %s too complex\n", str);
+	if (len > 64 - 5) {
+		warnx(pThis->pCtx, "format %s too complex\n", str);
 		len = 4;
 	}
 	(void)memmove(copy, str, len);
@@ -743,40 +797,40 @@ mklong(const char *str, int ch)
 }
 
 static int
-getchr(void)
+getchr(PPRINTFINSTANCE pThis)
 {
-	if (!*gargv)
+	if (!*pThis->gargv)
 		return 0;
-	return (int)**gargv++;
+	return (int)**pThis->gargv++;
 }
 
 static char *
-getstr(void)
+getstr(PPRINTFINSTANCE pThis)
 {
 	static char empty[] = "";
-	if (!*gargv)
+	if (!*pThis->gargv)
 		return empty;
-	return *gargv++;
+	return *pThis->gargv++;
 }
 
 static int
-getwidth(void)
+getwidth(PPRINTFINSTANCE pThis)
 {
 	long val;
 	char *s, *ep;
 
-	s = *gargv;
-	if (!*gargv)
+	s = *pThis->gargv;
+	if (!s)
 		return (0);
-	gargv++;
+	pThis->gargv++;
 
 	errno = 0;
 	val = strtoul(s, &ep, 0);
-	check_conversion(s, ep);
+	check_conversion(pThis, s, ep);
 
 	/* Arbitrarily 'restrict' field widths to 1Mbyte */
 	if (val < 0 || val > 1 << 20) {
-		warnx("%s: invalid field width", s);
+		warnx(pThis->pCtx, "%s: invalid field width", s);
 		return 0;
 	}
 
@@ -784,35 +838,35 @@ getwidth(void)
 }
 
 static intmax_t
-getintmax(void)
+getintmax(PPRINTFINSTANCE pThis)
 {
 	intmax_t val;
 	char *cp, *ep;
 
-	cp = *gargv;
+	cp = *pThis->gargv;
 	if (cp == NULL)
 		return 0;
-	gargv++;
+	pThis->gargv++;
 
 	if (*cp == '\"' || *cp == '\'')
 		return *(cp+1);
 
 	errno = 0;
 	val = strtoimax(cp, &ep, 0);
-	check_conversion(cp, ep);
+	check_conversion(pThis, cp, ep);
 	return val;
 }
 
 static uintmax_t
-getuintmax(void)
+getuintmax(PPRINTFINSTANCE pThis)
 {
 	uintmax_t val;
 	char *cp, *ep;
 
-	cp = *gargv;
+	cp = *pThis->gargv;
 	if (cp == NULL)
 		return 0;
-	gargv++;
+	pThis->gargv++;
 
 	if (*cp == '\"' || *cp == '\'')
 		return *(cp + 1);
@@ -821,56 +875,61 @@ getuintmax(void)
 	while (isspace(*(unsigned char *)cp))
 		cp++;
 	if (*cp == '-') {
-		warnx("%s: expected positive numeric value", cp);
-		rval = 1;
+		warnx(pThis->pCtx, "%s: expected positive numeric value", cp);
+		pThis->rval = 1;
 		return 0;
 	}
 
 	errno = 0;
 	val = strtoumax(cp, &ep, 0);
-	check_conversion(cp, ep);
+	check_conversion(pThis, cp, ep);
 	return val;
 }
 
 static double
-getdouble(void)
+getdouble(PPRINTFINSTANCE pThis)
 {
 	double val;
 	char *ep;
+	char *s;
 
-	if (!*gargv)
+	s = *pThis->gargv;
+	if (!s)
 		return (0.0);
+	pThis->gargv++;
 
-	if (**gargv == '\"' || **gargv == '\'')
-		return (double) *((*gargv++)+1);
+	if (*s == '\"' || *s == '\'')
+		return (double) s[1];
 
 	errno = 0;
-	val = strtod(*gargv, &ep);
-	check_conversion(*gargv++, ep);
+	val = strtod(s, &ep);
+	check_conversion(pThis, s, ep);
 	return val;
 }
 
 static void
-check_conversion(const char *s, const char *ep)
+check_conversion(PPRINTFINSTANCE pThis, const char *s, const char *ep)
 {
 	if (*ep) {
 		if (ep == s)
-			warnx("%s: expected numeric value", s);
+			warnx(pThis->pCtx, "%s: expected numeric value", s);
 		else
-			warnx("%s: not completely converted", s);
-		rval = 1;
+			warnx(pThis->pCtx, "%s: not completely converted", s);
+		pThis->rval = 1;
 	} else if (errno == ERANGE) {
-		warnx("%s: %s", s, strerror(ERANGE));
-		rval = 1;
+		warnx(pThis->pCtx, "%s: %s", s, strerror(ERANGE));
+		pThis->rval = 1;
 	}
 }
 
 static int
-usage(FILE *pf)
+usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-	fprintf(pf, "usage: %s format [arg ...]\n"
-				"   or: %s --help\n"
-				"   or: %s --version\n",
-			g_progname, g_progname, g_progname);
+	kmk_builtin_ctx_printf(pCtx, fIsErr,
+	                       "usage: %s format [arg ...]\n"
+	                       "   or: %s --help\n"
+	                       "   or: %s --version\n",
+	                       pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName);
 	return 1;
 }
+

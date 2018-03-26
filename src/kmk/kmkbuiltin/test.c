@@ -15,6 +15,10 @@
 __RCSID("$NetBSD: test.c,v 1.33 2007/06/24 18:54:58 christos Exp $");
 #endif*/
 
+
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
 #include "config.h"
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -31,6 +35,7 @@ __RCSID("$NetBSD: test.c,v 1.33 2007/06/24 18:54:58 christos Exp $");
 # include <io.h>
 # include <process.h>
 # include "mscfakes.h"
+# include "quote_argv.h"
 #else
 # include <unistd.h>
 #endif
@@ -39,11 +44,18 @@ __RCSID("$NetBSD: test.c,v 1.33 2007/06/24 18:54:58 christos Exp $");
 
 #include "kmkbuiltin.h"
 
+
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
 #ifndef __arraycount
 # define __arraycount(a) 	( sizeof(a) / sizeof(a[0]) )
 #endif
 
 
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
 /* test(1) accepts the following grammar:
 	oexpr	::= aexpr | aexpr "-o" oexpr ;
 	aexpr	::= nexpr | nexpr "-a" aexpr ;
@@ -117,6 +129,19 @@ struct t_op {
 	short op_num, op_type;
 };
 
+/** kmk_test instance data.   */
+typedef struct TESTINSTANCE
+{
+    PKMKBUILTINCTX pCtx;
+    char **t_wp;
+    struct t_op const *t_wp_op;
+} TESTINSTANCE;
+typedef TESTINSTANCE *PTESTINSTANCE;
+
+
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
 static const struct t_op cop[] = {
 	{"!",	UNOT,	BUNOP},
 	{"(",	LPAREN,	PAREN},
@@ -168,50 +193,52 @@ static const struct t_op mop2[] = {
 	{"z",	STREZ,	UNOP},
 };
 
-static char **t_wp;
-static struct t_op const *t_wp_op;
 
-static int syntax(const char *, const char *);
-static int oexpr(enum token);
-static int aexpr(enum token);
-static int nexpr(enum token);
-static int primary(enum token);
-static int binop(void);
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
+static int syntax(PTESTINSTANCE, const char *, const char *);
+static int oexpr(PTESTINSTANCE, enum token);
+static int aexpr(PTESTINSTANCE, enum token);
+static int nexpr(PTESTINSTANCE, enum token);
+static int primary(PTESTINSTANCE, enum token);
+static int binop(PTESTINSTANCE);
 static int test_access(struct stat *, mode_t);
 static int filstat(char *, enum token);
-static enum token t_lex(char *);
-static int isoperand(void);
-static int getn(const char *);
+static enum token t_lex(PTESTINSTANCE, char *);
+static int isoperand(PTESTINSTANCE);
+static int getn(PTESTINSTANCE, const char *);
 static int newerf(const char *, const char *);
 static int olderf(const char *, const char *);
 static int equalf(const char *, const char *);
-static int usage(const char *);
+static int usage(PKMKBUILTINCTX, int);
 
-#if !defined(kmk_builtin_test) || defined(ELECTRIC_HEAP)
+#if !defined(KMK_BUILTIN_STANDALONE) || defined(ELECTRIC_HEAP)
 extern void *xmalloc(unsigned int);
 #else
 extern void *xmalloc(unsigned int sz)
 {
     void *p = malloc(sz);
     if (!p) {
-	    fprintf(stderr, "%s: malloc(%u) failed\n", g_progname, sz);
+	    fprintf(stderr, "kmk_test: malloc(%u) failed\n", sz);
 	    exit(1);
     }
     return p;
 }
 #endif
 
-int kmk_builtin_test(int argc, char **argv, char **envp
-#ifndef kmk_builtin_test
-		     , char ***ppapszArgvSpawn
-#endif
-		     )
+
+
+int kmk_builtin_test(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx, char ***ppapszArgvSpawn)
 {
+	TESTINSTANCE This;
 	int res;
 	char **argv_spawn;
 	int i;
 
-	g_progname = argv[0];
+	This.pCtx = pCtx;
+	This.t_wp = NULL;
+	This.t_wp_op = NULL;
 
 	/* look for the '--', '--help' and '--version'. */
 	argv_spawn = NULL;
@@ -234,16 +261,16 @@ int kmk_builtin_test(int argc, char **argv, char **envp
 				break;
 			}
 			if (!strcmp(argv[i], "--help"))
-				return usage(argv[0]);
+				return usage(pCtx, 0);
 			if (!strcmp(argv[i], "--version"))
 				return kbuild_version(argv[0]);
 		}
 	}
 
 	/* are we '['? then check for ']'. */
-	if (strcmp(g_progname, "[") == 0) { /** @todo should skip the path in g_progname */
+	if (strcmp(argv[0], "[") == 0) { /** @todo should skip the path in g_progname */
 		if (strcmp(argv[--argc], "]"))
-			return errx(1, "missing ]");
+			return errx(pCtx, 1, "missing ]");
 		argv[argc] = NULL;
 	}
 
@@ -251,10 +278,10 @@ int kmk_builtin_test(int argc, char **argv, char **envp
 	if (argc < 2)
 		res = 1;
 	else {
-		t_wp = &argv[1];
-		res = oexpr(t_lex(*t_wp));
-		if (res != -42 && *t_wp != NULL && *++t_wp != NULL)
-			res = syntax(*t_wp, "unexpected operator");
+		This.t_wp = &argv[1];
+		res = oexpr(&This, t_lex(&This, *This.t_wp));
+		if (res != -42 && *This.t_wp != NULL && *++This.t_wp != NULL)
+			res = syntax(&This, *This.t_wp, "unexpected operator");
 		if (res == -42)
 			return 1; /* don't mix syntax errors with the argv_spawn ignore */
 		res = !res;
@@ -265,12 +292,20 @@ int kmk_builtin_test(int argc, char **argv, char **envp
 		if (res != 0 || !argv_spawn[0])
 			res = 0; /* ignored */
 		else {
-#ifdef kmk_builtin_test
+#ifdef KMK_BUILTIN_STANDALONE
 			/* try exec the specified process */
 # if defined(_MSC_VER)
-			res = _spawnvp(_P_WAIT, argv_spawn[0], argv_spawn);
-			if (res == -1)
-			    res = err(1, "_spawnvp(_P_WAIT,%s,..)", argv_spawn[0]);
+			int argc_spawn = 0;
+			while (argv_spawn[argc_spawn])
+				argc_spawn++;
+			if (quote_argv(argc, argv_spawn, 0 /*fWatcomBrainDamage*/, 0/*fFreeOrLeak*/) != -1)
+			{
+			    res = _spawnvp(_P_WAIT, argv_spawn[0], argv_spawn);
+			    if (res == -1)
+				res = err(pCtx, 1, "_spawnvp(_P_WAIT,%s,..)", argv_spawn[0]);
+			}
+			else
+			    res = err(pCtx, 1, "quote_argv: out of memory");
 # else
 			execvp(argv_spawn[0], argv_spawn);
 			res = err(1, "execvp(%s,..)", argv_spawn[0]);
@@ -304,61 +339,69 @@ int kmk_builtin_test(int argc, char **argv, char **envp
 	return res;
 }
 
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+    KMKBUILTINCTX Ctx = { "kmk_test", NULL };
+    return kmk_builtin_test(argc, argv, envp, &Ctx, NULL);
+}
+#endif
+
 static int
-syntax(const char *op, const char *msg)
+syntax(PTESTINSTANCE pThis, const char *op, const char *msg)
 {
 
 	if (op && *op)
-		errx(1, "%s: %s", op, msg);
+		errx(pThis->pCtx, 1, "%s: %s", op, msg);
 	else
-		errx(1, "%s", msg);
+		errx(pThis->pCtx, 1, "%s", msg);
 	return -42;
 }
 
 static int
-oexpr(enum token n)
+oexpr(PTESTINSTANCE pThis, enum token n)
 {
 	int res;
 
-	res = aexpr(n);
-	if (res == -42 || *t_wp == NULL)
+	res = aexpr(pThis, n);
+	if (res == -42 || *pThis->t_wp == NULL)
 		return res;
-	if (t_lex(*++t_wp) == BOR) {
-		int res2 = oexpr(t_lex(*++t_wp));
+	if (t_lex(pThis, *++(pThis->t_wp)) == BOR) {
+		int res2 = oexpr(pThis, t_lex(pThis, *++(pThis->t_wp)));
 		return res2 != -42 ? res2 || res : res2;
 	}
-	t_wp--;
+	pThis->t_wp--;
 	return res;
 }
 
 static int
-aexpr(enum token n)
+aexpr(PTESTINSTANCE pThis, enum token n)
 {
 	int res;
 
-	res = nexpr(n);
-	if (res == -42 || *t_wp == NULL)
+	res = nexpr(pThis, n);
+	if (res == -42 || *pThis->t_wp == NULL)
 		return res;
-	if (t_lex(*++t_wp) == BAND) {
-		int res2 = aexpr(t_lex(*++t_wp));
+	if (t_lex(pThis, *++(pThis->t_wp)) == BAND) {
+		int res2 = aexpr(pThis, t_lex(pThis, *++(pThis->t_wp)));
 		return res2 != -42 ? res2 && res : res2;
 	}
-	t_wp--;
+	pThis->t_wp--;
 	return res;
 }
 
 static int
-nexpr(enum token n)
+nexpr(PTESTINSTANCE pThis, enum token n)
 {
 	if (n == UNOT) {
-		int res = nexpr(t_lex(*++t_wp));
+		int res = nexpr(pThis, t_lex(pThis, *++(pThis->t_wp)));
 		return res != -42 ? !res : res;
 	}
-	return primary(n);
+	return primary(pThis, n);
 }
 
 static int
-primary(enum token n)
+primary(PTESTINSTANCE pThis, enum token n)
 {
 	enum token nn;
 	int res;
@@ -366,48 +409,48 @@ primary(enum token n)
 	if (n == EOI)
 		return 0;		/* missing expression */
 	if (n == LPAREN) {
-		if ((nn = t_lex(*++t_wp)) == RPAREN)
+		if ((nn = t_lex(pThis, *++(pThis->t_wp))) == RPAREN)
 			return 0;	/* missing expression */
-		res = oexpr(nn);
-		if (res != -42 && t_lex(*++t_wp) != RPAREN)
-			return syntax(NULL, "closing paren expected");
+		res = oexpr(pThis, nn);
+		if (res != -42 && t_lex(pThis, *++(pThis->t_wp)) != RPAREN)
+			return syntax(pThis, NULL, "closing paren expected");
 		return res;
 	}
-	if (t_wp_op && t_wp_op->op_type == UNOP) {
+	if (pThis->t_wp_op && pThis->t_wp_op->op_type == UNOP) {
 		/* unary expression */
-		if (*++t_wp == NULL)
-			return syntax(t_wp_op->op_text, "argument expected");
+		if (*++(pThis->t_wp) == NULL)
+			return syntax(pThis, pThis->t_wp_op->op_text, "argument expected");
 		switch (n) {
 		case STREZ:
-			return strlen(*t_wp) == 0;
+			return strlen(*pThis->t_wp) == 0;
 		case STRNZ:
-			return strlen(*t_wp) != 0;
+			return strlen(*pThis->t_wp) != 0;
 		case FILTT:
-			return isatty(getn(*t_wp));
+			return isatty(getn(pThis, *pThis->t_wp));
 		default:
-			return filstat(*t_wp, n);
+			return filstat(*pThis->t_wp, n);
 		}
 	}
 
-	if (t_lex(t_wp[1]), t_wp_op && t_wp_op->op_type == BINOP) {
-		return binop();
+	if (t_lex(pThis, pThis->t_wp[1]), pThis->t_wp_op && pThis->t_wp_op->op_type == BINOP) {
+		return binop(pThis);
 	}
 
-	return strlen(*t_wp) > 0;
+	return strlen(*pThis->t_wp) > 0;
 }
 
 static int
-binop(void)
+binop(PTESTINSTANCE pThis)
 {
 	const char *opnd1, *opnd2;
 	struct t_op const *op;
 
-	opnd1 = *t_wp;
-	(void) t_lex(*++t_wp);
-	op = t_wp_op;
+	opnd1 = *pThis->t_wp;
+	(void) t_lex(pThis, *++(pThis->t_wp));
+	op = pThis->t_wp_op;
 
-	if ((opnd2 = *++t_wp) == NULL)
-		return syntax(op->op_text, "argument expected");
+	if ((opnd2 = *++(pThis->t_wp)) == NULL)
+		return syntax(pThis, op->op_text, "argument expected");
 
 	switch (op->op_num) {
 	case STREQ:
@@ -419,17 +462,17 @@ binop(void)
 	case STRGT:
 		return strcmp(opnd1, opnd2) > 0;
 	case INTEQ:
-		return getn(opnd1) == getn(opnd2);
+		return getn(pThis, opnd1) == getn(pThis, opnd2);
 	case INTNE:
-		return getn(opnd1) != getn(opnd2);
+		return getn(pThis, opnd1) != getn(pThis, opnd2);
 	case INTGE:
-		return getn(opnd1) >= getn(opnd2);
+		return getn(pThis, opnd1) >= getn(pThis, opnd2);
 	case INTGT:
-		return getn(opnd1) > getn(opnd2);
+		return getn(pThis, opnd1) > getn(pThis, opnd2);
 	case INTLE:
-		return getn(opnd1) <= getn(opnd2);
+		return getn(pThis, opnd1) <= getn(pThis, opnd2);
 	case INTLT:
-		return getn(opnd1) < getn(opnd2);
+		return getn(pThis, opnd1) < getn(pThis, opnd2);
 	case FILNT:
 		return newerf(opnd1, opnd2);
 	case FILOT:
@@ -713,17 +756,14 @@ findop(const char *s)
 		if (s[1] == '\0')
 			return NULL;
 		if (s[2] == '\0')
-			return bsearch(s + 1, mop2, __arraycount(mop2),
-			    sizeof(*mop2), compare1);
+			return bsearch(s + 1, mop2, __arraycount(mop2), sizeof(*mop2), compare1);
 		else if (s[3] != '\0')
 			return NULL;
 		else
-			return bsearch(s + 1, mop3, __arraycount(mop3),
-			    sizeof(*mop3), compare2);
+			return bsearch(s + 1, mop3, __arraycount(mop3), sizeof(*mop3), compare2);
 	} else {
 		if (s[1] == '\0')
-			return bsearch(s, cop, __arraycount(cop), sizeof(*cop),
-			    compare1);
+			return bsearch(s, cop, __arraycount(cop), sizeof(*cop), compare1);
 		else if (strcmp(s, cop2[0].op_text) == 0)
 			return cop2;
 		else
@@ -732,35 +772,35 @@ findop(const char *s)
 }
 
 static enum token
-t_lex(char *s)
+t_lex(PTESTINSTANCE pThis, char *s)
 {
 	struct t_op const *op;
 
 	if (s == NULL) {
-		t_wp_op = NULL;
+		pThis->t_wp_op = NULL;
 		return EOI;
 	}
 
 	if ((op = findop(s)) != NULL) {
-		if (!((op->op_type == UNOP && isoperand()) ||
-		    (op->op_num == LPAREN && *(t_wp+1) == 0))) {
-			t_wp_op = op;
+		if (!((op->op_type == UNOP && isoperand(pThis)) ||
+		    (op->op_num == LPAREN && *(pThis->t_wp+1) == 0))) {
+			pThis->t_wp_op = op;
 			return op->op_num;
 		}
 	}
-	t_wp_op = NULL;
+	pThis->t_wp_op = NULL;
 	return OPERAND;
 }
 
 static int
-isoperand(void)
+isoperand(PTESTINSTANCE pThis)
 {
 	struct t_op const *op;
 	char *s, *t;
 
-	if ((s  = *(t_wp+1)) == 0)
+	if ((s  = *(pThis->t_wp+1)) == 0)
 		return 1;
-	if ((t = *(t_wp+2)) == 0)
+	if ((t = *(pThis->t_wp+2)) == 0)
 		return 0;
 	if ((op = findop(s)) != NULL)
 		return op->op_type == BINOP && (t[0] != ')' || t[1] != '\0');
@@ -769,7 +809,7 @@ isoperand(void)
 
 /* atoi with error detection */
 static int
-getn(const char *s)
+getn(PTESTINSTANCE pThis, const char *s)
 {
 	char *p;
 	long r;
@@ -778,13 +818,13 @@ getn(const char *s)
 	r = strtol(s, &p, 10);
 
 	if (errno != 0)
-	      return errx(-42, "%s: out of range", s);
+	      return errx(pThis->pCtx, -42, "%s: out of range", s);
 
 	while (isspace((unsigned char)*p))
 	      p++;
 
 	if (*p)
-	      return errx(-42, "%s: bad number", s);
+	      return errx(pThis->pCtx, -42, "%s: bad number", s);
 
 	return (int) r;
 }
@@ -821,9 +861,9 @@ equalf(const char *f1, const char *f2)
 }
 
 static int
-usage(const char *argv0)
+usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-	fprintf(stdout,
-	        "usage: %s expression [-- <prog> [args]]\n", argv0);
+	kmk_builtin_ctx_printf(pCtx, fIsErr, "usage: %s expression [-- <prog> [args]]\n", pCtx->pszProgName);
 	return 0; /* only used in --help. */
 }
+

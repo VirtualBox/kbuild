@@ -65,37 +65,37 @@
 
 
 static int
-errmsg(const char *file, off_t byte, off_t line, int lflag)
+errmsg(PKMKBUILTINCTX pCtx, const char *file, off_t byte, off_t line, int lflag)
 {
     if (lflag)
 #ifdef _MSC_VER
-        return err(ERR_EXIT, "%s: char %I64d, line %lld", file, (__int64)byte, (long long)line);
+        return err(pCtx, ERR_EXIT, "%s: char %I64d, line %lld", file, (__int64)byte, (long long)line);
 #else
-        return err(ERR_EXIT, "%s: char %lld, line %lld", file, (long long)byte, (long long)line);
+        return err(pCtx, ERR_EXIT, "%s: char %lld, line %lld", file, (long long)byte, (long long)line);
 #endif
-    return err(ERR_EXIT, "%s", file);
+    return err(pCtx, ERR_EXIT, "%s", file);
 }
 
 
 static int
-eofmsg(const char *file, off_t byte, off_t line, int sflag, int lflag)
+eofmsg(PKMKBUILTINCTX pCtx, const char *file, off_t byte, off_t line, int sflag, int lflag)
 {
     if (!sflag)
     {
         if (!lflag)
-            warnx("EOF on %s", file);
+            warnx(pCtx, "EOF on %s", file);
         else
         {
 #ifdef _MSC_VER
             if (line > 0)
-                warnx("EOF on %s: char %I64d, line %I64d", file, (__int64)byte, (__int64)line);
+                warnx(pCtx, "EOF on %s: char %I64d, line %I64d", file, (__int64)byte, (__int64)line);
             else
-                warnx("EOF on %s: char %I64d", file, (__int64)byte);
+                warnx(pCtx, "EOF on %s: char %I64d", file, (__int64)byte);
 #else
             if (line > 0)
-                warnx("EOF on %s: char %lld, line %lld", file, (long long)byte, (long long)line);
+                warnx(pCtx, "EOF on %s: char %lld, line %lld", file, (long long)byte, (long long)line);
             else
-                warnx("EOF on %s: char %lld", file, (long long)byte);
+                warnx(pCtx, "EOF on %s: char %lld", file, (long long)byte);
 #endif
         }
     }
@@ -104,14 +104,14 @@ eofmsg(const char *file, off_t byte, off_t line, int sflag, int lflag)
 
 
 static int
-diffmsg(const char *file1, const char *file2, off_t byte, off_t line, int sflag)
+diffmsg(PKMKBUILTINCTX pCtx, const char *file1, const char *file2, off_t byte, off_t line, int sflag)
 {
     if (!sflag)
 #ifdef _MSC_VER
-        printf("%s %s differ: char %I64d, line %I64d\n",
+        kmk_builtin_ctx_printf(pCtx, 0, "%s %s differ: char %I64d, line %I64d\n",
                file1, file2, (__int64)byte, (__int64)line);
 #else
-        printf("%s %s differ: char %lld, line %lld\n",
+        kmk_builtin_ctx_printf(pCtx, 0, "%s %s differ: char %lld, line %lld\n",
                file1, file2, (long long)byte, (long long)line);
 #endif
     return DIFF_EXIT;
@@ -122,7 +122,7 @@ diffmsg(const char *file1, const char *file2, off_t byte, off_t line, int sflag)
  * Compares two files, where one or both are non-regular ones.
  */
 static int
-c_special(int fd1, const char *file1, off_t skip1,
+c_special(PKMKBUILTINCTX pCtx, int fd1, const char *file1, off_t skip1,
           int fd2, const char *file2, off_t skip2,
           int lflag, int sflag)
 {
@@ -133,13 +133,13 @@ c_special(int fd1, const char *file1, off_t skip1,
     /* duplicate because fdopen+fclose will otherwise close the handle. */
     fd1dup = dup(fd1);
     if (fd1 < 0)
-        return err(ERR_EXIT, "%s", file1);
+        return err(pCtx, ERR_EXIT, "%s", file1);
     fp1 = fdopen(fd1dup, "rb");
     if (!fp1)
         fp1 = fdopen(fd1dup, "r");
     if (!fp1)
     {
-        err(ERR_EXIT, "%s", file1);
+        err(pCtx, ERR_EXIT, "%s", file1);
         close(fd1dup);
         return ERR_EXIT;
     }
@@ -188,14 +188,14 @@ c_special(int fd1, const char *file1, off_t skip1,
                     {
                         if (!lflag)
                         {
-                            rc = diffmsg(file1, file2, byte, line, sflag);
+                            rc = diffmsg(pCtx, file1, file2, byte, line, sflag);
                             break;
                         }
                         rc = DIFF_EXIT;
 #ifdef _MSC_VER
-                        printf("%6i64d %3o %3o\n", (__int64)byte, ch1, ch2);
+                        kmk_builtin_ctx_printf(pCtx, 0, "%6i64d %3o %3o\n", (__int64)byte, ch1, ch2);
 #else
-                        printf("%6lld %3o %3o\n", (long long)byte, ch1, ch2);
+                        kmk_builtin_ctx_printf(pCtx, 0, "%6lld %3o %3o\n", (long long)byte, ch1, ch2);
 #endif
                     }
                     if (ch1 == '\n')
@@ -205,30 +205,30 @@ c_special(int fd1, const char *file1, off_t skip1,
 
             /* Check for errors and length differences (EOF). */
             if (ferror(fp1) && rc != ERR_EXIT)
-                rc = errmsg(file1, byte, line, lflag);
+                rc = errmsg(pCtx, file1, byte, line, lflag);
             if (ferror(fp2) && rc != ERR_EXIT)
-                rc = errmsg(file2, byte, line, lflag);
+                rc = errmsg(pCtx, file2, byte, line, lflag);
             if (rc == OK_EXIT)
             {
                 if (feof(fp1))
                 {
                     if (!feof(fp2))
-                        rc = eofmsg(file1, byte, line, sflag, lflag);
+                        rc = eofmsg(pCtx, file1, byte, line, sflag, lflag);
                 }
                 else if (feof(fp2))
-                    rc = eofmsg(file2, byte, line, sflag, lflag);
+                    rc = eofmsg(pCtx, file2, byte, line, sflag, lflag);
             }
 
             fclose(fp2);
         }
         else
         {
-            rc = err(ERR_EXIT, "%s", file2);
+            rc = err(pCtx, ERR_EXIT, "%s", file2);
             close(fd2dup);
         }
     }
     else
-        rc = err(ERR_EXIT, "%s", file2);
+        rc = err(pCtx, ERR_EXIT, "%s", file2);
 
     fclose(fp1);
     return rc;
@@ -240,7 +240,7 @@ c_special(int fd1, const char *file1, off_t skip1,
  * Compare two files using mmap.
  */
 static int
-c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
+c_regular(PKMKBUILTINCTX pCtx, int fd1, const char *file1, off_t skip1, off_t len1,
           int fd2, const char *file2, off_t skip2, off_t len2, int sflag, int lflag)
 {
     unsigned char ch, *p1, *p2, *b1, *b2;
@@ -252,10 +252,10 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
         return DIFF_EXIT;
 
     if (skip1 > len1)
-        return eofmsg(file1, len1 + 1, 0, sflag, lflag);
+        return eofmsg(pCtx, file1, len1 + 1, 0, sflag, lflag);
     len1 -= skip1;
     if (skip2 > len2)
-        return eofmsg(file2, len2 + 1, 0, sflag, lflag);
+        return eofmsg(pCtx, file2, len2 + 1, 0, sflag, lflag);
     len2 -= skip2;
 
     byte = line = 1;
@@ -289,9 +289,9 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
                 }
                 dfound = 1;
 #ifdef _MSC_VER
-                printf("%6I64d %3o %3o\n", (__int64)byte, ch, *p2);
+                kmk_builtin_ctx_printf(pCtx, 0, "%6I64d %3o %3o\n", (__int64)byte, ch, *p2);
 #else
-                printf("%6lld %3o %3o\n", (long long)byte, ch, *p2);
+                kmk_builtin_ctx_printf(pCtx, 0, "%6lld %3o %3o\n", (long long)byte, ch, *p2);
 #endif
             }
             if (ch == '\n')
@@ -304,13 +304,13 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
     }
 
     if (len1 != len2)
-        return eofmsg(len1 > len2 ? file2 : file1, byte, line, sflag, lflag);
+        return eofmsg(pCtx, len1 > len2 ? file2 : file1, byte, line, sflag, lflag);
     if (dfound)
         return DIFF_EXIT;
     return OK_EXIT;
 
 l_mmap_failed:
-    return c_special(fd1, file1, skip1, fd2, file2, skip2, lflag, sflag);
+    return c_special(pCtx, fd1, file1, skip1, fd2, file2, skip2, lflag, sflag);
 }
 
 #else /* non-mmap c_regular: */
@@ -319,7 +319,7 @@ l_mmap_failed:
  * Compare two files without mmaping them.
  */
 static int
-c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
+c_regular(PKMKBUILTINCTX pCtx, int fd1, const char *file1, off_t skip1, off_t len1,
           int fd2, const char *file2, off_t skip2, off_t len2, int sflag, int lflag)
 {
     unsigned char ch, *p1, *p2, *b1 = 0, *b2 = 0;
@@ -331,10 +331,10 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
         return DIFF_EXIT;
 
     if (skip1 > len1)
-        return eofmsg(file1, len1 + 1, 0, sflag, lflag);
+        return eofmsg(pCtx, file1, len1 + 1, 0, sflag, lflag);
     len1 -= skip1;
     if (skip2 > len2)
-        return eofmsg(file2, len2 + 1, 0, sflag, lflag);
+        return eofmsg(pCtx, file2, len2 + 1, 0, sflag, lflag);
     len2 -= skip2;
 
     if (skip1 && lseek(fd1, skip1, SEEK_SET) < 0)
@@ -342,7 +342,7 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
     if (skip2 && lseek(fd2, skip2, SEEK_SET) < 0)
     {
         if (skip1 && lseek(fd1, 0, SEEK_SET) < 0)
-            return err(1, "seek failed");
+            return err(pCtx, 1, "seek failed");
         goto l_special;
     }
 
@@ -382,13 +382,13 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
                 {
                     free(b1);
                     free(b2);
-                    return diffmsg(file1, file2, byte, line, sflag);
+                    return diffmsg(pCtx, file1, file2, byte, line, sflag);
                 }
                 dfound = 1;
 #ifdef _MSC_VER
-                printf("%6I64d %3o %3o\n", (__int64)byte, ch, *p2);
+                kmk_builtin_ctx_printf(pCtx, 0, "%6I64d %3o %3o\n", (__int64)byte, ch, *p2);
 #else
-                printf("%6lld %3o %3o\n", (long long)byte, ch, *p2);
+                kmk_builtin_ctx_printf(pCtx, 0, "%6lld %3o %3o\n", (long long)byte, ch, *p2);
 #endif
             }
             if (ch == '\n')
@@ -399,7 +399,7 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
     }
 
     if (len1 != len2)
-        return eofmsg(len1 > len2 ? file2 : file1, byte, line, sflag, lflag);
+        return eofmsg(pCtx, len1 > len2 ? file2 : file1, byte, line, sflag, lflag);
     if (dfound)
         return DIFF_EXIT;
     return OK_EXIT;
@@ -408,7 +408,7 @@ l_read_error:
     if (    lseek(fd1, 0, SEEK_SET) < 0
         ||  lseek(fd2, 0, SEEK_SET) < 0)
     {
-        err(1, "seek failed");
+        err(pCtx, 1, "seek failed");
         free(b1);
         free(b2);
         return 1;
@@ -417,7 +417,7 @@ l_malloc_failed:
     free(b1);
     free(b2);
 l_special:
-    return c_special(fd1, file1, skip1, fd2, file2, skip2, lflag, sflag);
+    return c_special(pCtx, fd1, file1, skip1, fd2, file2, skip2, lflag, sflag);
 }
 #endif  /* non-mmap c_regular */
 
@@ -426,7 +426,7 @@ l_special:
  * Compares two open files.
  */
 int
-cmp_fd_and_fd_ex(int fd1, const char *file1, off_t skip1,
+cmp_fd_and_fd_ex(PKMKBUILTINCTX pCtx, int fd1, const char *file1, off_t skip1,
                  int fd2, const char *file2, off_t skip2,
                  int sflag, int lflag, int special)
 {
@@ -434,17 +434,17 @@ cmp_fd_and_fd_ex(int fd1, const char *file1, off_t skip1,
     int rc;
 
     if (fstat(fd1, &st1))
-        return err(ERR_EXIT, "%s", file1);
+        return err(pCtx, ERR_EXIT, "%s", file1);
     if (fstat(fd2, &st2))
-        return err(ERR_EXIT, "%s", file2);
+        return err(pCtx, ERR_EXIT, "%s", file2);
 
     if (    !S_ISREG(st1.st_mode)
         ||  !S_ISREG(st2.st_mode)
         ||  special)
-        rc = c_special(fd1, file1, skip1,
+        rc = c_special(pCtx, fd1, file1, skip1,
                        fd2, file2, skip2, sflag, lflag);
     else
-        rc = c_regular(fd1, file1, skip1, st1.st_size,
+        rc = c_regular(pCtx, fd1, file1, skip1, st1.st_size,
                        fd2, file2, skip2, st2.st_size, sflag, lflag);
     return rc;
 }
@@ -454,11 +454,11 @@ cmp_fd_and_fd_ex(int fd1, const char *file1, off_t skip1,
  * Compares two open files.
  */
 int
-cmp_fd_and_fd(int fd1, const char *file1,
+cmp_fd_and_fd(PKMKBUILTINCTX pCtx, int fd1, const char *file1,
               int fd2, const char *file2,
               int sflag, int lflag, int special)
 {
-    return cmp_fd_and_fd_ex(fd1, file1, 0, fd2, file2, 0, sflag, lflag, special);
+    return cmp_fd_and_fd_ex(pCtx, fd1, file1, 0, fd2, file2, 0, sflag, lflag, special);
 }
 
 
@@ -466,7 +466,7 @@ cmp_fd_and_fd(int fd1, const char *file1,
  * Compares an open file with another that isn't open yet.
  */
 int
-cmp_fd_and_file_ex(int fd1, const char *file1, off_t skip1,
+cmp_fd_and_file_ex(PKMKBUILTINCTX pCtx, int fd1, const char *file1, off_t skip1,
                    const char *file2, off_t skip2,
                    int sflag, int lflag, int special)
 {
@@ -483,14 +483,14 @@ cmp_fd_and_file_ex(int fd1, const char *file1, off_t skip1,
         fd2 = open(file2, O_RDONLY | O_BINARY, 0);
     if (fd2 >= 0)
     {
-        rc = cmp_fd_and_fd_ex(fd1, file1, skip1,
+        rc = cmp_fd_and_fd_ex(pCtx, fd1, file1, skip1,
                               fd2, file2, skip2, sflag, lflag, special);
         close(fd2);
     }
     else
     {
         if (!sflag)
-            warn("%s", file2);
+            warn(pCtx, "%s", file2);
         rc = ERR_EXIT;
     }
     return rc;
@@ -501,11 +501,11 @@ cmp_fd_and_file_ex(int fd1, const char *file1, off_t skip1,
  * Compares an open file with another that isn't open yet.
  */
 int
-cmp_fd_and_file(int fd1, const char *file1,
+cmp_fd_and_file(PKMKBUILTINCTX pCtx, int fd1, const char *file1,
                 const char *file2,
                 int sflag, int lflag, int special)
 {
-    return cmp_fd_and_file_ex(fd1, file1, 0,
+    return cmp_fd_and_file_ex(pCtx, fd1, file1, 0,
                                    file2, 0, sflag, lflag, special);
 }
 
@@ -514,7 +514,7 @@ cmp_fd_and_file(int fd1, const char *file1,
  * Opens and compare two files.
  */
 int
-cmp_file_and_file_ex(const char *file1, off_t skip1,
+cmp_file_and_file_ex(PKMKBUILTINCTX pCtx, const char *file1, off_t skip1,
                      const char *file2, off_t skip2,
                      int sflag, int lflag, int special)
 {
@@ -522,12 +522,12 @@ cmp_file_and_file_ex(const char *file1, off_t skip1,
     int rc;
 
     if (lflag && sflag)
-        return errx(ERR_EXIT, "only one of -l and -s may be specified");
+        return errx(pCtx, ERR_EXIT, "only one of -l and -s may be specified");
 
     if (!strcmp(file1, "-"))
     {
         if (!strcmp(file2, "-"))
-            return errx(ERR_EXIT, "standard input may only be specified once");
+            return errx(pCtx, ERR_EXIT, "standard input may only be specified once");
         file1 = "stdin";
         fd1 = 1;
         special = 1;
@@ -536,14 +536,14 @@ cmp_file_and_file_ex(const char *file1, off_t skip1,
         fd1 = open(file1, O_RDONLY | O_BINARY, 0);
     if (fd1 >= 0)
     {
-        rc = cmp_fd_and_file_ex(fd1, file1, skip1,
+        rc = cmp_fd_and_file_ex(pCtx, fd1, file1, skip1,
                                      file2, skip2, sflag, lflag, special);
         close(fd1);
     }
     else
     {
         if (!sflag)
-            warn("%s", file1);
+            warn(pCtx, "%s", file1);
         rc = ERR_EXIT;
     }
 
@@ -555,8 +555,8 @@ cmp_file_and_file_ex(const char *file1, off_t skip1,
  * Opens and compare two files.
  */
 int
-cmp_file_and_file(const char *file1, const char *file2, int sflag, int lflag, int special)
+cmp_file_and_file(PKMKBUILTINCTX pCtx, const char *file1, const char *file2, int sflag, int lflag, int special)
 {
-    return cmp_file_and_file_ex(file1, 0, file2, 0, sflag, lflag, special);
+    return cmp_file_and_file_ex(pCtx, file1, 0, file2, 0, sflag, lflag, special);
 }
 

@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -33,6 +33,7 @@
 #else
 # include <sys/types.h>
 #endif
+#include <fcntl.h>
 
 /* For the GNU/hurd weirdo. */
 #ifndef PATH_MAX
@@ -56,11 +57,40 @@
 # endif
 #endif
 
+/** This is for telling open() to open to return a close-on-exec descriptor. */
+#ifdef _O_NOINHERIT
+# define KMK_OPEN_NO_INHERIT        _O_NOINHERIT
+#elif defined(O_NOINHERIT)
+# define KMK_OPEN_NO_INHERIT        O_NOINHERIT
+#elif defined(O_CLOEXEC)
+# define KMK_OPEN_NO_INHERIT        O_CLOEXEC
+#else
+# define KMK_OPEN_NO_INHERIT        0
+#endif
+
+
 #include "kbuild_version.h"
+#ifndef KMK_BUILTIN_STANDALONE
+# include "../output.h"
+#endif
 
 struct child;
 int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned);
 int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned);
+
+
+/**
+ * KMK built-in command execution context.
+ */
+typedef struct KMKBUILTINCTX
+{
+    /** The program name to use in error messages. */
+    const char *pszProgName;
+    /** The KMK output synchronizer.   */
+    struct output *pOut;
+} KMKBUILTINCTX;
+/** Pointer to kmk built-in command execution context. */
+typedef KMKBUILTINCTX *PKMKBUILTINCTX;
 
 /**
  * kmk built-in command entry.
@@ -80,11 +110,11 @@ typedef struct KMKBUILTINENTRY
     {
         uintptr_t uPfn;
 #define FN_SIG_MAIN             0
-        int (* pfnMain)(int argc, char **argv, char **envp);
+        int (* pfnMain)(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
 #define FN_SIG_MAIN_SPAWNS      1
-        int (* pfnMainSpawns)(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPid);
+        int (* pfnMainSpawns)(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx, struct child *pChild, pid_t *pPid);
 #define FN_SIG_MAIN_TO_SPAWN    2
-        int (* pfnMainToSpawn)(int argc, char **argv, char **envp, char ***ppapszArgvToSpawn);
+        int (* pfnMainToSpawn)(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx, char ***ppapszArgvToSpawn);
     } u;
     size_t      uFnSignature : 8;
     size_t      fMtSafe : 1;            /**< Safe for multi threaded execution. */
@@ -93,54 +123,50 @@ typedef struct KMKBUILTINENTRY
 /** Pointer to kmk built-in command entry. */
 typedef KMKBUILTINENTRY const *PCKMKBUILTINENTRY;
 
-#ifndef kmk_builtin_append
-extern int kmk_builtin_append(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPidSpawned);
-#endif
-extern int kmk_builtin_cp(int argc, char **argv, char **envp);
-extern int kmk_builtin_cat(int argc, char **argv, char **envp);
-extern int kmk_builtin_chmod(int argc, char **argv, char **envp);
-extern int kmk_builtin_cmp(int argc, char **argv, char **envp);
-extern int kmk_builtin_dircache(int argc, char **argv, char **envp);
-extern int kmk_builtin_echo(int argc, char **argv, char **envp);
-extern int kmk_builtin_expr(int argc, char **argv, char **envp);
-extern int kmk_builtin_install(int argc, char **argv, char **envp);
-extern int kmk_builtin_ln(int argc, char **argv, char **envp);
-extern int kmk_builtin_md5sum(int argc, char **argv, char **envp);
-extern int kmk_builtin_mkdir(int argc, char **argv, char **envp);
-extern int kmk_builtin_mv(int argc, char **argv, char **envp);
-extern int kmk_builtin_printf(int argc, char **argv, char **envp);
-extern int kmk_builtin_redirect(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPidSpawned);
-extern int kmk_builtin_rm(int argc, char **argv, char **envp);
-extern int kmk_builtin_rmdir(int argc, char **argv, char **envp);
-extern int kmk_builtin_sleep(int argc, char **argv, char **envp);
-extern int kmk_builtin_test(int argc, char **argv, char **envp
-#ifndef kmk_builtin_test
-                            , char ***ppapszArgvSpawn
-#endif
-                            );
-extern int kmk_builtin_touch(int argc, char **argv, char **envp);
+extern int kmk_builtin_append(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx, struct child *pChild, pid_t *pPidSpawned);
+extern int kmk_builtin_cp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_cat(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_chmod(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_cmp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_dircache(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_echo(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_expr(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_install(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_ln(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_md5sum(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_mkdir(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_mv(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_printf(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx, struct child *pChild, pid_t *pPidSpawned);
+extern int kmk_builtin_rm(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_rmdir(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_sleep(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_test(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx, char ***ppapszArgvSpawn);
+extern int kmk_builtin_touch(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
 #ifdef KBUILD_OS_WINDOWS
-extern int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPidSpawned);
+extern int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx, struct child *pChild, pid_t *pPidSpawned);
 extern int kSubmitSubProcGetResult(intptr_t pvUser, int *prcExit, int *piSigNo);
 extern int kSubmitSubProcKill(intptr_t pvUser, int iSignal);
 extern void kSubmitSubProcCleanup(intptr_t pvUser);
 #endif
-extern int kmk_builtin_kDepIDB(int argc, char **argv, char **envp);
-extern int kmk_builtin_kDepObj(int argc, char **argv, char **envp);
+extern int kmk_builtin_kDepIDB(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
+extern int kmk_builtin_kDepObj(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
 
 extern char *kmk_builtin_func_printf(char *o, char **argv, const char *funcname);
 
 /* common-env-and-cwd-opt.c: */
-extern int kBuiltinOptEnvSet(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
+extern int kBuiltinOptEnvSet(PKMKBUILTINCTX pCtx, char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
                              int cVerbosity, const char *pszValue);
-extern int kBuiltinOptEnvAppend(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
+extern int kBuiltinOptEnvAppend(PKMKBUILTINCTX pCtx, char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
                                 int cVerbosity, const char *pszValue);
-extern int kBuiltinOptEnvPrepend(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
+extern int kBuiltinOptEnvPrepend(PKMKBUILTINCTX pCtx, char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
                                  int cVerbosity, const char *pszValue);
-extern int kBuiltinOptEnvUnset(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars, int cVerbosity, const char *pszVarToRemove);
-extern int kBuiltinOptEnvZap(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars, int cVerbosity);
+extern int kBuiltinOptEnvUnset(PKMKBUILTINCTX pCtx, char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
+                               int cVerbosity, const char *pszVarToRemove);
+extern int kBuiltinOptEnvZap(PKMKBUILTINCTX pCtx, char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
+                             int cVerbosity);
 extern void kBuiltinOptEnvCleanup(char ***ppapszEnv, unsigned cEnvVars, unsigned *pcAllocatedEnvVars);
-extern int kBuiltinOptChDir(char *pszCwd, size_t cbCwdBuf, const char *pszValue);
+extern int kBuiltinOptChDir(PKMKBUILTINCTX pCtx, char *pszCwd, size_t cbCwdBuf, const char *pszValue);
 
 #ifdef CONFIG_WITH_KMK_BUILTIN_STATS
 extern void kmk_builtin_print_stats(FILE *pOutput, const char *pszPrefix);

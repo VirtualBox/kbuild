@@ -1,4 +1,4 @@
-/* $Id: err.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
+/* $Id: err.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * Override err.h so we get the program name right.
  */
@@ -26,12 +26,20 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
-#include "config.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#else
+# include <stdlib.h>
+# define snprintf _snprintf
+#endif
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
 #include "err.h"
+#if !defined(KMK_BUILTIN_STANDALONE) && !defined(KWORKER)
+# include "../output.h"
+#endif
 
 #ifdef KBUILD_OS_WINDOWS
 /* This is a trick to speed up console output on windows. */
@@ -40,156 +48,287 @@
 # define fwrite maybe_con_fwrite
 #endif
 
-
-/** The current program name. */
-const char *g_progname = "kmk";
-
-
-int err(int eval, const char *fmt, ...)
+int err(PKMKBUILTINCTX pCtx, int eval, const char *fmt, ...)
 {
-    va_list args;
-    int error = errno;
-
-    /* stderr is unbuffered, so try format the whole message and print it in
-       one go so it won't be split by other output. */
-    char szMsg[4096];
-    int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
-    if (cchMsg < (int)sizeof(szMsg) - 1 && cchMsg > 0)
+    /*
+     * We format into a buffer and pass that onto output.c or fwrite.
+     */
+    int     error = errno;
+    char   *pszToFree = NULL;
+    char    szMsgStack[4096];
+    char   *pszMsg = szMsgStack;
+    size_t  cbMsg = sizeof(szMsgStack);
+    for (;;)
     {
-        int cchMsg2;
-        va_start(args, fmt);
-        cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
-        va_end(args);
-
-        if (   cchMsg < (int)sizeof(szMsg) - 1
-            && cchMsg2 >= 0)
+        int cchMsg = snprintf(pszMsg, cbMsg, "%s: error: ", pCtx->pszProgName);
+        if (cchMsg < (int)cbMsg - 1 && cchMsg > 0)
         {
-            cchMsg += cchMsg2 = snprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, ": %s\n", strerror(error));
-            if (   cchMsg < (int)sizeof(szMsg) - 1
+            int cchMsg2;
+            va_list va;
+            va_start(va, fmt);
+            cchMsg += cchMsg2 = vsnprintf(&pszMsg[cchMsg], cbMsg - cchMsg, fmt, va);
+            va_end(va);
+
+            if (   cchMsg < (int)cbMsg - 1
                 && cchMsg2 >= 0)
             {
-                fwrite(szMsg, cchMsg, 1, stderr);
-                return eval;
+                cchMsg += cchMsg2 = snprintf(&pszMsg[cchMsg], cbMsg - cchMsg, ": %s\n", strerror(error));
+                if (   cchMsg < (int)cbMsg - 1
+                    && cchMsg2 >= 0)
+                {
+#if !defined(KMK_BUILTIN_STANDALONE) && !defined(KWORKER)
+                    if (pCtx->pOut)
+                        output_write_text(pCtx->pOut, 1 /*is_err*/, pszMsg, cchMsg);
+                    else
+#endif
+                    {
+                        fflush(stdout);
+                        fwrite(pszMsg, cchMsg, 1, stderr);
+                        fflush(stderr); /* paranoia */
+                    }
+                    if (pszToFree)
+                        free(pszToFree);
+                    errno = error;
+                    return eval;
+                }
             }
-
         }
 
-    }
-
-    /* fallback */
-    fprintf(stderr, "%s: ", g_progname);
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    fprintf(stderr, ": %s\n", strerror(error));
-
-    return eval;
-}
-
-
-int errx(int eval, const char *fmt, ...)
-{
-    va_list args;
-
-    /* stderr is unbuffered, so try format the whole message and print it in
-       one go so it won't be split by other output. */
-    char szMsg[4096];
-    int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
-    if (cchMsg < (int)sizeof(szMsg) - 1 && cchMsg > 0)
-    {
-        int cchMsg2;
-        va_start(args, fmt);
-        cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
-        va_end(args);
-
-        if (   cchMsg < (int)sizeof(szMsg) - 1
-            && cchMsg2 >= 0)
+        /* double the buffer size and retry */
+        if (pszToFree)
+            free(pszToFree);
+        cbMsg *= 2;
+        pszToFree = malloc(cbMsg);
+        if (!pszToFree)
         {
-            szMsg[cchMsg++] = '\n';
-            fwrite(szMsg, cchMsg, 1, stderr);
+            fprintf(stderr, "out of memory!\n");
+            errno = error;
             return eval;
         }
-
     }
-
-    /* fallback */
-    fprintf(stderr, "%s: ", g_progname);
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    fprintf(stderr, "\n");
-
-    return eval;
 }
 
-void warn(const char *fmt, ...)
+
+int errx(PKMKBUILTINCTX pCtx, int eval, const char *fmt, ...)
 {
-    int error = errno;
-    va_list args;
-
-    /* stderr is unbuffered, so try format the whole message and print it in
-       one go so it won't be split by other output. */
-    char szMsg[4096];
-    int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
-    if (cchMsg < (int)sizeof(szMsg) - 1 && cchMsg > 0)
+    /*
+     * We format into a buffer and pass that onto output.c or fwrite.
+     */
+    char   *pszToFree = NULL;
+    char    szMsgStack[4096];
+    char   *pszMsg = szMsgStack;
+    size_t  cbMsg = sizeof(szMsgStack);
+    for (;;)
     {
-        int cchMsg2;
-        va_start(args, fmt);
-        cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
-        va_end(args);
-
-        if (   cchMsg < (int)sizeof(szMsg) - 1
-            && cchMsg2 >= 0)
+        int cchMsg = snprintf(pszMsg, cbMsg, "%s: error: ", pCtx->pszProgName);
+        if (cchMsg < (int)cbMsg - 1 && cchMsg > 0)
         {
-            cchMsg += cchMsg2 = snprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, ": %s\n", strerror(error));
-            if (   cchMsg < (int)sizeof(szMsg) - 1
+            int cchMsg2;
+            va_list va;
+            va_start(va, fmt);
+            cchMsg += cchMsg2 = vsnprintf(&pszMsg[cchMsg], cbMsg - cchMsg, fmt, va);
+            va_end(va);
+
+            if (   cchMsg < (int)cbMsg - 2
                 && cchMsg2 >= 0)
             {
-                fwrite(szMsg, cchMsg, 1, stderr);
-                return;
-            }
+                /* ensure newline */
+                if (pszMsg[cchMsg - 1] != '\n')
+                {
+                    pszMsg[cchMsg++] = '\n';
+                    pszMsg[cchMsg] = '\0';
+                }
 
+#if !defined(KMK_BUILTIN_STANDALONE) && !defined(KWORKER)
+                if (pCtx->pOut)
+                    output_write_text(pCtx->pOut, 1 /*is_err*/, pszMsg, cchMsg);
+                else
+#endif
+                {
+                    fflush(stdout);
+                    fwrite(pszMsg, cchMsg, 1, stderr);
+                    fflush(stderr); /* paranoia */
+                }
+                if (pszToFree)
+                    free(pszToFree);
+                return eval;
+            }
+        }
+
+        /* double the buffer size and retry */
+        if (pszToFree)
+            free(pszToFree);
+        cbMsg *= 2;
+        pszToFree = malloc(cbMsg);
+        if (!pszToFree)
+        {
+            fprintf(stderr, "out of memory!\n");
+            return eval;
         }
     }
-
-    /* fallback */
-    fprintf(stderr, "%s: ", g_progname);
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    fprintf(stderr, ": %s\n", strerror(error));
 }
 
-void warnx(const char *fmt, ...)
+void warn(PKMKBUILTINCTX pCtx, const char *fmt, ...)
 {
-    va_list args;
-
-    /* stderr is unbuffered, so try format the whole message and print it in
-       one go so it won't be split by other output. */
-    char szMsg[4096];
-    int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
-    if (cchMsg < (int)sizeof(szMsg) - 1 && cchMsg > 0)
+    /*
+     * We format into a buffer and pass that onto output.c or fwrite.
+     */
+    int     error = errno;
+    char   *pszToFree = NULL;
+    char    szMsgStack[4096];
+    char   *pszMsg = szMsgStack;
+    size_t  cbMsg = sizeof(szMsgStack);
+    for (;;)
     {
-        int cchMsg2;
-        va_start(args, fmt);
-        cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
-        va_end(args);
-
-        if (   cchMsg < (int)sizeof(szMsg) - 1
-            && cchMsg2 >= 0)
+        int cchMsg = snprintf(pszMsg, cbMsg, "%s: ", pCtx->pszProgName);
+        if (cchMsg < (int)cbMsg - 1 && cchMsg > 0)
         {
-            szMsg[cchMsg++] = '\n';
-            fwrite(szMsg, cchMsg, 1, stderr);
+            int cchMsg2;
+            va_list va;
+            va_start(va, fmt);
+            cchMsg += cchMsg2 = vsnprintf(&pszMsg[cchMsg], cbMsg - cchMsg, fmt, va);
+            va_end(va);
+
+            if (   cchMsg < (int)cbMsg - 1
+                && cchMsg2 >= 0)
+            {
+                cchMsg += cchMsg2 = snprintf(&pszMsg[cchMsg], cbMsg - cchMsg, ": %s\n", strerror(error));
+                if (   cchMsg < (int)cbMsg - 1
+                    && cchMsg2 >= 0)
+                {
+#if !defined(KMK_BUILTIN_STANDALONE) && !defined(KWORKER)
+                    if (pCtx->pOut)
+                        output_write_text(pCtx->pOut, 1 /*is_err*/, pszMsg, cchMsg);
+                    else
+#endif
+                    {
+                        fflush(stdout);
+                        fwrite(pszMsg, cchMsg, 1, stderr);
+                        fflush(stderr); /* paranoia */
+                    }
+                    if (pszToFree)
+                        free(pszToFree);
+                    errno = error;
+                    return;
+                }
+            }
+        }
+
+        /* double the buffer size and retry */
+        if (pszToFree)
+            free(pszToFree);
+        cbMsg *= 2;
+        pszToFree = malloc(cbMsg);
+        if (!pszToFree)
+        {
+            fprintf(stderr, "out of memory!\n");
+            errno = error;
+            return;
+        }
+    }
+}
+
+void warnx(PKMKBUILTINCTX pCtx, const char *fmt, ...)
+{
+    /*
+     * We format into a buffer and pass that onto output.c or fwrite.
+     */
+    char   *pszToFree = NULL;
+    char    szMsgStack[4096];
+    char   *pszMsg = szMsgStack;
+    size_t  cbMsg = sizeof(szMsgStack);
+    for (;;)
+    {
+        int cchMsg = snprintf(pszMsg, cbMsg, "%s: ", pCtx->pszProgName);
+        if (cchMsg < (int)cbMsg - 1 && cchMsg > 0)
+        {
+            int cchMsg2;
+            va_list va;
+            va_start(va, fmt);
+            cchMsg += cchMsg2 = vsnprintf(&pszMsg[cchMsg], cbMsg - cchMsg, fmt, va);
+            va_end(va);
+
+            if (   cchMsg < (int)cbMsg - 2
+                && cchMsg2 >= 0)
+            {
+                /* ensure newline */
+                if (pszMsg[cchMsg - 1] != '\n')
+                {
+                    pszMsg[cchMsg++] = '\n';
+                    pszMsg[cchMsg] = '\0';
+                }
+
+#if !defined(KMK_BUILTIN_STANDALONE) && !defined(KWORKER)
+                if (pCtx->pOut)
+                    output_write_text(pCtx->pOut, 1 /*is_err*/, pszMsg, cchMsg);
+                else
+#endif
+                {
+                    fflush(stdout);
+                    fwrite(pszMsg, cchMsg, 1, stderr);
+                    fflush(stderr); /* paranoia */
+                }
+                if (pszToFree)
+                    free(pszToFree);
+                return;
+            }
+        }
+
+        /* double the buffer size and retry */
+        if (pszToFree)
+            free(pszToFree);
+        cbMsg *= 2;
+        pszToFree = malloc(cbMsg);
+        if (!pszToFree)
+        {
+            fprintf(stderr, "out of memory!\n");
+            return;
+        }
+    }
+}
+
+void kmk_builtin_ctx_printf(PKMKBUILTINCTX pCtx, int fIsErr, const char *pszFormat, ...)
+{
+    /*
+     * We format into a buffer and pass that onto output.c or fwrite.
+     */
+    char   *pszToFree = NULL;
+    char    szMsgStack[4096];
+    char   *pszMsg = szMsgStack;
+    size_t  cbMsg = sizeof(szMsgStack);
+    for (;;)
+    {
+        int cchMsg;
+        va_list va;
+        va_start(va, pszFormat);
+        cchMsg = vsnprintf(pszMsg, cbMsg, pszFormat, va);
+        va_end(va);
+        if (cchMsg < (int)cbMsg - 1 && cchMsg > 0)
+        {
+#if !defined(KMK_BUILTIN_STANDALONE) && !defined(KWORKER)
+            if (pCtx->pOut)
+                output_write_text(pCtx->pOut, fIsErr, pszMsg, cchMsg);
+            else
+#endif
+            {
+                fwrite(pszMsg, cchMsg, 1, fIsErr ? stderr : stdout);
+                fflush(fIsErr ? stderr : stdout);
+            }
+            if (pszToFree)
+                free(pszToFree);
             return;
         }
 
+        /* double the buffer size and retry */
+        if (pszToFree)
+            free(pszToFree);
+        cbMsg *= 2;
+        pszToFree = malloc(cbMsg);
+        if (!pszToFree)
+        {
+            fprintf(stderr, "out of memory!\n");
+            return;
+        }
     }
-
-    /* fallback */
-    fprintf(stderr, "%s: ", g_progname);
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    fprintf(stderr, "\n");
 }
 

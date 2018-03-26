@@ -1,4 +1,4 @@
-/* $Id: touch.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
+/* $Id: touch.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_touch - Simple touch implementation.
  */
@@ -90,6 +90,8 @@ typedef enum KMKTOUCHACTION
 
 typedef struct KMKTOUCHOPTS
 {
+    /** Command execution context. */
+    PKMKBUILTINCTX  pCtx;
     /** What timestamps to modify on the files. */
     KMKTOUCHTARGET  enmWhatToTouch;
     /** How to update the time. */
@@ -110,29 +112,6 @@ typedef struct KMKTOUCHOPTS
 } KMKTOUCHOPTS;
 typedef KMKTOUCHOPTS *PKMKTOUCHOPTS;
 
-
-
-static int touch_error(const char *pszMsg, ...)
-{
-    va_list va;
-    fputs(TOUCH_NAME ": error: ", stderr);
-    va_start(va, pszMsg);
-    vfprintf(stderr, pszMsg, va);
-    va_end(va);
-    fputc('\n', stderr);
-    return 1;
-}
-
-static int touch_syntax(const char *pszMsg, ...)
-{
-    va_list va;
-    fputs(TOUCH_NAME ": syntax error: ", stderr);
-    va_start(va, pszMsg);
-    vfprintf(stderr, pszMsg, va);
-    va_end(va);
-    fputc('\n', stderr);
-    return 2;
-}
 
 static int touch_usage(void)
 {
@@ -188,7 +167,7 @@ static int lutimes(const char *pszFile, struct timeval aTimes[2])
 /**
  * Parses adjustment value: [-][[hh]mm]SS
  */
-static int touch_parse_adjust(const char *pszValue, int *piAdjustValue)
+static int touch_parse_adjust(PKMKBUILTINCTX pCtx, const char *pszValue, int *piAdjustValue)
 {
     const char * const  pszInValue = pszValue;
     size_t              cchValue  = strlen(pszValue);
@@ -209,24 +188,24 @@ static int touch_parse_adjust(const char *pszValue, int *piAdjustValue)
         case 6:
             if (   !IS_DIGIT(pszValue[0], 9)
                 || !IS_DIGIT(pszValue[0], 9))
-                return touch_syntax("Malformed hour part of -A value: %s", pszInValue);
+                return errx(pCtx, 2, "Malformed hour part of -A value: %s", pszInValue);
             *piAdjustValue = TWO_CHARS_TO_INT(pszValue[0], pszValue[1]) * 60 * 60;
             /* fall thru */
         case 4:
             if (   !IS_DIGIT(pszValue[cchValue - 4], 9) /* don't bother limit to 60 minutes */
                 || !IS_DIGIT(pszValue[cchValue - 3], 9))
-                return touch_syntax("Malformed minute part of -A value: %s", pszInValue);
+                return errx(pCtx, 2, "Malformed minute part of -A value: %s", pszInValue);
             *piAdjustValue += TWO_CHARS_TO_INT(pszValue[cchValue - 4], pszValue[cchValue - 3]) * 60;
             /* fall thru */
         case 2:
             if (   !IS_DIGIT(pszValue[cchValue - 2], 9) /* don't bother limit to 60 seconds */
                 || !IS_DIGIT(pszValue[cchValue - 1], 9))
-                return touch_syntax("Malformed second part of -A value: %s", pszInValue);
+                return errx(pCtx, 2, "Malformed second part of -A value: %s", pszInValue);
             *piAdjustValue += TWO_CHARS_TO_INT(pszValue[cchValue - 2], pszValue[cchValue - 1]);
             break;
 
         default:
-            return touch_syntax("Invalid -A value (length): %s", pszInValue);
+            return errx(pCtx, 2, "Invalid -A value (length): %s", pszInValue);
     }
 
     /* Apply negativity. */
@@ -240,7 +219,7 @@ static int touch_parse_adjust(const char *pszValue, int *piAdjustValue)
 /**
  * Parse -d timestamp: YYYY-MM-DDThh:mm:SS[.frac][tz]
  */
-static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
+static int touch_parse_d_ts(PKMKBUILTINCTX pCtx, const char *pszTs, struct timeval *pDst)
 {
     const char * const  pszTsIn = pszTs;
     struct tm           ExpTime;
@@ -256,8 +235,8 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
         || !IS_DIGIT(pszTs[2], 9)
         || !IS_DIGIT(pszTs[3], 9)
         || pszTs[4] != '-')
-        return touch_error("Malformed timestamp '%s' given to -d: expected to start with 4 digit year followed by a dash",
-                           pszTsIn);
+        return errx(pCtx, 2, "Malformed timestamp '%s' given to -d: expected to start with 4 digit year followed by a dash",
+                    pszTsIn);
     ExpTime.tm_year = TWO_CHARS_TO_INT(pszTs[0], pszTs[1]) * 100
                     + TWO_CHARS_TO_INT(pszTs[2], pszTs[3])
                     - 1900;
@@ -267,8 +246,8 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
     if (   !IS_DIGIT(pszTs[0], 1)
         || !IS_DIGIT(pszTs[1], 9)
         || pszTs[2] != '-')
-        return touch_error("Malformed timestamp '%s' given to -d: expected to two digit month at position 6 followed by a dash",
-                           pszTsIn);
+        return errx(pCtx, 2, "Malformed timestamp '%s' given to -d: expected to two digit month at position 6 followed by a dash",
+                    pszTsIn);
     ExpTime.tm_mon = TWO_CHARS_TO_INT(pszTs[0], pszTs[1]) - 1;
     pszTs += 3;
 
@@ -276,8 +255,8 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
     if (   !IS_DIGIT(pszTs[0], 3)
         || !IS_DIGIT(pszTs[1], 9)
         || (pszTs[2] != 'T' && pszTs[2] != 't' && pszTs[2] != ' ') )
-        return touch_error("Malformed timestamp '%s' given to -d: expected to two digit day of month at position 9 followed by 'T' or space",
-                           pszTsIn);
+        return errx(pCtx, 2, "Malformed timestamp '%s' given to -d: expected to two digit day of month at position 9 followed by 'T' or space",
+                    pszTsIn);
     ExpTime.tm_mday = TWO_CHARS_TO_INT(pszTs[0], pszTs[1]);
     pszTs += 3;
 
@@ -285,8 +264,8 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
     if (   !IS_DIGIT(pszTs[0], 2)
         || !IS_DIGIT(pszTs[1], 9)
         || pszTs[2] != ':')
-        return touch_error("Malformed timestamp '%s' given to -d: expected to two digit hour at position 12 followed by colon",
-                           pszTsIn);
+        return errx(pCtx, 2, "Malformed timestamp '%s' given to -d: expected to two digit hour at position 12 followed by colon",
+                    pszTsIn);
     ExpTime.tm_hour = TWO_CHARS_TO_INT(pszTs[0], pszTs[1]);
     pszTs += 3;
 
@@ -294,15 +273,15 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
     if (   !IS_DIGIT(pszTs[0], 5)
         || !IS_DIGIT(pszTs[1], 9)
         || pszTs[2] != ':')
-        return touch_error("Malformed timestamp '%s' given to -d: expected to two digit minute at position 15 followed by colon",
-                           pszTsIn);
+        return errx(pCtx, 2, "Malformed timestamp '%s' given to -d: expected to two digit minute at position 15 followed by colon",
+                    pszTsIn);
     ExpTime.tm_min = TWO_CHARS_TO_INT(pszTs[0], pszTs[1]);
     pszTs += 3;
 
     /* seconds */
     if (   !IS_DIGIT(pszTs[0], 5)
         || !IS_DIGIT(pszTs[1], 9))
-        return touch_error("Malformed timestamp '%s' given to -d: expected to two digit seconds at position 12", pszTsIn);
+        return errx(pCtx, 2, "Malformed timestamp '%s' given to -d: expected to two digit seconds at position 12", pszTsIn);
     ExpTime.tm_sec = TWO_CHARS_TO_INT(pszTs[0], pszTs[1]);
     pszTs += 2;
 
@@ -314,7 +293,7 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
 
         pszTs++;
         if (!IS_DIGIT(*pszTs, 9))
-            return touch_error("Malformed timestamp '%s' given to -d: empty fraction", pszTsIn);
+            return errx(pCtx, 2, "Malformed timestamp '%s' given to -d: empty fraction", pszTsIn);
 
         iFactor = 100000;
         do
@@ -332,11 +311,12 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
         ExpTime.tm_isdst = 0;
         pszTs++;
         if (*pszTs != '\0')
-            return touch_error("Malformed timestamp '%s' given to -d: Unexpected character(s) after zulu time indicator at end of timestamp",
-                               pszTsIn);
+            return errx(pCtx, 2,
+                        "Malformed timestamp '%s' given to -d: Unexpected character(s) after zulu time indicator at end of timestamp",
+                        pszTsIn);
     }
     else if (*pszTs != '\0')
-        return touch_error("Malformed timestamp '%s' given to -d: expected to 'Z' (zulu) or nothing at end of timestamp", pszTsIn);
+        return errx(pCtx, 2, "Malformed timestamp '%s' given to -d: expected to 'Z' (zulu) or nothing at end of timestamp", pszTsIn);
 
     /*
      * Convert to UTC seconds using either timegm or mktime.
@@ -351,13 +331,13 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
         pDst->tv_sec = timegm(&ExpTime);
 #endif
         if (pDst->tv_sec == -1)
-            return touch_error("timegm failed on '%s': %s", pszTs, strerror(errno));
+            return errx(pCtx, 1, "timegm failed on '%s': %s", pszTs, strerror(errno));
     }
     else
     {
         pDst->tv_sec = mktime(&ExpTime);
         if (pDst->tv_sec == -1)
-            return touch_error("mktime failed on '%s': %s", pszTs, strerror(errno));
+            return errx(pCtx, 1, "mktime failed on '%s': %s", pszTs, strerror(errno));
     }
     return 0;
 }
@@ -366,7 +346,7 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
 /**
  * Parse -t timestamp: [[CC]YY]MMDDhhmm[.SS]
  */
-static int touch_parse_ts(const char *pszTs, struct timeval *pDst)
+static int touch_parse_ts(PKMKBUILTINCTX pCtx, const char *pszTs, struct timeval *pDst)
 {
     size_t const    cchTs = strlen(pszTs);
     size_t          cchTsNoSec;
@@ -379,7 +359,7 @@ static int touch_parse_ts(const char *pszTs, struct timeval *pDst)
      * Do some input validations first.
      */
     if ((cchTs & 1) && pszTs[cchTs - 3] != '.')
-        return touch_error("Invalid timestamp given to -t: %s", pszTs);
+        return errx(pCtx, 2, "Invalid timestamp given to -t: %s", pszTs);
     switch (cchTs)
     {
         case 8:             /*     MMDDhhmm */
@@ -391,14 +371,14 @@ static int touch_parse_ts(const char *pszTs, struct timeval *pDst)
         case 8 + 3 + 2:     /*   YYMMDDhhmm.SS */
         case 8 + 3 + 2 + 2: /* CCYYMMDDhhmm.SS */
             if (pszTs[cchTs - 3] != '.')
-                return touch_error("Invalid timestamp (-t) '%s': missing dot for seconds part", pszTs);
+                return errx(pCtx, 2, "Invalid timestamp (-t) '%s': missing dot for seconds part", pszTs);
             if (   !IS_DIGIT(pszTs[cchTs - 2], 5)
                 || !IS_DIGIT(pszTs[cchTs - 1], 9))
-                return touch_error("Invalid timestamp (-t) '%s': malformed seconds part", pszTs);
+                return errx(pCtx, 2, "Invalid timestamp (-t) '%s': malformed seconds part", pszTs);
             cchTsNoSec = cchTs - 3;
             break;
         default:
-            return touch_error("Invalid timestamp (-t) '%s': wrong length (%d)", pszTs, (int)cchTs);
+            return errx(pCtx, 1, "Invalid timestamp (-t) '%s': wrong length (%d)", pszTs, (int)cchTs);
     }
 
     switch (cchTsNoSec)
@@ -406,26 +386,26 @@ static int touch_parse_ts(const char *pszTs, struct timeval *pDst)
         case 8 + 2 + 2:     /* CCYYMMDDhhmm */
             if (   !IS_DIGIT(pszTs[cchTsNoSec - 12], 9)
                 || !IS_DIGIT(pszTs[cchTsNoSec - 11], 9))
-                return touch_error("Invalid timestamp (-t) '%s': malformed CC part", pszTs);
+                return errx(pCtx, 2, "Invalid timestamp (-t) '%s': malformed CC part", pszTs);
             /* fall thru */
         case 8 + 2:         /*   YYMMDDhhmm */
             if (   !IS_DIGIT(pszTs[cchTsNoSec - 10], 9)
                 || !IS_DIGIT(pszTs[cchTsNoSec -  9], 9))
-                return touch_error("Invalid timestamp (-t) '%s': malformed YY part", pszTs);
+                return errx(pCtx, 2, "Invalid timestamp (-t) '%s': malformed YY part", pszTs);
             /* fall thru */
         case 8:             /*     MMDDhhmm */
             if (   !IS_DIGIT(pszTs[cchTsNoSec - 8], 1)
                 || !IS_DIGIT(pszTs[cchTsNoSec - 7], 9) )
-                return touch_error("Invalid timestamp (-t) '%s': malformed month part", pszTs);
+                return errx(pCtx, 2, "Invalid timestamp (-t) '%s': malformed month part", pszTs);
             if (   !IS_DIGIT(pszTs[cchTsNoSec - 6], 3)
                 || !IS_DIGIT(pszTs[cchTsNoSec - 5], 9) )
-                return touch_error("Invalid timestamp (-t) '%s': malformed day part", pszTs);
+                return errx(pCtx, 2, "Invalid timestamp (-t) '%s': malformed day part", pszTs);
             if (   !IS_DIGIT(pszTs[cchTsNoSec - 4], 2)
                 || !IS_DIGIT(pszTs[cchTsNoSec - 3], 9) )
-                return touch_error("Invalid timestamp (-t) '%s': malformed hour part", pszTs);
+                return errx(pCtx, 2, "Invalid timestamp (-t) '%s': malformed hour part", pszTs);
             if (   !IS_DIGIT(pszTs[cchTsNoSec - 2], 5)
                 || !IS_DIGIT(pszTs[cchTsNoSec - 1], 9) )
-                return touch_error("Invalid timestamp (-t) '%s': malformed minute part", pszTs);
+                return errx(pCtx, 2, "Invalid timestamp (-t) '%s': malformed minute part", pszTs);
             break;
     }
 
@@ -434,11 +414,11 @@ static int touch_parse_ts(const char *pszTs, struct timeval *pDst)
      */
     rc = gettimeofday(&Now, NULL);
     if (rc != 0)
-        return touch_error("gettimeofday failed: %s", strerror(errno));
+        return errx(pCtx, 1, "gettimeofday failed: %s", strerror(errno));
 
     pExpTime = localtime_r(&Now.tv_sec, &ExpTime);
     if (pExpTime == NULL)
-        return touch_error("localtime_r failed: %s", strerror(errno));
+        return errx(pCtx, 1, "localtime_r failed: %s", strerror(errno));
 
     /*
      * Do the decoding.
@@ -474,14 +454,14 @@ static int touch_parse_ts(const char *pszTs, struct timeval *pDst)
     pDst->tv_sec  = mktime(pExpTime);
     if (pDst->tv_sec != -1)
         return 0;
-    return touch_error("mktime failed on '%s': %s", pszTs, strerror(errno));
+    return errx(pCtx, 1, "mktime failed on '%s': %s", pszTs, strerror(errno));
 }
 
 
 /**
  * Check for old timestamp: MMDDhhmm[YY]
  */
-static int touch_parse_old_ts(const char *pszOldTs, time_t Now, struct timeval *pDst)
+static int touch_parse_old_ts(PKMKBUILTINCTX pCtx, const char *pszOldTs, time_t Now, struct timeval *pDst)
 {
     /*
      * Check if this is a valid timestamp.
@@ -508,7 +488,7 @@ static int touch_parse_old_ts(const char *pszOldTs, time_t Now, struct timeval *
         struct tm  *pExpTime;
         pExpTime = localtime_r(&Now, &ExpTime);
         if (pExpTime == NULL)
-            return touch_error("localtime_r failed: %s", strerror(errno));
+            return errx(pCtx, 1, "localtime_r failed: %s", strerror(errno));
 
         /*
          * Decode the bits we've got.
@@ -534,7 +514,7 @@ static int touch_parse_old_ts(const char *pszOldTs, time_t Now, struct timeval *
         pDst->tv_sec  = mktime(pExpTime);
         if (pDst->tv_sec != -1)
             return 0;
-        return touch_error("mktime failed on '%s': %s", pszOldTs, strerror(errno));
+        return errx(pCtx, 1, "mktime failed on '%s': %s", pszOldTs, strerror(errno));
     }
 
     /* No valid timestamp present. */
@@ -543,17 +523,17 @@ static int touch_parse_old_ts(const char *pszOldTs, time_t Now, struct timeval *
 
 
 /**
- * Parses the arguments into pOpts.
+ * Parses the arguments into pThis.
  *
  * @returns exit code.
- * @param   pOpts               Options structure to return the parsed info in.
+ * @param   pThis               Options structure to return the parsed info in.
  *                              Caller initalizes this with defaults.
  * @param   cArgs               The number of arguments.
  * @param   papszArgs           The arguments.
  * @param   pfExit              Indicates whether to exit or to start processing
  *                              files.
  */
-static int touch_parse_args(PKMKTOUCHOPTS pOpts, int cArgs, char **papszArgs, KBOOL *pfExit)
+static int touch_parse_args(PKMKTOUCHOPTS pThis, int cArgs, char **papszArgs, KBOOL *pfExit)
 {
     int iAdjustValue = 0;
     int iArg;
@@ -582,7 +562,7 @@ static int touch_parse_args(PKMKTOUCHOPTS pOpts, int cArgs, char **papszArgs, KB
                 if (!ch)
                 {
                     while (++iArg < cArgs)
-                        pOpts->papszFiles[pOpts->cFiles++] = papszArgs[iArg];
+                        pThis->papszFiles[pThis->cFiles++] = papszArgs[iArg];
                     break; /* '--' */
                 }
 
@@ -625,7 +605,7 @@ static int touch_parse_args(PKMKTOUCHOPTS pOpts, int cArgs, char **papszArgs, KB
                 else if (strcmp(pszLong, "version") == 0)
                     return kbuild_version(papszArgs[0]);
                 else
-                    return touch_syntax("Unknown option: --%s", pszLong);
+                    return errx(pThis->pCtx, 2, "Unknown option: --%s", pszLong);
             }
 
             /*
@@ -650,7 +630,7 @@ static int touch_parse_args(PKMKTOUCHOPTS pOpts, int cArgs, char **papszArgs, KB
                         else if (iArg + 1 < cArgs)
                             pszValue = papszArgs[++iArg];
                         else
-                            return touch_syntax("Option -%c requires a value", ch);
+                            return errx(pThis->pCtx, 2, "Option -%c requires a value", ch);
                         break;
 
                     default:
@@ -662,33 +642,33 @@ static int touch_parse_args(PKMKTOUCHOPTS pOpts, int cArgs, char **papszArgs, KB
                 {
                     /* -A [-][[HH]MM]SS */
                     case 'A':
-                        rc = touch_parse_adjust(pszValue, &iAdjustValue);
+                        rc = touch_parse_adjust(pThis->pCtx, pszValue, &iAdjustValue);
                         if (rc != 0)
                             return rc;
-                        if (pOpts->enmAction != kTouchActionSet)
+                        if (pThis->enmAction != kTouchActionSet)
                         {
-                            pOpts->enmAction = kTouchActionAdjust;
-                            pOpts->NewATime.tv_sec  = iAdjustValue;
-                            pOpts->NewATime.tv_usec = 0;
-                            pOpts->NewMTime = pOpts->NewATime;
+                            pThis->enmAction = kTouchActionAdjust;
+                            pThis->NewATime.tv_sec  = iAdjustValue;
+                            pThis->NewATime.tv_usec = 0;
+                            pThis->NewMTime = pThis->NewATime;
                         }
                         /* else: applied after parsing everything. */
                         break;
 
                     case 'a':
-                        pOpts->enmWhatToTouch = kTouchAccessOnly;
+                        pThis->enmWhatToTouch = kTouchAccessOnly;
                         break;
 
                     case 'c':
-                        pOpts->fCreate = K_FALSE;
+                        pThis->fCreate = K_FALSE;
                         break;
 
                     case 'd':
-                        rc = touch_parse_d_ts(pszValue, &pOpts->NewATime);
+                        rc = touch_parse_d_ts(pThis->pCtx, pszValue, &pThis->NewATime);
                         if (rc != 0)
                             return rc;
-                        pOpts->enmAction = kTouchActionSet;
-                        pOpts->NewMTime  = pOpts->NewATime;
+                        pThis->enmAction = kTouchActionSet;
+                        pThis->NewMTime  = pThis->NewATime;
                         break;
 
                     case 'f':
@@ -696,97 +676,97 @@ static int touch_parse_args(PKMKTOUCHOPTS pOpts, int cArgs, char **papszArgs, KB
                         break;
 
                     case 'h':
-                        pOpts->fDereference = K_FALSE;
+                        pThis->fDereference = K_FALSE;
                         break;
 
                     case 'm':
-                        pOpts->enmWhatToTouch = kTouchModifyOnly;
+                        pThis->enmWhatToTouch = kTouchModifyOnly;
                         break;
 
                     case 'r':
                     {
                         struct stat St;
                         if (stat(pszValue, &St) != 0)
-                            return touch_error("Failed to stat '%s' (-r option): %s", pszValue, strerror(errno));
+                            return errx(pThis->pCtx, 1, "Failed to stat '%s' (-r option): %s", pszValue, strerror(errno));
 
-                        pOpts->enmAction = kTouchActionSet;
-                        pOpts->NewATime.tv_sec  = St.st_atime;
-                        pOpts->NewMTime.tv_sec  = St.st_mtime;
+                        pThis->enmAction = kTouchActionSet;
+                        pThis->NewATime.tv_sec  = St.st_atime;
+                        pThis->NewMTime.tv_sec  = St.st_mtime;
 #if FILE_TIMESTAMP_HI_RES
-                        pOpts->NewATime.tv_usec = St.st_atim.tv_nsec / 1000;
-                        pOpts->NewMTime.tv_usec = St.st_mtim.tv_nsec / 1000;
+                        pThis->NewATime.tv_usec = St.st_atim.tv_nsec / 1000;
+                        pThis->NewMTime.tv_usec = St.st_mtim.tv_nsec / 1000;
 #else
-                        pOpts->NewATime.tv_usec = 0;
-                        pOpts->NewMTime.tv_usec = 0;
+                        pThis->NewATime.tv_usec = 0;
+                        pThis->NewMTime.tv_usec = 0;
 #endif
                         break;
                     }
 
                     case 't':
-                        rc = touch_parse_ts(pszValue, &pOpts->NewATime);
+                        rc = touch_parse_ts(pThis->pCtx, pszValue, &pThis->NewATime);
                         if (rc != 0)
                             return rc;
-                        pOpts->enmAction = kTouchActionSet;
-                        pOpts->NewMTime  = pOpts->NewATime;
+                        pThis->enmAction = kTouchActionSet;
+                        pThis->NewMTime  = pThis->NewATime;
                         break;
 
                     case 'T':
                         if (   strcmp(pszValue, "atime") == 0
                             || strcmp(pszValue, "access") == 0)
-                            pOpts->enmWhatToTouch = kTouchAccessOnly;
+                            pThis->enmWhatToTouch = kTouchAccessOnly;
                         else if (   strcmp(pszValue, "mtime") == 0
                                  || strcmp(pszValue, "modify") == 0)
-                            pOpts->enmWhatToTouch = kTouchModifyOnly;
+                            pThis->enmWhatToTouch = kTouchModifyOnly;
                         else
-                            return touch_syntax("Unknown --time value: %s", pszValue);
+                            return errx(pThis->pCtx, 2, "Unknown --time value: %s", pszValue);
                         break;
 
                     case 'V':
                         return kbuild_version(papszArgs[0]);
 
                     default:
-                        return touch_syntax("Unknown option: -%c (%c%s)", ch, ch, pszArg);
+                        return errx(pThis->pCtx, 2, "Unknown option: -%c (%c%s)", ch, ch, pszArg);
                 }
 
             } while ((ch = *pszArg++) != '\0');
         }
         else
-            pOpts->papszFiles[pOpts->cFiles++] = papszArgs[iArg];
+            pThis->papszFiles[pThis->cFiles++] = papszArgs[iArg];
     }
 
     /*
      * Allow adjusting specified timestamps too like BSD does.
      */
-    if (   pOpts->enmAction == kTouchActionSet
+    if (   pThis->enmAction == kTouchActionSet
         && iAdjustValue != 0)
     {
-        if (   pOpts->enmWhatToTouch == kTouchAccessAndModify
-            || pOpts->enmWhatToTouch == kTouchAccessOnly)
-            pOpts->NewATime.tv_sec += iAdjustValue;
-        if (   pOpts->enmWhatToTouch == kTouchAccessAndModify
-            || pOpts->enmWhatToTouch == kTouchModifyOnly)
-            pOpts->NewMTime.tv_sec += iAdjustValue;
+        if (   pThis->enmWhatToTouch == kTouchAccessAndModify
+            || pThis->enmWhatToTouch == kTouchAccessOnly)
+            pThis->NewATime.tv_sec += iAdjustValue;
+        if (   pThis->enmWhatToTouch == kTouchAccessAndModify
+            || pThis->enmWhatToTouch == kTouchModifyOnly)
+            pThis->NewMTime.tv_sec += iAdjustValue;
     }
 
     /*
      * Check for old timestamp: MMDDhhmm[YY]
      */
-    if (   pOpts->enmAction == kTouchActionCurrent
-        && pOpts->cFiles >= 2)
+    if (   pThis->enmAction == kTouchActionCurrent
+        && pThis->cFiles >= 2)
     {
         struct timeval OldTs;
-        rc = touch_parse_old_ts(pOpts->papszFiles[0], pOpts->NewATime.tv_sec, &OldTs);
+        rc = touch_parse_old_ts(pThis->pCtx, pThis->papszFiles[0], pThis->NewATime.tv_sec, &OldTs);
         if (rc == 0)
         {
             int iFile;
 
-            pOpts->NewATime = OldTs;
-            pOpts->NewMTime = OldTs;
-            pOpts->enmAction = kTouchActionSet;
+            pThis->NewATime = OldTs;
+            pThis->NewMTime = OldTs;
+            pThis->enmAction = kTouchActionSet;
 
-            for (iFile = 1; iFile < pOpts->cFiles; iFile++)
-                pOpts->papszFiles[iFile - 1] = pOpts->papszFiles[iFile];
-            pOpts->cFiles--;
+            for (iFile = 1; iFile < pThis->cFiles; iFile++)
+                pThis->papszFiles[iFile - 1] = pThis->papszFiles[iFile];
+            pThis->cFiles--;
         }
         else if (rc > 0)
             return rc;
@@ -795,12 +775,12 @@ static int touch_parse_args(PKMKTOUCHOPTS pOpts, int cArgs, char **papszArgs, KB
     /*
      * Check that we've found at least one file argument.
      */
-    if (pOpts->cFiles > 0)
+    if (pThis->cFiles > 0)
     {
         *pfExit = K_FALSE;
         return 0;
     }
-    return touch_syntax("No file specified");
+    return errx(pThis->pCtx, 2, "No file specified");
 }
 
 
@@ -808,10 +788,10 @@ static int touch_parse_args(PKMKTOUCHOPTS pOpts, int cArgs, char **papszArgs, KB
  * Touches one file.
  *
  * @returns exit code.
- * @param   pOpts               The options.
+ * @param   pThis               The options.
  * @param   pszFile             The file to touch.
  */
-static int touch_process_file(PKMKTOUCHOPTS pOpts, const char *pszFile)
+static int touch_process_file(PKMKTOUCHOPTS pThis, const char *pszFile)
 {
     int             fd;
     int             rc;
@@ -822,34 +802,34 @@ static int touch_process_file(PKMKTOUCHOPTS pOpts, const char *pszFile)
      * Create the file if it doesn't exists.  If the --no-create/-c option is
      * in effect, we silently skip the file if it doesn't already exist.
      */
-    if (pOpts->fDereference)
+    if (pThis->fDereference)
         rc = stat(pszFile, &St);
     else
         rc = lstat(pszFile, &St);
     if (rc != 0)
     {
         if (errno != ENOENT)
-            return touch_error("Failed to stat '%s': %s", pszFile, strerror(errno));
+            return errx(pThis->pCtx, 1, "Failed to stat '%s': %s", pszFile, strerror(errno));
 
-        if (!pOpts->fCreate)
+        if (!pThis->fCreate)
             return 0;
-        fd = open(pszFile, O_WRONLY | O_CREAT, 0666);
+        fd = open(pszFile, O_WRONLY | O_CREAT | KMK_OPEN_NO_INHERIT, 0666);
         if (fd == -1)
-            return touch_error("Failed to create '%s': %s", pszFile, strerror(errno));
+            return errx(pThis->pCtx, 1, "Failed to create '%s': %s", pszFile, strerror(errno));
 
         /* If we're not setting the current time, we may need value stat info
            on the file, so get it thru the file descriptor before closing it. */
-        if (pOpts->enmAction == kTouchActionCurrent)
+        if (pThis->enmAction == kTouchActionCurrent)
             rc = 0;
         else
             rc = fstat(fd, &St);
         if (close(fd) != 0)
-            return touch_error("Failed to close '%s' after creation: %s", pszFile, strerror(errno));
+            return errx(pThis->pCtx, 1, "Failed to close '%s' after creation: %s", pszFile, strerror(errno));
         if (rc != 0)
-            return touch_error("Failed to fstat '%s' after creation: %s", pszFile, strerror(errno));
+            return errx(pThis->pCtx, 1, "Failed to fstat '%s' after creation: %s", pszFile, strerror(errno));
 
         /* We're done now if we're setting the current time. */
-        if (pOpts->enmAction == kTouchActionCurrent)
+        if (pThis->enmAction == kTouchActionCurrent)
             return 0;
     }
 
@@ -865,23 +845,23 @@ static int touch_process_file(PKMKTOUCHOPTS pOpts, const char *pszFile)
     aTimes[0].tv_usec = 0;
     aTimes[1].tv_usec = 0;
 #endif
-    if (   pOpts->enmWhatToTouch == kTouchAccessAndModify
-        || pOpts->enmWhatToTouch == kTouchAccessOnly)
+    if (   pThis->enmWhatToTouch == kTouchAccessAndModify
+        || pThis->enmWhatToTouch == kTouchAccessOnly)
     {
-        if (   pOpts->enmAction == kTouchActionCurrent
-            || pOpts->enmAction == kTouchActionSet)
-            aTimes[0] = pOpts->NewATime;
+        if (   pThis->enmAction == kTouchActionCurrent
+            || pThis->enmAction == kTouchActionSet)
+            aTimes[0] = pThis->NewATime;
         else
-            aTimes[0].tv_sec += pOpts->NewATime.tv_sec;
+            aTimes[0].tv_sec += pThis->NewATime.tv_sec;
     }
-    if (   pOpts->enmWhatToTouch == kTouchAccessAndModify
-        || pOpts->enmWhatToTouch == kTouchModifyOnly)
+    if (   pThis->enmWhatToTouch == kTouchAccessAndModify
+        || pThis->enmWhatToTouch == kTouchModifyOnly)
     {
-        if (   pOpts->enmAction == kTouchActionCurrent
-            || pOpts->enmAction == kTouchActionSet)
-            aTimes[1] = pOpts->NewMTime;
+        if (   pThis->enmAction == kTouchActionCurrent
+            || pThis->enmAction == kTouchActionSet)
+            aTimes[1] = pThis->NewMTime;
         else
-            aTimes[1].tv_sec += pOpts->NewMTime.tv_sec;
+            aTimes[1].tv_sec += pThis->NewMTime.tv_sec;
     }
 
     /*
@@ -890,21 +870,21 @@ static int touch_process_file(PKMKTOUCHOPTS pOpts, const char *pszFile)
      * permissions checks.  (Note that we don't do that by default because it
      * may do more than what we want (st_ctime).)
      */
-    if (pOpts->fDereference)
+    if (pThis->fDereference)
         rc = utimes(pszFile, aTimes);
     else
         rc = lutimes(pszFile, aTimes);
     if (rc != 0)
     {
-        if (pOpts->enmAction == kTouchActionCurrent)
+        if (pThis->enmAction == kTouchActionCurrent)
         {
-            if (pOpts->fDereference)
+            if (pThis->fDereference)
                 rc = utimes(pszFile, NULL);
             else
                 rc = lutimes(pszFile, NULL);
         }
         if (rc != 0)
-            rc = touch_error("%stimes failed on '%s': %s", pOpts->fDereference ? "" : "l", pszFile, strerror(errno));
+            rc = errx(pThis->pCtx, 1, "%stimes failed on '%s': %s", pThis->fDereference ? "" : "l", pszFile, strerror(errno));
     }
 
     return rc;
@@ -912,56 +892,61 @@ static int touch_process_file(PKMKTOUCHOPTS pOpts, const char *pszFile)
 
 
 /**
- * The function that does almost everything here... ugly.
+ * Actual main function for the touch command.
  */
-#ifdef KMK
-int kmk_builtin_touch(int argc, char **argv, char **envp)
-#else
-int main(int argc, char **argv, char **envp)
-#endif
+int kmk_builtin_touch(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
     int             rc;
-    KMKTOUCHOPTS    Opts;
+    KMKTOUCHOPTS    This;
     K_NOREF(envp);
 
     /*
      * Initialize options with defaults and parse them.
      */
-    Opts.enmWhatToTouch = kTouchAccessAndModify;
-    Opts.enmAction      = kTouchActionCurrent;
-    Opts.fCreate        = K_TRUE;
-    Opts.fDereference   = K_TRUE;
-    Opts.cFiles         = 0;
-    Opts.papszFiles     = (char **)calloc(argc, sizeof(char *));
-    if (Opts.papszFiles)
+    This.pCtx           = pCtx;
+    This.enmWhatToTouch = kTouchAccessAndModify;
+    This.enmAction      = kTouchActionCurrent;
+    This.fCreate        = K_TRUE;
+    This.fDereference   = K_TRUE;
+    This.cFiles         = 0;
+    This.papszFiles     = (char **)calloc(argc, sizeof(char *));
+    if (This.papszFiles)
     {
-        rc = gettimeofday(&Opts.NewATime, NULL);
+        rc = gettimeofday(&This.NewATime, NULL);
         if (rc == 0)
         {
             KBOOL fExit;
-            Opts.NewMTime = Opts.NewATime;
+            This.NewMTime = This.NewATime;
 
-            rc = touch_parse_args(&Opts, argc, argv, &fExit);
+            rc = touch_parse_args(&This, argc, argv, &fExit);
             if (rc == 0 && !fExit)
             {
                 /*
                  * Process the files.
                  */
                 int iFile;
-                for (iFile = 0; iFile < Opts.cFiles; iFile++)
+                for (iFile = 0; iFile < This.cFiles; iFile++)
                 {
-                    int rc2 = touch_process_file(&Opts, Opts.papszFiles[iFile]);
+                    int rc2 = touch_process_file(&This, This.papszFiles[iFile]);
                     if (rc2 != 0 && rc == 0)
                         rc = rc2;
                 }
             }
         }
         else
-            rc = touch_error("gettimeofday failed: %s", strerror(errno));
-        free(Opts.papszFiles);
+            rc = errx(pCtx, 2, "gettimeofday failed: %s", strerror(errno));
+        free(This.papszFiles);
     }
     else
-        rc = touch_error("calloc failed");
+        rc = errx(pCtx, 2, "calloc failed");
     return rc;
 }
+
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+    KMKBUILTINCTX Ctx = { "kmk_touch", NULL };
+    return kmk_builtin_touch(argc, argv, envp, &Ctx);
+}
+#endif
 

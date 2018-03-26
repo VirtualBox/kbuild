@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -445,8 +445,8 @@ int symlink(const char *pszDst, const char *pszLink)
         return -1;
     }
 
+    fprintf(stderr, "warning: symlink() is available on this version of Windows!\n");
     errno = ENOSYS;
-    err(1, "symlink() is not implemented on windows!");
     return -1;
 }
 

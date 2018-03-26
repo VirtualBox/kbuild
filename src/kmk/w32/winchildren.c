@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3191 2018-03-26 09:16:06Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -1957,11 +1957,13 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
 static void mkWinChildcareWorkerThreadHandleBuiltIn(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild)
 {
     PCKMKBUILTINENTRY pBuiltIn = pChild->u.BuiltIn.pBuiltIn;
+    KMKBUILTINCTX Ctx = { pBuiltIn->uName.s.sz, pChild->pMkChild ? &pChild->pMkChild->output : NULL };
     if (pBuiltIn->uFnSignature == FN_SIG_MAIN)
-        pChild->iExitCode = pBuiltIn->u.pfnMain(pChild->u.BuiltIn.cArgs, pChild->u.BuiltIn.papszArgs, pChild->u.BuiltIn.papszEnv);
+        pChild->iExitCode = pBuiltIn->u.pfnMain(pChild->u.BuiltIn.cArgs, pChild->u.BuiltIn.papszArgs,
+                                                pChild->u.BuiltIn.papszEnv, &Ctx);
     else if (pBuiltIn->uFnSignature == FN_SIG_MAIN_SPAWNS)
         pChild->iExitCode = pBuiltIn->u.pfnMainSpawns(pChild->u.BuiltIn.cArgs, pChild->u.BuiltIn.papszArgs,
-                                                      pChild->u.BuiltIn.papszEnv, pChild->pMkChild, NULL);
+                                                      pChild->u.BuiltIn.papszEnv, &Ctx, pChild->pMkChild, NULL);
     else
     {
         assert(0);

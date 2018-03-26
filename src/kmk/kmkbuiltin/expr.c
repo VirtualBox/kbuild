@@ -21,24 +21,25 @@
 # include <alloca.h>
 #endif
 #include "err.h"
-#include "getopt.h"
 #include "kmkbuiltin.h"
 
-static struct val	*make_int(int);
-static struct val	*make_str(char *);
-static void		 free_value(struct val *);
+typedef struct EXPRINSTANCE *PEXPRINSTANCE;
+
+static struct val	*make_int(PEXPRINSTANCE, int);
+static struct val	*make_str(PEXPRINSTANCE, char *);
+static void		 free_value(PEXPRINSTANCE, struct val *);
 static int		 is_integer(struct val *, int *);
-static int		 to_integer(struct val *);
-static void		 to_string(struct val *);
-static int		 is_zero_or_null(struct val *);
-static void		 nexttoken(int);
-static struct val	*eval6(void);
-static struct val	*eval5(void);
-static struct val	*eval4(void);
-static struct val	*eval3(void);
-static struct val	*eval2(void);
-static struct val	*eval1(void);
-static struct val	*eval0(void);
+static int		 to_integer(PEXPRINSTANCE, struct val *);
+static void		 to_string(PEXPRINSTANCE, struct val *);
+static int		 is_zero_or_null(PEXPRINSTANCE, struct val *);
+static void		 nexttoken(PEXPRINSTANCE, int);
+static struct val	*eval6(PEXPRINSTANCE);
+static struct val	*eval5(PEXPRINSTANCE);
+static struct val	*eval4(PEXPRINSTANCE);
+static struct val	*eval3(PEXPRINSTANCE);
+static struct val	*eval2(PEXPRINSTANCE);
+static struct val	*eval1(PEXPRINSTANCE);
+static struct val	*eval0(PEXPRINSTANCE);
 
 enum token {
 	OR, AND, EQ, LT, GT, ADD, SUB, MUL, DIV, MOD, MATCH, RP, LP,
@@ -57,64 +58,67 @@ struct val {
 	} u;
 };
 
-static enum token	token;
-static struct val     *tokval;
-static char	      **av;
-static jmp_buf          g_expr_jmp;
-static void           **recorded_allocations;
-static int 		num_recorded_allocations;
+typedef struct EXPRINSTANCE {
+    PKMKBUILTINCTX  pCtx;
+    enum token      token;
+    struct val     *tokval;
+    char          **av;
+    jmp_buf         g_expr_jmp;
+    void          **recorded_allocations;
+    int             num_recorded_allocations;
+} EXPRINSTANCE;
 
 
-static void expr_mem_record_alloc(void *ptr)
+static void expr_mem_record_alloc(PEXPRINSTANCE pThis, void *ptr)
 {
-	if (!(num_recorded_allocations & 31)) {
-    		void *newtab = realloc(recorded_allocations, (num_recorded_allocations + 33) * sizeof(void *));
+	if (!(pThis->num_recorded_allocations & 31)) {
+    		void *newtab = realloc(pThis->recorded_allocations, (pThis->num_recorded_allocations + 33) * sizeof(void *));
 		if (!newtab)
-			longjmp(g_expr_jmp, err(3, NULL));
-		recorded_allocations = (void **)newtab;
+			longjmp(pThis->g_expr_jmp, err(pThis->pCtx, 3, NULL));
+		pThis->recorded_allocations = (void **)newtab;
 	}
-	recorded_allocations[num_recorded_allocations++] = ptr;
+	pThis->recorded_allocations[pThis->num_recorded_allocations++] = ptr;
 }
 
 
-static void expr_mem_record_free(void *ptr)
+static void expr_mem_record_free(PEXPRINSTANCE pThis, void *ptr)
 {
-	int i = num_recorded_allocations;
+	int i = pThis->num_recorded_allocations;
 	while (i-- > 0)
-		if (recorded_allocations[i] == ptr) {
-			num_recorded_allocations--;
-			recorded_allocations[i] = recorded_allocations[num_recorded_allocations];
+		if (pThis->recorded_allocations[i] == ptr) {
+			pThis->num_recorded_allocations--;
+			pThis->recorded_allocations[i] = pThis->recorded_allocations[pThis->num_recorded_allocations];
 			return;
 		}
 	assert(i >= 0);
 }
 
-static void expr_mem_init(void)
+static void expr_mem_init(PEXPRINSTANCE pThis)
 {
-	num_recorded_allocations = 0;
-	recorded_allocations = NULL;
+	pThis->num_recorded_allocations = 0;
+	pThis->recorded_allocations = NULL;
 }
 
-static void expr_mem_cleanup(void)
+static void expr_mem_cleanup(PEXPRINSTANCE pThis)
 {
-	if (recorded_allocations) {
-		while (num_recorded_allocations-- > 0)
-			free(recorded_allocations[num_recorded_allocations]);
-		free(recorded_allocations);
-		recorded_allocations = NULL;
+	if (pThis->recorded_allocations) {
+		while (pThis->num_recorded_allocations-- > 0)
+			free(pThis->recorded_allocations[pThis->num_recorded_allocations]);
+		free(pThis->recorded_allocations);
+		pThis->recorded_allocations = NULL;
 	}
 }
 
 
 static struct val *
-make_int(int i)
+make_int(PEXPRINSTANCE pThis, int i)
 {
 	struct val     *vp;
 
 	vp = (struct val *) malloc(sizeof(*vp));
 	if (vp == NULL)
-		longjmp(g_expr_jmp, err(3, NULL));
-	expr_mem_record_alloc(vp);
+		longjmp(pThis->g_expr_jmp, err(pThis->pCtx, 3, NULL));
+	expr_mem_record_alloc(pThis, vp);
 	vp->type = integer;
 	vp->u.i = i;
 	return vp;
@@ -122,29 +126,29 @@ make_int(int i)
 
 
 static struct val *
-make_str(char *s)
+make_str(PEXPRINSTANCE pThis, char *s)
 {
 	struct val     *vp;
 
 	vp = (struct val *) malloc(sizeof(*vp));
 	if (vp == NULL || ((vp->u.s = strdup(s)) == NULL))
-		longjmp(g_expr_jmp, err(3, NULL));
-	expr_mem_record_alloc(vp->u.s);
-	expr_mem_record_alloc(vp);
+		longjmp(pThis->g_expr_jmp, err(pThis->pCtx, 3, NULL));
+	expr_mem_record_alloc(pThis, vp->u.s);
+	expr_mem_record_alloc(pThis, vp);
 	vp->type = string;
 	return vp;
 }
 
 
 static void
-free_value(struct val *vp)
+free_value(PEXPRINSTANCE pThis, struct val *vp)
 {
 	if (vp->type == string) {
-		expr_mem_record_free(vp->u.s);
+		expr_mem_record_free(pThis, vp->u.s);
 		free(vp->u.s);
 	}
 	free(vp);
-	expr_mem_record_free(vp);
+	expr_mem_record_free(pThis, vp);
 }
 
 
@@ -192,7 +196,7 @@ is_integer(struct val *vp, int *r)
 
 /* coerce to vp to an integer */
 static int
-to_integer(struct val *vp)
+to_integer(PEXPRINSTANCE pThis, struct val *vp)
 {
 	int		r;
 
@@ -200,7 +204,7 @@ to_integer(struct val *vp)
 		return 1;
 
 	if (is_integer(vp, &r)) {
-		expr_mem_record_free(vp->u.s);
+		expr_mem_record_free(pThis, vp->u.s);
 		free(vp->u.s);
 		vp->u.i = r;
 		vp->type = integer;
@@ -213,7 +217,7 @@ to_integer(struct val *vp)
 
 /* coerce to vp to an string */
 static void
-to_string(struct val *vp)
+to_string(PEXPRINSTANCE pThis, struct val *vp)
 {
 	char	       *tmp;
 
@@ -221,34 +225,34 @@ to_string(struct val *vp)
 		return;
 
 	if (asprintf(&tmp, "%d", vp->u.i) == -1)
-		longjmp(g_expr_jmp, err(3, NULL));
-	expr_mem_record_alloc(tmp);
+		longjmp(pThis->g_expr_jmp, err(pThis->pCtx, 3, NULL));
+	expr_mem_record_alloc(pThis, tmp);
 
 	vp->type = string;
 	vp->u.s = tmp;
 }
 
 static int
-is_zero_or_null(struct val *vp)
+is_zero_or_null(PEXPRINSTANCE pThis, struct val *vp)
 {
 	if (vp->type == integer) {
 		return (vp->u.i == 0);
 	} else {
-		return (*vp->u.s == 0 || (to_integer(vp) && vp->u.i == 0));
+		return (*vp->u.s == 0 || (to_integer(pThis, vp) && vp->u.i == 0));
 	}
 	/* NOTREACHED */
 }
 
 static void
-nexttoken(int pat)
+nexttoken(PEXPRINSTANCE pThis, int pat)
 {
 	char	       *p;
 
-	if ((p = *av) == NULL) {
-		token = EOI;
+	if ((p = *pThis->av) == NULL) {
+		pThis->token = EOI;
 		return;
 	}
-	av++;
+	pThis->av++;
 
 
 	if (pat == 0 && p[0] != '\0') {
@@ -257,25 +261,25 @@ nexttoken(int pat)
 			char	       *i;	/* index */
 
 			if ((i = strchr(x, *p)) != NULL) {
-				token = i - x;
+				pThis->token = i - x;
 				return;
 			}
 		} else if (p[1] == '=' && p[2] == '\0') {
 			switch (*p) {
 			case '<':
-				token = LE;
+				pThis->token = LE;
 				return;
 			case '>':
-				token = GE;
+				pThis->token = GE;
 				return;
 			case '!':
-				token = NE;
+				pThis->token = NE;
 				return;
 			}
 		}
 	}
-	tokval = make_str(p);
-	token = OPERAND;
+	pThis->tokval = make_str(pThis, p);
+	pThis->token = OPERAND;
 	return;
 }
 
@@ -286,40 +290,40 @@ __attribute__((noreturn))
 __declspec(noreturn)
 #endif
 static void
-error(void)
+error(PEXPRINSTANCE pThis)
 {
-	longjmp(g_expr_jmp, errx(2, "syntax error"));
+	longjmp(pThis->g_expr_jmp, errx(pThis->pCtx, 2, "syntax error"));
 	/* NOTREACHED */
 }
 
 static struct val *
-eval6(void)
+eval6(PEXPRINSTANCE pThis)
 {
 	struct val     *v;
 
-	if (token == OPERAND) {
-		nexttoken(0);
-		return tokval;
+	if (pThis->token == OPERAND) {
+		nexttoken(pThis, 0);
+		return pThis->tokval;
 
-	} else if (token == RP) {
-		nexttoken(0);
-		v = eval0();
+	} else if (pThis->token == RP) {
+		nexttoken(pThis, 0);
+		v = eval0(pThis);
 
-		if (token != LP) {
-			error();
+		if (pThis->token != LP) {
+			error(pThis);
 			/* NOTREACHED */
 		}
-		nexttoken(0);
+		nexttoken(pThis, 0);
 		return v;
 	} else {
-		error();
+		error(pThis);
 	}
 	/* NOTREACHED */
 }
 
 /* Parse and evaluate match (regex) expressions */
 static struct val *
-eval5(void)
+eval5(PEXPRINSTANCE pThis)
 {
 #ifdef KMK_WITH_REGEX
 	regex_t		rp;
@@ -331,20 +335,20 @@ eval5(void)
 #endif
 	struct val     *l;
 
-	l = eval6();
-	while (token == MATCH) {
+	l = eval6(pThis);
+	while (pThis->token == MATCH) {
 #ifdef KMK_WITH_REGEX
-		nexttoken(1);
-		r = eval6();
+		nexttoken(pThis, 1);
+		r = eval6(pThis);
 
 		/* coerce to both arguments to strings */
-		to_string(l);
-		to_string(r);
+		to_string(pThis, l);
+		to_string(pThis, r);
 
 		/* compile regular expression */
 		if ((eval = regcomp(&rp, r->u.s, 0)) != 0) {
 			regerror(eval, &rp, errbuf, sizeof(errbuf));
-			longjmp(g_expr_jmp, errx(2, "%s", errbuf));
+			longjmp(pThis->g_expr_jmp, errx(pThis->pCtx, 2, "%s", errbuf));
 		}
 
 		/* compare string against pattern --  remember that patterns
@@ -352,27 +356,27 @@ eval5(void)
 		if (regexec(&rp, l->u.s, 2, rm, 0) == 0 && rm[0].rm_so == 0) {
 			if (rm[1].rm_so >= 0) {
 				*(l->u.s + rm[1].rm_eo) = '\0';
-				v = make_str(l->u.s + rm[1].rm_so);
+				v = make_str(pThis, l->u.s + rm[1].rm_so);
 
 			} else {
-				v = make_int((int)(rm[0].rm_eo - rm[0].rm_so));
+				v = make_int(pThis, (int)(rm[0].rm_eo - rm[0].rm_so));
 			}
 		} else {
 			if (rp.re_nsub == 0) {
-				v = make_int(0);
+				v = make_int(pThis, 0);
 			} else {
-				v = make_str("");
+				v = make_str(pThis, "");
 			}
 		}
 
 		/* free arguments and pattern buffer */
-		free_value(l);
-		free_value(r);
+		free_value(pThis, l);
+		free_value(pThis, r);
 		regfree(&rp);
 
 		l = v;
 #else
-		longjmp(g_expr_jmp, errx(2, "regex not supported, sorry."));
+		longjmp(pThis->g_expr_jmp, errx(pThis->pCtx, 2, "regex not supported, sorry."));
 #endif
 	}
 
@@ -381,25 +385,25 @@ eval5(void)
 
 /* Parse and evaluate multiplication and division expressions */
 static struct val *
-eval4(void)
+eval4(PEXPRINSTANCE pThis)
 {
 	struct val     *l, *r;
 	enum token	op;
 
-	l = eval5();
-	while ((op = token) == MUL || op == DIV || op == MOD) {
-		nexttoken(0);
-		r = eval5();
+	l = eval5(pThis);
+	while ((op = pThis->token) == MUL || op == DIV || op == MOD) {
+		nexttoken(pThis, 0);
+		r = eval5(pThis);
 
-		if (!to_integer(l) || !to_integer(r)) {
-			longjmp(g_expr_jmp, errx(2, "non-numeric argument"));
+		if (!to_integer(pThis, l) || !to_integer(pThis, r)) {
+			longjmp(pThis->g_expr_jmp, errx(pThis->pCtx, 2, "non-numeric argument"));
 		}
 
 		if (op == MUL) {
 			l->u.i *= r->u.i;
 		} else {
 			if (r->u.i == 0) {
-				longjmp(g_expr_jmp, errx(2, "division by zero"));
+				longjmp(pThis->g_expr_jmp, errx(pThis->pCtx, 2, "division by zero"));
 			}
 			if (op == DIV) {
 				l->u.i /= r->u.i;
@@ -408,7 +412,7 @@ eval4(void)
 			}
 		}
 
-		free_value(r);
+		free_value(pThis, r);
 	}
 
 	return l;
@@ -416,18 +420,18 @@ eval4(void)
 
 /* Parse and evaluate addition and subtraction expressions */
 static struct val *
-eval3(void)
+eval3(PEXPRINSTANCE pThis)
 {
 	struct val     *l, *r;
 	enum token	op;
 
-	l = eval4();
-	while ((op = token) == ADD || op == SUB) {
-		nexttoken(0);
-		r = eval4();
+	l = eval4(pThis);
+	while ((op = pThis->token) == ADD || op == SUB) {
+		nexttoken(pThis, 0);
+		r = eval4(pThis);
 
-		if (!to_integer(l) || !to_integer(r)) {
-			longjmp(g_expr_jmp, errx(2, "non-numeric argument"));
+		if (!to_integer(pThis, l) || !to_integer(pThis, r)) {
+			longjmp(pThis->g_expr_jmp, errx(pThis->pCtx, 2, "non-numeric argument"));
 		}
 
 		if (op == ADD) {
@@ -436,7 +440,7 @@ eval3(void)
 			l->u.i -= r->u.i;
 		}
 
-		free_value(r);
+		free_value(pThis, r);
 	}
 
 	return l;
@@ -444,17 +448,17 @@ eval3(void)
 
 /* Parse and evaluate comparison expressions */
 static struct val *
-eval2(void)
+eval2(PEXPRINSTANCE pThis)
 {
 	struct val     *l, *r;
 	enum token	op;
 	int		v = 0, li, ri;
 
-	l = eval3();
-	while ((op = token) == EQ || op == NE || op == LT || op == GT ||
+	l = eval3(pThis);
+	while ((op = pThis->token) == EQ || op == NE || op == LT || op == GT ||
 	    op == LE || op == GE) {
-		nexttoken(0);
-		r = eval3();
+		nexttoken(pThis, 0);
+		r = eval3(pThis);
 
 		if (is_integer(l, &li) && is_integer(r, &ri)) {
 			switch (op) {
@@ -480,8 +484,8 @@ eval2(void)
 				break;
 			}
 		} else {
-			to_string(l);
-			to_string(r);
+			to_string(pThis, l);
+			to_string(pThis, r);
 
 			switch (op) {
 			case GT:
@@ -507,9 +511,9 @@ eval2(void)
 			}
 		}
 
-		free_value(l);
-		free_value(r);
-		l = make_int(v);
+		free_value(pThis, l);
+		free_value(pThis, r);
+		l = make_int(pThis, v);
 	}
 
 	return l;
@@ -517,21 +521,21 @@ eval2(void)
 
 /* Parse and evaluate & expressions */
 static struct val *
-eval1(void)
+eval1(PEXPRINSTANCE pThis)
 {
 	struct val     *l, *r;
 
-	l = eval2();
-	while (token == AND) {
-		nexttoken(0);
-		r = eval2();
+	l = eval2(pThis);
+	while (pThis->token == AND) {
+		nexttoken(pThis, 0);
+		r = eval2(pThis);
 
-		if (is_zero_or_null(l) || is_zero_or_null(r)) {
-			free_value(l);
-			free_value(r);
-			l = make_int(0);
+		if (is_zero_or_null(pThis, l) || is_zero_or_null(pThis, r)) {
+			free_value(pThis, l);
+			free_value(pThis, r);
+			l = make_int(pThis, 0);
 		} else {
-			free_value(r);
+			free_value(pThis, r);
 		}
 	}
 
@@ -540,20 +544,20 @@ eval1(void)
 
 /* Parse and evaluate | expressions */
 static struct val *
-eval0(void)
+eval0(PEXPRINSTANCE pThis)
 {
 	struct val     *l, *r;
 
-	l = eval1();
-	while (token == OR) {
-		nexttoken(0);
-		r = eval1();
+	l = eval1(pThis);
+	while (pThis->token == OR) {
+		nexttoken(pThis, 0);
+		r = eval1(pThis);
 
-		if (is_zero_or_null(l)) {
-			free_value(l);
+		if (is_zero_or_null(pThis, l)) {
+			free_value(pThis, l);
 			l = r;
 		} else {
-			free_value(r);
+			free_value(pThis, r);
 		}
 	}
 
@@ -562,46 +566,52 @@ eval0(void)
 
 
 int
-kmk_builtin_expr(int argc, char *argv[], char **envp)
+kmk_builtin_expr(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
-	struct val     *vp;
+	EXPRINSTANCE This;
+	struct val *vp;
 	int rval;
-
-	/* re-init globals */
-	token = 0;
-	tokval = 0;
-	av = 0;
-	expr_mem_init();
-
-#ifdef kmk_builtin_expr /* kmk already does this. */
-	(void) setlocale(LC_ALL, "");
-#endif
 
 	if (argc > 1 && !strcmp(argv[1], "--"))
 		argv++;
 
-	av = argv + 1;
+	/* Init globals */
+	This.pCtx = pCtx;
+	This.token = 0;
+	This.tokval = 0;
+	This.av = argv + 1;
+	expr_mem_init(&This);
 
-	rval = setjmp(g_expr_jmp);
+	rval = setjmp(This.g_expr_jmp);
 	if (!rval) {
-		nexttoken(0);
-		vp = eval0();
+		nexttoken(&This, 0);
+		vp = eval0(&This);
 
-		if (token != EOI) {
-			error();
+		if (This.token != EOI) {
+			error(&This);
 			/* NOTREACHED */
 		}
 
 		if (vp->type == integer)
-			printf("%d\n", vp->u.i);
+			kmk_builtin_ctx_printf(pCtx, 0, "%d\n", vp->u.i);
 		else
-			printf("%s\n", vp->u.s);
+			kmk_builtin_ctx_printf(pCtx, 0, "%s\n", vp->u.s);
 
-		rval = is_zero_or_null(vp);
+		rval = is_zero_or_null(&This, vp);
 	}
 	/* else: longjmp */
 
 	/* cleanup */
-	expr_mem_cleanup();
+	expr_mem_cleanup(&This);
 	return rval;
 }
+
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+	KMKBUILTINCTX Ctx = { "kmk_expr", NULL };
+	(void) setlocale(LC_ALL, "");
+	return kmk_builtin_expr(argc, argv, envp, &Ctx);
+}
+#endif
+

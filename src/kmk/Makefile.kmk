@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3189 2018-03-25 17:05:19Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -82,6 +82,14 @@ ifdef GCC_SANITIZERS
  TEMPLATE_BIN-KMK_LDFLAGS += -fsanitize=address -fsanitize=undefined
 endif
 
+#
+# Template for building standalone built-in utilities.
+#
+TEMPLATE_BIN-KMK-BUILTIN = Template for standalone built-in utilies.
+TEMPLATE_BIN-KMK-BUILTIN_EXTENDS = BIN-KMK
+TEMPLATE_BIN-KMK-BUILTIN_EXTENDS_BY = appending
+TEMPLATE_BIN-KMK-BUILTIN_DEFS += KMK_BUILTIN_STANDALONE
+TEMPLATE_BIN-KMK-BUILTIN_SOURCES += kmkbuiltin/err.c
 
 #
 # A library containing the missing features needed by kmk and the
@@ -92,7 +100,6 @@ kmkmissing_TEMPLATE = BIN-KMK
 kmkmissing_DEFS = KMK
 kmkmissing_NOINST = 1
 kmkmissing_SOURCES = \
-	kmkbuiltin/err.c \
 	kmkbuiltin/fts.c \
 	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c \
@@ -327,7 +334,10 @@ kmk_SOURCES += \
 	$(if-expr $(KBUILD_TARGET) == win,kmkbuiltin/kSubmit.c) \
 	kmkbuiltin/sleep.c \
 	kmkbuiltin/test.c \
-	kmkbuiltin/touch.c
+	kmkbuiltin/touch.c \
+       \
+	kmkbuiltin/err.c
+
 
 ## @todo kmkbuiltin/redirect.c
 
@@ -363,116 +373,96 @@ PROGRAMS += \
 	kDepIDB \
 	kDepObj \
 
-kmk_append_TEMPLATE = BIN-KMK
-kmk_append_DEFS = kmk_builtin_append=main
+kmk_append_TEMPLATE = BIN-KMK-BUILTIN
 kmk_append_INCS = .
 kmk_append_SOURCES = \
 	kmkbuiltin/append.c
 
-kmk_cat_TEMPLATE = BIN-KMK
-kmk_cat_DEFS = kmk_builtin_cat=main
+kmk_cat_TEMPLATE = BIN-KMK-BUILTIN
 kmk_cat_SOURCES = \
 	kmkbuiltin/cat.c
 
-kmk_chmod_TEMPLATE = BIN-KMK
-kmk_chmod_DEFS = kmk_builtin_chmod=main
+kmk_chmod_TEMPLATE = BIN-KMK-BUILTIN
 kmk_chmod_SOURCES = \
 	kmkbuiltin/chmod.c
 
-kmk_cmp_TEMPLATE = BIN-KMK
-kmk_cmp_DEFS = kmk_builtin_cmp=main
+kmk_cmp_TEMPLATE = BIN-KMK-BUILTIN
 kmk_cmp_SOURCES = \
 	kmkbuiltin/cmp.c \
 	kmkbuiltin/cmp_util.c
 
-kmk_cp_TEMPLATE = BIN-KMK
-kmk_cp_DEFS = kmk_builtin_cp=main
+kmk_cp_TEMPLATE = BIN-KMK-BUILTIN
 kmk_cp_SOURCES = \
 	kmkbuiltin/cp.c \
 	kmkbuiltin/cp_utils.c \
 	kmkbuiltin/cmp_util.c
 
-kmk_echo_TEMPLATE = BIN-KMK
-kmk_echo_DEFS = kmk_builtin_echo=main
+kmk_echo_TEMPLATE = BIN-KMK-BUILTIN
 kmk_echo_SOURCES = \
 	kmkbuiltin/echo.c
 
-kmk_expr_TEMPLATE = BIN-KMK
-kmk_expr_DEFS = kmk_builtin_expr=main
+kmk_expr_TEMPLATE = BIN-KMK-BUILTIN
 kmk_expr_SOURCES = \
 	kmkbuiltin/expr.c
 
-kmk_install_TEMPLATE = BIN-KMK
-kmk_install_DEFS = kmk_builtin_install=main
+kmk_install_TEMPLATE = BIN-KMK-BUILTIN
 kmk_install_SOURCES = \
 	kmkbuiltin/install.c
 
-kmk_ln_TEMPLATE = BIN-KMK
-kmk_ln_DEFS = kmk_builtin_ln=main
+kmk_ln_TEMPLATE = BIN-KMK-BUILTIN
 kmk_ln_SOURCES = \
 	kmkbuiltin/ln.c
 
-kmk_mkdir_TEMPLATE = BIN-KMK
-kmk_mkdir_DEFS = kmk_builtin_mkdir=main
+kmk_mkdir_TEMPLATE = BIN-KMK-BUILTIN
 kmk_mkdir_SOURCES = \
 	kmkbuiltin/mkdir.c
 
-kmk_md5sum_TEMPLATE = BIN-KMK
-kmk_md5sum_DEFS = kmk_builtin_md5sum=main
+kmk_md5sum_TEMPLATE = BIN-KMK-BUILTIN
 kmk_md5sum_SOURCES = \
 	kmkbuiltin/md5sum.c
 kmk_md5sum_LIBS = $(LIB_KUTIL)
 
-kmk_mv_TEMPLATE = BIN-KMK
-kmk_mv_DEFS = kmk_builtin_mv=main
+kmk_mv_TEMPLATE = BIN-KMK-BUILTIN
 kmk_mv_SOURCES = \
 	kmkbuiltin/mv.c
 
-kmk_printf_TEMPLATE = BIN-KMK
-kmk_printf_DEFS = kmk_builtin_printf=main
+kmk_printf_TEMPLATE = BIN-KMK-BUILTIN
 kmk_printf_SOURCES = \
 	kmkbuiltin/printf.c
 
-kmk_rm_TEMPLATE = BIN-KMK
-kmk_rm_DEFS = kmk_builtin_rm=main
+kmk_rm_TEMPLATE = BIN-KMK-BUILTIN
 kmk_rm_SOURCES = \
 	kmkbuiltin/rm.c
 
-kmk_redirect_TEMPLATE = BIN-KMK
+kmk_redirect_TEMPLATE = BIN-KMK-BUILTIN
 kmk_redirect_SOURCES = \
 	kmkbuiltin/redirect.c
 kmk_redirect_SOURCES.win = \
 	../lib/startuphacks-win.c
 
-kmk_rmdir_TEMPLATE = BIN-KMK
-kmk_rmdir_DEFS = kmk_builtin_rmdir=main
+kmk_rmdir_TEMPLATE = BIN-KMK-BUILTIN
 kmk_rmdir_SOURCES = \
 	kmkbuiltin/rmdir.c
 
-kmk_sleep_TEMPLATE = BIN-KMK
-kmk_sleep_DEFS = kmk_builtin_sleep=main
+kmk_sleep_TEMPLATE = BIN-KMK-BUILTIN
 kmk_sleep_SOURCES = \
 	kmkbuiltin/sleep.c
 
-kmk_test_TEMPLATE = BIN-KMK
-kmk_test_DEFS = kmk_builtin_test=main
+kmk_test_TEMPLATE = BIN-KMK-BUILTIN
 kmk_test_SOURCES = \
 	kmkbuiltin/test.c
 
-kmk_touch_TEMPLATE = BIN-KMK
-kmk_touch_DEFS = kmk_builtin_touch=main
+kmk_touch_TEMPLATE = BIN-KMK-BUILTIN
 kmk_touch_SOURCES = \
 	kmkbuiltin/touch.c
 
-kDepIDB_TEMPLATE = BIN-KMK
-kDepIDB_DEFS = kmk_builtin_kDepIDB=main
+kDepIDB_TEMPLATE = BIN-KMK-BUILTIN
 kDepIDB_INCS = .
 kDepIDB_LIBS = $(LIB_KDEP) $(LIB_KUTIL)
 kDepIDB_SOURCES = \
 	kmkbuiltin/kDepIDB.c
 
-kDepObj_TEMPLATE = BIN-KMK
-kDepObj_DEFS = kmk_builtin_kDepObj=main
+kDepObj_TEMPLATE = BIN-KMK-BUILTIN
 kDepObj_INCS = .
 kDepObj_LIBS = $(LIB_KDEP) $(LIB_KUTIL)
 kDepObj_SOURCES = \

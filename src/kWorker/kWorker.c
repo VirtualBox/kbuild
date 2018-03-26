@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -10289,7 +10289,10 @@ static int kSubmitHandleJobPostCmd(KU32 cPostCmdArgs, const char **papszPostCmdA
 
     /* Command switch. */
     if (kHlpStrComp(pszCmd, "kDepObj") == 0)
-        return kmk_builtin_kDepObj(cPostCmdArgs, (char **)papszPostCmdArgs, NULL);
+    {
+        KMKBUILTINCTX Ctx = { papszPostCmdArgs[0], NULL };
+        return kmk_builtin_kDepObj(cPostCmdArgs, (char **)papszPostCmdArgs, NULL, &Ctx);
+    }
 
     return kwErrPrintfRc(42 + 5 , "Unknown post command: '%s'\n", pszCmd);
 }

@@ -1,4 +1,4 @@
-/* $Id: kbuild_protection.h 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_protection.h 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * Simple File Protection.
  */
@@ -26,6 +26,7 @@
 #ifndef ___kbuild_protection_h
 #define ___kbuild_protection_h
 
+
 /**
  * The different protection types.
  */
@@ -46,13 +47,14 @@ typedef struct KBUILDPROTECTION
 {
     unsigned int    uMagic;
     unsigned int    cProtectionDepth;
+    struct KMKBUILTINCTX *pCtx;
     unsigned char   afTypes[KBUILDPROTECTIONTYPE_MAX];
 } KBUILDPROTECTION;
 typedef KBUILDPROTECTION  *PKBUILDPROTECTION;
 typedef const KBUILDPROTECTION *PCKBUILDPROTECTION;
 
 
-void kBuildProtectionInit(PKBUILDPROTECTION pThis);
+void kBuildProtectionInit(PKBUILDPROTECTION pThis, struct KMKBUILTINCTX *pCtx);
 void kBuildProtectionTerm(PKBUILDPROTECTION pThis);
 int  kBuildProtectionScanEnv(PKBUILDPROTECTION pThis, char **papszEnv, const char *pszPrefix);
 void kBuildProtectionEnable(PKBUILDPROTECTION pThis, KBUILDPROTECTIONTYPE enmType);

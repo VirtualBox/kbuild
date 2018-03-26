@@ -60,14 +60,22 @@ __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 #endif
 #include "kmkbuiltin.h"
 
-static int	fflag;				/* Unlink existing files. */
-static int	hflag;				/* Check new name for symlink first. */
-static int	iflag;				/* Interactive mode. */
-static int	sflag;				/* Symbolic, not hard, link. */
-static int	vflag;				/* Verbose output. */
-					/* System link call. */
-static int (*linkf)(const char *, const char *);
-static char	linkch;
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
+typedef struct LNINSTANCE
+{
+    PKMKBUILTINCTX pCtx;
+    int	fflag;				/* Unlink existing files. */
+    int	hflag;				/* Check new name for symlink first. */
+    int	iflag;				/* Interactive mode. */
+    int	sflag;				/* Symbolic, not hard, link. */
+    int	vflag;				/* Verbose output. */
+    int (*linkf)(const char *, const char *); /* System link call. */
+    char	linkch;
+} LNINSTANCE;
+typedef LNINSTANCE *PLNINSTANCE;
+
 static struct option long_options[] =
 {
     { "help",   					no_argument, 0, 261 },
@@ -76,24 +84,29 @@ static struct option long_options[] =
 };
 
 
-static int	linkit(const char *, const char *, int);
-static int	usage(FILE *);
+static int	linkit(PLNINSTANCE,const char *, const char *, int);
+static int	usage(PKMKBUILTINCTX, int);
 
 
 int
-kmk_builtin_ln(int argc, char *argv[], char **envp)
+kmk_builtin_ln(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
+	LNINSTANCE This;
 	struct stat sb;
 	char *sourcedir;
 	int ch, exitval;
 
 	/* initialize globals. */
-	fflag = hflag = iflag = sflag = vflag = 0;
-	linkch = 0;
-	linkf = NULL;
+	This.pCtx = pCtx;
+	This.fflag = 0;
+	This.hflag = 0;
+	This.iflag = 0;
+	This.sflag = 0;
+	This.vflag = 0;
+	This.linkch = 0;
+	This.linkf = NULL;
 
 	/* kmk: reset getopt() and set program name. */
-	g_progname = argv[0];
 	opterr = 1;
 	optarg = NULL;
 	optopt = 0;
@@ -102,87 +115,87 @@ kmk_builtin_ln(int argc, char *argv[], char **envp)
 	while ((ch = getopt_long(argc, argv, "fhinsv", long_options, NULL)) != -1)
 		switch (ch) {
 		case 'f':
-			fflag = 1;
-			iflag = 0;
+			This.fflag = 1;
+			This.iflag = 0;
 			break;
 		case 'h':
 		case 'n':
-			hflag = 1;
+			This.hflag = 1;
 			break;
 		case 'i':
-			iflag = 1;
-			fflag = 0;
+			This.iflag = 1;
+			This.fflag = 0;
 			break;
 		case 's':
-			sflag = 1;
+			This.sflag = 1;
 			break;
 		case 'v':
-			vflag = 1;
+			This.vflag = 1;
 			break;
 		case 261:
-			usage(stdout);
+			usage(pCtx, 0);
 			return 0;
 		case 262:
 			return kbuild_version(argv[0]);
 		case '?':
 		default:
-			return usage(stderr);
+			return usage(pCtx, 1);
 		}
 
 	argv += optind;
 	argc -= optind;
 
-	linkf = sflag ? symlink : link;
-	linkch = sflag ? '-' : '=';
+	This.linkf = This.sflag ? symlink : link;
+	This.linkch = This.sflag ? '-' : '=';
 
 	switch(argc) {
 	case 0:
-		return usage(stderr);
+		return usage(pCtx, 1);
 		/* NOTREACHED */
 	case 1:				/* ln target */
-		return linkit(argv[0], ".", 1);
+		return linkit(&This, argv[0], ".", 1);
 	case 2:				/* ln target source */
-		return linkit(argv[0], argv[1], 0);
+		return linkit(&This, argv[0], argv[1], 0);
 	default:
 		;
 	}
 					/* ln target1 target2 directory */
 	sourcedir = argv[argc - 1];
-	if (hflag && lstat(sourcedir, &sb) == 0 && S_ISLNK(sb.st_mode)) {
+	if (This.hflag && lstat(sourcedir, &sb) == 0 && S_ISLNK(sb.st_mode)) {
 		/*
 		 * We were asked not to follow symlinks, but found one at
 		 * the target--simulate "not a directory" error
 		 */
 		errno = ENOTDIR;
-		return err(1, "st_mode: %s", sourcedir);
+		return err(pCtx, 1, "st_mode: %s", sourcedir);
 	}
 	if (stat(sourcedir, &sb))
-		return err(1, "stat: %s", sourcedir);
+		return err(pCtx, 1, "stat: %s", sourcedir);
 	if (!S_ISDIR(sb.st_mode))
-		return usage(stderr);
+		return usage(pCtx, 1);
 	for (exitval = 0; *argv != sourcedir; ++argv)
-		exitval |= linkit(*argv, sourcedir, 1);
+		exitval |= linkit(&This, *argv, sourcedir, 1);
 	return exitval;
 }
 
 static int
-linkit(const char *target, const char *source, int isdir)
+linkit(PLNINSTANCE pThis, const char *target, const char *source, int isdir)
 {
 	struct stat sb;
 	const char *p;
 	int ch, exists, first;
 	char path[PATH_MAX];
 
-	if (!sflag) {
+	if (!pThis->sflag) {
 		/* If target doesn't exist, quit now. */
 		if (stat(target, &sb)) {
-			warn("stat: %s", target);
+			warn(pThis->pCtx, "stat: %s", target);
 			return (1);
 		}
 		/* Only symbolic links to directories. */
 		if (S_ISDIR(sb.st_mode)) {
 			errno = EISDIR;
-			warn("st_mode: %s", target);
+			warn(pThis->pCtx, "st_mode: %s", target);
 			return (1);
 		}
 	}
@@ -193,7 +206,7 @@ linkit(const char *target, const char *source, int isdir)
 	 */
 	if (isdir ||
 	    (lstat(source, &sb) == 0 && S_ISDIR(sb.st_mode)) ||
-	    (!hflag && stat(source, &sb) == 0 && S_ISDIR(sb.st_mode))) {
+	    (!pThis->hflag && stat(source, &sb) == 0 && S_ISDIR(sb.st_mode))) {
 #if defined(_MSC_VER) || defined(__OS2__)
 		char *p2 = strrchr(target, '\\');
 		p = strrchr(target, '/');
@@ -209,7 +222,7 @@ linkit(const char *target, const char *source, int isdir)
 		if (snprintf(path, sizeof(path), "%s/%s", source, p) >=
 		    (ssize_t)sizeof(path)) {
 			errno = ENAMETOOLONG;
-			warn("snprintf: %s", target);
+			warn(pThis->pCtx, "snprintf: %s", target);
 			return (1);
 		}
 		source = path;
@@ -220,12 +233,12 @@ linkit(const char *target, const char *source, int isdir)
 	 * If the file exists, then unlink it forcibly if -f was specified
 	 * and interactively if -i was specified.
 	 */
-	if (fflag && exists) {
+	if (pThis->fflag && exists) {
 		if (unlink(source)) {
-			warn("unlink: %s", source);
+			warn(pThis->pCtx, "unlink: %s", source);
 			return (1);
 		}
-	} else if (iflag && exists) {
+	} else if (pThis->iflag && exists) {
 		fflush(stdout);
 		fprintf(stderr, "replace %s? ", source);
 
@@ -233,34 +246,45 @@ linkit(const char *target, const char *source, int isdir)
 		while(ch != '\n' && ch != EOF)
 			ch = getchar();
 		if (first != 'y' && first != 'Y') {
-			fprintf(stderr, "not replaced\n");
+			kmk_builtin_ctx_printf(pThis->pCtx, 1, "not replaced\n");
 			return (1);
 		}
 
 		if (unlink(source)) {
-			warn("unlink: %s", source);
+			warn(pThis->pCtx, "unlink: %s", source);
 			return (1);
 		}
 	}
 
 	/* Attempt the link. */
-	if ((*linkf)(target, source)) {
-		warn("%s: %s", linkf == link ? "link" : "symlink", source);
+	if ((*pThis->linkf)(target, source)) {
+		warn(pThis->pCtx, "%s: %s", pThis->linkf == link ? "link" : "symlink", source);
 		return (1);
 	}
-	if (vflag)
-		(void)printf("%s %c> %s\n", source, linkch, target);
+	if (pThis->vflag)
+		kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s %c> %s\n", source, pThis->linkch, target);
 	return (0);
 }
 
 static int
-usage(FILE *pf)
+usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-	fprintf(pf, "usage: %s [-fhinsv] source_file [target_file]\n"
-				"   or: %s [-fhinsv] source_file ... target_dir\n"
-                "   or: %s source_file target_file\n"
-				"   or: %s --help\n"
-				"   or: %s --version\n",
-                g_progname, g_progname, g_progname, g_progname, g_progname);
+	kmk_builtin_ctx_printf(pCtx,fIsErr,
+		"usage: %s [-fhinsv] source_file [target_file]\n"
+		"   or: %s [-fhinsv] source_file ... target_dir\n"
+		"   or: %s source_file target_file\n"
+		"   or: %s --help\n"
+		"   or: %s --version\n",
+		pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName,
+		pCtx->pszProgName, pCtx->pszProgName);
 	return 1;
 }
+
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+	KMKBUILTINCTX Ctx = { "kmk_ln", NULL };
+	return kmk_builtin_ln(argc, argv, envp, &Ctx);
+}
+#endif
+

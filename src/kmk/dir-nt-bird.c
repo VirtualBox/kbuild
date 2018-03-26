@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 3184 2018-03-23 22:36:43Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -39,6 +39,8 @@
 # include <glob.h>
 #endif
 #include <assert.h>
+#include "kmkbuiltin.h"
+#include "kmkbuiltin/err.h"
 
 #include "nt_fullpath.h" /* for the time being - will be implemented here later on. */
 
@@ -729,7 +731,7 @@ int dir_cache_deleted_directory(const char *pszDir)
 }
 
 
-int kmk_builtin_dircache(int argc, char **argv, char **envp)
+int kmk_builtin_dircache(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
     assert(GetCurrentThreadId() == g_idMainThread);
     if (argc >= 2)
@@ -742,7 +744,7 @@ int kmk_builtin_dircache(int argc, char **argv, char **envp)
                 dir_cache_invalid_all();
                 return 0;
             }
-            fprintf(stderr, "kmk_builtin_dircache: the 'invalidate' command takes no arguments!\n");
+            errx(pCtx, 2, "the 'invalidate' command takes no arguments!\n");
         }
         else if (strcmp(pszCmd, "invalidate-missing") == 0)
         {
@@ -751,7 +753,7 @@ int kmk_builtin_dircache(int argc, char **argv, char **envp)
                 dir_cache_invalid_missing ();
                 return 0;
             }
-            fprintf(stderr, "kmk_builtin_dircache: the 'invalidate-missing' command takes no arguments!\n");
+            errx(pCtx, 2, "the 'invalidate-missing' command takes no arguments!\n");
         }
         else if (strcmp(pszCmd, "volatile") == 0)
         {
@@ -768,10 +770,10 @@ int kmk_builtin_dircache(int argc, char **argv, char **envp)
             return 0;
         }
         else
-            fprintf(stderr, "kmk_builtin_dircache: Invalid command '%s'!\n", pszCmd);
+            errx(pCtx, 2, "Invalid command '%s'!\n", pszCmd);
     }
     else
-        fprintf(stderr, "kmk_builtin_dircache: No command given!\n");
+        errx(pCtx, 2, "No command given!\n");
 
     K_NOREF(envp);
     return 2;

@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 
 
 int
-copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
+copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, int *pcopied)
 {
 	static char buf[MAXBSIZE];
 	struct stat *fs;
@@ -102,7 +102,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 	*pcopied = 0;
 
 	if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY, 0)) == -1) {
-		warn("open: %s", entp->fts_path);
+		warn(pCtx, "open: %s", entp->fts_path);
 		return (1);
 	}
 
@@ -119,7 +119,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 	if (!dne) {
 		/* compare the files first if requested */
 		if (changed_only) {
-                        if (cmp_fd_and_file(from_fd, entp->fts_path, to.p_path,
+                        if (cmp_fd_and_file(pCtx, from_fd, entp->fts_path, to.p_path,
 					    1 /* silent */, 0 /* lflag */,
 					    0 /* special */) == OK_EXIT) {
 				close(from_fd);
@@ -128,7 +128,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 			if (lseek(from_fd, 0, SEEK_SET) != 0) {
     				close(from_fd);
 				if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY, 0)) == -1) {
-					warn("open: %s", entp->fts_path);
+					warn(pCtx, "open: %s", entp->fts_path);
 					return (1);
 				}
 			}
@@ -137,7 +137,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 #define YESNO "(y/n [n]) "
 		if (nflag) {
 			if (vflag)
-				printf("%s not overwritten\n", to.p_path);
+				kmk_builtin_ctx_printf(pCtx, 0, "%s not overwritten\n", to.p_path);
 			return (0);
 		} else if (iflag) {
 			(void)fprintf(stderr, "overwrite %s? %s",
@@ -147,7 +147,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 				ch = getchar();
 			if (checkch != 'y' && checkch != 'Y') {
 				(void)close(from_fd);
-				(void)fprintf(stderr, "not overwritten\n");
+				kmk_builtin_ctx_printf(pCtx, 1, "not overwritten\n");
 				return (1);
 			}
 		}
@@ -166,7 +166,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 		    fs->st_mode & ~(S_ISUID | S_ISGID));
 
 	if (to_fd == -1) {
-		warn("open: %s", to.p_path);
+		warn(pCtx, "open: %s", to.p_path);
 		(void)close(from_fd);
 		return (1);
 	}
@@ -184,7 +184,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 	    fs->st_size <= 8 * 1048576) {
 		if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
 		    MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
-			warn("mmap: %s", entp->fts_path);
+			warn(pCtx, "mmap: %s", entp->fts_path);
 			rval = 1;
 		} else {
 			wtotal = 0;
@@ -194,7 +194,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 				wtotal += wcount;
 				if (info) {
 					info = 0;
-					(void)fprintf(stderr,
+					kmk_builtin_ctx_printf(pCtx, 1,
 						"%s -> %s %3d%%\n",
 						entp->fts_path, to.p_path,
 						cp_pct(wtotal, fs->st_size));
@@ -204,12 +204,12 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 					break;
 			}
 			if (wcount != (ssize_t)wresid) {
-				warn("write[%zd != %zu]: %s", wcount, wresid, to.p_path);
+				warn(pCtx, "write[%zd != %zu]: %s", wcount, wresid, to.p_path);
 				rval = 1;
 			}
 			/* Some systems don't unmap on close(2). */
 			if (munmap(p, fs->st_size) < 0) {
-				warn("munmap: %s", entp->fts_path);
+				warn(pCtx, "munmap: %s", entp->fts_path);
 				rval = 1;
 			}
 		}
@@ -224,7 +224,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 				wtotal += wcount;
 				if (info) {
 					info = 0;
-					(void)fprintf(stderr,
+					kmk_builtin_ctx_printf(pCtx, 1,
 						"%s -> %s %3d%%\n",
 						entp->fts_path, to.p_path,
 						cp_pct(wtotal, fs->st_size));
@@ -234,13 +234,13 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 					break;
 			}
 			if (wcount != (ssize_t)wresid) {
-				warn("write[%zd != %zu]: %s", wcount, wresid, to.p_path);
+				warn(pCtx, "write[%zd != %zu]: %s", wcount, wresid, to.p_path);
 				rval = 1;
 				break;
 			}
 		}
 		if (rcount < 0) {
-			warn("read: %s", entp->fts_path);
+			warn(pCtx, "read: %s", entp->fts_path);
 			rval = 1;
 		}
 	}
@@ -252,68 +252,68 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 	 * to remove it if we created it and its length is 0.
 	 */
 
-	if (pflag && setfile(fs, to_fd))
+	if (pflag && setfile(pCtx, fs, to_fd))
 		rval = 1;
 	(void)close(from_fd);
 	if (close(to_fd)) {
-		warn("close: %s", to.p_path);
+		warn(pCtx, "close: %s", to.p_path);
 		rval = 1;
 	}
 	return (rval);
 }
 
 int
-copy_link(const FTSENT *p, int exists)
+copy_link(PKMKBUILTINCTX pCtx, const FTSENT *p, int exists)
 {
 	int len;
 	char llink[PATH_MAX];
 
 	if ((len = readlink(p->fts_path, llink, sizeof(llink) - 1)) == -1) {
-		warn("readlink: %s", p->fts_path);
+		warn(pCtx, "readlink: %s", p->fts_path);
 		return (1);
 	}
 	llink[len] = '\0';
 	if (exists && unlink(to.p_path)) {
-		warn("unlink: %s", to.p_path);
+		warn(pCtx, "unlink: %s", to.p_path);
 		return (1);
 	}
 	if (symlink(llink, to.p_path)) {
-		warn("symlink: %s", llink);
+		warn(pCtx, "symlink: %s", llink);
 		return (1);
 	}
-	return (pflag ? setfile(p->fts_statp, -1) : 0);
+	return (pflag ? setfile(pCtx, p->fts_statp, -1) : 0);
 }
 
 int
-copy_fifo(struct stat *from_stat, int exists)
+copy_fifo(PKMKBUILTINCTX pCtx, struct stat *from_stat, int exists)
 {
 	if (exists && unlink(to.p_path)) {
-		warn("unlink: %s", to.p_path);
+		warn(pCtx, "unlink: %s", to.p_path);
 		return (1);
 	}
 	if (mkfifo(to.p_path, from_stat->st_mode)) {
-		warn("mkfifo: %s", to.p_path);
+		warn(pCtx, "mkfifo: %s", to.p_path);
 		return (1);
 	}
-	return (pflag ? setfile(from_stat, -1) : 0);
+	return (pflag ? setfile(pCtx, from_stat, -1) : 0);
 }
 
 int
-copy_special(struct stat *from_stat, int exists)
+copy_special(PKMKBUILTINCTX pCtx, struct stat *from_stat, int exists)
 {
 	if (exists && unlink(to.p_path)) {
-		warn("unlink: %s", to.p_path);
+		warn(pCtx, "unlink: %s", to.p_path);
 		return (1);
 	}
 	if (mknod(to.p_path, from_stat->st_mode, from_stat->st_rdev)) {
-		warn("mknod: %s", to.p_path);
+		warn(pCtx, "mknod: %s", to.p_path);
 		return (1);
 	}
-	return (pflag ? setfile(from_stat, -1) : 0);
+	return (pflag ? setfile(pCtx, from_stat, -1) : 0);
 }
 
 int
-setfile(struct stat *fs, int fd)
+setfile(PKMKBUILTINCTX pCtx, struct stat *fs, int fd)
 {
 	static struct timeval tv[2];
 	struct stat ts;
@@ -334,7 +334,7 @@ setfile(struct stat *fs, int fd)
         tv[0].tv_usec = tv[1].tv_usec = 0;
 #endif
 	if (islink ? lutimes(to.p_path, tv) : utimes(to.p_path, tv)) {
-		warn("%sutimes: %s", islink ? "l" : "", to.p_path);
+		warn(pCtx, "%sutimes: %s", islink ? "l" : "", to.p_path);
 		rval = 1;
 	}
 	if (fdval ? fstat(fd, &ts) :
@@ -356,7 +356,7 @@ setfile(struct stat *fs, int fd)
 		    (islink ? lchown(to.p_path, fs->st_uid, fs->st_gid) :
 		    chown(to.p_path, fs->st_uid, fs->st_gid))) {
 			if (errno != EPERM) {
-				warn("chown: %s", to.p_path);
+				warn(pCtx, "chown: %s", to.p_path);
 				rval = 1;
 			}
 			fs->st_mode &= ~(S_ISUID | S_ISGID);
@@ -366,7 +366,7 @@ setfile(struct stat *fs, int fd)
 		if (fdval ? fchmod(fd, fs->st_mode) :
 		    (islink ? lchmod(to.p_path, fs->st_mode) :
 		    chmod(to.p_path, fs->st_mode))) {
-			warn("chmod: %s", to.p_path);
+			warn(pCtx, "chmod: %s", to.p_path);
 			rval = 1;
 		}
 
@@ -376,7 +376,7 @@ setfile(struct stat *fs, int fd)
 		    fchflags(fd, fs->st_flags) :
 		    (islink ? (errno = ENOSYS) :
 		    chflags(to.p_path, fs->st_flags))) {
-			warn("chflags: %s", to.p_path);
+			warn(pCtx, "chflags: %s", to.p_path);
 			rval = 1;
 		}
 #endif

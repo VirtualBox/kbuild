@@ -1,4 +1,4 @@
-/* $Id: md5sum.c 3159 2018-03-19 13:37:13Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
@@ -48,27 +48,27 @@
 /**
  * Prints the usage and return 1.
  */
-static int usage(FILE *pOut)
+static int usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-    fprintf(pOut,
-            "usage: md5sum [-bt] [-o list-file] file(s)\n"
-            "   or: md5sum [-btwq] -c list-file(s)\n"
-            "   or: md5sum [-btq] -C MD5 file\n"
-            "\n"
-            " -c, --check       Check MD5 and files found in the specified list file(s).\n"
-            "                   The default is to compute MD5 sums of the specified files\n"
-            "                   and print them to stdout in list form.\n"
-            " -C, --check-file  This is followed by an MD5 sum and the file to check.\n"
-            " -b, --binary      Read files in binary mode. (default)\n"
-            " -t, --text        Read files in text mode.\n"
-            " -m, --manifest    Output in kBuild fetch 'manifest' format.\n"
-            " -p, --progress    Show progress indicator on large files.\n"
-            " -o, --output      Name of the output list file. Useful with -p.\n"
-            " -q, --status      Be quiet.\n"
-            " -w, --warn        Ignored. Always warn, unless quiet.\n"
-            " -h, --help        This usage info.\n"
-            " -v, --version     Show version information and exit.\n"
-            );
+    kmk_builtin_ctx_printf(pCtx, fIsErr,
+                           "usage: md5sum [-bt] [-o list-file] file(s)\n"
+                           "   or: md5sum [-btwq] -c list-file(s)\n"
+                           "   or: md5sum [-btq] -C MD5 file\n"
+                           "\n"
+                           " -c, --check       Check MD5 and files found in the specified list file(s).\n"
+                           "                   The default is to compute MD5 sums of the specified files\n"
+                           "                   and print them to stdout in list form.\n"
+                           " -C, --check-file  This is followed by an MD5 sum and the file to check.\n"
+                           " -b, --binary      Read files in binary mode. (default)\n"
+                           " -t, --text        Read files in text mode.\n"
+                           " -m, --manifest    Output in kBuild fetch 'manifest' format.\n"
+                           " -p, --progress    Show progress indicator on large files.\n"
+                           " -o, --output      Name of the output list file. Useful with -p.\n"
+                           " -q, --status      Be quiet.\n"
+                           " -w, --warn        Ignored. Always warn, unless quiet.\n"
+                           " -h, --help        This usage info.\n"
+                           " -v, --version     Show version information and exit.\n"
+                           );
     return 1;
 }
 
@@ -404,13 +404,15 @@ static int check_md5sum(void *pvFile, unsigned char Digest[16], unsigned fProgre
  * Checks if the specified file matches the given MD5 digest.
  *
  * @returns 0 if it matches, 1 if it doesn't or an error occurs.
+ * @param   pCtx        The command execution context.
  * @param   pszFilename The name of the file to check.
  * @param   pszDigest   The MD5 digest string.
  * @param   fText       Whether to open the file in text or binary mode.
  * @param   fQuiet      Whether to go about this in a quiet fashion or not.
  * @param   fProgress   Whether to show an progress indicator on large files.
  */
-static int check_one_file(const char *pszFilename, const char *pszDigest, unsigned fText, unsigned fQuiet, unsigned fProgress)
+static int check_one_file(PKMKBUILTINCTX pCtx, const char *pszFilename, const char *pszDigest, unsigned fText,
+                          unsigned fQuiet, unsigned fProgress)
 {
     unsigned char Digest[16];
     int rc;
@@ -424,15 +426,14 @@ static int check_one_file(const char *pszFilename, const char *pszDigest, unsign
         if (pvFile)
         {
             if (!fQuiet)
-                fprintf(stdout, "%s: ", pszFilename);
+                kmk_builtin_ctx_printf(pCtx, 0, "%s: ", pszFilename);
             rc = check_md5sum(pvFile, Digest, fProgress);
             close_file(pvFile);
             if (!fQuiet)
             {
-                fprintf(stdout, "%s\n", !rc ? "OK" : rc < 0 ? "FAILURE" : "ERROR");
-                fflush(stdout);
+                kmk_builtin_ctx_printf(pCtx, 0, "%s\n", !rc ? "OK" : rc < 0 ? "FAILURE" : "ERROR");
                 if (rc > 0)
-                    errx(1, "Error reading '%s': %s", pszFilename, strerror(rc));
+                    errx(pCtx, 1, "Error reading '%s': %s", pszFilename, strerror(rc));
             }
             if (rc)
                 rc = 1;
@@ -440,14 +441,14 @@ static int check_one_file(const char *pszFilename, const char *pszDigest, unsign
         else
         {
             if (!fQuiet)
-                errx(1, "Failed to open '%s': %s", pszFilename, strerror(errno));
+                errx(pCtx, 1, "Failed to open '%s': %s", pszFilename, strerror(errno));
             rc = 1;
         }
     }
     else
     {
-        errx(1, "Malformed MD5 digest '%s'!", pszDigest);
-        errx(1, "                      %*s^", rc - 1, "");
+        errx(pCtx, 1, "Malformed MD5 digest '%s'!", pszDigest);
+        errx(pCtx, 1, "                      %*s^", rc - 1, "");
         rc = 1;
     }
 
@@ -459,13 +460,15 @@ static int check_one_file(const char *pszFilename, const char *pszDigest, unsign
  * Checks the specified md5.lst file.
  *
  * @returns 0 if all checks out file, 1 if one or more fails or there are read errors.
+ * @param   pCtx            The command execution context.
  * @param   pszFilename     The name of the file.
  * @param   fText           The default mode, text or binary. Only used when fBinaryTextOpt is true.
  * @param   fBinaryTextOpt  Whether a -b or -t option was specified and should be used.
  * @param   fQuiet          Whether to be quiet.
- * @param   fProgress   Whether to show an progress indicator on large files.
+ * @param   fProgress       Whether to show an progress indicator on large files.
  */
-static int check_files(const char *pszFilename, int fText, int fBinaryTextOpt, int fQuiet, unsigned fProgress)
+static int check_files(PKMKBUILTINCTX pCtx, const char *pszFilename, int fText, int fBinaryTextOpt,
+                       int fQuiet, unsigned fProgress)
 {
     int rc = 0;
     FILE *pFile;
@@ -538,15 +541,14 @@ static int check_files(const char *pszFilename, int fText, int fBinaryTextOpt, i
                         if (pvFile)
                         {
                             if (!fQuiet)
-                                fprintf(stdout, "%s: ", pszFilename);
+                                kmk_builtin_ctx_printf(pCtx, 0, "%s: ", pszFilename);
                             rc2 = check_md5sum(pvFile, Digest, fProgress);
                             close_file(pvFile);
                             if (!fQuiet)
                             {
-                                fprintf(stdout, "%s\n", !rc2 ? "OK" : rc2 < 0 ? "FAILURE" : "ERROR");
-                                fflush(stdout);
+                                kmk_builtin_ctx_printf(pCtx, 0, "%s\n", !rc2 ? "OK" : rc2 < 0 ? "FAILURE" : "ERROR");
                                 if (rc2 > 0)
-                                    errx(1, "Error reading '%s': %s", pszFilename, strerror(rc2));
+                                    errx(pCtx, 1, "Error reading '%s': %s", pszFilename, strerror(rc2));
                             }
                             if (rc2)
                                 rc = 1;
@@ -554,28 +556,28 @@ static int check_files(const char *pszFilename, int fText, int fBinaryTextOpt, i
                         else
                         {
                             if (!fQuiet)
-                                errx(1, "Failed to open '%s': %s", pszFilename, strerror(errno));
+                                errx(pCtx, 1, "Failed to open '%s': %s", pszFilename, strerror(errno));
                             rc = 1;
                         }
                     }
                     else if (!fQuiet)
                     {
-                        errx(1, "%s (%d): Ignoring malformed digest '%s' (digest)", pszFilename, iLine, pszDigest);
-                        errx(1, "%s (%d):                            %*s^", pszFilename, iLine, rc2 - 1, "");
+                        errx(pCtx, 1, "%s (%d): Ignoring malformed digest '%s' (digest)", pszFilename, iLine, pszDigest);
+                        errx(pCtx, 1, "%s (%d):                            %*s^", pszFilename, iLine, rc2 - 1, "");
                     }
                 }
                 else if (!fQuiet)
-                    errx(1, "%s (%d): Ignoring malformed line!", pszFilename, iLine);
+                    errx(pCtx, 1, "%s (%d): Ignoring malformed line!", pszFilename, iLine);
             }
             else if (!fQuiet)
-                errx(1, "%s (%d): Ignoring malformed line!", pszFilename, iLine);
+                errx(pCtx, 1, "%s (%d): Ignoring malformed line!", pszFilename, iLine);
         } /* while more lines */
 
         fclose(pFile);
     }
     else
     {
-        errx(1, "Failed to open '%s': %s", pszFilename, strerror(errno));
+        errx(pCtx, 1, "Failed to open '%s': %s", pszFilename, strerror(errno));
         rc = 1;
     }
 
@@ -587,6 +589,7 @@ static int check_files(const char *pszFilename, int fText, int fBinaryTextOpt, i
  * Calculates the MD5 sum for one file and prints it.
  *
  * @returns 0 on success, 1 on any kind of failure.
+ * @param   pCtx            Command context.
  * @param   pszFilename     The file to process.
  * @param   fText           The mode to open the file in.
  * @param   fQuiet          Whether to be quiet or verbose about errors.
@@ -594,7 +597,7 @@ static int check_files(const char *pszFilename, int fText, int fBinaryTextOpt, i
  * @param   fProgress       Whether to show an progress indicator on large files.
  * @param   pOutput         Where to write the list. Progress is always written to stdout.
  */
-static int md5sum_file(const char *pszFilename, unsigned fText, unsigned fQuiet, unsigned fProgress,
+static int md5sum_file(PKMKBUILTINCTX pCtx, const char *pszFilename, unsigned fText, unsigned fQuiet, unsigned fProgress,
                        unsigned fManifest, FILE *pOutput)
 {
     int rc;
@@ -630,29 +633,29 @@ static int md5sum_file(const char *pszFilename, unsigned fText, unsigned fQuiet,
             {
                 if (pOutput)
                     fprintf(pOutput, "%s %s%s\n", szDigest, fText ? "" : "*", pszFilename);
-                fprintf(stdout, "%s %s%s\n", szDigest, fText ? "" : "*", pszFilename);
+                kmk_builtin_ctx_printf(pCtx, 0, "%s %s%s\n", szDigest, fText ? "" : "*", pszFilename);
             }
             else
             {
                 if (pOutput)
                     fprintf(pOutput, "%s_SIZE := %" KU64_PRI "\n%s_MD5  := %s\n", pszFilename, cbFile, pszFilename, szDigest);
-                fprintf(stdout, "%s_SIZE := %" KU64_PRI "\n%s_MD5  := %s\n", pszFilename, cbFile, pszFilename, szDigest);
+                kmk_builtin_ctx_printf(pCtx, 0, "%s_SIZE := %" KU64_PRI "\n%s_MD5  := %s\n",
+                                       pszFilename, cbFile, pszFilename, szDigest);
             }
             if (pOutput)
                 fflush(pOutput);
-            fflush(stdout);
         }
         else
         {
             if (!fQuiet)
-                errx(1, "Failed to open '%s': %s", pszFilename, strerror(rc));
+                errx(pCtx, 1, "Failed to open '%s': %s", pszFilename, strerror(rc));
             rc = 1;
         }
     }
     else
     {
         if (!fQuiet)
-            errx(1, "Failed to open '%s': %s", pszFilename, strerror(errno));
+            errx(pCtx, 1, "Failed to open '%s': %s", pszFilename, strerror(errno));
         rc = 1;
     }
     return rc;
@@ -664,7 +667,7 @@ static int md5sum_file(const char *pszFilename, unsigned fText, unsigned fQuiet,
  * md5sum, calculates and checks the md5sum of files.
  * Somewhat similar to the GNU coreutil md5sum command.
  */
-int kmk_builtin_md5sum(int argc, char **argv, char **envp)
+int kmk_builtin_md5sum(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
     int i;
     int rc = 0;
@@ -678,13 +681,11 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
     const char *pszOutput = NULL;
     FILE *pOutput = NULL;
 
-    g_progname = argv[0];
-
     /*
      * Print usage if no arguments.
      */
     if (argc <= 1)
-        return usage(stderr);
+        return usage(pCtx, 1);
 
     /*
      * Process the arguments, FIFO style.
@@ -750,7 +751,11 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
                         break;
 
                     case 'p':
-                        fProgress = 1;
+                        fProgress = 1 && isatty(fileno(stdout))
+#ifndef KMK_BUILTIN_STANDALONE
+                                 && (!pCtx->pOut || !pCtx->pOut->syncout)
+#endif
+                                  ;
                         break;
 
                     case 'q':
@@ -762,7 +767,7 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
                         break;
 
                     case 'h':
-                        usage(stdout);
+                        usage(pCtx, 0);
                         return 0;
 
                     case 'v':
@@ -782,18 +787,18 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
                             pszDigest = argv[++i];
                         else
                         {
-                            errx(1, "'-C' is missing the MD5 sum!");
+                            errx(pCtx, 1, "'-C' is missing the MD5 sum!");
                             return 1;
                         }
                         if (i + 1 < argc)
                             pszFilename = argv[++i];
                         else
                         {
-                            errx(1, "'-C' is missing the filename!");
+                            errx(pCtx, 1, "'-C' is missing the filename!");
                             return 1;
                         }
 
-                        rc |= check_one_file(pszFilename, pszDigest, fText, fQuiet, fProgress && !fQuiet);
+                        rc |= check_one_file(pCtx, pszFilename, pszDigest, fText, fQuiet, fProgress && !fQuiet);
                         psz = "\0";
                         break;
                     }
@@ -805,7 +810,7 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
                     {
                         if (fChecking)
                         {
-                            errx(1, "'-o' cannot be used with -c or -C!");
+                            errx(pCtx, 1, "'-o' cannot be used with -c or -C!");
                             return 1;
                         }
 
@@ -815,7 +820,7 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
                             pszOutput = argv[++i];
                         else
                         {
-                            errx(1, "'-o' is missing the file name!");
+                            errx(pCtx, 1, "'-o' is missing the file name!");
                             return 1;
                         }
 
@@ -824,13 +829,13 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
                     }
 
                     default:
-                        errx(1, "Invalid option '%c'! (%s)", *psz, argv[i]);
-                        return usage(stderr);
+                        errx(pCtx, 1, "Invalid option '%c'! (%s)", *psz, argv[i]);
+                        return usage(pCtx, 1);
                 }
             } while (*++psz);
         }
         else if (fChecking)
-            rc |= check_files(argv[i], fText, fBinaryTextOpt, fQuiet, fProgress && !fQuiet);
+            rc |= check_files(pCtx, argv[i], fText, fBinaryTextOpt, fQuiet, fProgress && !fQuiet);
         else
         {
             /* lazily open the output if specified. */
@@ -841,13 +846,13 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
                 pOutput = fopen(pszOutput, "w" KMK_FOPEN_NO_INHERIT_MODE);
                 if (!pOutput)
                 {
-                    rc = err(1, "fopen(\"%s\", \"w" KMK_FOPEN_NO_INHERIT_MODE "\") failed", pszOutput);
+                    rc = err(pCtx, 1, "fopen(\"%s\", \"w" KMK_FOPEN_NO_INHERIT_MODE "\") failed", pszOutput);
                     break;
                 }
                 pszOutput = NULL;
             }
 
-            rc |= md5sum_file(argv[i], fText, fQuiet, fProgress && !fQuiet && !fManifest, fManifest, pOutput);
+            rc |= md5sum_file(pCtx, argv[i], fText, fQuiet, fProgress && !fQuiet && !fManifest, fManifest, pOutput);
         }
         i++;
     }
@@ -856,4 +861,14 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
         fclose(pOutput);
     return rc;
 }
+
+
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+    KMKBUILTINCTX Ctx = { "kmk_md5sum", NULL };
+    return kmk_builtin_md5sum(argc, argv, envp, &Ctx);
+}
+#endif
+
 

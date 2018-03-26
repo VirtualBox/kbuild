@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 3167 2018-03-20 21:47:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -38,11 +38,13 @@
 # include <unistd.h>
 #else
 # include <io.h>
+typedef intptr_t ssize_t;
 #endif
 #include "k/kDefs.h"
 #include "k/kTypes.h"
 #include "k/kLdrFmts/pe.h"
 #include "kDep.h"
+#include "err.h"
 #include "kmkbuiltin.h"
 
 
@@ -169,10 +171,10 @@ typedef const KDEPCV8SYMHDR *PCKDEPCV8SYMHDR;
  */
 typedef struct KDEPOBJGLOBALS
 {
+    /** The command execution context. */
+    PKMKBUILTINCTX pCtx;
     /** Core instance. */
     DEPGLOBALS Core;
-    /** the executable name. */
-    const char *argv0;
     /** The file.    */
     const char *pszFile;
 } KDEPOBJGLOBALS;
@@ -193,26 +195,17 @@ typedef KDEPOBJGLOBALS *PKDEPOBJGLOBALS;
  */
 static int kDepErr(PKDEPOBJGLOBALS pThis, int rc, const char *pszFormat, ...)
 {
+    char szMsg[2048];
     va_list va;
-    const char *psz;
-    const char *pszName = pThis->argv0;
-
-    fflush(stdout);
-
-    /* The message prefix. */
-    while ((psz = strpbrk(pszName, "/\\:")) != NULL)
-        pszName = psz + 1;
+    va_start(va, pszFormat);
+    vsnprintf(szMsg, sizeof(szMsg) - 1, pszFormat, va);
+    va_end(va);
+    szMsg[sizeof(szMsg) - 1] = '\0';
 
     if (pThis->pszFile)
-        fprintf(stderr, "%s: %s: error: ", pszName, pThis->pszFile);
+        warnx(pThis->pCtx, "%s: error: %s", pThis->pszFile, szMsg);
     else
-        fprintf(stderr, "%s: error: ", pszName);
-
-    /* The message. */
-    va_start(va, pszFormat);
-    vfprintf(stderr, pszFormat, va);
-    va_end(va);
-
+        errx(pThis->pCtx, rc, "%s", szMsg);
     return rc;
 }
 
@@ -293,7 +286,7 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
             {
                 PCKDEPOMFTHEADR pTHeadr = (PCKDEPOMFTHEADR)pHdr;
                 if (1 + pTHeadr->Name.cch + 1 != pHdr->cbRec)
-                    return kDepErr(pThis, 1, "%#07x - Bad %cHEADR record, length mismatch.\n",
+                    return kDepErr(pThis, 1, "%#07x - Bad %cHEADR record, length mismatch.",
                                    (const KU8*)pHdr - pbFile, pHdr->bType == KDEPOMF_THEADR ? 'T' : 'L');
                 if (    (   pTHeadr->Name.cch > 2
                          && pTHeadr->Name.ach[pTHeadr->Name.cch - 2] == '.'
@@ -324,9 +317,9 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                 KU8 uClass;
 
                 if (pHdr->cbRec < 2 + 1)
-                    return kDepErr(pThis, 1, "%#07x - Bad COMMENT record, too small.\n", (const KU8*)pHdr - pbFile);
+                    return kDepErr(pThis, 1, "%#07x - Bad COMMENT record, too small.", (const KU8*)pHdr - pbFile);
                 if (uData.pb[0] & 0x3f)
-                    return kDepErr(pThis, 1, "%#07x - Bad COMMENT record, reserved flags set.\n", (const KU8*)pHdr - pbFile);
+                    return kDepErr(pThis, 1, "%#07x - Bad COMMENT record, reserved flags set.", (const KU8*)pHdr - pbFile);
                 uClass = uData.pb[1];
                 uData.pb += 2;
                 switch (uClass)
@@ -343,7 +336,7 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                                no need to go on. */
                             if (pHdr->cbRec == 2 + 1)
                                 return 0;
-                            return kDepErr(pThis, 1, "%#07lx - Bad DEPENDENCY FILE record, length mismatch. (%u/%u)\n",
+                            return kDepErr(pThis, 1, "%#07lx - Bad DEPENDENCY FILE record, length mismatch. (%u/%u)",
                                            (long)((const KU8 *)pHdr - pbFile),
                                            K_OFFSETOF(KDEPOMFDEPFILE, Name.ach[pDep->Name.cch]) + 1,
                                            (unsigned)(pHdr->cbRec + sizeof(*pHdr)));
@@ -397,7 +390,7 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                     KU16 uGrp = kDepObjOMFGetIndex(&uData, &cbRecLeft);
                     KU16 uSeg = kDepObjOMFGetIndex(&uData, &cbRecLeft);
                     if (uSeg == KU16_MAX)
-                        return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record\n", (long)((const KU8 *)pHdr - pbFile));
+                        return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record", (long)((const KU8 *)pHdr - pbFile));
                     K_NOREF(uGrp);
 
                     if (uLinNumType == KU8_MAX)
@@ -414,7 +407,7 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                         KU32 cbLinNames;
 
                         if (cbRecLeft < 2+1+1+2+2+4)
-                            return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, too short\n", (long)((const KU8 *)pHdr - pbFile));
+                            return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, too short", (long)((const KU8 *)pHdr - pbFile));
                         cbRecLeft  -= 2+1+1+2+2+4;
                         uLine       = *uData.pu16++;
                         uLinNumType = *uData.pu8++;
@@ -430,13 +423,13 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                                  uLinNumType < K_ELEMENTS(s_apsz) ? s_apsz[uLinNumType] : "??"));
 
                         if (uLine != 0)
-                            return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, line %#x (MBZ)\n", (long)((const KU8 *)pHdr - pbFile), uLine);
+                            return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, line %#x (MBZ)", (long)((const KU8 *)pHdr - pbFile), uLine);
                         cLinFiles = iLinFile = KU32_MAX;
                         if (   uLinNumType == 3 /* file names table */
                             || uLinNumType == 4 /* path table */)
                             cLinNums = 0; /* no line numbers */
                         else if (uLinNumType > 4)
-                            return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, type %#x unknown\n", (long)((const KU8 *)pHdr - pbFile), uLinNumType);
+                            return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, type %#x unknown", (long)((const KU8 *)pHdr - pbFile), uLinNumType);
                     }
                     else
                         dprintf(("LINNUM32: uGrp=%#x uSeg=%#x\n", uGrp, uSeg));
@@ -451,7 +444,7 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                         while (cLinNums && cbRecLeft)
                         {
                             if (cbRecLeft < cbEntry)
-                                return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, incomplete line entry\n", (long)((const KU8 *)pHdr - pbFile));
+                                return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, incomplete line entry", (long)((const KU8 *)pHdr - pbFile));
 
                             switch (uLinNumType)
                             {
@@ -491,7 +484,7 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                             KU32 cCols;
 
                             if (cbRecLeft < 4+4+4)
-                                return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, incomplete file/path table header\n", (long)((const KU8 *)pHdr - pbFile));
+                                return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, incomplete file/path table header", (long)((const KU8 *)pHdr - pbFile));
                             cbRecLeft -= 4+4+4;
 
                             iFirstCol = *uData.pu32++;  K_NOREF(iFirstCol);
@@ -500,7 +493,7 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                             dprintf(("%s table header: cLinFiles=%#" KX32_PRI " (%" KU32_PRI ") iFirstCol=%" KU32_PRI " cCols=%" KU32_PRI"\n",
                                      uLinNumType == 3 ? "file names" : "path", cLinFiles, cLinFiles, iFirstCol, cCols));
                             if (cLinFiles == KU32_MAX)
-                                return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, too many file/path table entries.\n", (long)((const KU8 *)pHdr - pbFile));
+                                return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, too many file/path table entries.", (long)((const KU8 *)pHdr - pbFile));
                             iLinFile = 0;
                         }
 
@@ -509,7 +502,7 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                         {
                             int cbName = *uData.pb++;
                             if (cbRecLeft < 1 + cbName)
-                                return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, file/path table entry too long.\n", (long)((const KU8 *)pHdr - pbFile));
+                                return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, file/path table entry too long.", (long)((const KU8 *)pHdr - pbFile));
                             iLinFile++;
                             dprintf(("#%" KU32_PRI": %.*s\n", iLinFile, cbName, uData.pch));
                             if (uLinNumType == 3)
@@ -541,7 +534,7 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
     }
 
     if (cbLeft)
-        return kDepErr(pThis, 1, "%#07x - Unexpected EOF. cbLeft=%#x\n", (const KU8*)pHdr - pbFile, cbLeft);
+        return kDepErr(pThis, 1, "%#07x - Unexpected EOF. cbLeft=%#x", (const KU8*)pHdr - pbFile, cbLeft);
 
     if (iSrc == 0 && iMaybeSrc <= 1)
     {
@@ -611,16 +604,16 @@ int kDepObjCOFFParseCV8SymbolSection(PKDEPOBJGLOBALS pThis, const KU8 *pbSyms, K
 
         if (off + sizeof(*pHdr) >= cbSyms)
         {
-            fprintf(stderr, "%s: CV symbol table entry at %08" KX32_PRI " is too long; cbSyms=%#" KX32_PRI "\n",
-                    pThis->argv0, off, cbSyms);
+            kDepErr(pThis, 1, "CV symbol table entry at %08" KX32_PRI " is too long; cbSyms=%#" KX32_PRI "",
+                    off, cbSyms);
             return 1; /* FIXME */
         }
 
         cbData = pHdr->cb;
         if (off + cbData + sizeof(*pHdr) > cbSyms)
         {
-            fprintf(stderr, "%s: CV symbol table entry at %08" KX32_PRI " is too long; cbData=%#" KX32_PRI " cbSyms=%#" KX32_PRI "\n",
-                    pThis->argv0, off, cbData, cbSyms);
+            kDepErr(pThis, 1, "CV symbol table entry at %08" KX32_PRI " is too long; cbData=%#" KX32_PRI " cbSyms=%#" KX32_PRI,
+                    off, cbData, cbSyms);
             return 1; /* FIXME */
         }
 
@@ -644,7 +637,7 @@ int kDepObjCOFFParseCV8SymbolSection(PKDEPOBJGLOBALS pThis, const KU8 *pbSyms, K
             case K_CV8_STRING_TABLE:
                 dprintf(("%06" KX32_PRI " %06" KX32_PRI ": String table\n", off, cbData));
                 if (pchStrTab)
-                    fprintf(stderr, "%s: warning: Found yet another string table!\n", pThis->argv0);
+                    warnx(pThis->pCtx, "%s: warning: Found yet another string table!", pThis->pszFile);
                 pchStrTab = uData.pch;
                 cbStrTab = cbData;
                 /*dump(uData.pb, cbData, 0);*/
@@ -653,7 +646,7 @@ int kDepObjCOFFParseCV8SymbolSection(PKDEPOBJGLOBALS pThis, const KU8 *pbSyms, K
             case K_CV8_SOURCE_FILES:
                 dprintf(("%06" KX32_PRI " %06" KX32_PRI ": Source files\n", off, cbData));
                 if (uSrcFiles.pb)
-                    fprintf(stderr, "%s: warning: Found yet another source files table!\n", pThis->argv0);
+                    warnx(pThis->pCtx, "%s: warning: Found yet another source files table!", pThis->pszFile);
                 uSrcFiles = uData;
                 cbSrcFiles = cbData;
                 /*dump(uData.pb, cbData, 0);*/
@@ -702,36 +695,24 @@ int kDepObjCOFFParseCV8SymbolSection(PKDEPOBJGLOBALS pThis, const KU8 *pbSyms, K
          * Validate and parse the entry (variable length record are fun).
          */
         if (off + 8 > cbSrcFiles)
-        {
-            fprintf(stderr, "%s: CV source file entry at %08" KX32_PRI " is too long; cbSrcFiles=%#" KX32_PRI "\n",
-                    pThis->argv0, off, cbSrcFiles);
-            return 1;
-        }
+            return kDepErr(pThis, 1, "CV source file entry at %08" KX32_PRI " is too long; cbSrcFiles=%#" KX32_PRI,
+                           off, cbSrcFiles);
         uSrc.pb = uSrcFiles.pb + off;
         u16Type = uSrc.pu16[2];
         cbSrc = u16Type == 0x0110 ? 6 + 16 + 2 : 6 + 2;
         if (off + cbSrc > cbSrcFiles)
-        {
-            fprintf(stderr, "%s: CV source file entry at %08" KX32_PRI " is too long; cbSrc=%#" KX32_PRI " cbSrcFiles=%#" KX32_PRI "\n",
-                    pThis->argv0, off, cbSrc, cbSrcFiles);
-            return 1;
-        }
+            return kDepErr(pThis, 1, "CV source file entry at %08" KX32_PRI " is too long; cbSrc=%#" KX32_PRI " cbSrcFiles=%#" KX32_PRI,
+                           off, cbSrc, cbSrcFiles);
 
         offFile = *uSrc.pu32;
         if (offFile > cbStrTab)
-        {
-            fprintf(stderr, "%s: CV source file entry at %08" KX32_PRI " is out side the string table; offFile=%#" KX32_PRI " cbStrTab=%#" KX32_PRI "\n",
-                    pThis->argv0, off, offFile, cbStrTab);
-            return 1;
-        }
+            return kDepErr(pThis, 1, "CV source file entry at %08" KX32_PRI " is out side the string table; offFile=%#" KX32_PRI " cbStrTab=%#" KX32_PRI,
+                    off, offFile, cbStrTab);
         pszFile = pchStrTab + offFile;
         cchFile = strlen(pszFile);
         if (cchFile == 0)
-        {
-            fprintf(stderr, "%s: CV source file entry at %08" KX32_PRI " has an empty file name; offFile=%#x" KX32_PRI "\n",
-                    pThis->argv0, off, offFile);
-            return 1;
-        }
+            return kDepErr(pThis, 1, "CV source file entry at %08" KX32_PRI " has an empty file name; offFile=%#x" KX32_PRI,
+                           off, offFile);
 
         /*
          * Display the result and add it to the dependency database.
@@ -821,10 +802,11 @@ int kDepObjCOFFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
  *
  * @returns K_TRUE if it's COFF, K_FALSE otherwise.
  *
+ * @param   pThis   The kDepObj instance data.
  * @param   pb      The start of the file.
  * @param   cb      The file size.
  */
-KBOOL kDepObjCOFFTest(const KU8 *pbFile, KSIZE cbFile)
+KBOOL kDepObjCOFFTest(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
 {
     IMAGE_FILE_HEADER const         *pFileHdr   = (IMAGE_FILE_HEADER const *)pbFile;
     ANON_OBJECT_HEADER_BIGOBJ const *pBigObjHdr = (ANON_OBJECT_HEADER_BIGOBJ const *)pbFile;
@@ -863,17 +845,17 @@ KBOOL kDepObjCOFFTest(const KU8 *pbFile, KSIZE cbFile)
             && pBigObjHdr->Machine != IMAGE_FILE_MACHINE_ARM64
             && pBigObjHdr->Machine != IMAGE_FILE_MACHINE_EBC)
         {
-            fprintf(stderr, "kDepObj: error: bigobj Machine not supported: %#x\n", pBigObjHdr->Machine);
+            kDepErr(pThis, 1, "bigobj Machine not supported: %#x", pBigObjHdr->Machine);
             return K_FALSE;
         }
         if (pBigObjHdr->Flags != 0)
         {
-            fprintf(stderr, "kDepObj: error: bigobj Flags field is non-zero: %#x\n", pBigObjHdr->Flags);
+            kDepErr(pThis, 1, "bigobj Flags field is non-zero: %#x", pBigObjHdr->Flags);
             return K_FALSE;
         }
         if (pBigObjHdr->SizeOfData != 0)
         {
-            fprintf(stderr, "kDepObj: error: bigobj SizeOfData field is non-zero: %#x\n", pBigObjHdr->SizeOfData);
+            kDepErr(pThis, 1, "bigobj SizeOfData field is non-zero: %#x", pBigObjHdr->SizeOfData);
             return K_FALSE;
         }
 
@@ -976,29 +958,27 @@ static int kDepObjProcessFile(PKDEPOBJGLOBALS pThis, FILE *pInput)
      */
     if (kDepObjOMFTest(pbFile, cbFile))
         rc = kDepObjOMFParse(pThis, pbFile, cbFile);
-    else if (kDepObjCOFFTest(pbFile, cbFile))
+    else if (kDepObjCOFFTest(pThis, pbFile, cbFile))
         rc = kDepObjCOFFParse(pThis, pbFile, cbFile);
     else
-    {
-        fprintf(stderr, "%s: error: Doesn't recognize the header of the OMF/COFF file.\n", pThis->argv0);
-        rc = 1;
-    }
+        rc = kDepErr(pThis, 1, "Doesn't recognize the header of the OMF/COFF file.");
 
     depFreeFileMemory(pbFile, pvOpaque);
     return rc;
 }
 
 
-static void kDebObjUsage(const char *a_argv0)
+static void kDebObjUsage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-    printf("usage: %s -o <output> -t <target> [-fqs] [-e <ignore-ext>] <OMF or COFF file>\n"
-           "   or: %s --help\n"
-           "   or: %s --version\n",
-           a_argv0, a_argv0, a_argv0);
+    kmk_builtin_ctx_printf(pCtx, fIsErr,
+                           "usage: %s -o <output> -t <target> [-fqs] [-e <ignore-ext>] <OMF or COFF file>\n"
+                           "   or: %s --help\n"
+                           "   or: %s --version\n",
+                           pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName);
 }
 
 
-int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
+int kmk_builtin_kDepObj(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
     int             i;
     KDEPOBJGLOBALS  This;
@@ -1016,7 +996,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
     int         fQuiet = 0;
 
     /* Init instance data.   */
-    This.argv0  = argv[0];
+    This.pCtx = pCtx;
     This.pszFile = NULL;
 
     /*
@@ -1024,7 +1004,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
      */
     if (argc <= 1)
     {
-        kDebObjUsage(argv[0]);
+        kDebObjUsage(pCtx, 0);
         return 1;
     }
     for (i = 1; i < argc; i++)
@@ -1046,8 +1026,8 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                     chOpt = 'V';
                 else
                 {
-                    fprintf(stderr, "%s: syntax error: Invalid argument '%s'.\n", argv[0], argv[i]);
-                    kDebObjUsage(argv[0]);
+                    errx(pCtx, 2, "Invalid argument '%s'.", argv[i]);
+                    kDebObjUsage(pCtx, 1);
                     return 2;
                 }
                 psz = "";
@@ -1066,10 +1046,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                     else if (++i < argc)
                         pszValue = argv[i];
                     else
-                    {
-                        fprintf(stderr, "%s: syntax error: The '-%c' option takes a value.\n", argv[0], chOpt);
-                        return 2;
-                    }
+                        return errx(pCtx, 2, "The '-%c' option takes a value.", chOpt);
                     break;
 
                 default:
@@ -1086,20 +1063,14 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                 case 'o':
                 {
                     if (pOutput)
-                    {
-                        fprintf(stderr, "%s: syntax error: only one output file!\n", argv[0]);
-                        return 2;
-                    }
+                        return errx(pCtx, 2, "only one output file!");
                     pszOutput = pszValue;
                     if (pszOutput[0] == '-' && !pszOutput[1])
                         pOutput = stdout;
                     else
                         pOutput = fopen(pszOutput, "w");
                     if (!pOutput)
-                    {
-                        fprintf(stderr, "%s: error: Failed to create output file '%s'.\n", argv[0], pszOutput);
-                        return 1;
-                    }
+                        return err(pCtx, 1, "Failed to create output file '%s'", pszOutput);
                     break;
                 }
 
@@ -1109,10 +1080,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                 case 't':
                 {
                     if (pszTarget)
-                    {
-                        fprintf(stderr, "%s: syntax error: only one target!\n", argv[0]);
-                        return 1;
-                    }
+                        return errx(pCtx, 2, "only one target!");
                     pszTarget = pszValue;
                     break;
                 }
@@ -1150,10 +1118,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                 case 'e':
                 {
                     if (pszIgnoreExt)
-                    {
-                        fprintf(stderr, "%s: syntax error: The '-e' option can only be used once!\n", argv[0]);
-                        return 2;
-                    }
+                        return errx(pCtx, 2, "The '-e' option can only be used once!");
                     pszIgnoreExt = pszValue;
                     break;
                 }
@@ -1162,7 +1127,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                  * The mandatory version & help.
                  */
                 case '?':
-                    kDebObjUsage(argv[0]);
+                    kDebObjUsage(pCtx, 0);
                     return 0;
                 case 'V':
                 case 'v':
@@ -1172,8 +1137,8 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                  * Invalid argument.
                  */
                 default:
-                    fprintf(stderr, "%s: syntax error: Invalid argument '%s'.\n", argv[0], argv[i]);
-                    kDebObjUsage(argv[0]);
+                    errx(pCtx, 2, "Invalid argument '%s'.", argv[i]);
+                    kDebObjUsage(pCtx, 1);
                     return 2;
             }
         }
@@ -1181,10 +1146,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
         {
             pInput = fopen(argv[i], "rb");
             if (!pInput)
-            {
-                fprintf(stderr, "%s: error: Failed to open input file '%s'.\n", argv[0], argv[i]);
-                return 1;
-            }
+                return err(pCtx, 1, "Failed to open input file '%s'", argv[i]);
             fInput = 1;
         }
 
@@ -1194,10 +1156,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
         if (fInput)
         {
             if (++i < argc)
-            {
-                fprintf(stderr, "%s: syntax error: No arguments shall follow the input spec.\n", argv[0]);
-                return 1;
-            }
+                return errx(pCtx, 2, "No arguments shall follow the input spec.");
             break;
         }
     }
@@ -1206,20 +1165,11 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
      * Got all we require?
      */
     if (!pInput)
-    {
-        fprintf(stderr, "%s: syntax error: No input!\n", argv[0]);
-        return 1;
-    }
+        return errx(pCtx, 2, "No input!");
     if (!pOutput)
-    {
-        fprintf(stderr, "%s: syntax error: No output!\n", argv[0]);
-        return 1;
-    }
+        return errx(pCtx, 2, "No output!");
     if (!pszTarget)
-    {
-        fprintf(stderr, "%s: syntax error: No target!\n", argv[0]);
-        return 1;
-    }
+        return errx(pCtx, 2, "No target!");
 
     /*
      * Do the parsing.
@@ -1244,18 +1194,23 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
      * Close the output, delete output on failure.
      */
     if (!i && ferror(pOutput))
-    {
-        i = 1;
-        fprintf(stderr, "%s: error: Error writing to '%s'.\n", argv[0], pszOutput);
-    }
+        i = errx(pCtx, 1, "Error writing to '%s'", pszOutput);
     fclose(pOutput);
     if (i)
     {
         if (unlink(pszOutput))
-            fprintf(stderr, "%s: warning: failed to remove output file '%s' on failure.\n", argv[0], pszOutput);
+            warn(pCtx, "warning: failed to remove output file '%s' on failure.", pszOutput);
     }
 
     depCleanup(&This.Core);
     return i;
 }
+
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+    KMKBUILTINCTX Ctx = { "kDepObj", NULL };
+    return kmk_builtin_kDepObj(argc, argv, envp, &Ctx);
+}
+#endif
 

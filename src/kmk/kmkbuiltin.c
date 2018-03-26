@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 3173 2018-03-21 21:37:41Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -391,13 +391,17 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
 #ifdef CONFIG_WITH_KMK_BUILTIN_STATS
                     big_int nsStart = print_stats_flag ? nano_timestamp() : 0;
 #endif
+                    KMKBUILTINCTX Ctx;
                     int const iUmask = umask(0);        /* save umask */
                     umask(iUmask);
 
+                    Ctx.pszProgName = pEntry->uName.s.sz;
+                    Ctx.pOut = pChild ? &pChild->output : NULL;
+
                     if (pEntry->uFnSignature == FN_SIG_MAIN)
-                        rc = pEntry->u.pfnMain(argc, argv, papszEnvVars);
+                        rc = pEntry->u.pfnMain(argc, argv, papszEnvVars, &Ctx);
                     else if (pEntry->uFnSignature == FN_SIG_MAIN_SPAWNS)
-                        rc = pEntry->u.pfnMainSpawns(argc, argv, papszEnvVars, pChild, pPidSpawned);
+                        rc = pEntry->u.pfnMainSpawns(argc, argv, papszEnvVars, &Ctx, pChild, pPidSpawned);
                     else if (pEntry->uFnSignature == FN_SIG_MAIN_TO_SPAWN)
                     {
                         /*
@@ -405,7 +409,7 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
                          * We recurse here, both because I'm lazy and because it's easier to debug a
                          * problem then (the call stack shows what's been going on).
                          */
-                        rc = pEntry->u.pfnMainToSpawn(argc, argv, papszEnvVars, ppapszArgvToSpawn);
+                        rc = pEntry->u.pfnMainToSpawn(argc, argv, papszEnvVars, &Ctx, ppapszArgvToSpawn);
                         if (   !rc
                             && *ppapszArgvToSpawn
                             && !strncmp(**ppapszArgvToSpawn, s_szPrefix, sizeof(s_szPrefix) - 1))
@@ -428,7 +432,6 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
                     else
                         rc = 99;
 
-                    g_progname = "kmk";                 /* paranoia, make sure it's not pointing at a freed argv[0]. */
                     umask(iUmask);                      /* restore it */
 
 #ifdef CONFIG_WITH_KMK_BUILTIN_STATS
