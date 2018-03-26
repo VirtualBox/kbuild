@@ -35,15 +35,15 @@
 #define DIFF_EXIT	1
 #define ERR_EXIT	2	/* error exit code */
 
-int cmp_file_and_file(const char *file1, const char *file2, int sflag, int lflag, int special);
-int cmp_file_and_file_ex(const char *file1, off_t skip1, 
+int cmp_file_and_file(PKMKBUILTINCTX pCtx, const char *file1, const char *file2, int sflag, int lflag, int special);
+int cmp_file_and_file_ex(PKMKBUILTINCTX pCtx, const char *file1, off_t skip1,
                          const char *file2, off_t skip2, int sflag, int lflag, int special);
-int cmp_fd_and_file(int fd1, const char *file1,
+int cmp_fd_and_file(PKMKBUILTINCTX pCtx, int fd1, const char *file1,
                     const char *file2, int sflag, int lflag, int special);
-int cmp_fd_and_file_ex(int fd1, const char *file1, off_t skip1,
+int cmp_fd_and_file_ex(PKMKBUILTINCTX pCtx, int fd1, const char *file1, off_t skip1,
                        const char *file2, off_t skip2, int sflag, int lflag, int special);
-int cmp_fd_and_fd(int fd1, const char *file1, 
+int cmp_fd_and_fd(PKMKBUILTINCTX pCtx, int fd1, const char *file1,
                   int fd2, const char *file2, int sflag, int lflag, int special);
-int cmp_fd_and_fd_ex(int fd1, const char *file1, off_t skip1,
+int cmp_fd_and_fd_ex(PKMKBUILTINCTX pCtx, int fd1, const char *file1, off_t skip1,
                      int fd2, const char *file2, off_t skip2,  int sflag, int lflag, int special);
 

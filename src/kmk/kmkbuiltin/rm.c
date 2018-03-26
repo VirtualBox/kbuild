@@ -41,6 +41,10 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 /*__FBSDID("$FreeBSD: src/bin/rm/rm.c,v 1.47 2004/04/06 20:06:50 markm Exp $");*/
 #endif
 
+
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
 #include "config.h"
 #include <sys/stat.h>
 #if !defined(_MSC_VER) && !defined(__HAIKU__)
@@ -89,6 +93,10 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include "kbuild_protection.h"
 #include "k/kDefs.h"	/* for K_OS */
 
+
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
 #if defined(__EMX__) || defined(KBUILD_OS_WINDOWS)
 # define IS_SLASH(ch)   ( (ch) == '/' || (ch) == '\\' )
 # define HAVE_DOS_PATHS 1
@@ -109,17 +117,34 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #define undelete(s) (-1)
 #endif
 
-extern void bsd_strmode(mode_t mode, char *p);
-
-static int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
-#ifdef KBUILD_OS_WINDOWS
-static int fUseNtDeleteFile;
+#if 1
+#define CUR_LINE_H2(x)  "[line " #x "]"
+#define CUR_LINE_H1(x)  CUR_LINE_H2(x)
+#define CUR_LINE()      CUR_LINE_H1(__LINE__)
+#else
+# define CUR_LINE()
 #endif
-static uid_t uid;
 
-static char *argv0;
-static KBUILDPROTECTION g_ProtData;
 
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
+typedef struct RMINSTANCE
+{
+    PKMKBUILTINCTX pCtx;
+    int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
+#ifdef KBUILD_OS_WINDOWS
+    int fUseNtDeleteFile;
+#endif
+    uid_t uid;
+    KBUILDPROTECTION g_ProtData;
+} RMINSTANCE;
+typedef RMINSTANCE *PRMINSTANCE;
+
+
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
 static struct option long_options[] =
 {
     { "help",   					no_argument, 0, 261 },
@@ -136,20 +161,18 @@ static struct option long_options[] =
 };
 
 
-static int	check(char *, char *, struct stat *);
-static void	checkdot(char **);
-static int	rm_file(char **);
-static int	rm_overwrite(char *, struct stat *);
-static int	rm_tree(char **);
-static int	usage(FILE *);
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
+extern void bsd_strmode(mode_t mode, char *p); /* strmode.c */
 
-#if 1
-#define CUR_LINE_H2(x)  "[line " #x "]"
-#define CUR_LINE_H1(x)  CUR_LINE_H2(x)
-#define CUR_LINE()      CUR_LINE_H1(__LINE__)
-#else
-# define CUR_LINE()
-#endif
+static int	check(PRMINSTANCE, char *, char *, struct stat *);
+static void	checkdot(PRMINSTANCE, char **);
+static int	rm_file(PRMINSTANCE, char **);
+static int	rm_overwrite(PRMINSTANCE, char *, struct stat *);
+static int	rm_tree(PRMINSTANCE, char **);
+static int	usage(PKMKBUILTINCTX, int);
+
 
 
 /*
@@ -160,42 +183,49 @@ static int	usage(FILE *);
  * 	file removal.
  */
 int
-kmk_builtin_rm(int argc, char *argv[], char **envp)
+kmk_builtin_rm(int argc, char *argv[], char **envp, PKMKBUILTINCTX pCtx)
 {
+	RMINSTANCE This;
 	int ch, rflag;
 
-	/* reinitialize globals */
-	argv0 = argv[0];
-	dflag = eval = fflag = iflag = Pflag = vflag = Wflag = stdin_ok = 0;
+	/* Init global instance data */
+	This.pCtx = pCtx;
+	This.dflag = 0;
+	This.eval = 0;
+	This.fflag = 0;
+	This.iflag = 0;
+	This.Pflag = 0;
+	This.vflag = 0;
+	This.Wflag = 0;
+	This.stdin_ok = 0;
 #ifdef KBUILD_OS_WINDOWS
-	fUseNtDeleteFile = 0;
+	This.fUseNtDeleteFile = 0;
 #endif
-	uid = 0;
-	kBuildProtectionInit(&g_ProtData);
+	This.uid = 0;
+	kBuildProtectionInit(&This.g_ProtData, pCtx);
 
 	/* kmk: reset getopt and set program name. */
-	g_progname = argv[0];
 	opterr = 1;
 	optarg = NULL;
 	optopt = 0;
 	optind = 0; /* init */
 
-	Pflag = rflag = 0;
+	rflag = 0;
 	while ((ch = getopt_long(argc, argv, "dfiPRvW", long_options, NULL)) != -1)
-		switch(ch) {
+		switch (ch) {
 		case 'd':
-			dflag = 1;
+			This.dflag = 1;
 			break;
 		case 'f':
-			fflag = 1;
-			iflag = 0;
+			This.fflag = 1;
+			This.iflag = 0;
 			break;
 		case 'i':
-			fflag = 0;
-			iflag = 1;
+			This.fflag = 0;
+			This.iflag = 1;
 			break;
 		case 'P':
-			Pflag = 1;
+			This.Pflag = 1;
 			break;
 		case 'R':
 #if 0
@@ -204,79 +234,87 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 			rflag = 1;
 			break;
 		case 'v':
-			vflag = 1;
+			This.vflag = 1;
 			break;
 #ifdef FTS_WHITEOUT
 		case 'W':
-			Wflag = 1;
+			This.Wflag = 1;
 			break;
 #endif
 		case 261:
-			kBuildProtectionTerm(&g_ProtData);
-			usage(stdout);
+			kBuildProtectionTerm(&This.g_ProtData);
+			usage(pCtx, 0);
 			return 0;
 		case 262:
-			kBuildProtectionTerm(&g_ProtData);
+			kBuildProtectionTerm(&This.g_ProtData);
 			return kbuild_version(argv[0]);
 		case 263:
-			kBuildProtectionDisable(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
+			kBuildProtectionDisable(&This.g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
 			break;
 		case 264:
-			kBuildProtectionEnable(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
+			kBuildProtectionEnable(&This.g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
 			break;
 		case 265:
-			kBuildProtectionEnable(&g_ProtData, KBUILDPROTECTIONTYPE_FULL);
+			kBuildProtectionEnable(&This.g_ProtData, KBUILDPROTECTIONTYPE_FULL);
 			break;
 		case 266:
-			kBuildProtectionDisable(&g_ProtData, KBUILDPROTECTIONTYPE_FULL);
+			kBuildProtectionDisable(&This.g_ProtData, KBUILDPROTECTIONTYPE_FULL);
 			break;
 		case 267:
-			if (kBuildProtectionSetDepth(&g_ProtData, optarg)) {
-			    kBuildProtectionTerm(&g_ProtData);
+			if (kBuildProtectionSetDepth(&This.g_ProtData, optarg)) {
+			    kBuildProtectionTerm(&This.g_ProtData);
 			    return 1;
 			}
 			break;
 #ifdef KBUILD_OS_WINDOWS
 		case 268:
-			fUseNtDeleteFile = 1;
+			This.fUseNtDeleteFile = 1;
 			break;
 #endif
 		case '?':
 		default:
-			kBuildProtectionTerm(&g_ProtData);
-			return usage(stderr);
+			kBuildProtectionTerm(&This.g_ProtData);
+			return usage(pCtx, 1);
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 1) {
-		kBuildProtectionTerm(&g_ProtData);
-		if (fflag)
+		kBuildProtectionTerm(&This.g_ProtData);
+		if (This.fflag)
 			return (0);
-		return usage(stderr);
+		return usage(pCtx, 1);
 	}
 
-	if (!kBuildProtectionScanEnv(&g_ProtData, envp, "KMK_RM_")) {
-		checkdot(argv);
-		uid = geteuid();
+	if (!kBuildProtectionScanEnv(&This.g_ProtData, envp, "KMK_RM_")) {
+		checkdot(&This, argv);
+		This.uid = geteuid();
 
 		if (*argv) {
-			stdin_ok = isatty(STDIN_FILENO);
+			This.stdin_ok = isatty(STDIN_FILENO);
 			if (rflag)
-				eval |= rm_tree(argv);
+				This.eval |= rm_tree(&This, argv);
 			else
-				eval |= rm_file(argv);
+				This.eval |= rm_file(&This, argv);
 		}
 	} else {
-		eval = 1;
+		This.eval = 1;
 	}
 
-	kBuildProtectionTerm(&g_ProtData);
-	return eval;
+	kBuildProtectionTerm(&This.g_ProtData);
+	return This.eval;
 }
 
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+	KMKBUILTINCTX Ctx = { "kmk_rm", NULL };
+	return kmk_builtin_rm(argc, argv, envp, &Ctx);
+}
+#endif
+
 static int
-rm_tree(char **argv)
+rm_tree(PRMINSTANCE pThis, char **argv)
 {
 	FTS *fts;
 	FTSENT *p;
@@ -290,7 +328,7 @@ rm_tree(char **argv)
 	 */
 	int i;
 	for (i = 0; argv[i]; i++) {
-		if (kBuildProtectionEnforce(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE, argv[i])) {
+		if (kBuildProtectionEnforce(&pThis->g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE, argv[i])) {
 			return 1;
 		}
 	}
@@ -299,7 +337,7 @@ rm_tree(char **argv)
 	 * Remove a file hierarchy.  If forcing removal (-f), or interactive
 	 * (-i) or can't ask anyway (stdin_ok), don't stat the file.
 	 */
-	needstat = !uid || (!fflag && !iflag && stdin_ok);
+	needstat = !pThis->uid || (!pThis->fflag && !pThis->iflag && pThis->stdin_ok);
 
 	/*
 	 * If the -i option is specified, the user can skip on the pre-order
@@ -311,25 +349,23 @@ rm_tree(char **argv)
 	if (!needstat)
 		flags |= FTS_NOSTAT;
 #ifdef FTS_WHITEOUT
-	if (Wflag)
+	if (pThis->Wflag)
 		flags |= FTS_WHITEOUT;
 #endif
 	if (!(fts = fts_open(argv, flags, NULL))) {
-		return err(1, "fts_open");
+		return err(pThis->pCtx, 1, "fts_open");
 	}
 	while ((p = fts_read(fts)) != NULL) {
 		const char *operation = "chflags";
 		switch (p->fts_info) {
 		case FTS_DNR:
-			if (!fflag || p->fts_errno != ENOENT) {
-				fprintf(stderr, "fts: %s: %s: %s" CUR_LINE() "\n",
-				        argv0, p->fts_path, strerror(p->fts_errno));
-				eval = 1;
-			}
+			if (!pThis->fflag || p->fts_errno != ENOENT)
+				pThis->eval = errx(pThis->pCtx, 1, "fts: %s: %s" CUR_LINE() "\n",
+						   p->fts_path, strerror(p->fts_errno));
 			continue;
 		case FTS_ERR:
 			fts_close(fts);
-			return errx(1, "fts: %s: %s " CUR_LINE(), p->fts_path, strerror(p->fts_errno));
+			return errx(pThis->pCtx, 1, "fts: %s: %s " CUR_LINE(), p->fts_path, strerror(p->fts_errno));
 		case FTS_NS:
 			/*
 			 * Assume that since fts_read() couldn't stat the
@@ -337,21 +373,18 @@ rm_tree(char **argv)
 			 */
 			if (!needstat)
 				break;
-			if (!fflag || p->fts_errno != ENOENT) {
-				fprintf(stderr, "fts: %s: %s: %s " CUR_LINE() "\n",
-				        argv0, p->fts_path, strerror(p->fts_errno));
-				eval = 1;
-			}
+			if (!pThis->fflag || p->fts_errno != ENOENT)
+				pThis->eval = errx(pThis->pCtx, 1, "fts: %s: %s " CUR_LINE() "\n",
+						   p->fts_path, strerror(p->fts_errno));
 			continue;
 		case FTS_D:
 			/* Pre-order: give user chance to skip. */
-			if (!fflag && !check(p->fts_path, p->fts_accpath,
-			    p->fts_statp)) {
+			if (!pThis->fflag && !check(pThis, p->fts_path, p->fts_accpath, p->fts_statp)) {
 				(void)fts_set(fts, p, FTS_SKIP);
 				p->fts_number = SKIPPED;
 			}
 #ifdef UF_APPEND
-			else if (!uid &&
+			else if (!pThis->uid &&
 				 (p->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 				 !(p->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
 				 chflags(p->fts_accpath,
@@ -365,22 +398,21 @@ rm_tree(char **argv)
 				continue;
 			break;
 		default:
-			if (!fflag &&
-			    !check(p->fts_path, p->fts_accpath, p->fts_statp))
+			if (!pThis->fflag && !check(pThis, p->fts_path, p->fts_accpath, p->fts_statp))
 				continue;
 		}
 
 		/*
 		 * Protect against deleting root files and directories.
 		 */
-		if (kBuildProtectionEnforce(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE, p->fts_accpath)) {
+		if (kBuildProtectionEnforce(&pThis->g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE, p->fts_accpath)) {
 			fts_close(fts);
 			return 1;
 		}
 
 		rval = 0;
 #ifdef UF_APPEND
-		if (!uid &&
+		if (!pThis->uid &&
 		    (p->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 		    !(p->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)))
 			rval = chflags(p->fts_accpath,
@@ -404,10 +436,9 @@ rm_tree(char **argv)
 #else
 				rval = rmdir(p->fts_accpath);
 #endif
-				if (rval == 0 || (fflag && errno == ENOENT)) {
-					if (rval == 0 && vflag)
-						(void)printf("%s\n",
-						    p->fts_path);
+				if (rval == 0 || (pThis->fflag && errno == ENOENT)) {
+					if (rval == 0 && pThis->vflag)
+						kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s\n", p->fts_path);
 #if defined(KMK) && defined(KBUILD_OS_WINDOWS)
 					if (rval == 0) {
 					    extern int dir_cache_deleted_directory(const char *pszDir);
@@ -422,10 +453,9 @@ rm_tree(char **argv)
 #ifdef FTS_W
 			case FTS_W:
 				rval = undelete(p->fts_accpath);
-				if (rval == 0 && (fflag && errno == ENOENT)) {
+				if (rval == 0 && (pThis->fflag && errno == ENOENT)) {
 					if (vflag)
-						(void)printf("%s\n",
-						    p->fts_path);
+						kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s\n", p->fts_path);
 					continue;
 				}
 				operation = "undelete";
@@ -437,12 +467,12 @@ rm_tree(char **argv)
 				 * Assume that since fts_read() couldn't stat
 				 * the file, it can't be unlinked.
 				 */
-				if (fflag)
+				if (pThis->fflag)
 					continue;
 				/* FALLTHROUGH */
 			default:
-				if (Pflag)
-					if (!rm_overwrite(p->fts_accpath, NULL))
+				if (pThis->Pflag)
+					if (!rm_overwrite(pThis, p->fts_accpath, NULL))
 						continue;
 #ifdef KBUILD_OS_WINDOWS
 				if (p->fts_parent->fts_dirfd != NT_FTS_INVALID_HANDLE_VALUE) {
@@ -454,10 +484,9 @@ rm_tree(char **argv)
 				rval = unlink(p->fts_accpath);
 #endif
 
-				if (rval == 0 || (fflag && errno == ENOENT)) {
-					if (rval == 0 && vflag)
-						(void)printf("%s\n",
-						    p->fts_path);
+				if (rval == 0 || (pThis->fflag && errno == ENOENT)) {
+					if (rval == 0 && pThis->vflag)
+						kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s\n", p->fts_path);
 					continue;
 				}
 				operation = "unlink";
@@ -467,19 +496,17 @@ rm_tree(char **argv)
 #ifdef UF_APPEND
 err:
 #endif
-		fprintf(stderr, "%s: %s: %s: %s " CUR_LINE() "\n", operation, argv0, p->fts_path, strerror(errno));
-		eval = 1;
+		pThis->eval = errx(pThis->pCtx, 1, "%s: %s failed: %s " CUR_LINE() "\n", p->fts_path, operation, strerror(errno));
 	}
 	if (errno) {
-		fprintf(stderr, "%s: fts_read: %s " CUR_LINE() "\n", argv0, strerror(errno));
-		eval = 1;
+		pThis->eval = errx(pThis->pCtx, 1, "fts_read: %s " CUR_LINE() "\n", strerror(errno));
 	}
 	fts_close(fts);
-	return eval;
+	return pThis->eval;
 }
 
 static int
-rm_file(char **argv)
+rm_file(PRMINSTANCE pThis, char **argv)
 {
 	struct stat sb;
 	int rval;
@@ -490,7 +517,7 @@ rm_file(char **argv)
 	 */
 	int i;
 	for (i = 0; argv[i]; i++) {
-		if (kBuildProtectionEnforce(&g_ProtData, KBUILDPROTECTIONTYPE_FULL, argv[i]))
+		if (kBuildProtectionEnforce(&pThis->g_ProtData, KBUILDPROTECTIONTYPE_FULL, argv[i]))
 			return 1;
 	}
 
@@ -503,32 +530,30 @@ rm_file(char **argv)
 		/* Assume if can't stat the file, can't unlink it. */
 		if (lstat(f, &sb)) {
 #ifdef FTS_WHITEOUT
-			if (Wflag) {
+			if (pThis->Wflag) {
 				sb.st_mode = S_IFWHT|S_IWUSR|S_IRUSR;
 			} else {
 #else
 			{
 #endif
-				if (!fflag || errno != ENOENT) {
-					fprintf(stderr, "lstat: %s: %s: %s " CUR_LINE() "\n", argv0, f, strerror(errno));
-					eval = 1;
-				}
+				if (!pThis->fflag || errno != ENOENT)
+					pThis->eval = errx(pThis->pCtx, 1, "%s: lstat failed: %s " CUR_LINE() "\n",
+							   f, strerror(errno));
 				continue;
 			}
 #ifdef FTS_WHITEOUT
-		} else if (Wflag) {
-			fprintf(stderr, "%s: %s: %s\n", argv0, f, strerror(EEXIST));
-			eval = 1;
+		} else if (pThis->Wflag) {
+			errx(pThis->pCtx, "%s: %s\n", f, strerror(EEXIST));
+			pThis->eval = 1;
 			continue;
 #endif
 		}
 
-		if (S_ISDIR(sb.st_mode) && !dflag) {
-			fprintf(stderr, "%s: %s: is a directory\n", argv0, f);
-			eval = 1;
+		if (S_ISDIR(sb.st_mode) && !pThis->dflag) {
+			pThis->eval = errx(pThis->pCtx, 1, "%s: is a directory\n", f);
 			continue;
 		}
-		if (!fflag && !S_ISWHT(sb.st_mode) && !check(f, f, &sb))
+		if (!pThis->fflag && !S_ISWHT(sb.st_mode) && !check(pThis, f, f, &sb))
 			continue;
 		rval = 0;
 #ifdef UF_APPEND
@@ -545,14 +570,14 @@ rm_file(char **argv)
 				rval = rmdir(f);
 				operation = "rmdir";
 			} else {
-				if (Pflag)
-					if (!rm_overwrite(f, &sb))
+				if (pThis->Pflag)
+					if (!rm_overwrite(pThis, f, &sb))
 						continue;
 #ifndef KBUILD_OS_WINDOWS
 				rval = unlink(f);
 				operation = "unlink";
 #else
-				if (fUseNtDeleteFile) {
+				if (pThis->fUseNtDeleteFile) {
 					rval = birdUnlinkForcedFast(f);
 					operation = "NtDeleteFile";
 				} else {
@@ -562,14 +587,12 @@ rm_file(char **argv)
 #endif
 			}
 		}
-		if (rval && (!fflag || errno != ENOENT)) {
-			fprintf(stderr, "%s: %s: %s: %s" CUR_LINE() "\n", operation, argv0, f, strerror(errno));
-			eval = 1;
-		}
-		if (vflag && rval == 0)
-			(void)printf("%s\n", f);
+		if (rval && (!pThis->fflag || errno != ENOENT))
+			pThis->eval = errx(pThis->pCtx, 1, "%s: %s failed: %s" CUR_LINE() "\n", f, operation, strerror(errno));
+		if (pThis->vflag && rval == 0)
+			kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s\n", f);
 	}
-	return eval;
+	return pThis->eval;
 }
 
 /*
@@ -584,7 +607,7 @@ rm_file(char **argv)
  * kernel support.
  */
 static int
-rm_overwrite(char *file, struct stat *sbp)
+rm_overwrite(PRMINSTANCE pThis, char *file, struct stat *sbp)
 {
 	struct stat sb;
 #ifdef HAVE_FSTATFS
@@ -594,6 +617,7 @@ rm_overwrite(char *file, struct stat *sbp)
 	int bsize, fd, wlen;
 	char *buf = NULL;
 	const char *operation = "lstat";
+	int error;
 
 	fd = -1;
 	if (sbp == NULL) {
@@ -604,7 +628,7 @@ rm_overwrite(char *file, struct stat *sbp)
 	if (!S_ISREG(sbp->st_mode))
 		return (1);
 	operation = "open";
-	if ((fd = open(file, O_WRONLY, 0)) == -1)
+	if ((fd = open(file, O_WRONLY | KMK_OPEN_NO_INHERIT, 0)) == -1)
 		goto err;
 #ifdef HAVE_FSTATFS
 	if (fstatfs(fd, &fsb) == -1)
@@ -615,8 +639,11 @@ rm_overwrite(char *file, struct stat *sbp)
 #else
 	bsize = 1024;
 #endif
-	if ((buf = malloc(bsize)) == NULL)
-		exit(err(1, "%s: malloc", file));
+	if ((buf = malloc(bsize)) == NULL) {
+		err(pThis->pCtx, 1, "%s: malloc", file);
+		close(fd);
+		return 1;
+	}
 
 #define	PASS(byte) {							\
 	operation = "write";    					\
@@ -642,25 +669,26 @@ rm_overwrite(char *file, struct stat *sbp)
 	}
 	operation = "fsync/close";
 
-err:	eval = 1;
+err:	pThis->eval = 1;
+	error = errno;
 	if (buf)
 		free(buf);
 	if (fd != -1)
 		close(fd);
-	fprintf(stderr, "%s: %s: %s: %s" CUR_LINE() "\n", operation, argv0, file, strerror(errno));
+	errx(pThis->pCtx, 1, "%s: %s: %s: %s" CUR_LINE() "\n", operation, pThis->pCtx->pszProgName, file, strerror(error));
 	return (0);
 }
 
 
 static int
-check(char *path, char *name, struct stat *sp)
+check(PRMINSTANCE pThis, char *path, char *name, struct stat *sp)
 {
 	int ch, first;
 	char modep[15], *flagsp;
 
 	/* Check -i first. */
-	if (iflag)
-		(void)fprintf(stderr, "remove %s? ", path);
+	if (pThis->iflag)
+		(void)fprintf(stderr, "%s: remove %s? ", pThis->pCtx->pszProgName, path);
 	else {
 		/*
 		 * If it's not a symbolic link and it's unwritable and we're
@@ -671,11 +699,11 @@ check(char *path, char *name, struct stat *sp)
 		 * we will not be able to overwrite file contents and will
 		 * barf later.
 		 */
-		if (!stdin_ok || S_ISLNK(sp->st_mode) || Pflag ||
+		if (!pThis->stdin_ok || S_ISLNK(sp->st_mode) || pThis->Pflag ||
 		    (!access(name, W_OK) &&
 #ifdef SF_APPEND
 		    !(sp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
-		    (!(sp->st_flags & (UF_APPEND|UF_IMMUTABLE)) || !uid))
+		    (!(sp->st_flags & (UF_APPEND|UF_IMMUTABLE)) || !pThis->uid))
 #else
                     1)
 #endif
@@ -683,8 +711,10 @@ check(char *path, char *name, struct stat *sp)
 			return (1);
 		bsd_strmode(sp->st_mode, modep);
 #if defined(SF_APPEND) && K_OS != K_OS_GNU_KFBSD && K_OS != K_OS_GNU_HURD
-		if ((flagsp = fflagstostr(sp->st_flags)) == NULL)
-			exit(err(1, "fflagstostr"));
+		if ((flagsp = fflagstostr(sp->st_flags)) == NULL) {
+			err(pThis->pCtx, 1, "fflagstostr");
+			flagsp = "<bad-fflagstostr>";
+		}
 		(void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",
 		              modep + 1, modep[9] == ' ' ? "" : " ",
 		              user_from_uid(sp->st_uid, 0),
@@ -709,7 +739,7 @@ check(char *path, char *name, struct stat *sp)
 
 #define ISDOT(a)	((a)[0] == '.' && (!(a)[1] || ((a)[1] == '.' && !(a)[2])))
 static void
-checkdot(char **argv)
+checkdot(PRMINSTANCE pThis, char **argv)
 {
 	char *p, **save, **t;
 	int complained;
@@ -736,8 +766,8 @@ checkdot(char **argv)
 #endif
 		if (ISDOT(p)) {
 			if (!complained++)
-				fprintf(stderr, "%s: \".\" and \"..\" may not be removed\n", argv0);
-			eval = 1;
+				warnx(pThis->pCtx, "\".\" and \"..\" may not be removed\n");
+			pThis->eval = 1;
 			for (save = t; (t[0] = t[1]) != NULL; ++t)
 				continue;
 			t = save;
@@ -747,59 +777,60 @@ checkdot(char **argv)
 }
 
 static int
-usage(FILE *pf)
+usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-	fprintf(pf,
-		"usage: %s [options] file ...\n"
-		"   or: %s --help\n"
-		"   or: %s --version\n"
-		"\n"
-		"Options:\n"
-		"   -f\n"
-		"       Attempt to remove files without prompting, regardless of the file\n"
-		"       permission. Ignore non-existing files. Overrides previous -i's.\n"
-		"   -i\n"
-		"       Prompt for each file. Always.\n"
-		"   -d\n"
-		"       Attempt to remove directories as well as other kinds of files.\n"
-		"   -P\n"
-		"       Overwrite regular files before deleting; three passes: ff,0,ff\n"
-		"   -R\n"
-		"       Attempt to remove the file hierachy rooted in each file argument.\n"
-		"       This option implies -d and file protection.\n"
-		"   -v\n"
-		"       Be verbose, show files as they are removed.\n"
-		"   -W\n"
-		"       Undelete without files.\n"
-		"   --disable-protection\n"
-		"       Will disable the protection file protection applied with -R.\n"
-		"   --enable-protection\n"
-		"       Will enable the protection file protection applied with -R.\n"
-		"   --enable-full-protection\n"
-		"       Will enable the protection file protection for all operations.\n"
-		"   --disable-full-protection\n"
-		"       Will disable the protection file protection for all operations.\n"
-		"   --protection-depth\n"
-		"       Number or path indicating the file protection depth. Default: %d\n"
-		"\n"
-		"Environment:\n"
-		"    KMK_RM_DISABLE_PROTECTION\n"
-		"       Same as --disable-protection. Overrides command line.\n"
-		"    KMK_RM_ENABLE_PROTECTION\n"
-		"       Same as --enable-protection. Overrides everyone else.\n"
-		"    KMK_RM_ENABLE_FULL_PROTECTION\n"
-		"       Same as --enable-full-protection. Overrides everyone else.\n"
-		"    KMK_RM_DISABLE_FULL_PROTECTION\n"
-		"       Same as --disable-full-protection. Overrides command line.\n"
-		"    KMK_RM_PROTECTION_DEPTH\n"
-		"       Same as --protection-depth. Overrides command line.\n"
-		"\n"
-		"The file protection of the top %d layers of the file hierarchy is there\n"
-		"to try prevent makefiles from doing bad things to your system. This\n"
-		"protection is not bulletproof, but should help prevent you from shooting\n"
-		"yourself in the foot.\n"
-		,
-		g_progname, g_progname, g_progname,
-		kBuildProtectionDefaultDepth(), kBuildProtectionDefaultDepth());
+	kmk_builtin_ctx_printf(pCtx, fIsErr,
+	                       "usage: %s [options] file ...\n"
+	                       "   or: %s --help\n"
+	                       "   or: %s --version\n"
+	                       "\n"
+	                       "Options:\n"
+	                       "   -f\n"
+	                       "       Attempt to remove files without prompting, regardless of the file\n"
+	                       "       permission. Ignore non-existing files. Overrides previous -i's.\n"
+	                       "   -i\n"
+	                       "       Prompt for each file. Always.\n"
+	                       "   -d\n"
+	                       "       Attempt to remove directories as well as other kinds of files.\n"
+	                       "   -P\n"
+	                       "       Overwrite regular files before deleting; three passes: ff,0,ff\n"
+	                       "   -R\n"
+	                       "       Attempt to remove the file hierachy rooted in each file argument.\n"
+	                       "       This option implies -d and file protection.\n"
+	                       "   -v\n"
+	                       "       Be verbose, show files as they are removed.\n"
+	                       "   -W\n"
+	                       "       Undelete without files.\n"
+	                       "   --disable-protection\n"
+	                       "       Will disable the protection file protection applied with -R.\n"
+	                       "   --enable-protection\n"
+	                       "       Will enable the protection file protection applied with -R.\n"
+	                       "   --enable-full-protection\n"
+	                       "       Will enable the protection file protection for all operations.\n"
+	                       "   --disable-full-protection\n"
+	                       "       Will disable the protection file protection for all operations.\n"
+	                       "   --protection-depth\n"
+	                       "       Number or path indicating the file protection depth. Default: %d\n"
+	                       "\n"
+	                       "Environment:\n"
+	                       "    KMK_RM_DISABLE_PROTECTION\n"
+	                       "       Same as --disable-protection. Overrides command line.\n"
+	                       "    KMK_RM_ENABLE_PROTECTION\n"
+	                       "       Same as --enable-protection. Overrides everyone else.\n"
+	                       "    KMK_RM_ENABLE_FULL_PROTECTION\n"
+	                       "       Same as --enable-full-protection. Overrides everyone else.\n"
+	                       "    KMK_RM_DISABLE_FULL_PROTECTION\n"
+	                       "       Same as --disable-full-protection. Overrides command line.\n"
+	                       "    KMK_RM_PROTECTION_DEPTH\n"
+	                       "       Same as --protection-depth. Overrides command line.\n"
+	                       "\n"
+	                       "The file protection of the top %d layers of the file hierarchy is there\n"
+	                       "to try prevent makefiles from doing bad things to your system. This\n"
+	                       "protection is not bulletproof, but should help prevent you from shooting\n"
+	                       "yourself in the foot.\n"
+	                       ,
+	                       pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName,
+	                       kBuildProtectionDefaultDepth(), kBuildProtectionDefaultDepth());
 	return EX_USAGE;
 }
+

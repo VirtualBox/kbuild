@@ -46,6 +46,10 @@ static char sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 #endif
 
+
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
 #include "config.h"
 #include <sys/types.h>
 #ifndef _MSC_VER
@@ -88,7 +92,20 @@ __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 #include "kmkbuiltin.h"
 
 
-static int fflg, iflg, nflg, vflg;
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
+typedef struct MVINSTANCE
+{
+    PKMKBUILTINCTX pCtx;
+    int fflg, iflg, nflg, vflg;
+} MVINSTANCE;
+typedef MVINSTANCE *PMVINSTANCE;
+
+
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
 static struct option long_options[] =
 {
     { "help",   					no_argument, 0, 261 },
@@ -97,14 +114,18 @@ static struct option long_options[] =
 };
 
 
-static int	do_move(char *, char *);
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
+extern void 	bsd_strmode(mode_t mode, char *p); /* strmode.c */
+
+static int	do_move(PMVINSTANCE, char *, char *);
 #ifdef CROSS_DEVICE_MOVE
 static int	fastcopy(char *, char *, struct stat *);
 static int	copy(char *, char *);
 #endif
-static int	usage(FILE *);
+static int	usage(PKMKBUILTINCTX, int);
 
-extern void bsd_strmode(mode_t mode, char *p);
 
 #if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(__DragonFly__) && !defined(__OpenBSD__)
 # ifdef __OS2__
@@ -131,8 +152,9 @@ const char *group_from_gid(gid_t id, int x)
 
 
 int
-kmk_builtin_mv(int argc, char *argv[], char **envp)
+kmk_builtin_mv(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
+	MVINSTANCE This;
 	size_t baselen, len;
 	int rval;
 	char *p, *endp;
@@ -140,11 +162,14 @@ kmk_builtin_mv(int argc, char *argv[], char **envp)
 	int ch;
 	char path[PATH_MAX];
 
-	/* kmk: reinitialize globals */
-	fflg = iflg = nflg = vflg = 0;
+	/* Initialize instance. */
+	This.pCtx = pCtx;
+	This.fflg = 0;
+	This.iflg = 0;
+	This.nflg = 0;
+	This.vflg = 0;
 
 	/* kmk: reset getopt and set progname */
-	g_progname = argv[0];
 	opterr = 1;
 	optarg = NULL;
 	optopt = 0;
@@ -153,33 +178,33 @@ kmk_builtin_mv(int argc, char *argv[], char **envp)
 	while ((ch = getopt_long(argc, argv, "finv", long_options, NULL)) != -1)
 		switch (ch) {
 		case 'i':
-			iflg = 1;
-			fflg = nflg = 0;
+			This.iflg = 1;
+			This.fflg = This.nflg = 0;
 			break;
 		case 'f':
-			fflg = 1;
-			iflg = nflg = 0;
+			This.fflg = 1;
+			This.iflg = This.nflg = 0;
 			break;
 		case 'n':
-			nflg = 1;
-			fflg = iflg = 0;
+			This.nflg = 1;
+			This.fflg = This.iflg = 0;
 			break;
 		case 'v':
-			vflg = 1;
+			This.vflg = 1;
 			break;
 		case 261:
-			usage(stdout);
+			usage(pCtx, 0);
 			return 0;
 		case 262:
 			return kbuild_version(argv[0]);
 		default:
-			return usage(stderr);
+			return usage(pCtx, 1);
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 2)
-		return usage(stderr);
+		return usage(pCtx, 1);
 
 	/*
 	 * If the stat on the target fails or the target isn't a directory,
@@ -187,16 +212,17 @@ kmk_builtin_mv(int argc, char *argv[], char **envp)
 	 */
 	if (stat(argv[argc - 1], &sb) || !S_ISDIR(sb.st_mode)) {
 		if (argc > 2)
-			return usage(stderr);
-		return do_move(argv[0], argv[1]);
+			return usage(pCtx, 1);
+		return do_move(&This, argv[0], argv[1]);
 	}
 
 	/* It's a directory, move each file into it. */
-	if (strlen(argv[argc - 1]) > sizeof(path) - 1)
-		return errx(1, "%s: destination pathname too long", *argv);
-	(void)strcpy(path, argv[argc - 1]);
-	baselen = strlen(path);
+	baselen = strlen(argv[argc - 1]);
+	if (baselen > sizeof(path) - 1)
+		return errx(pCtx, 1, "%s: destination pathname too long", *argv);
+	memcpy(path, argv[argc - 1], baselen);
 	endp = &path[baselen];
+	*endp = '\0';
 #if defined(_MSC_VER) || defined(__EMX__)
 	if (!baselen || (*(endp - 1) != '/' && *(endp - 1) != '\\' && *(endp - 1) != ':')) {
 #else
@@ -224,19 +250,27 @@ kmk_builtin_mv(int argc, char *argv[], char **envp)
 #endif
 
 		if ((baselen + (len = strlen(p))) >= PATH_MAX) {
-			warnx("%s: destination pathname too long", *argv);
+			warnx(pCtx, "%s: destination pathname too long", *argv);
 			rval = 1;
 		} else {
 			memmove(endp, p, (size_t)len + 1);
-			if (do_move(*argv, path))
+			if (do_move(&This, *argv, path))
 				rval = 1;
 		}
 	}
 	return rval;
 }
 
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+    KMKBUILTINCTX Ctx = { "kmk_mv", NULL };
+    return kmk_builtin_mv(argc, argv, envp, &Ctx);
+}
+#endif
+
 static int
-do_move(char *from, char *to)
+do_move(PMVINSTANCE pThis, char *from, char *to)
 {
 	struct stat sb;
 	int ask, ch, first;
@@ -247,21 +281,21 @@ do_move(char *from, char *to)
 	 * should be replaced.  Otherwise if file exists but isn't writable
 	 * make sure the user wants to clobber it.
 	 */
-	if (!fflg && !access(to, F_OK)) {
+	if (!pThis->fflg && !access(to, F_OK)) {
 
 		/* prompt only if source exist */
 		if (lstat(from, &sb) == -1) {
-			warn("%s", from);
+			warn(pThis->pCtx, "%s", from);
 			return (1);
 		}
 
 #define YESNO "(y/n [n]) "
 		ask = 0;
-		if (nflg) {
-			if (vflg)
-				printf("%s not overwritten\n", to);
+		if (pThis->nflg) {
+			if (pThis->vflg)
+				kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s not overwritten\n", to);
 			return (0);
-		} else if (iflg) {
+		} else if (pThis->iflg) {
 			(void)fprintf(stderr, "overwrite %s? %s", to, YESNO);
 			ask = 1;
 		} else if (access(to, W_OK) && !stat(to, &sb)) {
@@ -273,26 +307,27 @@ do_move(char *from, char *to)
 			ask = 1;
 		}
 		if (ask) {
+			fflush(stderr);
 			first = ch = getchar();
 			while (ch != '\n' && ch != EOF)
 				ch = getchar();
 			if (first != 'y' && first != 'Y') {
-				(void)fprintf(stderr, "not overwritten\n");
+				kmk_builtin_ctx_printf(pThis->pCtx, 1, "not overwritten\n");
 				return (0);
 			}
 		}
 	}
 	if (!rename(from, to)) {
-		if (vflg)
-			printf("%s -> %s\n", from, to);
+		if (pThis->vflg)
+			kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s -> %s\n", from, to);
 		return (0);
 	}
 #ifdef _MSC_VER
 	if (errno == EEXIST) {
 		remove(to);
 		if (!rename(from, to)) {
-			if (vflg)
-				printf("%s -> %s\n", from, to);
+			if (pThis->vflg)
+				kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s -> %s\n", from, to);
 			return (0);
 		}
 	}
@@ -300,7 +335,7 @@ do_move(char *from, char *to)
 
 	if (errno == EXDEV) {
 #ifndef CROSS_DEVICE_MOVE
-		warnx("cannot move `%s' to a different device: `%s'", from, to);
+		warnx(pThis->pCtx, "cannot move `%s' to a different device: `%s'", from, to);
 		return (1);
 #else
 		struct statfs sfs;
@@ -311,24 +346,24 @@ do_move(char *from, char *to)
 		 * filesystem, it can be recreated at the destination.
 		 */
 		if (lstat(from, &sb) == -1) {
-			warn("%s", from);
+			warn(pThis->pCtx, "%s", from);
 			return (1);
 		}
 		if (!S_ISLNK(sb.st_mode)) {
 			/* Can't mv(1) a mount point. */
 			if (realpath(from, path) == NULL) {
-				warnx("cannot resolve %s: %s", from, path);
+				warnx(pThis->pCtx, "cannot resolve %s: %s", from, path);
 				return (1);
 			}
 			if (!statfs(path, &sfs) &&
 			    !strcmp(path, sfs.f_mntonname)) {
-				warnx("cannot rename a mount point");
+				warnx(pThis->pCtx, "cannot rename a mount point");
 				return (1);
 			}
 		}
 #endif
 	} else {
-		warn("rename %s to %s", from, to);
+		warn(pThis->pCtx, "rename %s to %s", from, to);
 		return (1);
 	}
 
@@ -339,11 +374,11 @@ do_move(char *from, char *to)
 	 * cp and rm.
 	 */
 	if (lstat(from, &sb)) {
-		warn("%s", from);
+		warn(pThis->pCtx, "%s", from);
 		return (1);
 	}
 	return (S_ISREG(sb.st_mode) ?
-	    fastcopy(from, to, &sb) : copy(from, to));
+	    fastcopy(pThis, from, to, &sb) : copy(pThis, from, to));
 #endif
 }
 
@@ -450,7 +485,7 @@ err:		if (unlink(to))
 		return (1);
 	}
 	if (vflg)
-		printf("%s -> %s\n", from, to);
+		kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s -> %s\n", from, to);
 	return (0);
 }
 
@@ -502,12 +537,13 @@ copy(char *from, char *to)
 
 
 static int
-usage(FILE *pf)
+usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-	fprintf(pf, "usage: %s [-f | -i | -n] [-v] source target\n"
-	            "   or: %s [-f | -i | -n] [-v] source ... directory\n"
-	            "   or: %s --help\n"
-	            "   or: %s --version\n",
-	        g_progname, g_progname, g_progname, g_progname);
+	kmk_builtin_ctx_printf(pCtx, fIsErr,
+	                       "usage: %s [-f | -i | -n] [-v] source target\n"
+	                       "   or: %s [-f | -i | -n] [-v] source ... directory\n"
+	                       "   or: %s --help\n"
+	                       "   or: %s --version\n",
+	                       pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName);
 	return EX_USAGE;
 }

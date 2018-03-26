@@ -1,4 +1,4 @@
-/* $Id: sleep.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: sleep.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_sleep - suspend execution for an interval of time.
  */
@@ -39,43 +39,30 @@
 # include <time.h>
 #endif
 
+#include "err.h"
 #include "../kmkbuiltin.h"
 
 
-static const char *name(const char *pszName)
+static int kmk_builtin_sleep_usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-    const char *psz = strrchr(pszName, '/');
-#if defined(_MSC_VER) || defined(__OS2__)
-    const char *psz2 = strrchr(pszName, '\\');
-    if (!psz2)
-        psz2 = strrchr(pszName, ':');
-    if (psz2 && (!psz || psz2 > psz))
-        psz = psz2;
-#endif
-    return psz ? psz + 1 : pszName;
-}
-
-
-static int usage(FILE *pOut,  const char *argv0)
-{
-    argv0 = name(argv0);
-    fprintf(pOut,
-            "usage: %s <seconds>[s]\n"
-            "   or: %s <milliseconds>ms\n"
-            "   or: %s <minutes>m\n"
-            "   or: %s <hours>h\n"
-            "   or: %s <days>d\n"
-            "   or: %s --help\n"
-            "   or: %s --version\n"
-            "\n"
-            "Only integer values are accepted.\n"
-            ,
-            argv0, argv0, argv0, argv0, argv0, argv0, argv0);
+    kmk_builtin_ctx_printf(pCtx, fIsErr,
+                           "usage: %s <seconds>[s]\n"
+                           "   or: %s <milliseconds>ms\n"
+                           "   or: %s <minutes>m\n"
+                           "   or: %s <hours>h\n"
+                           "   or: %s <days>d\n"
+                           "   or: %s --help\n"
+                           "   or: %s --version\n"
+                           "\n"
+                           "Only integer values are accepted.\n"
+                           ,
+                           pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName,
+                           pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName);
     return 1;
 }
 
 
-int kmk_builtin_sleep(int argc, char **argv, char **envp)
+int kmk_builtin_sleep(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
     long cMsToSleep;
     long lTmp;
@@ -87,7 +74,7 @@ int kmk_builtin_sleep(int argc, char **argv, char **envp)
      * Parse arguments.
      */
     if (argc != 2)
-        return usage(stderr, argv[0]);
+        return kmk_builtin_sleep_usage(pCtx, 1);
 
     /* help request */
     if (   !strcmp(argv[1], "-h")
@@ -95,7 +82,7 @@ int kmk_builtin_sleep(int argc, char **argv, char **envp)
         || !strcmp(argv[1], "-H")
         || !strcmp(argv[1], "--help"))
     {
-        usage(stdout, argv[0]);
+        kmk_builtin_sleep_usage(pCtx, 0);
         return 0;
     }
 
@@ -120,10 +107,7 @@ int kmk_builtin_sleep(int argc, char **argv, char **envp)
 
     cMsToSleep = strtol(pszInterval, &pszSuff, 0);
     if (pszSuff == pszInterval)
-    {
-        fprintf(stderr, "%s: malformed interval '%s'!\n", name(argv[0]), pszInterval);
-        return 1;
-    }
+        return errx(pCtx, 1, "malformed interval '%s'!\n", pszInterval);
 
     while (isspace(*pszSuff))
         pszSuff++;
@@ -141,10 +125,7 @@ int kmk_builtin_sleep(int argc, char **argv, char **envp)
         while (pszSuff[i])
         {
             if (!isspace(pszSuff[i]))
-            {
-                fprintf(stderr, "%s: malformed interval '%s'!\n", name(argv[0]), pszInterval);
-                return 1;
-            }
+                return errx(pCtx, 1, "malformed interval '%s'!\n", pszInterval);
             i++;
         }
 
@@ -159,19 +140,13 @@ int kmk_builtin_sleep(int argc, char **argv, char **envp)
         else if (cchSuff == 1 && *pszSuff == 'd')
             ulFactor = 24*60*60*1000;
         else
-        {
-            fprintf(stderr, "%s: unknown suffix '%.*s'!\n", name(argv[0]), cchSuff, pszSuff);
-            return 1;
-        }
+            return errx(pCtx, 1, "unknown suffix '%.*s'!\n", cchSuff, pszSuff);
     }
 
     lTmp = cMsToSleep;
     cMsToSleep *= ulFactor;
     if ((cMsToSleep / ulFactor) != (unsigned long)lTmp)
-    {
-        fprintf(stderr, "%s: time interval overflow!\n", name(argv[0]));
-        return 1;
-    }
+        return errx(pCtx, 1, "time interval overflow!\n");
 
     /*
      * Do the actual sleeping.
@@ -193,4 +168,12 @@ int kmk_builtin_sleep(int argc, char **argv, char **envp)
 
     return 0;
 }
+
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+    KMKBUILTINCTX Ctx = { "kmk_sleep", NULL };
+    return kmk_builtin_sleep(argc, argv, envp, &Ctx);
+}
+#endif
 

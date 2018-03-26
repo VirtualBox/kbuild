@@ -1,4 +1,4 @@
-/* $Id: kbuild_protection.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_protection.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * Simple File Protection.
  */
@@ -115,7 +115,7 @@ static int countSubPathComponents(const char *pszPath, int cDepth)
  * @returns 0 or higher on success.
  *          On failure an error is printed, eval is set and -1 is returned.
  */
-static int countPathComponents(const char *pszPath)
+static int countPathComponents(PCKBUILDPROTECTION pThis, const char *pszPath)
 {
     int cComponents = 0;
 
@@ -157,7 +157,7 @@ static int countPathComponents(const char *pszPath)
             char *pszTmp = pszCwd;
             if (!pszTmp)
             {
-                err(1, "_getdcwd");
+                err(pThis->pCtx, 1, "_getdcwd");
                 return -1;
             }
 
@@ -195,7 +195,7 @@ static int countPathComponents(const char *pszPath)
         char szCwd[4096];
         if (!getcwd(szCwd, sizeof(szCwd)))
         {
-            err(1, "getcwd");
+            err(pThis->pCtx, 1, "getcwd");
             return -1;
         }
         cComponents = countSubPathComponents(szCwd, 0);
@@ -216,9 +216,10 @@ static int countPathComponents(const char *pszPath)
  *
  * @param   pThis   Pointer to the instance data.
  */
-void kBuildProtectionInit(PKBUILDPROTECTION pThis)
+void kBuildProtectionInit(PKBUILDPROTECTION pThis, PKMKBUILTINCTX pCtx)
 {
     pThis->uMagic = KBUILD_PROTECTION_MAGIC;
+    pThis->pCtx = pCtx;
     pThis->afTypes[KBUILDPROTECTIONTYPE_FULL] = 0;
     pThis->afTypes[KBUILDPROTECTIONTYPE_RECURSIVE] = 1;
     pThis->cProtectionDepth = DEFAULT_PROTECTION_DEPTH;
@@ -267,7 +268,7 @@ int  kBuildProtectionSetDepth(PKBUILDPROTECTION pThis, const char *pszValue)
 
     /* number or path? */
     if (!isdigit(*pszValue) || strpbrk(pszValue, ":/\\"))
-        pThis->cProtectionDepth = countPathComponents(pszValue);
+        pThis->cProtectionDepth = countPathComponents(pThis, pszValue);
     else
     {
         char *pszMore = 0;
@@ -279,11 +280,11 @@ int  kBuildProtectionSetDepth(PKBUILDPROTECTION pThis, const char *pszValue)
                 pszMore++;
         }
         if (!pThis->cProtectionDepth || pszValue == pszMore || *pszMore)
-            return errx(1, "bogus protection depth: %s", pszValue);
+            return errx(pThis->pCtx, 1, "bogus protection depth: %s", pszValue);
     }
 
     if (pThis->cProtectionDepth < 1)
-        return  errx(1, "bogus protection depth: %s", pszValue);
+        return  errx(pThis->pCtx, 1, "bogus protection depth: %s", pszValue);
     return 0;
 }
 
@@ -350,12 +351,12 @@ int  kBuildProtectionEnforce(PCKBUILDPROTECTION pThis, KBUILDPROTECTIONTYPE enmT
         /*
          * Count the path and compare it with the required depth.
          */
-        int cComponents = countPathComponents(pszPath);
+        int cComponents = countPathComponents(pThis, pszPath);
         if (cComponents < 0)
             return -1;
         if ((unsigned int)cComponents <= pThis->cProtectionDepth)
         {
-            errx(1, "%s: protected", pszPath);
+            errx(pThis->pCtx, 1, "%s: protected", pszPath);
             return -1;
         }
     }

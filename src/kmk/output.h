@@ -14,6 +14,9 @@ A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#ifndef INCLUDED_MAKE_OUTPUT_H
+#define INCLUDED_MAKE_OUTPUT_H
+
 #ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
 /*  Output run. */
 struct output_run
@@ -80,8 +83,8 @@ void output_start (void);
 /* Show a message on stdout or stderr.  Will start the output if needed.  */
 void outputs (int is_err, const char *msg);
 #ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
-void output_write_bin (struct output *out, int is_err, const char *src, size_t len);
-void output_write_text (struct output *out, int is_err, const char *src, size_t len);
+ssize_t output_write_bin (struct output *out, int is_err, const char *src, size_t len);
+ssize_t output_write_text (struct output *out, int is_err, const char *src, size_t len);
 #endif
 
 #ifndef NO_OUTPUT_SYNC
@@ -89,3 +92,6 @@ int output_tmpfd (void);
 /* Dump any child output content to stdout, and reset it.  */
 void output_dump (struct output *out);
 #endif
+
+#endif /* INLCUDED_MAKE_OUTPUT_H */
+

@@ -371,23 +371,29 @@ membuf_dump_most (struct output *out)
 
 
 /* write/fwrite like function, binary mode. */
-void
+ssize_t
 output_write_bin (struct output *out, int is_err, const char *src, size_t len)
 {
+  size_t ret = len;
   if (!out || !out->syncout)
     {
       FILE *f = is_err ? stderr : stdout;
 # ifdef KBUILD_OS_WINDOWS
-      /* On windows we need to disable \n -> \r\n convers that is common on
+      /* On windows we need to disable \n -> \r\n converts that is common on
          standard output/error.  Also optimize for console output. */
+      int saved_errno;
       int fd = fileno (f);
       int prev_mode = _setmode (fd, _O_BINARY);
       maybe_con_fwrite (src, len, 1, f);
-      fflush (f);
+      if (fflush (f) == EOF)
+        ret = -1;
+      saved_errno = errno;
       _setmode (fd, prev_mode);
+      errno = saved_errno;
 # else
       fwrite (src, len, 1, f);
-      fflush (f);
+      if (fflush (f) == EOF)
+        ret = -1;
 # endif
     }
   else
@@ -408,23 +414,27 @@ output_write_bin (struct output *out, int is_err, const char *src, size_t len)
           src += runlen;
         }
     }
+  return ret;
 }
 
 /* write/fwrite like function, text mode. */
-void
+ssize_t
 output_write_text (struct output *out, int is_err, const char *src, size_t len)
 {
 # if defined (KBUILD_OS_WINDOWS) || defined (KBUILD_OS_OS2) || defined (KBUILD_OS_DOS)
-  if (out && out->syncout)
+  ssize_t ret = len;
+  if (!out || !out->syncout)
     {
       /* ASSUME fwrite does the desired conversion. */
       FILE *f = is_err ? stderr : stdout;
 # ifdef KBUILD_OS_WINDOWS
-      maybe_con_fwrite (src, len, 1, f);
+      if (maybe_con_fwrite (src, len, 1, f) < 0)
+        ret = -1;
 # else
       fwrite (src, len, 1, f);
 # endif
-      fflush (f);
+      if (fflush (f) == EOF)
+        ret = -1;
     }
   else
     {
@@ -441,8 +451,9 @@ output_write_text (struct output *out, int is_err, const char *src, size_t len)
           src += line_len + 1;
         }
     }
+  return len;
 # else
-  output_write_bin (out, is_err, src, len);
+  return output_write_bin (out, is_err, src, len);
 # endif
 }
 

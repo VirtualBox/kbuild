@@ -74,7 +74,7 @@ extern void bsd_strmode(mode_t mode, char *p);
 extern int lchmod(const char *, mode_t);
 #endif
 
-static int usage(FILE *);
+static int usage(PKMKBUILTINCTX pCtx, int is_err);
 
 static struct option long_options[] =
 {
@@ -85,7 +85,7 @@ static struct option long_options[] =
 
 
 int
-kmk_builtin_chmod(int argc, char *argv[], char **envp)
+kmk_builtin_chmod(int argc, char *argv[], char **envp, PKMKBUILTINCTX pCtx)
 {
 	FTS *ftsp;
 	FTSENT *p;
@@ -97,7 +97,6 @@ kmk_builtin_chmod(int argc, char *argv[], char **envp)
 	int (*change_mode)(const char *, mode_t);
 
 	/* kmk: reset getopt and set progname */
-	g_progname = argv[0];
 	opterr = 1;
 	optarg = NULL;
 	optopt = 0;
@@ -152,24 +151,24 @@ kmk_builtin_chmod(int argc, char *argv[], char **envp)
 			vflag++;
 			break;
 		case 261:
-			usage(stdout);
+			usage(pCtx, 0);
 			return 0;
 		case 262:
 			return kbuild_version(argv[0]);
 		case '?':
 		default:
-			return usage(stderr);
+			return usage(pCtx, 1);
 		}
 done:	argv += optind;
 	argc -= optind;
 
 	if (argc < 2)
-		return usage(stderr);
+		return usage(pCtx, 1);
 
 	if (Rflag) {
 		fts_options = FTS_PHYSICAL;
 		if (hflag)
-			return errx(1,
+			return errx(pCtx, 1,
 		"the -R and -h options may not be specified together.");
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;
@@ -187,10 +186,10 @@ done:	argv += optind;
 
 	mode = *argv;
 	if ((set = bsd_setmode(mode)) == NULL)
-		return errx(1, "invalid file mode: %s", mode);
+		return errx(pCtx, 1, "invalid file mode: %s", mode);
 
 	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
-		return err(1, "fts_open");
+		return err(pCtx, 1, "fts_open");
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
 		switch (p->fts_info) {
 		case FTS_D:			/* Change it at FTS_DP. */
@@ -198,12 +197,12 @@ done:	argv += optind;
 				fts_set(ftsp, p, FTS_SKIP);
 			continue;
 		case FTS_DNR:			/* Warn, chmod, continue. */
-			warnx("fts: %s: %s", p->fts_path, strerror(p->fts_errno));
+			warnx(pCtx, "fts: %s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			break;
 		case FTS_ERR:			/* Warn, continue. */
 		case FTS_NS:
-			warnx("fts: %s: %s", p->fts_path, strerror(p->fts_errno));
+			warnx(pCtx, "fts: %s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			continue;
 		case FTS_SL:			/* Ignore. */
@@ -224,11 +223,11 @@ done:	argv += optind;
 		if ((newmode & ALLPERMS) == (p->fts_statp->st_mode & ALLPERMS))
 			continue;
 		if ((*change_mode)(p->fts_accpath, newmode) && !fflag) {
-			warn("%schmod: %s", hflag ? "l" : "", p->fts_path);
+			warn(pCtx, "%schmod: %s", hflag ? "l" : "", p->fts_path);
 			rval = 1;
 		} else {
 			if (vflag) {
-				(void)printf("%s", p->fts_path);
+				kmk_builtin_ctx_printf(pCtx, 0, "%s", p->fts_path);
 
 				if (vflag > 1) {
 					char m1[12], m2[12];
@@ -237,30 +236,39 @@ done:	argv += optind;
 					bsd_strmode((p->fts_statp->st_mode &
 					    S_IFMT) | newmode, m2);
 
-					(void)printf(": 0%o [%s] -> 0%o [%s]",
+					kmk_builtin_ctx_printf(pCtx, 0, ": 0%o [%s] -> 0%o [%s]",
 					    (unsigned int)p->fts_statp->st_mode, m1,
 					    (unsigned int)((p->fts_statp->st_mode & S_IFMT) | newmode), m2);
 				}
-				(void)printf("\n");
+				kmk_builtin_ctx_printf(pCtx, 0, "\n");
 			}
 
 		}
 	}
 	if (errno)
-		rval = err(1, "fts_read");
+		rval = err(pCtx, 1, "fts_read");
 	free(set);
 	fts_close(ftsp);
 	return rval;
 }
 
 int
-usage(FILE *out)
+usage(PKMKBUILTINCTX pCtx, int is_err)
 {
-	(void)fprintf(out,
+	kmk_builtin_ctx_printf(pCtx, is_err,
 	    "usage: %s [-fhv] [-R [-H | -L | -P]] mode file ...\n"
 	    "   or: %s --version\n"
 	    "   or: %s --help\n",
-	    g_progname, g_progname, g_progname);
+	    pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName);
 
 	return 1;
 }
+
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+    KMKBUILTINCTX Ctx = { "kmk_chmod", NULL };
+    return kmk_builtin_chmod(argc, argv, envp, &Ctx);
+}
+#endif
+

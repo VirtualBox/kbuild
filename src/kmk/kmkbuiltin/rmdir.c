@@ -43,6 +43,10 @@ static char sccsid[] = "@(#)rmdir.c	8.3 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.20 2005/01/26 06:51:28 ssouhlal Exp $");
 #endif
 
+
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
 #include "config.h"
 #include "err.h"
 #include <stdio.h>
@@ -59,18 +63,25 @@ __FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.20 2005/01/26 06:51:28 ssouhlal Ex
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
-#if defined(KMK) && defined(KBUILD_OS_WINDOWS)
-extern int dir_cache_deleted_directory(const char *pszDir);
-#endif
 
-static int rm_path(char *);
-static int usage(FILE *);
 
-static int pflag;
-static int vflag;
-static int ignore_fail_on_non_empty;
-static int ignore_fail_on_not_exist;
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
+typedef struct RMDIRINSTANCE
+{
+    PKMKBUILTINCTX pCtx;
+    int pflag;
+    int vflag;
+    int ignore_fail_on_non_empty;
+    int ignore_fail_on_not_exist;
+} RMDIRINSTANCE;
+typedef RMDIRINSTANCE *PRMDIRINSTANCE;
 
+
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
 static struct option long_options[] =
 {
     { "help",                       no_argument, 0, 262 },
@@ -83,16 +94,31 @@ static struct option long_options[] =
 };
 
 
+
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
+#if !defined(KMK_BUILTIN_STANDALONE) && defined(KBUILD_OS_WINDOWS)
+extern int dir_cache_deleted_directory(const char *pszDir);
+#endif
+static int rm_path(PRMDIRINSTANCE, char *);
+static int usage(PKMKBUILTINCTX, int);
+
+
 int
-kmk_builtin_rmdir(int argc, char *argv[], char **envp)
+kmk_builtin_rmdir(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
+	RMDIRINSTANCE This;
 	int ch, errors;
 
-	/* reinitialize globals */
-	ignore_fail_on_not_exist = ignore_fail_on_non_empty = vflag = pflag = 0;
+	/* Initialize global instance. */
+	This.pCtx = pCtx;
+	This.ignore_fail_on_not_exist = 0;
+	This.ignore_fail_on_non_empty = 0;
+	This.vflag = 0;
+	This.pflag = 0;
 
 	/* kmk: reset getopt and set progname */
-	g_progname = argv[0];
 	opterr = 1;
 	optarg = NULL;
 	optopt = 0;
@@ -100,25 +126,25 @@ kmk_builtin_rmdir(int argc, char *argv[], char **envp)
 	while ((ch = getopt_long(argc, argv, "pv", long_options, NULL)) != -1)
 		switch(ch) {
 		case 'p':
-			pflag = 1;
+			This.pflag = 1;
 			break;
 		case 'v':
-			vflag = 1;
+			This.vflag = 1;
 			break;
 		case 260:
-			ignore_fail_on_non_empty = 1;
+			This.ignore_fail_on_non_empty = 1;
 			break;
 		case 261:
-			ignore_fail_on_not_exist = 1;
+			This.ignore_fail_on_not_exist = 1;
 			break;
 		case 262:
-			usage(stdout);
+			usage(pCtx, 0);
 			return 0;
 		case 263:
 			return kbuild_version(argv[0]);
 		case '?':
 		default:
-			return usage(stderr);
+			return usage(pCtx, 1);
 		}
 	argc -= optind;
 	argv += optind;
@@ -128,32 +154,41 @@ kmk_builtin_rmdir(int argc, char *argv[], char **envp)
 
 	for (errors = 0; *argv; argv++) {
 		if (rmdir(*argv) < 0) {
-			if (	(!ignore_fail_on_non_empty || (errno != ENOTEMPTY && errno != EPERM && errno != EACCES && errno != EINVAL && errno != EEXIST))
-			    &&	(!ignore_fail_on_not_exist || errno != ENOENT)) {
-				warn("rmdir: %s", *argv);
+			if (	(   !This.ignore_fail_on_non_empty
+				 || (errno != ENOTEMPTY && errno != EPERM && errno != EACCES && errno != EINVAL && errno != EEXIST))
+			    &&	(   !This.ignore_fail_on_not_exist
+				 || errno != ENOENT)) {
+				warn(pCtx, "rmdir: %s", *argv);
 				errors = 1;
 				continue;
 			}
-			if (!ignore_fail_on_not_exist || errno != ENOENT)
+			if (!This.ignore_fail_on_not_exist || errno != ENOENT)
 				continue;
 			/* (only ignored doesn't exist errors fall thru) */
 		} else {
-#if defined(KMK) && defined(KBUILD_OS_WINDOWS)
+#if !defined(KMK_BUILTIN_STANDALONE) && defined(KBUILD_OS_WINDOWS)
 			dir_cache_deleted_directory(*argv);
 #endif
-			if (vflag) {
-				printf("%s\n", *argv);
-			}
+			if (This.vflag)
+				kmk_builtin_ctx_printf(pCtx, 0, "%s\n", *argv);
 		}
-		if (pflag)
-			errors |= rm_path(*argv);
+		if (This.pflag)
+			errors |= rm_path(&This, *argv);
 	}
 
 	return errors;
 }
 
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+    KMKBUILTINCTX Ctx = { "kmk_rmdir", NULL };
+    return kmk_builtin_rmdir(argc, argv, envp, &Ctx);
+}
+#endif
+
 static int
-rm_path(char *path)
+rm_path(PRMDIRINSTANCE pThis, char *path)
 {
 	char *p;
 	const size_t len = strlen(path);
@@ -185,11 +220,11 @@ rm_path(char *path)
 #endif
 
 		if (rmdir(path) < 0) {
-			if (   ignore_fail_on_non_empty
+			if (   pThis->ignore_fail_on_non_empty
 			    && (   errno == ENOTEMPTY || errno == EPERM || errno == EACCES || errno == EINVAL || errno == EEXIST))
 				break;
-			if (!ignore_fail_on_not_exist || errno != ENOENT) {
-				warn("rmdir: %s", path);
+			if (!pThis->ignore_fail_on_not_exist || errno != ENOENT) {
+				warn(pThis->pCtx, "rmdir: %s", path);
 				return (1);
 			}
 		}
@@ -198,19 +233,21 @@ rm_path(char *path)
 			dir_cache_deleted_directory(path);
 		}
 #endif
-		if (vflag)
-			printf("%s\n", path);
+		if (pThis->vflag)
+			kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s\n", path);
 	}
 
 	return (0);
 }
 
 static int
-usage(FILE *pf)
+usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-	(void)fprintf(pf, "usage: %s [-pv --ignore-fail-on-non-empty --ignore-fail-on-not-exist] directory ...\n"
-	                  "   or: %s --help\n"
-	                  "   or: %s --version\n",
-	              g_progname, g_progname, g_progname);
+	kmk_builtin_ctx_printf(pCtx, fIsErr,
+			       "usage: %s [-pv --ignore-fail-on-non-empty --ignore-fail-on-not-exist] directory ...\n"
+			       "   or: %s --help\n"
+			       "   or: %s --version\n",
+			       pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName);
 	return 1;
 }
+

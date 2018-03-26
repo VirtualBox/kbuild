@@ -54,8 +54,8 @@ extern PATH_T to;
 extern int fflag, iflag, nflag, pflag, vflag;
 extern volatile sig_atomic_t info;
 
-int	copy_fifo(struct stat *, int);
-int	copy_file(const FTSENT *, int, int, int *);
-int	copy_link(const FTSENT *, int);
-int	copy_special(struct stat *, int);
-int	setfile(struct stat *, int);
+int	copy_fifo(PKMKBUILTINCTX pCtx, struct stat *, int);
+int	copy_file(PKMKBUILTINCTX pCtx, const FTSENT *, int, int, int *);
+int	copy_link(PKMKBUILTINCTX pCtx, const FTSENT *, int);
+int	copy_special(PKMKBUILTINCTX pCtx, struct stat *, int);
+int	setfile(PKMKBUILTINCTX pCtx, struct stat *, int);

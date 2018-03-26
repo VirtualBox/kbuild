@@ -156,15 +156,15 @@ static struct option long_options[] =
 };
 
 
-static int copy(char *[], enum op, int);
+static int copy(PKMKBUILTINCTX pCtx, char *[], enum op, int);
 static int mastercmp(const FTSENT **, const FTSENT **);
 #ifdef SIGINFO
 static void siginfo(int __unused);
 #endif
-static int usage(FILE *);
+static int usage(PKMKBUILTINCTX, int);
 
 int
-kmk_builtin_cp(int argc, char *argv[], char **envp)
+kmk_builtin_cp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
 	struct stat to_stat, tmp_stat;
 	enum op type;
@@ -179,10 +179,9 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
         fflag = iflag = nflag = pflag = vflag = Rflag = rflag = 0;
         info = 0;
 	cp_ignore_non_existing = cp_changed_only = 0;
-	kBuildProtectionInit(&g_ProtData);
+	kBuildProtectionInit(&g_ProtData, pCtx);
 
         /* reset getopt and set progname. */
-        g_progname = argv[0];
         opterr = 1;
         optarg = NULL;
         optopt = 0;
@@ -228,7 +227,7 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 			vflag = 1;
 			break;
 		case CP_OPT_HELP:
-			usage(stdout);
+			usage(pCtx, 0);
 			kBuildProtectionTerm(&g_ProtData);
 			return 0;
 		case CP_OPT_VERSION:
@@ -260,25 +259,25 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 			break;
 		default:
 			kBuildProtectionTerm(&g_ProtData);
-		        return usage(stderr);
+		        return usage(pCtx, 1);
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 2) {
 		kBuildProtectionTerm(&g_ProtData);
-		return usage(stderr);
+		return usage(pCtx, 1);
 	}
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
 	if (rflag) {
 		if (Rflag) {
 			kBuildProtectionTerm(&g_ProtData);
-			return errx(1,
+			return errx(pCtx, 1,
 		    "the -R and -r options may not be specified together.");
 		}
 		if (Hflag || Lflag || Pflag)
-			errx(1,
+			errx(pCtx, 1,
 	"the -H, -L, and -P options may not be specified with the -r option.");
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL;
@@ -302,7 +301,7 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 	target = argv[--argc];
 	if (strlcpy(to.p_path, target, sizeof(to.p_path)) >= sizeof(to.p_path)) {
 		kBuildProtectionTerm(&g_ProtData);
-		return errx(1, "%s: name too long", target);
+		return errx(pCtx, 1, "%s: name too long", target);
 	}
 	to.p_end = to.p_path + strlen(to.p_path);
         if (to.p_path == to.p_end) {
@@ -334,7 +333,7 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 	r = stat(to.p_path, &to_stat);
 	if (r == -1 && errno != ENOENT) {
 		kBuildProtectionTerm(&g_ProtData);
-		return err(1, "stat: %s", to.p_path);
+		return err(pCtx, 1, "stat: %s", to.p_path);
 	}
 	if (r == -1 || !S_ISDIR(to_stat.st_mode)) {
 		/*
@@ -342,7 +341,7 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 		 */
 		if (argc > 1) {
 			kBuildProtectionTerm(&g_ProtData);
-			return usage(stderr);
+			return usage(pCtx, 1);
 		}
 		/*
 		 * Need to detect the case:
@@ -367,10 +366,10 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 		if (have_trailing_slash && type == FILE_TO_FILE) {
 			kBuildProtectionTerm(&g_ProtData);
 			if (r == -1)
-				return errx(1, "directory %s does not exist",
+				return errx(pCtx, 1, "directory %s does not exist",
 				            to.p_path);
 			else
-				return errx(1, "%s is not a directory", to.p_path);
+				return errx(pCtx, 1, "%s is not a directory", to.p_path);
 		}
 	} else
 		/*
@@ -386,15 +385,23 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 				     ? KBUILDPROTECTIONTYPE_RECURSIVE
 				     : KBUILDPROTECTIONTYPE_FULL,
 				     to.p_path)) {
-	    rc = copy(argv, type, fts_options);
+	    rc = copy(pCtx, argv, type, fts_options);
 	}
 
 	kBuildProtectionTerm(&g_ProtData);
 	return rc;
 }
 
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+    KMKBUILTINCTX Ctx = { "kmk_cp", NULL };
+    return kmk_builtin_cp(argc, argv, envp, &Ctx);
+}
+#endif
+
 static int
-copy(char *argv[], enum op type, int fts_options)
+copy(PKMKBUILTINCTX pCtx, char *argv[], enum op type, int fts_options)
 {
 	struct stat to_stat;
 	FTS *ftsp;
@@ -412,7 +419,7 @@ copy(char *argv[], enum op type, int fts_options)
 	umask(~mask);
 
 	if ((ftsp = fts_open(argv, fts_options, mastercmp)) == NULL)
-		return err(1, "fts_open");
+		return err(pCtx, 1, "fts_open");
 	for (badcp = rval = 0; (curr = fts_read(ftsp)) != NULL; badcp = 0) {
                 int copied = 0;
 
@@ -421,7 +428,7 @@ copy(char *argv[], enum op type, int fts_options)
 			if (   cp_ignore_non_existing
 			    && curr->fts_errno == ENOENT) {
 				if (vflag) {
-					warnx("fts: %s: %s", curr->fts_path,
+					warnx(pCtx, "fts: %s: %s", curr->fts_path,
 					      strerror(curr->fts_errno));
 				}
 				continue;
@@ -429,12 +436,12 @@ copy(char *argv[], enum op type, int fts_options)
 			/* fall thru */
 		case FTS_DNR:
 		case FTS_ERR:
-			warnx("fts: %s: %s",
+			warnx(pCtx, "fts: %s: %s",
 			    curr->fts_path, strerror(curr->fts_errno));
 			badcp = rval = 1;
 			continue;
 		case FTS_DC:			/* Warn, continue. */
-			warnx("%s: directory causes a cycle", curr->fts_path);
+			warnx(pCtx, "%s: directory causes a cycle", curr->fts_path);
 			badcp = rval = 1;
 			continue;
 		default:
@@ -489,7 +496,7 @@ copy(char *argv[], enum op type, int fts_options)
 				*target_mid++ = '/';
 			*target_mid = 0;
 			if (target_mid - to.p_path + nlen >= PATH_MAX) {
-				warnx("%s%s: name too long (not copied)",
+				warnx(pCtx, "%s%s: name too long (not copied)",
 				    to.p_path, p);
 				badcp = rval = 1;
 				continue;
@@ -518,14 +525,14 @@ copy(char *argv[], enum op type, int fts_options)
 			 * normally want to preserve them on directories.
 			 */
 			if (pflag) {
-				if (setfile(curr->fts_statp, -1))
+				if (setfile(pCtx, curr->fts_statp, -1))
 				    rval = 1;
 			} else {
 				mode = curr->fts_statp->st_mode;
 				if ((mode & (S_ISUID | S_ISGID | S_ISTXT)) ||
 				    ((mode | S_IRWXU) & mask) != (mode & mask))
 					if (chmod(to.p_path, mode & mask) != 0){
-						warn("chmod: %s", to.p_path);
+						warn(pCtx, "chmod: %s", to.p_path);
 						rval = 1;
 					}
 			}
@@ -540,7 +547,7 @@ copy(char *argv[], enum op type, int fts_options)
 			    to_stat.st_dev != 0 &&
 			    to_stat.st_ino == curr->fts_statp->st_ino &&
 			    to_stat.st_ino != 0) {
-				warnx("%s and %s are identical (not copied).",
+				warnx(pCtx, "%s and %s are identical (not copied).",
 				    to.p_path, curr->fts_path);
 				badcp = rval = 1;
 				if (S_ISDIR(curr->fts_statp->st_mode))
@@ -549,7 +556,7 @@ copy(char *argv[], enum op type, int fts_options)
 			}
 			if (!S_ISDIR(curr->fts_statp->st_mode) &&
 			    S_ISDIR(to_stat.st_mode)) {
-				warnx("cannot overwrite directory %s with "
+				warnx(pCtx, "cannot overwrite directory %s with "
 				    "non-directory %s",
 				    to.p_path, curr->fts_path);
 				badcp = rval = 1;
@@ -565,17 +572,17 @@ copy(char *argv[], enum op type, int fts_options)
 			if ((fts_options & FTS_LOGICAL) ||
 			    ((fts_options & FTS_COMFOLLOW) &&
 			    curr->fts_level == 0)) {
-				if (copy_file(curr, dne, cp_changed_only, &copied))
+				if (copy_file(pCtx, curr, dne, cp_changed_only, &copied))
 					badcp = rval = 1;
 			} else {
-				if (copy_link(curr, !dne))
+				if (copy_link(pCtx, curr, !dne))
 					badcp = rval = 1;
 			}
 			break;
 #endif
 		case S_IFDIR:
 			if (!Rflag && !rflag) {
-				warnx("%s is a directory (not copied).",
+				warnx(pCtx, "%s is a directory (not copied).",
 				    curr->fts_path);
 				(void)fts_set(ftsp, curr, FTS_SKIP);
 				badcp = rval = 1;
@@ -592,10 +599,10 @@ copy(char *argv[], enum op type, int fts_options)
 			if (dne) {
 				if (mkdir(to.p_path,
 				    curr->fts_statp->st_mode | S_IRWXU) < 0)
-					return err(1, "mkdir: %s", to.p_path);
+					return err(pCtx, 1, "mkdir: %s", to.p_path);
 			} else if (!S_ISDIR(to_stat.st_mode)) {
 				errno = ENOTDIR;
-				return err(1, "to-mode: %s", to.p_path);
+				return err(pCtx, 1, "to-mode: %s", to.p_path);
 			}
 			/*
 			 * Arrange to correct directory attributes later
@@ -609,10 +616,10 @@ copy(char *argv[], enum op type, int fts_options)
 #endif
 		case S_IFCHR:
 			if (Rflag) {
-				if (copy_special(curr->fts_statp, !dne))
+				if (copy_special(pCtx, curr->fts_statp, !dne))
 					badcp = rval = 1;
 			} else {
-				if (copy_file(curr, dne, cp_changed_only, &copied))
+				if (copy_file(pCtx, curr, dne, cp_changed_only, &copied))
 					badcp = rval = 1;
 			}
 			break;
@@ -620,24 +627,24 @@ copy(char *argv[], enum op type, int fts_options)
 		case S_IFIFO:
 #endif
 			if (Rflag) {
-				if (copy_fifo(curr->fts_statp, !dne))
+				if (copy_fifo(pCtx, curr->fts_statp, !dne))
 					badcp = rval = 1;
 			} else {
-				if (copy_file(curr, dne, cp_changed_only, &copied))
+				if (copy_file(pCtx, curr, dne, cp_changed_only, &copied))
 					badcp = rval = 1;
 			}
 			break;
 		default:
-			if (copy_file(curr, dne, cp_changed_only, &copied))
+			if (copy_file(pCtx, curr, dne, cp_changed_only, &copied))
 				badcp = rval = 1;
 			break;
 		}
 		if (vflag && !badcp)
-			(void)printf(copied ? "%s -> %s\n" : "%s matches %s - not copied\n",
-				     curr->fts_path, to.p_path);
+			kmk_builtin_ctx_printf(pCtx, 0, copied ? "%s -> %s\n" : "%s matches %s - not copied\n",
+					       curr->fts_path, to.p_path);
 	}
 	if (errno)
-		return err(1, "fts_read");
+		return err(pCtx, 1, "fts_read");
 	return (rval);
 }
 
@@ -678,9 +685,9 @@ siginfo(int sig __unused)
 
 
 static int
-usage(FILE *fp)
+usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-	fprintf(fp,
+	kmk_builtin_ctx_printf(pCtx, fIsErr,
 "usage: %s [options] src target\n"
 "   or: %s [options] src1 ... srcN directory\n"
 "   or: %s --help\n"
@@ -727,7 +734,8 @@ usage(FILE *fp)
 "protection is not bulletproof, but should help prevent you from shooting\n"
 "yourself in the foot.\n"
 		,
-	        g_progname, g_progname, g_progname, g_progname,
+	        pCtx->pszProgName, pCtx->pszProgName,
+		pCtx->pszProgName, pCtx->pszProgName,
 	        kBuildProtectionDefaultDepth(), kBuildProtectionDefaultDepth());
 	return 1;
 }

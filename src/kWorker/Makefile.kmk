@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -35,7 +35,8 @@ kWorker_DEFS.debug = K_STRICT
 kWorker_DEFS.release = NASSERT
 kWorker_SOURCES = \
 	kWorker.c \
-       ../kmk/kmkbuiltin/kDepObj.c
+       ../kmk/kmkbuiltin/kDepObj.c \
+       ../kmk/kmkbuiltin/err.c
 kWorker_INCS = \
 	../kmk/ \
 	../kmk/kmkbuiltin

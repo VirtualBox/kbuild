@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 3167 2018-03-20 21:47:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
  */
@@ -45,6 +45,7 @@
 #include "k/kDefs.h"
 #include "k/kTypes.h"
 #include "kDep.h"
+#include "err.h"
 #include "kmkbuiltin.h"
 
 
@@ -65,8 +66,8 @@
 *********************************************************************************************************************************/
 typedef struct KDEPIDBGLOBALS
 {
+    PKMKBUILTINCTX pCtx;
     DEPGLOBALS  Core;
-    const char *argv0;
 } KDEPIDBGLOBALS;
 typedef KDEPIDBGLOBALS *PKDEPIDBGLOBALS;
 
@@ -196,22 +197,13 @@ typedef struct PDB70NAMES
 static int Pdb70ValidateHeader(PKDEPIDBGLOBALS pThis, PPDB70HDR pHdr, size_t cbFile)
 {
     if (pHdr->cbPage * pHdr->cPages != cbFile)
-    {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - cbPage * cPages != cbFile.\n", pThis->argv0);
-        return 1;
-    }
+        return errx(pThis->pCtx, 1, "Bad PDB 2.0 header - cbPage * cPages != cbFile.");
     if (pHdr->iStartPage >= pHdr->cPages && pHdr->iStartPage <= 0)
-    {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - iStartPage=%u cPages=%u.\n", pThis->argv0,
-                pHdr->iStartPage, pHdr->cPages);
-        return 1;
-    }
+        return errx(pThis->pCtx, 1, "Bad PDB 2.0 header - iStartPage=%u cPages=%u.",
+                    pHdr->iStartPage, pHdr->cPages);
     if (pHdr->iRootPages >= pHdr->cPages && pHdr->iRootPages <= 0)
-    {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - iRootPages=%u cPage=%u.\n", pThis->argv0,
-                pHdr->iStartPage, pHdr->cPages);
-        return 1;
-    }
+        return errx(pThis->pCtx, 1, "Bad PDB 2.0 header - iRootPages=%u cPage=%u.",
+                    pHdr->iStartPage, pHdr->cPages);
     return 0;
 }
 
@@ -250,8 +242,7 @@ static void *Pdb70AllocAndRead(PKDEPIDBGLOBALS pThis, PPDB70HDR pHdr, size_t cb,
             }
             else
             {
-                fprintf(stderr, "%s: warning: Invalid page index %u (max %u)!\n", pThis->argv0,
-                        (unsigned)off, pHdr->cPages);
+                warnx(pThis->pCtx, "warning: Invalid page index %u (max %u)!\n", (unsigned)off, pHdr->cPages);
                 memset(pbBuf + iPage * cbPage, 0, cbPage);
             }
 
@@ -260,7 +251,10 @@ static void *Pdb70AllocAndRead(PKDEPIDBGLOBALS pThis, PPDB70HDR pHdr, size_t cb,
         pbBuf[cPages * cbPage] = '\0';
     }
     else
-        fprintf(stderr, "%s: error: failed to allocate %lu bytes\n", pThis->argv0, (unsigned long)(cPages * cbPage + 1));
+    {
+        errx(pThis->pCtx, 1, "failed to allocate %lu bytes", (unsigned long)(cPages * cbPage + 1));
+        return NULL;
+    }
     return pbBuf;
 }
 
@@ -310,7 +304,7 @@ static void *Pdb70AllocAndReadStream(PKDEPIDBGLOBALS pThis, PPDB70HDR pHdr, PPDB
     if (    iStream >= pRoot->cStreams
         ||  cbStream == ~(KU32)0)
     {
-        fprintf(stderr, "%s: error: Invalid stream %d\n", pThis->argv0, iStream);
+        errx(pThis->pCtx, 1, "Invalid stream %d", iStream);
         return NULL;
     }
 
@@ -492,15 +486,9 @@ typedef struct PDB20ROOT
 static int Pdb20ValidateHeader(PKDEPIDBGLOBALS pThis, PPDB20HDR pHdr, size_t cbFile)
 {
     if (pHdr->cbPage * pHdr->cPages != cbFile)
-    {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - cbPage * cPages != cbFile.\n", pThis->argv0);
-        return 1;
-    }
+        return errx(pThis->pCtx, 1, "Bad PDB 2.0 header - cbPage * cPages != cbFile.");
     if (pHdr->iStartPage >= pHdr->cPages && pHdr->iStartPage <= 0)
-    {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - cbPage * cPages != cbFile.\n", pThis->argv0);
-        return 1;
-    }
+        return errx(pThis->pCtx, 1, "Bad PDB 2.0 header - cbPage * cPages != cbFile.");
     return 0;
 }
 
@@ -528,7 +516,7 @@ static void *Pdb20AllocAndRead(PKDEPIDBGLOBALS pThis, PPDB20HDR pHdr, size_t cb,
         pbBuf[cPages * pHdr->cbPage] = '\0';
     }
     else
-        fprintf(stderr, "%s: error: failed to allocate %lu bytes\n", pThis->argv0, (unsigned long)(cPages * pHdr->cbPage + 1));
+        errx(pThis->pCtx, 1, "failed to allocate %lu bytes", (unsigned long)(cPages * pHdr->cbPage + 1));
     return pbBuf;
 }
 
@@ -572,7 +560,7 @@ static void *Pdb20AllocAndReadStream(PKDEPIDBGLOBALS pThis, PPDB20HDR pHdr, PPDB
     if (    iStream >= pRoot->cStreams
         ||  cbStream == ~(KU32)0)
     {
-        fprintf(stderr, "%s: error: Invalid stream %d\n", pThis->argv0, iStream);
+        errx(pThis->pCtx, 1, "Invalid stream %d", iStream);
         return NULL;
     }
 
@@ -652,26 +640,24 @@ static int ProcessIDB(PKDEPIDBGLOBALS pThis, FILE *pInput)
     else if (!memcmp(pbFile, PDB_SIGNATURE_200, sizeof(PDB_SIGNATURE_200)))
         rc = Pdb20Process(pThis, pbFile, cbFile);
     else
-    {
-        fprintf(stderr, "%s: error: Doesn't recognize the header of the Visual C++ IDB file.\n", pThis->argv0);
-        rc = 1;
-    }
+        rc = errx(pThis->pCtx, 1, "Doesn't recognize the header of the Visual C++ IDB file.");
 
     depFreeFileMemory(pbFile, pvOpaque);
     return rc;
 }
 
 
-static void kDepIDBUsage(const char *a_argv0)
+static void kDepIDBUsage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-    printf("usage: %s -o <output> -t <target> [-fqs] <vc idb-file>\n"
-           "   or: %s --help\n"
-           "   or: %s --version\n",
-           a_argv0, a_argv0, a_argv0);
+    kmk_builtin_ctx_printf(pCtx, fIsErr,
+                           "usage: %s -o <output> -t <target> [-fqs] <vc idb-file>\n"
+                           "   or: %s --help\n"
+                           "   or: %s --version\n",
+                           pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName);
 }
 
 
-int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
+int kmk_builtin_kDepIDB(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
     int             i;
     KDEPIDBGLOBALS  This;
@@ -688,14 +674,14 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
     int         fQuiet = 0;
 
     /* Init the instance data. */
-    This.argv0 = argv[0];
+    This.pCtx = pCtx;
 
     /*
      * Parse arguments.
      */
     if (argc <= 1)
     {
-        kDepIDBUsage(This.argv0);
+        kDepIDBUsage(pCtx, 0);
         return 1;
     }
     for (i = 1; i < argc; i++)
@@ -722,17 +708,11 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                 {
                     pszOutput = &argv[i][2];
                     if (pOutput)
-                    {
-                        fprintf(stderr, "%s: syntax error: only one output file!\n", This.argv0);
-                        return 1;
-                    }
+                        return errx(pCtx, 2, "only one output file!");
                     if (!*pszOutput)
                     {
                         if (++i >= argc)
-                        {
-                            fprintf(stderr, "%s: syntax error: The '-o' argument is missing the filename.\n", This.argv0);
-                            return 1;
-                        }
+                            return errx(pCtx, 2, "The '-o' argument is missing the filename.");
                         pszOutput = argv[i];
                     }
                     if (pszOutput[0] == '-' && !pszOutput[1])
@@ -740,10 +720,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                     else
                         pOutput = fopen(pszOutput, "w" KMK_FOPEN_NO_INHERIT_MODE);
                     if (!pOutput)
-                    {
-                        fprintf(stderr, "%s: error: Failed to create output file '%s'.\n", This.argv0, pszOutput);
-                        return 1;
-                    }
+                        return err(pCtx, 1, "Failed to create output file '%s'", pszOutput);
                     break;
                 }
 
@@ -753,18 +730,12 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                 case 't':
                 {
                     if (pszTarget)
-                    {
-                        fprintf(stderr, "%s: syntax error: only one target!\n", This.argv0);
-                        return 1;
-                    }
+                        return errx(pCtx, 2, "only one target!");
                     pszTarget = &argv[i][2];
                     if (!*pszTarget)
                     {
                         if (++i >= argc)
-                        {
-                            fprintf(stderr, "%s: syntax error: The '-t' argument is missing the target name.\n", This.argv0);
-                            return 1;
-                        }
+                            return errx(pCtx, 2, "The '-t' argument is missing the target name.");
                         pszTarget = argv[i];
                     }
                     break;
@@ -801,29 +772,26 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                  * The mandatory version & help.
                  */
                 case '?':
-                    kDepIDBUsage(This.argv0);
+                    kDepIDBUsage(pCtx, 0);
                     return 0;
                 case 'V':
                 case 'v':
-                    return kbuild_version(This.argv0);
+                    return kbuild_version(pCtx->pszProgName);
 
                 /*
                  * Invalid argument.
                  */
                 default:
-                    fprintf(stderr, "%s: syntax error: Invalid argument '%s'.\n", This.argv0, argv[i]);
-                    kDepIDBUsage(This.argv0);
-                    return 1;
+                    errx(pCtx, 2, "Invalid argument '%s.'", argv[i]);
+                    kDepIDBUsage(pCtx, 1);
+                    return 2;
             }
         }
         else
         {
             pInput = fopen(argv[i], "rb" KMK_FOPEN_NO_INHERIT_MODE);
             if (!pInput)
-            {
-                fprintf(stderr, "%s: error: Failed to open input file '%s'.\n", This.argv0, argv[i]);
-                return 1;
-            }
+                return err(pCtx, 1, "Failed to open input file '%s'", argv[i]);
             fInput = 1;
         }
 
@@ -833,10 +801,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
         if (fInput)
         {
             if (++i < argc)
-            {
-                fprintf(stderr, "%s: syntax error: No arguments shall follow the input spec.\n", This.argv0);
-                return 1;
-            }
+                return errx(pCtx, 2, "No arguments shall follow the input spec.");
             break;
         }
     }
@@ -845,20 +810,11 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
      * Got all we require?
      */
     if (!pInput)
-    {
-        fprintf(stderr, "%s: syntax error: No input!\n", This.argv0);
-        return 1;
-    }
+        return errx(pCtx, 2, "No input!");
     if (!pOutput)
-    {
-        fprintf(stderr, "%s: syntax error: No output!\n", This.argv0);
-        return 1;
-    }
+        return errx(pCtx, 2, "No output!");
     if (!pszTarget)
-    {
-        fprintf(stderr, "%s: syntax error: No target!\n", This.argv0);
-        return 1;
-    }
+        return errx(pCtx, 2, "No target!");
 
     /*
      * Do the parsing.
@@ -883,18 +839,23 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
      * Close the output, delete output on failure.
      */
     if (!i && ferror(pOutput))
-    {
-        i = 1;
-        fprintf(stderr, "%s: error: Error writing to '%s'.\n", This.argv0, pszOutput);
-    }
+        i = errx(pCtx, 1, "Error writing to '%s'.", pszOutput);
     fclose(pOutput);
     if (i)
     {
         if (unlink(pszOutput))
-            fprintf(stderr, "%s: warning: failed to remove output file '%s' on failure.\n", This.argv0, pszOutput);
+            warnx(pCtx, "warning: failed to remove output file '%s' on failure.", pszOutput);
     }
 
     depCleanup(&This.Core);
     return i;
 }
+
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+    KMKBUILTINCTX Ctx = { "kmk_kDepIDB", NULL };
+    return kmk_builtin_kDepIDB(argc, argv, envp, &Ctx);
+}
+#endif
 

@@ -1,4 +1,4 @@
-/* $Id: append.c 3177 2018-03-21 22:06:08Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - append text to file.
  */
@@ -23,10 +23,10 @@
  *
  */
 
-/*******************************************************************************
-*   Header Files                                                               *
-*******************************************************************************/
-#ifndef kmk_builtin_append
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
+#ifndef KMK_BUILTIN_STANDALONE
 # include "makeint.h"
 # include "filedef.h"
 # include "variable.h"
@@ -45,7 +45,7 @@
 #ifdef HAVE_ALLOCA_H
 # include <alloca.h>
 #endif
-#if !defined(kmk_builtin_append) && defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
+#if !defined(KMK_BUILTIN_STANDALONE) && defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
 # include "../w32/winchildren.h"
 #endif
 #include "err.h"
@@ -172,11 +172,7 @@ static int kmk_builtin_append_usage(const char *arg0, FILE *pf)
 /**
  * Appends text to a textfile, creating the textfile if necessary.
  */
-#ifndef kmk_builtin_append
-int kmk_builtin_append(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPidSpawned)
-#else
-int main(int argc, char **argv, char **envp)
-#endif
+int kmk_builtin_append(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx, struct child *pChild, pid_t *pPidSpawned)
 {
 #if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
     static const char s_szNewLine[] = "\r\n";
@@ -194,11 +190,11 @@ int main(int argc, char **argv, char **envp)
     int fDefine = 0;
     int fVariables = 0;
     int fCommands = 0;
-#ifndef kmk_builtin_append
+#ifndef KMK_BUILTIN_STANDALONE
     int fLookForInserts = 0;
+#else
+    (void)pChild; (void)pPidSpawned;
 #endif
-
-    g_progname = argv[0];
 
     /*
      * Parse options.
@@ -220,20 +216,20 @@ int main(int argc, char **argv, char **envp)
                     case 'c':
                         if (fVariables)
                         {
-                            errx(1, "Option '-c' clashes with '-v'.");
+                            errx(pCtx, 1, "Option '-c' clashes with '-v'.");
                             return kmk_builtin_append_usage(argv[0], stderr);
                         }
-#ifndef kmk_builtin_append
+#ifndef KMK_BUILTIN_STANDALONE
                         fCommands = 1;
                         break;
 #else
-                        errx(1, "Option '-c' isn't supported in external mode.");
+                        errx(pCtx, 1, "Option '-c' isn't supported in external mode.");
                         return kmk_builtin_append_usage(argv[0], stderr);
 #endif
                     case 'd':
                         if (fVariables)
                         {
-                            errx(1, "Option '-d' must come before '-v'!");
+                            errx(pCtx, 1, "Option '-d' must come before '-v'!");
                             return kmk_builtin_append_usage(argv[0], stderr);
                         }
                         fDefine = 1;
@@ -241,14 +237,14 @@ int main(int argc, char **argv, char **envp)
                     case 'i':
                         if (fVariables || fCommands)
                         {
-                            errx(1, fVariables ? "Option '-i' clashes with '-v'." : "Option '-i' clashes with '-c'.");
+                            errx(pCtx, 1, fVariables ? "Option '-i' clashes with '-v'." : "Option '-i' clashes with '-c'.");
                             return kmk_builtin_append_usage(argv[0], stderr);
                         }
-#ifndef kmk_builtin_append
+#ifndef KMK_BUILTIN_STANDALONE
                         fLookForInserts = 1;
                         break;
 #else
-                        errx(1, "Option '-C' isn't supported in external mode.");
+                        errx(pCtx, 1, "Option '-C' isn't supported in external mode.");
                         return kmk_builtin_append_usage(argv[0], stderr);
 #endif
                     case 'n':
@@ -263,18 +259,18 @@ int main(int argc, char **argv, char **envp)
                     case 'v':
                         if (fCommands)
                         {
-                            errx(1, "Option '-v' clashes with '-c'.");
+                            errx(pCtx, 1, "Option '-v' clashes with '-c'.");
                             return kmk_builtin_append_usage(argv[0], stderr);
                         }
-#ifndef kmk_builtin_append
+#ifndef KMK_BUILTIN_STANDALONE
                         fVariables = 1;
                         break;
 #else
-                        errx(1, "Option '-v' isn't supported in external mode.");
+                        errx(pCtx, 1, "Option '-v' isn't supported in external mode.");
                         return kmk_builtin_append_usage(argv[0], stderr);
 #endif
                     default:
-                        errx(1, "Invalid option '%c'! (%s)", *psz, argv[i]);
+                        errx(pCtx, 1, "Invalid option '%c'! (%s)", *psz, argv[i]);
                         return kmk_builtin_append_usage(argv[0], stderr);
                 }
             } while (*++psz);
@@ -299,9 +295,9 @@ int main(int argc, char **argv, char **envp)
     else
     {
         if (i <= argc)
-            errx(1, "missing filename!");
+            errx(pCtx, 1, "missing filename!");
         else
-            errx(1, "missing define name!");
+            errx(pCtx, 1, "missing define name!");
         return kmk_builtin_append_usage(argv[0], stderr);
     }
 
@@ -333,7 +329,7 @@ int main(int argc, char **argv, char **envp)
             else
                 write_to_buf(&OutBuf, STR_TUPLE(" "));
         }
-#ifndef kmk_builtin_append
+#ifndef KMK_BUILTIN_STANDALONE
         if (fCommands)
         {
             char *pszOldBuf;
@@ -416,12 +412,12 @@ int main(int argc, char **argv, char **envp)
     /*
      * Write the buffer (unless we ran out of heap already).
      */
-#if !defined(kmk_builtin_append) && defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
+#if !defined(KMK_BUILTIN_STANDALONE) && defined(KBUILD_OS_WINDOWS) && defined(CONFIG_NEW_WIN_CHILDREN)
     if (!OutBuf.fOutOfMemory)
     {
         rc = MkWinChildCreateAppend(pszFilename, &OutBuf.pszBuf, OutBuf.offBuf, fTruncate, pChild, pPidSpawned);
         if (rc != 0)
-            rc = errx(rc, "MkWinChildCreateAppend failed: %u", rc);
+            rc = errx(pCtx, rc, "MkWinChildCreateAppend failed: %u", rc);
         if (OutBuf.pszBuf)
             free(OutBuf.pszBuf);
     }
@@ -439,16 +435,24 @@ int main(int argc, char **argv, char **envp)
             if (cbWritten == (ssize_t)OutBuf.offBuf)
                 rc = 0;
             else
-                rc = err(1, "error writing %lu bytes to '%s'", (unsigned long)OutBuf.offBuf, pszFilename);
+                rc = err(pCtx, 1, "error writing %lu bytes to '%s'", (unsigned long)OutBuf.offBuf, pszFilename);
             if (close(fd) < 0)
-                rc = err(1, "error closing '%s'", pszFilename);
+                rc = err(pCtx, 1, "error closing '%s'", pszFilename);
         }
         else
-            rc = err(1, "failed to open '%s'", pszFilename);
+            rc = err(pCtx, 1, "failed to open '%s'", pszFilename);
         free(OutBuf.pszBuf);
     }
     else
-        rc = errx(1, "out of memory for output buffer! (%u needed)", OutBuf.offBuf + 1);
+        rc = errx(pCtx, 1, "out of memory for output buffer! (%u needed)", OutBuf.offBuf + 1);
     return rc;
 }
+
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+    KMKBUILTINCTX Ctx = { "kmk_append", NULL };
+    return kmk_builtin_append(argc, argv, envp, &Ctx, NULL, NULL);
+}
+#endif
 

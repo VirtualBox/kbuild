@@ -1474,6 +1474,14 @@ start_job_command (struct child *child)
       goto next_command;
     }
 
+  /* We're sure we're going to invoke a command: set up the output.  */
+  output_start ();
+
+  /* Flush the output streams so they won't have things written twice.  */
+
+  fflush (stdout);
+  fflush (stderr);
+
 #ifdef CONFIG_WITH_KMK_BUILTIN
   /* If builtin command then pass it on to the builtin shell interpreter. */
 
@@ -1531,14 +1539,6 @@ start_job_command (struct child *child)
       argv = argv_spawn;
     }
 #endif /* CONFIG_WITH_KMK_BUILTIN */
-
-  /* We're sure we're going to invoke a command: set up the output.  */
-  output_start ();
-
-  /* Flush the output streams so they won't have things written twice.  */
-
-  fflush (stdout);
-  fflush (stderr);
 
   /* Decide whether to give this child the 'good' standard input
      (one that points to the terminal or whatever), or the 'bad' one

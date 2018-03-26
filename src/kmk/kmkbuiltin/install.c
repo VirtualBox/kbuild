@@ -121,15 +121,28 @@ extern mode_t bsd_getmode(const void *bbox, mode_t omode);
 # define IS_SLASH(ch)   ((ch) == '/')
 #endif
 
-static gid_t gid;
-static uid_t uid;
-static int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose, mode_given;
-static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-static const char *suffix = BACKUP_SUFFIX;
-static int ignore_perm_errors;
-static int hard_link_files_when_possible;
-static int dos2unix;
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
+typedef struct INSTALLINSTANCE
+{
+    PKMKBUILTINCTX pCtx;
 
+    gid_t gid;
+    uid_t uid;
+    int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose, mode_given;
+    mode_t mode;
+    const char *suffix;
+    int ignore_perm_errors;
+    int hard_link_files_when_possible;
+    int dos2unix;
+} INSTALLINSTANCE;
+typedef INSTALLINSTANCE *PINSTALLINSTANCE;
+
+
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
 static struct option long_options[] =
 {
     { "help",   					no_argument, 0, 261 },
@@ -144,22 +157,23 @@ static struct option long_options[] =
 };
 
 
-static int	copy(int, const char *, int *, const char *);
+static int	copy(PINSTALLINSTANCE, int, const char *, int *, const char *);
 static int	compare(int, size_t, int, size_t);
-static int	create_newfile(const char *, int, struct stat *);
+static int	create_newfile(PINSTALLINSTANCE, const char *, int, struct stat *);
 static int	create_tempfile(const char *, char *, size_t);
-static int	install(const char *, const char *, u_long, u_int);
-static int	install_dir(char *);
-static u_long	numeric_id(const char *, const char *);
-static int	strip(const char *);
-static int	usage(FILE *);
+static int	install(PINSTALLINSTANCE, const char *, const char *, u_long, u_int);
+static int	install_dir(PINSTALLINSTANCE, char *);
+static u_long	numeric_id(PINSTALLINSTANCE, const char *, const char *);
+static int	strip(PINSTALLINSTANCE, const char *);
+static int	usage(PKMKBUILTINCTX, int);
 static char    *last_slash(const char *);
 static KBOOL	needs_dos2unix_conversion(const char *pszFilename);
 static KBOOL	needs_unix2dos_conversion(const char *pszFilename);
 
 int
-kmk_builtin_install(int argc, char *argv[], char ** envp)
+kmk_builtin_install(int argc, char *argv[], char ** envp, PKMKBUILTINCTX pCtx)
 {
+	INSTALLINSTANCE This;
 	struct stat from_sb, to_sb;
 	mode_t *set;
 	u_long fset = 0;
@@ -169,18 +183,26 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 	const char *group, *owner, *to_name;
 	(void)envp;
 
-	/* reinitialize globals */
-	mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-	suffix = BACKUP_SUFFIX;
-	gid = 0;
-	uid = 0;
-	dobackup = docompare = dodir = dopreserve = dostrip = nommap = safecopy = verbose = mode_given = 0;
-	ignore_perm_errors = geteuid() != 0;
-	hard_link_files_when_possible = 0;
-	dos2unix = 0;
+	/* Initialize global instance data. */
+	This.pCtx = pCtx;
+	This.mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+	This.suffix = BACKUP_SUFFIX;
+	This.gid = 0;
+	This.uid = 0;
+	This.dobackup = 0;
+	This.docompare = 0;
+	This.dodir = 0;
+	This.dopreserve = 0;
+	This.dostrip = 0;
+	This.nommap = 0;
+	This.safecopy = 0;
+	This.verbose = 0;
+	This.mode_given = 0;
+	This.ignore_perm_errors = geteuid() != 0;
+	This.hard_link_files_when_possible = 0;
+	This.dos2unix = 0;
 
 	/* reset getopt and set progname. */
-	g_progname = argv[0];
 	opterr = 1;
 	optarg = NULL;
 	optopt = 0;
@@ -191,25 +213,25 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 	while ((ch = getopt_long(argc, argv, "B:bCcdf:g:Mm:o:pSsv", long_options, NULL)) != -1)
 		switch(ch) {
 		case 'B':
-			suffix = optarg;
+			This.suffix = optarg;
 			/* FALLTHROUGH */
 		case 'b':
-			dobackup = 1;
+			This.dobackup = 1;
 			break;
 		case 'C':
-			docompare = 1;
+			This.docompare = 1;
 			break;
 		case 'c':
 			/* For backwards compatibility. */
 			break;
 		case 'd':
-			dodir = 1;
+			This.dodir = 1;
 			break;
 		case 'f':
 #if defined(UF_IMMUTABLE) && K_OS != K_OS_GNU_KFBSD && K_OS != K_OS_GNU_HURD
 			flags = optarg;
 			if (strtofflags(&flags, &fset, NULL))
-				return errx(EX_USAGE, "%s: invalid flag", flags);
+				return errx(pCtx, EX_USAGE, "%s: invalid flag", flags);
 			iflags |= SETFLAGS;
 #else
 			(void)flags;
@@ -219,86 +241,85 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 			group = optarg;
 			break;
 		case 'M':
-			nommap = 1;
+			This.nommap = 1;
 			break;
                 case 'm':
 			if (!(set = bsd_setmode(optarg)))
-				return errx(EX_USAGE, "invalid file mode: %s",
-				            optarg);
-			mode = bsd_getmode(set, 0);
+				return errx(pCtx, EX_USAGE, "invalid file mode: %s", optarg);
+			This.mode = bsd_getmode(set, 0);
 			free(set);
-			mode_given = 1;
+			This.mode_given = 1;
 			break;
 		case 'o':
 			owner = optarg;
 			break;
 		case 'p':
-			docompare = dopreserve = 1;
+			This.docompare = This.dopreserve = 1;
 			break;
 		case 'S':
-			safecopy = 1;
+			This.safecopy = 1;
 			break;
 		case 's':
-			dostrip = 1;
+			This.dostrip = 1;
 			break;
 		case 'v':
-			verbose = 1;
+			This.verbose = 1;
 			break;
 		case 261:
-			usage(stdout);
+			usage(pCtx, 0);
 			return 0;
 		case 262:
 			return kbuild_version(argv[0]);
 		case 263:
-			ignore_perm_errors = 1;
+			This.ignore_perm_errors = 1;
 			break;
 		case 264:
-			ignore_perm_errors = 0;
+			This.ignore_perm_errors = 0;
 			break;
                 case 265:
-                        hard_link_files_when_possible = 1;
+                        This.hard_link_files_when_possible = 1;
                         break;
                 case 266:
-                        hard_link_files_when_possible = 0;
+                        This.hard_link_files_when_possible = 0;
                         break;
 		case 267:
-			dos2unix = 1;
+			This.dos2unix = 1;
 			break;
 		case 268:
-			dos2unix = -1;
+			This.dos2unix = -1;
 			break;
 		case '?':
 		default:
-			return usage(stderr);
+			return usage(pCtx, 1);
 		}
 	argc -= optind;
 	argv += optind;
 
 	/* some options make no sense when creating directories */
-	if (dostrip && dodir) {
-		warnx("-d and -s may not be specified together");
-		return usage(stderr);
+	if (This.dostrip && This.dodir) {
+		warnx(pCtx, "-d and -s may not be specified together");
+		return usage(pCtx, 1);
 	}
 
 	/* must have at least two arguments, except when creating directories */
-	if (argc == 0 || (argc == 1 && !dodir))
-		return usage(stderr);
+	if (argc == 0 || (argc == 1 && !This.dodir))
+		return usage(pCtx, 1);
 
 	/*   and unix2dos doesn't combine well with a couple of other options. */
-	if (dos2unix != 0) {
-		if (docompare) {
-			warnx("-C/-p and --dos2unix/unix2dos may not be specified together");
-			return usage(stderr);
+	if (This.dos2unix != 0) {
+		if (This.docompare) {
+			warnx(pCtx, "-C/-p and --dos2unix/unix2dos may not be specified together");
+			return usage(pCtx, 1);
 		}
-		if (dostrip) {
-			warnx("-s and --dos2unix/unix2dos may not be specified together");
-			return usage(stderr);
+		if (This.dostrip) {
+			warnx(pCtx, "-s and --dos2unix/unix2dos may not be specified together");
+			return usage(pCtx, 1);
 		}
 	}
 
 	/* need to make a temp copy so we can compare stripped version */
-	if (docompare && dostrip)
-		safecopy = 1;
+	if (This.docompare && This.dostrip)
+		This.safecopy = 1;
 
 	/* get group and owner id's */
 	if (group != NULL) {
@@ -309,12 +330,12 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 		else
 #endif
 		{
-			gid = (gid_t)numeric_id(group, "group");
-			if (gid == (gid_t)-1)
+			This.gid = (gid_t)numeric_id(&This, group, "group");
+			if (This.gid == (gid_t)-1)
 				return 1;
 		}
 	} else
-		gid = (gid_t)-1;
+		This.gid = (gid_t)-1;
 
 	if (owner != NULL) {
 #ifndef _MSC_VER
@@ -324,16 +345,16 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 		else
 #endif
 		{
-			uid = (uid_t)numeric_id(owner, "user");
-			if (uid == (uid_t)-1)
+			This.uid = (uid_t)numeric_id(&This, owner, "user");
+			if (This.uid == (uid_t)-1)
 				return 1;
 		}
 	} else
-		uid = (uid_t)-1;
+		This.uid = (uid_t)-1;
 
-	if (dodir) {
+	if (This.dodir) {
 		for (; *argv != NULL; ++argv) {
-			int rc = install_dir(*argv);
+			int rc = install_dir(&This, *argv);
 			if (rc)
 				return rc;
 		}
@@ -344,7 +365,7 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 	no_target = stat(to_name = argv[argc - 1], &to_sb);
 	if (!no_target && S_ISDIR(to_sb.st_mode)) {
 		for (; *argv != to_name; ++argv) {
-			int rc = install(*argv, to_name, fset, iflags | DIRECTORY);
+			int rc = install(&This, *argv, to_name, fset, iflags | DIRECTORY);
 			if (rc)
 				return rc;
 		}
@@ -353,30 +374,38 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 
 	/* can't do file1 file2 directory/file */
 	if (argc != 2) {
-		warnx("wrong number or types of arguments");
-		return usage(stderr);
+		warnx(pCtx, "wrong number or types of arguments");
+		return usage(pCtx, 1);
 	}
 
 	if (!no_target) {
 		if (stat(*argv, &from_sb))
-			return err(EX_OSERR, "%s", *argv);
+			return err(pCtx, EX_OSERR, "%s", *argv);
 		if (!S_ISREG(to_sb.st_mode)) {
 			errno = EFTYPE;
-			return err(EX_OSERR, "%s", to_name);
+			return err(pCtx, EX_OSERR, "%s", to_name);
 		}
 		if (to_sb.st_dev == from_sb.st_dev &&
                     to_sb.st_dev != 0 &&
 		    to_sb.st_ino == from_sb.st_ino &&
 		    to_sb.st_ino != 0 &&
-		    !hard_link_files_when_possible)
-			return errx(EX_USAGE,
+		    !This.hard_link_files_when_possible)
+			return errx(pCtx, EX_USAGE,
 			            "%s and %s are the same file", *argv, to_name);
 	}
-	return install(*argv, to_name, fset, iflags);
+	return install(&This, *argv, to_name, fset, iflags);
 }
 
+#ifdef KMK_BUILTIN_STANDALONE
+int main(int argc, char **argv, char **envp)
+{
+	KMKBUILTINCTX Ctx = { "kmk_install", NULL };
+	return kmk_builtin_install(argc, argv, envp, &Ctx);
+}
+#endif
+
 static u_long
-numeric_id(const char *name, const char *type)
+numeric_id(PINSTALLINSTANCE pThis, const char *name, const char *type)
 {
 	u_long val;
 	char *ep;
@@ -388,9 +417,9 @@ numeric_id(const char *name, const char *type)
 	errno = 0;
 	val = strtoul(name, &ep, 10);
 	if (errno)
-		return err(-1, "%s", name);
+		return err(pThis->pCtx, -1, "%s", name);
 	if (*ep != '\0')
-		return errx(-1, "unknown %s %s", type, name);
+		return errx(pThis->pCtx, -1, "unknown %s %s", type, name);
 	return (val);
 }
 
@@ -399,7 +428,7 @@ numeric_id(const char *name, const char *type)
  *	build a path name and install the file
  */
 static int
-install(const char *from_name, const char *to_name, u_long fset, u_int flags)
+install(PINSTALLINSTANCE pThis, const char *from_name, const char *to_name, u_long fset, u_int flags)
 {
 	struct stat from_sb, temp_sb, to_sb;
 	struct timeval tvb[2];
@@ -427,10 +456,10 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 #endif
 	    ) {
 		if (stat(from_name, &from_sb))
-			return err(EX_OSERR, "%s", from_name);
+			return err(pThis->pCtx, EX_OSERR, "%s", from_name);
 		if (!S_ISREG(from_sb.st_mode)) {
 			errno = EFTYPE;
-			return err(EX_OSERR, "%s", from_name);
+			return err(pThis->pCtx, EX_OSERR, "%s", from_name);
 		}
 		/* Build the target path. */
 		if (flags & DIRECTORY) {
@@ -449,15 +478,15 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	/* Only install to regular files. */
 	if (target && !S_ISREG(to_sb.st_mode)) {
 		errno = EFTYPE;
-		warn("%s", to_name);
+		warn(pThis->pCtx, "%s", to_name);
 		return EX_OK;
 	}
 
 	/* Only copy safe if the target exists. */
-	tempcopy = safecopy && target;
+	tempcopy = pThis->safecopy && target;
 
 	/* Try hard linking if wanted and possible. */
-	if (hard_link_files_when_possible)
+	if (pThis->hard_link_files_when_possible)
 	{
 #ifdef KBUILD_OS_OS2
 		const char *why_not = "not supported on OS/2";
@@ -465,13 +494,13 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		const char *why_not = NULL;
 		if (devnull) {
 			why_not = "/dev/null";
-		} else if (dostrip) {
+		} else if (pThis->dostrip) {
 			why_not = "strip (-s)";
-		} else if (docompare) {
+		} else if (pThis->docompare) {
 			why_not = "compare (-C)";
-		} else if (dobackup) {
+		} else if (pThis->dobackup) {
 			why_not = "backup (-b/-B)";
-		} else if (safecopy) {
+		} else if (pThis->safecopy) {
 			why_not = "safe copy (-S)";
 		} else if (lstat(from_name, &temp_sb)) {
 			why_not = "lstat on source failed";
@@ -480,22 +509,23 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		} else if (!S_ISREG(temp_sb.st_mode)) {
 			why_not = "not regular file";
 # if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
-		} else if ((mode & S_IWUSR) != (from_sb.st_mode & S_IWUSR)) {
+		} else if ((pThis->mode & S_IWUSR) != (from_sb.st_mode & S_IWUSR)) {
 # else
-		} else if (mode != (from_sb.st_mode & ALLPERMS)) {
+		} else if (pThis->mode != (from_sb.st_mode & ALLPERMS)) {
 # endif
-			printf("install: warning: Not hard linking, mode differs: 0%03o, desires 0%03o\n"
-			       "install: src path '%s'\n"
-			       "install: dst path '%s'\n",
-			       (from_sb.st_mode & ALLPERMS), mode, from_name, to_name);
+			kmk_builtin_ctx_printf(pThis->pCtx, 0,
+				"install: warning: Not hard linking, mode differs: 0%03o, desires 0%03o\n"
+				"install: src path '%s'\n"
+				"install: dst path '%s'\n",
+				(from_sb.st_mode & ALLPERMS), pThis->mode, from_name, to_name);
 			why_not = NULL;
-		} else if (uid != (uid_t)-1 && gid != from_sb.st_uid) {
+		} else if (pThis->uid != (uid_t)-1 && pThis->uid != from_sb.st_uid) {
 			why_not = "uid mismatch";
-		} else if (gid != (gid_t)-1 && gid != from_sb.st_gid) {
+		} else if (pThis->gid != (gid_t)-1 && pThis->gid != from_sb.st_gid) {
 			why_not = "gid mismatch";
-		} else if (dos2unix > 0 && needs_dos2unix_conversion(from_name)) {
+		} else if (pThis->dos2unix > 0 && needs_dos2unix_conversion(from_name)) {
 			why_not = "dos2unix";
-		} else if (dos2unix < 0 && needs_unix2dos_conversion(from_name)) {
+		} else if (pThis->dos2unix < 0 && needs_unix2dos_conversion(from_name)) {
 			why_not = "unix2dos";
 		} else {
 			int rcLink = link(from_name, to_name);
@@ -504,30 +534,31 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			    rcLink = link(from_name, to_name);
 			}
 			if (rcLink == 0) {
-			    if (verbose)
-				    printf("install: %s -> %s (hardlinked)\n", from_name, to_name);
+			    if (pThis->verbose)
+				    kmk_builtin_ctx_printf(pThis->pCtx, 0,
+							   "install: %s -> %s (hardlinked)\n", from_name, to_name);
 			    goto l_done;
 			}
-			if (verbose)
-				printf("install: hard linking '%s' to '%s' failed: %s\n",
+			if (pThis->verbose)
+				kmk_builtin_ctx_printf(pThis->pCtx, 0, "install: hard linking '%s' to '%s' failed: %s\n",
 				       to_name, from_name, strerror(errno));
 			why_not = NULL;
 		}
 #endif
-		if (verbose && why_not)
-		    printf("install: not hard linking '%s' to '%s' because: %s\n",
-			   to_name, from_name, why_not);
+		if (pThis->verbose && why_not)
+		    kmk_builtin_ctx_printf(pThis->pCtx, 0, "install: not hard linking '%s' to '%s' because: %s\n",
+					   to_name, from_name, why_not);
 
 		/* Can't hard link or we failed, continue as nothing happend. */
 	}
 
 	if (!devnull && (from_fd = open(from_name, O_RDONLY | O_BINARY, 0)) < 0)
-		return err(EX_OSERR, "%s", from_name);
+		return err(pThis->pCtx, EX_OSERR, "%s", from_name);
 
 	/* If we don't strip, we can compare first. */
-	if (docompare && !dostrip && target) {
+	if (pThis->docompare && !pThis->dostrip && target) {
 		if ((to_fd = open(to_name, O_RDONLY | O_BINARY, 0)) < 0) {
-			rc = err(EX_OSERR, "%s", to_name);
+			rc = err(pThis->pCtx, EX_OSERR, "%s", to_name);
 			goto l_done;
 		}
 		if (devnull)
@@ -548,33 +579,31 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			to_fd = create_tempfile(to_name, tempfile,
 			    sizeof(tempfile));
 			if (to_fd < 0) {
-				rc = err(EX_OSERR, "%s", tempfile);
+				rc = err(pThis->pCtx, EX_OSERR, "%s", tempfile);
 				goto l_done;
 			}
 		} else {
-			if ((to_fd = create_newfile(to_name, target,
-			    &to_sb)) < 0) {
-				rc = err(EX_OSERR, "%s", to_name);
+			if ((to_fd = create_newfile(pThis, to_name, target, &to_sb)) < 0) {
+				rc = err(pThis->pCtx, EX_OSERR, "%s", to_name);
 				goto l_done;
 			}
-			if (verbose)
-				(void)printf("install: %s -> %s\n",
-				    from_name, to_name);
+			if (pThis->verbose)
+				kmk_builtin_ctx_printf(pThis->pCtx, 0, "install: %s -> %s\n", from_name, to_name);
 		}
 		if (!devnull) {
-			rc = copy(from_fd, from_name, &to_fd, tempcopy ? tempfile : to_name);
+			rc = copy(pThis, from_fd, from_name, &to_fd, tempcopy ? tempfile : to_name);
 			if (rc)
     				goto l_done;
 		}
 	}
 
-	if (dostrip) {
+	if (pThis->dostrip) {
 #if defined(__EMX__) || defined(_MSC_VER)
 		/* close before we strip. */
 		close(to_fd);
 		to_fd = -1;
 #endif
-		rc = strip(tempcopy ? tempfile : to_name);
+		rc = strip(pThis, tempcopy ? tempfile : to_name);
 		if (rc)
 			goto l_done;
 
@@ -587,7 +616,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 #endif
 		to_fd = open(tempcopy ? tempfile : to_name, O_RDONLY | O_BINARY, 0);
 		if (to_fd < 0) {
-			rc = err(EX_OSERR, "stripping %s", to_name);
+			rc = err(pThis->pCtx, EX_OSERR, "stripping %s", to_name);
 			goto l_done;
 		}
 	}
@@ -595,12 +624,12 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	/*
 	 * Compare the stripped temp file with the target.
 	 */
-	if (docompare && dostrip && target) {
+	if (pThis->docompare && pThis->dostrip && target) {
 		temp_fd = to_fd;
 
 		/* Re-open to_fd using the real target name. */
 		if ((to_fd = open(to_name, O_RDONLY | O_BINARY, 0)) < 0) {
-			rc = err(EX_OSERR, "%s", to_name);
+			rc = err(pThis->pCtx, EX_OSERR, "%s", to_name);
 			goto l_done;
 		}
 
@@ -608,7 +637,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			serrno = errno;
 			(void)unlink(tempfile);
 			errno = serrno;
-			rc = err(EX_OSERR, "%s", tempfile);
+			rc = err(pThis->pCtx, EX_OSERR, "%s", tempfile);
 			goto l_done;
 		}
 
@@ -648,40 +677,39 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
 #endif
-		if (dobackup) {
-			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s", to_name,
-			    suffix) != strlen(to_name) + strlen(suffix)) {
+		if (pThis->dobackup) {
+			if (   (size_t)snprintf(backup, MAXPATHLEN, "%s%s", to_name, pThis->suffix)
+			    != strlen(to_name) + strlen(pThis->suffix)) {
 				unlink(tempfile);
-				rc = errx(EX_OSERR, "%s: backup filename too long",
+				rc = errx(pThis->pCtx, EX_OSERR, "%s: backup filename too long",
 				          to_name);
 				goto l_done;
 			}
-			if (verbose)
-				(void)printf("install: %s -> %s\n", to_name, backup);
+			if (pThis->verbose)
+				kmk_builtin_ctx_printf(pThis->pCtx, 0, "install: %s -> %s\n", to_name, backup);
 			if (rename(to_name, backup) < 0) {
 				serrno = errno;
 				unlink(tempfile);
 				errno = serrno;
-				rc = err(EX_OSERR, "rename: %s to %s", to_name,
+				rc = err(pThis->pCtx, EX_OSERR, "rename: %s to %s", to_name,
 				         backup);
 				goto l_done;
 			}
 		}
-		if (verbose)
-			(void)printf("install: %s -> %s\n", from_name, to_name);
+		if (pThis->verbose)
+			kmk_builtin_ctx_printf(pThis->pCtx, 0, "install: %s -> %s\n", from_name, to_name);
 		if (rename(tempfile, to_name) < 0) {
 			serrno = errno;
 			unlink(tempfile);
 			errno = serrno;
-			rc = err(EX_OSERR, "rename: %s to %s",
-			         tempfile, to_name);
+			rc = err(pThis->pCtx, EX_OSERR, "rename: %s to %s", tempfile, to_name);
 			goto l_done;
 		}
 
 		/* Re-open to_fd so we aren't hosed by the rename(2). */
 		(void) close(to_fd);
 		if ((to_fd = open(to_name, O_RDONLY | O_BINARY, 0)) < 0) {
-			rc = err(EX_OSERR, "%s", to_name);
+			rc = err(pThis->pCtx, EX_OSERR, "%s", to_name);
 			goto l_done;
 		}
 	}
@@ -689,7 +717,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	/*
 	 * Preserve the timestamp of the source file if necessary.
 	 */
-	if (dopreserve && !files_match && !devnull) {
+	if (pThis->dopreserve && !files_match && !devnull) {
 		tvb[0].tv_sec = from_sb.st_atime;
 		tvb[0].tv_usec = 0;
 		tvb[1].tv_sec = from_sb.st_mtime;
@@ -701,7 +729,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		serrno = errno;
 		(void)unlink(to_name);
 		errno = serrno;
-		rc = err(EX_OSERR, "%s", to_name);
+		rc = err(pThis->pCtx, EX_OSERR, "%s", to_name);
 		goto l_done;
 	}
 
@@ -719,32 +747,33 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	}
 #endif
 
-	if ((gid != (gid_t)-1 && gid != to_sb.st_gid) ||
-	    (uid != (uid_t)-1 && uid != to_sb.st_uid))
-		if (fchown(to_fd, uid, gid) == -1) {
-    			if (errno == EPERM && ignore_perm_errors) {
-				warn("%s: ignoring chown uid=%d gid=%d failure", to_name, (int)uid, (int)gid);
+	if ((pThis->gid != (gid_t)-1 && pThis->gid != to_sb.st_gid) ||
+	    (pThis->uid != (uid_t)-1 && pThis->uid != to_sb.st_uid))
+		if (fchown(to_fd, pThis->uid, pThis->gid) == -1) {
+    			if (errno == EPERM && pThis->ignore_perm_errors) {
+				warn(pThis->pCtx, "%s: ignoring chown uid=%d gid=%d failure",
+				     to_name, (int)pThis->uid, (int)pThis->gid);
 			} else {
 				serrno = errno;
 				(void)unlink(to_name);
 				errno = serrno;
-				rc = err(EX_OSERR,"%s: chown/chgrp", to_name);
+				rc = err(pThis->pCtx, EX_OSERR,"%s: chown/chgrp", to_name);
 				goto l_done;
 			}
 		}
 
-	if (mode != (to_sb.st_mode & ALLPERMS))
-		if (fchmod(to_fd, mode)) {
+	if (pThis->mode != (to_sb.st_mode & ALLPERMS))
+		if (fchmod(to_fd, pThis->mode)) {
 			serrno = errno;
-			if (serrno == EPERM && ignore_perm_errors) {
-				fchmod(to_fd, mode & (ALLPERMS & ~0007000));
+			if (serrno == EPERM && pThis->ignore_perm_errors) {
+				fchmod(to_fd, pThis->mode & (ALLPERMS & ~0007000));
 				errno = errno;
-				warn("%s: ignoring chmod 0%o failure", to_name, (int)(mode & ALLPERMS));
+				warn(pThis->pCtx, "%s: ignoring chmod 0%o failure", to_name, (int)(pThis->mode & ALLPERMS));
 			} else  {
 				serrno = errno;
 				(void)unlink(to_name);
 				errno = serrno;
-				rc = err(EX_OSERR, "%s: chmod", to_name);
+				rc = err(pThis->pCtx, EX_OSERR, "%s: chmod", to_name);
 				goto l_done;
 			}
 		}
@@ -757,18 +786,17 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	 * then warn if the the fs doesn't support it, otherwise fail.
 	 */
 #ifdef UF_IMMUTABLE
-	if (!devnull && (flags & SETFLAGS ||
-	    (from_sb.st_flags & ~UF_NODUMP) != to_sb.st_flags) &&
-	    fchflags(to_fd,
-	    flags & SETFLAGS ? fset : from_sb.st_flags & ~UF_NODUMP)) {
+	if (   !devnull
+	    && (flags & SETFLAGS || (from_sb.st_flags & ~UF_NODUMP) != to_sb.st_flags)
+	    && fchflags(to_fd, flags & SETFLAGS ? fset : from_sb.st_flags & ~UF_NODUMP)) {
 		if (flags & SETFLAGS) {
 			if (errno == EOPNOTSUPP)
-				warn("%s: chflags", to_name);
+				warn(pThis->pCtx, "%s: chflags", to_name);
 			else {
 				serrno = errno;
 				(void)unlink(to_name);
 				errno = serrno;
-				rc = err(EX_OSERR, "%s: chflags", to_name);
+				rc = err(pThis->pCtx, EX_OSERR, "%s: chflags", to_name);
 				goto l_done;
 			}
 		}
@@ -850,7 +878,7 @@ create_tempfile(const char *path, char *temp, size_t tsize)
  *	create a new file, overwriting an existing one if necessary
  */
 int
-create_newfile(const char *path, int target, struct stat *sbp)
+create_newfile(PINSTALLINSTANCE pThis, const char *path, int target, struct stat *sbp)
 {
 	char backup[MAXPATHLEN];
 	int saved_errno = 0;
@@ -867,21 +895,18 @@ create_newfile(const char *path, int target, struct stat *sbp)
 			(void)chflags(path, sbp->st_flags & ~NOCHANGEBITS);
 #endif
 
-		if (dobackup) {
-			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s",
-			    path, suffix) != strlen(path) + strlen(suffix)) {
-				errx(EX_OSERR, "%s: backup filename too long",
-				     path);
+		if (pThis->dobackup) {
+			if (   (size_t)snprintf(backup, MAXPATHLEN, "%s%s", path, pThis->suffix)
+			    != strlen(path) + strlen(pThis->suffix)) {
+				errx(pThis->pCtx, EX_OSERR, "%s: backup filename too long", path);
 				errno = ENAMETOOLONG;
 				return -1;
 			}
-			(void)snprintf(backup, MAXPATHLEN, "%s%s",
-			    path, suffix);
-			if (verbose)
-				(void)printf("install: %s -> %s\n",
-				    path, backup);
+			(void)snprintf(backup, MAXPATHLEN, "%s%s", path, pThis->suffix);
+			if (pThis->verbose)
+				kmk_builtin_ctx_printf(pThis->pCtx, 0, "install: %s -> %s\n", path, backup);
 			if (rename(path, backup) < 0) {
-				err(EX_OSERR, "rename: %s to %s", path, backup);
+				err(pThis->pCtx, EX_OSERR, "rename: %s to %s", path, backup);
 				return -1;
 			}
 		} else
@@ -898,27 +923,27 @@ create_newfile(const char *path, int target, struct stat *sbp)
 /*
  * Write error handler.
  */
-static int write_error(int *ptr_to_fd, const char *to_name, int nw)
+static int write_error(PINSTALLINSTANCE pThis, int *ptr_to_fd, const char *to_name, int nw)
 {
     int serrno = errno;
     (void)close(*ptr_to_fd);
     *ptr_to_fd = -1;
     (void)unlink(to_name);
     errno = nw > 0 ? EIO : serrno;
-    return err(EX_OSERR, "%s", to_name);
+    return err(pThis->pCtx, EX_OSERR, "%s", to_name);
 }
 
 /*
  * Read error handler.
  */
-static int read_error(const char *from_name, int *ptr_to_fd, const char *to_name)
+static int read_error(PINSTALLINSTANCE pThis, const char *from_name, int *ptr_to_fd, const char *to_name)
 {
     int serrno = errno;
     (void)close(*ptr_to_fd);
     *ptr_to_fd = -1;
     (void)unlink(to_name);
     errno = serrno;
-    return err(EX_OSERR, "%s", from_name);
+    return err(pThis->pCtx, EX_OSERR, "%s", from_name);
 }
 
 /*
@@ -926,7 +951,7 @@ static int read_error(const char *from_name, int *ptr_to_fd, const char *to_name
  *	copy from one file to another
  */
 static int
-copy(int from_fd, const char *from_name, int *ptr_to_fd, const char *to_name)
+copy(PINSTALLINSTANCE pThis, int from_fd, const char *from_name, int *ptr_to_fd, const char *to_name)
 {
 	KBOOL fPendingCr = K_FALSE;
 	KSIZE cchDst;
@@ -936,18 +961,18 @@ copy(int from_fd, const char *from_name, int *ptr_to_fd, const char *to_name)
 
 	/* Rewind file descriptors. */
 	if (lseek(from_fd, (off_t)0, SEEK_SET) == (off_t)-1)
-		return err(EX_OSERR, "lseek: %s", from_name);
+		return err(pThis->pCtx, EX_OSERR, "lseek: %s", from_name);
 	if (lseek(to_fd, (off_t)0, SEEK_SET) == (off_t)-1)
-		return err(EX_OSERR, "lseek: %s", to_name);
+		return err(pThis->pCtx, EX_OSERR, "lseek: %s", to_name);
 
-	if (dos2unix == 0) {
+	if (pThis->dos2unix == 0) {
 		/*
 		 * Copy bytes, no conversion.
 		 */
 		while ((nr = read(from_fd, buf, sizeof(buf))) > 0)
 			if ((nw = write(to_fd, buf, nr)) != nr)
-				return write_error(ptr_to_fd, to_name, nw);
-	} else if (dos2unix > 0) {
+				return write_error(pThis, ptr_to_fd, to_name, nw);
+	} else if (pThis->dos2unix > 0) {
 		/*
 		 * CRLF -> LF is a reduction, so we can work with full buffers.
 		 */
@@ -955,13 +980,13 @@ copy(int from_fd, const char *from_name, int *ptr_to_fd, const char *to_name)
 			if (   fPendingCr
 				&& buf[0] != '\n'
 				&& (nw = write(to_fd, "\r", 1)) != 1)
-				return write_error(ptr_to_fd, to_name, nw);
+				return write_error(pThis, ptr_to_fd, to_name, nw);
 
 			fPendingCr = dos2unix_convert_to_unix(buf, nr, buf, &cchDst);
 
 			nw = write(to_fd, buf, cchDst);
 			if (nw != (int)cchDst)
-				return write_error(ptr_to_fd, to_name, nw);
+				return write_error(pThis, ptr_to_fd, to_name, nw);
 		}
 	} else {
 		/*
@@ -977,24 +1002,24 @@ copy(int from_fd, const char *from_name, int *ptr_to_fd, const char *to_name)
 			if (   fPendingCr
 				&& pchSrc[0] != '\n'
 				&& (nw = write(to_fd, "\r", 1))!= 1)
-				return write_error(ptr_to_fd, to_name, nw);
+				return write_error(pThis, ptr_to_fd, to_name, nw);
 
 			fPendingCr = dos2unix_convert_to_dos(pchSrc, nr, buf, &cchDst);
 
 			nw = write(to_fd, buf, cchDst);
 			if (nw != (int)cchDst)
-				return write_error(ptr_to_fd, to_name, nw);
+				return write_error(pThis, ptr_to_fd, to_name, nw);
 		}
 	}
 
 	/* Check for read error. */
 	if (nr != 0)
-		return read_error(from_name, ptr_to_fd, to_name);
+		return read_error(pThis, from_name, ptr_to_fd, to_name);
 
 	/* When converting, we might have a pending final CR to write. */
-    if (   fPendingCr
-		&& (nw = write(to_fd, "\r", 1))!= 1)
-		return write_error(ptr_to_fd, to_name, nw);
+	if (   fPendingCr
+	    && (nw = write(to_fd, "\r", 1))!= 1)
+		return write_error(pThis, ptr_to_fd, to_name, nw);
 
     return EX_OK;
 }
@@ -1004,12 +1029,13 @@ copy(int from_fd, const char *from_name, int *ptr_to_fd, const char *to_name)
  *	use strip(1) to strip the target file
  */
 static int
-strip(const char *to_name)
+strip(PINSTALLINSTANCE pThis, const char *to_name)
 {
 #if defined(__EMX__) || defined(_MSC_VER)
 	const char *stripbin = getenv("STRIPBIN");
 	if (stripbin == NULL)
 		stripbin = "strip";
+	(void)pThis;
 	return spawnlp(P_WAIT, stripbin, stripbin, to_name, NULL);
 #else
 	const char *stripbin;
@@ -1022,20 +1048,20 @@ strip(const char *to_name)
 		serrno = errno;
 		(void)unlink(to_name);
 		errno = serrno;
-		return err(EX_TEMPFAIL, "fork");
+		return err(pThis->pCtx, EX_TEMPFAIL, "fork");
 	case 0:
 		stripbin = getenv("STRIPBIN");
 		if (stripbin == NULL)
 			stripbin = "strip";
 		execlp(stripbin, stripbin, to_name, (char *)NULL);
-		err(EX_OSERR, "exec(%s)", stripbin);
+		err(pThis->pCtx, EX_OSERR, "exec(%s)", stripbin);
                 exit(EX_OSERR);
 	default:
 		if (waitpid(pid, &status, 0) == -1 || status) {
 			serrno = errno;
 			(void)unlink(to_name);
                         errno = serrno;
-			return err(EX_SOFTWARE, "waitpid");
+			return err(pThis->pCtx, EX_SOFTWARE, "waitpid");
 			/* NOTREACHED */
 		}
 	}
@@ -1048,7 +1074,7 @@ strip(const char *to_name)
  *	build directory heirarchy
  */
 static int
-install_dir(char *path)
+install_dir(PINSTALLINSTANCE pThis, char *path)
 {
 	char *p;
 	struct stat sb;
@@ -1066,21 +1092,20 @@ install_dir(char *path)
 			*p = '\0';
 			if (stat(path, &sb)) {
 				if (errno != ENOENT || mkdir(path, 0755) < 0) {
-					return err(EX_OSERR, "mkdir %s", path);
+					return err(pThis->pCtx, EX_OSERR, "mkdir %s", path);
 					/* NOTREACHED */
-				} else if (verbose)
-					(void)printf("install: mkdir %s\n",
-						     path);
+				} else if (pThis->verbose)
+					kmk_builtin_ctx_printf(pThis->pCtx, 0, "install: mkdir %s\n", path);
 			} else if (!S_ISDIR(sb.st_mode))
-				return errx(EX_OSERR, "%s exists but is not a directory", path);
+				return errx(pThis->pCtx, EX_OSERR, "%s exists but is not a directory", path);
 			if (!(*p = ch))
 				break;
  		}
 
-	if ((gid != (gid_t)-1 || uid != (uid_t)-1) && chown(path, uid, gid))
-		warn("chown %u:%u %s", uid, gid, path);
-	if (chmod(path, mode))
-		warn("chmod %o %s", mode, path);
+	if ((pThis->gid != (gid_t)-1 || pThis->uid != (uid_t)-1) && chown(path, pThis->uid, pThis->gid))
+		warn(pThis->pCtx, "chown %u:%u %s", pThis->uid, pThis->gid, path);
+	if (chmod(path, pThis->mode))
+		warn(pThis->pCtx, "chmod %o %s", pThis->mode, path);
 	return EX_OK;
 }
 
@@ -1089,9 +1114,9 @@ install_dir(char *path)
  *	print a usage message and die
  */
 static int
-usage(FILE *pf)
+usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
-	fprintf(pf,
+	kmk_builtin_ctx_printf(pCtx, fIsErr,
 "usage: %s [-bCcpSsv] [--[no-]hard-link-files-when-possible]\n"
 "            [--[no-]ignore-perm-errors] [-B suffix] [-f flags] [-g group]\n"
 "            [-m mode] [-o owner] [--dos2unix|--unix2dos] file1 file2\n"
@@ -1100,7 +1125,8 @@ usage(FILE *pf)
 "   or: %s -d [-v] [-g group] [-m mode] [-o owner] directory ...\n"
 "   or: %s --help\n"
 "   or: %s --version\n",
-			g_progname, g_progname, g_progname, g_progname, g_progname);
+		pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName,
+		pCtx->pszProgName, pCtx->pszProgName);
 	return EX_USAGE;
 }
 
