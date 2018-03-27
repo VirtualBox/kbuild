@@ -451,7 +451,7 @@ output_write_text (struct output *out, int is_err, const char *src, size_t len)
           src += line_len + 1;
         }
     }
-  return len;
+  return ret;
 # else
   return output_write_bin (out, is_err, src, len);
 # endif
