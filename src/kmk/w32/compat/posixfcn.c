@@ -153,6 +153,16 @@ static intptr_t mutex_handle = -1;
 void
 record_sync_mutex (const char *str)
 {
+#ifdef CONFIG_NEW_WIN_CHILDREN
+  HANDLE hmtx = OpenMutexA(SYNCHRONIZE, FALSE /*fInheritable*/, str);
+  if (hmtx)
+    mutex_handle = (intptr_t)hmtx;
+  else
+    {
+      mutex_handle = -1;
+      errno = ENOENT;
+    }
+#else
   char *endp;
   intptr_t hmutex = strtol (str, &endp, 16);
 
@@ -163,20 +173,39 @@ record_sync_mutex (const char *str)
       mutex_handle = -1;
       errno = EINVAL;
     }
+#endif
 }
 
 /* Create a new mutex or reuse one created by our parent.  */
 intptr_t
+#ifdef CONFIG_NEW_WIN_CHILDREN
+create_mutex (char *mtxname, size_t size)
+#else
 create_mutex (void)
+#endif
 {
+#ifndef CONFIG_NEW_WIN_CHILDREN
   SECURITY_ATTRIBUTES secattr;
+#endif
   intptr_t hmutex = -1;
 
   /* If we have a mutex handle passed from the parent Make, just use
      that.  */
   if (mutex_handle > 0)
-    return mutex_handle;
+    {
+#ifdef CONFIG_NEW_WIN_CHILDREN
+      mtxname[0] = '\0';
+#endif
+      return mutex_handle;
+    }
 
+#ifdef CONFIG_NEW_WIN_CHILDREN
+  /* We're the top-level Make. Child Make processes will open our mutex, since
+     children does not inherit any handles other than the three standard ones. */
+  snprintf(mtxname, size, "Make-output-%u-%u-%u", GetCurrentProcessId(),
+           GetCurrentThreadId(), GetTickCount());
+  hmutex = (intptr_t)CreateMutexA (NULL, FALSE /*Locked*/, mtxname);
+#else
   /* We are the top-level Make, and we want the handle to be inherited
      by our child processes.  */
   secattr.nLength = sizeof (secattr);
@@ -184,6 +213,7 @@ create_mutex (void)
   secattr.bInheritHandle = TRUE;
 
   hmutex = (intptr_t)CreateMutex (&secattr, FALSE, NULL);
+#endif
   if (!hmutex)
     {
       DWORD err = GetLastError ();

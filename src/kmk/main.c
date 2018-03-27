@@ -475,6 +475,14 @@ static const char *const usage[] =
     N_("\
   -O[TYPE], --output-sync[=TYPE]\n\
                               Synchronize output of parallel jobs by TYPE.\n"),
+#elif defined(KBUILD_OS_WINDOWS)
+    N_("\
+  -O[TYPE], --output-sync[=TYPE]\n\
+                              Synchronize output of parallel jobs by TYPE:\n\
+                                none    = no synchronization.\n\
+                                line    = receip line output\n\
+                                target  = entire receip output (default)\n\
+                                recurse = entire recursive invocation\n"),
 #else
     N_("\
   -O[TYPE], --output-sync[=TYPE]\n\
@@ -726,7 +734,11 @@ int one_shell;
    attempts to synchronize the output of parallel jobs such that the results
    of each job stay together.  */
 
+#if defined(KMK) && defined(KBUILD_OS_WINDOWS)
+int output_sync = OUTPUT_SYNC_TARGET;
+#else
 int output_sync = OUTPUT_SYNC_NONE;
+#endif
 
 /* Nonzero if the "--trace" option was given.  */
 
@@ -1107,6 +1119,16 @@ set_make_priority_and_affinity (void)
    mutex is passed, as a string, to sub-makes via the --sync-mutex
    command-line argument.  */
 void
+# ifdef CONFIG_NEW_WIN_CHILDREN
+prepare_mutex_handle_string (const char *mtxname)
+{
+  if (!sync_mutex)
+    {
+      sync_mutex = xstrdup(mtxname);
+      define_makeflags (1, 0);
+    }
+}
+# else
 prepare_mutex_handle_string (sync_handle_t handle)
 {
   if (!sync_mutex)
@@ -1118,6 +1140,7 @@ prepare_mutex_handle_string (sync_handle_t handle)
       define_makeflags (1, 0);
     }
 }
+# endif
 
 #endif  /* NO_OUTPUT_SYNC */
 

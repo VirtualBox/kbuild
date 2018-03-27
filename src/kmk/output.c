@@ -93,9 +93,11 @@ static void membuf_dump (struct output *out)
          We want to keep this lock for as little time as possible.  */
       void *sem = acquire_semaphore ();
 
+# ifndef KMK /* this drives me bananas. */
       /* Log the working directory for this dump.  */
       if (print_directory_flag && output_sync != OUTPUT_SYNC_RECURSE)
         traced = log_working_directory (1);
+# endif
 
       /* Work the out and err sequences in parallel. */
       out_run = out->out.head_run;
@@ -123,17 +125,19 @@ static void membuf_dump (struct output *out)
           if (dst != prevdst)
             fflush(prevdst);
           prevdst = dst;
-#ifdef KBUILD_OS_WINDOWS
+# ifdef KBUILD_OS_WINDOWS
           maybe_con_fwrite (src, len, 1, dst);
-#else
+# else
           fwrite (src, len, 1, dst);
-#endif
+# endif
         }
       if (prevdst)
         fflush (prevdst);
 
+# ifndef KMK /* this drives me bananas. */
       if (traced)
         log_working_directory (0);
+# endif
 
       /* Exit the critical section.  */
       if (sem)
@@ -595,6 +599,28 @@ sync_init (void)
   int combined_output = 0;
 
 #ifdef WINDOWS32
+# ifdef CONFIG_NEW_WIN_CHILDREN
+  if (STREAM_OK (stdout))
+    {
+      if (STREAM_OK (stderr))
+        {
+          char mtxname[256];
+          sync_handle = create_mutex (mtxname, sizeof (mtxname));
+          if (sync_handle != -1)
+            {
+              prepare_mutex_handle_string (mtxname);
+              return same_stream (stdout, stderr);
+            }
+          perror_with_name ("output-sync suppressed: ", "create_mutex");
+        }
+      else
+        perror_with_name ("output-sync suppressed: ", "stderr");
+    }
+  else
+    perror_with_name ("output-sync suppressed: ", "stdout");
+  output_sync = OUTPUT_SYNC_NONE;
+
+# else  /* !CONFIG_NEW_WIN_CHILDREN */
   if ((!STREAM_OK (stdout) && !STREAM_OK (stderr))
       || (sync_handle = create_mutex ()) == -1)
     {
@@ -606,6 +632,7 @@ sync_init (void)
       combined_output = same_stream (stdout, stderr);
       prepare_mutex_handle_string (sync_handle);
     }
+# endif /* !CONFIG_NEW_WIN_CHILDREN */
 
 #else
   if (STREAM_OK (stdout))
@@ -1025,9 +1052,16 @@ output_start (void)
 #endif
 #endif
 
+#ifndef KMK
   /* If we're not syncing this output per-line or per-target, make sure we emit
      the "Entering..." message where appropriate.  */
   if (output_sync == OUTPUT_SYNC_NONE || output_sync == OUTPUT_SYNC_RECURSE)
+#else
+  /* Indiscriminately output "Entering..." and "Leaving..." message for each
+     command line or target is plain annoying!  And when there is no recursion
+     it's actually inappropriate.   Haven't got a simple way of detecting that,
+     so back to the old behavior for now.  [bird] */
+#endif
     if (! stdio_traced && print_directory_flag)
       stdio_traced = log_working_directory (1);
 }

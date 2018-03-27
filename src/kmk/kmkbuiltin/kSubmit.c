@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3194 2018-03-27 14:05:17Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -1491,8 +1491,11 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
         PWORKERINSTANCE pWorker = kSubmitSelectWorkSpawnNewIfNecessary(pCtx, cBitsWorker, cVerbosity);
         if (pWorker)
         {
-            if (!pszExecutable)
-                pszExecutable = argv[iArg];
+            /* Before we send off the job, we should dump pending output, since
+               the kWorker process currently does not coordinate its output with
+               the output.c mechanics. */
+            if (pCtx->pOut)
+                output_dump(pCtx->pOut);
 
             rcExit = kSubmitSendJobMessage(pCtx, pWorker, pvMsg, cbMsg, 0 /*fNoRespawning*/, cVerbosity);
             if (rcExit == 0)
