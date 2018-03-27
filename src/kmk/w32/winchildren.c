@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3195 2018-03-27 18:09:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -100,6 +100,10 @@
 #include <intrin.h>
 
 #include "nt/nt_child_inject_standard_handles.h"
+
+#ifndef KMK_BUILTIN_STANDALONE
+extern void kmk_cache_exec_image_w(const wchar_t *); /* imagecache.c */
+#endif
 
 
 /*********************************************************************************************************************************
@@ -804,6 +808,7 @@ static void mkWinChildcareWorkerCatchOutput(PWINCHILD pChild, PWINCCWPIPE pPipe,
 /**
  * Commmon worker for waiting on a child process and retrieving the exit code.
  *
+ * @returns Child exit code.
  * @param   pWorker             The worker.
  * @param   pChild              The child.
  * @param   hProcess            The process handle.
@@ -811,8 +816,8 @@ static void mkWinChildcareWorkerCatchOutput(PWINCHILD pChild, PWINCCWPIPE pPipe,
  * @param   fCatchOutput        Set if we need to work the output pipes
  *                              associated with the worker.
  */
-static void mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild, HANDLE hProcess,
-                                               WCHAR const *pwszJob, BOOL fCatchOutput)
+static int mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild, HANDLE hProcess,
+                                              WCHAR const *pwszJob, BOOL fCatchOutput)
 {
     DWORD const msStart = GetTickCount();
     DWORD       msNextMsg = msStart + 15000;
@@ -849,7 +854,7 @@ static void mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWIN
                     mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdOut, TRUE /*fFlushing*/);
                     mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdErr, TRUE /*fFlushing*/);
                 }
-                return;
+                return dwExitCode;
             }
         }
         /*
@@ -890,7 +895,7 @@ static void mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWIN
         pChild->iExitCode = GetLastError();
         if (pChild->iExitCode == 0)
             pChild->iExitCode = -4242;
-        return;
+        return pChild->iExitCode;
     }
 }
 
@@ -929,14 +934,14 @@ static void mkWinChildcareWorkerCloseStandardHandles(PWINCHILD pChild)
  * @param   pwszCommandLine     The command line.
  * @param   pwszzEnvironment    The enviornment block.
  */
-static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild, WCHAR const *pwszImageName,
-                                             WCHAR const *pwszCommandLine, WCHAR const *pwszzEnvironment)
+static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, WCHAR const *pwszImageName,
+                                             WCHAR const *pwszCommandLine, WCHAR const *pwszzEnvironment, WCHAR const *pwszCwd,
+                                             BOOL pafReplace[3], HANDLE pahChild[3], BOOL fCatchOutput, HANDLE *phProcess)
 {
     PROCESS_INFORMATION ProcInfo;
     STARTUPINFOW        StartupInfo;
     DWORD               fFlags       = CREATE_UNICODE_ENVIRONMENT;
-    BOOL const          fHaveHandles = pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE
-                                    || pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE;
+    BOOL const          fHaveHandles = pafReplace[0] | pafReplace[1] | pafReplace[2];
     BOOL                fRet;
     DWORD               dwErr;
 #ifdef KMK
@@ -964,7 +969,7 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, PWINCH
     StartupInfo.lpReserved2 = 0; /* No CRT file handle + descriptor info possible, sorry. */
     StartupInfo.cbReserved2 = 0;
     if (   !fHaveHandles
-        && !pChild->u.Process.fCatchOutput)
+        && !fCatchOutput)
         StartupInfo.dwFlags &= ~STARTF_USESTDHANDLES;
     else
     {
@@ -998,18 +1003,18 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, PWINCH
 #endif
 
     fRet = CreateProcessW((WCHAR *)pwszImageName, (WCHAR *)pwszCommandLine, NULL /*pProcSecAttr*/, NULL /*pThreadSecAttr*/,
-                          FALSE /*fInheritHandles*/, fFlags, (WCHAR *)pwszzEnvironment, NULL /*pwsz*/, &StartupInfo, &ProcInfo);
+                          FALSE /*fInheritHandles*/, fFlags, (WCHAR *)pwszzEnvironment, pwszCwd, &StartupInfo, &ProcInfo);
     dwErr = GetLastError();
 
 #ifdef WITH_RW_LOCK
     ReleaseSRWLockShared(&g_RWLock);
 #endif
     if (fRet)
-        pChild->u.Process.hProcess = ProcInfo.hProcess;
+        *phProcess = ProcInfo.hProcess;
     else
     {
         fprintf(stderr, "CreateProcess(%ls) failed: %u\n", pwszImageName, dwErr);
-        return pChild->iExitCode = (int)dwErr;
+        return (int)dwErr;
     }
 
     /*
@@ -1021,30 +1026,23 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, PWINCH
         /*
          * First do handle inhertiance as that's the most complicated.
          */
-        if (fHaveHandles || pChild->u.Process.fCatchOutput)
+        if (fHaveHandles || fCatchOutput)
         {
-            char    szErrMsg[128];
-            BOOL    afReplace[3];
-            HANDLE  ahChild[3];
-
-            afReplace[0] = FALSE;
-            ahChild[0]   = INVALID_HANDLE_VALUE;
-            if (fHaveHandles)
+            char szErrMsg[128];
+            if (fCatchOutput)
             {
-                afReplace[1] = pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE;
-                ahChild[1]   = pChild->u.Process.hStdOut;
-                afReplace[2] = pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE;
-                ahChild[2]   = pChild->u.Process.hStdErr;
+                if (!pafReplace[1])
+                {
+                    pafReplace[1] = TRUE;
+                    pahChild[1]   = pWorker->StdOut.hPipeChild;
+                }
+                if (!pafReplace[2])
+                {
+                    pafReplace[2] = TRUE;
+                    pahChild[2]   = pWorker->StdErr.hPipeChild;
+                }
             }
-            else
-            {
-                afReplace[1] = TRUE;
-                ahChild[1]   = pWorker->StdOut.hPipeChild;
-                afReplace[2] = TRUE;
-                ahChild[2]   = pWorker->StdErr.hPipeChild;
-            }
-
-            dwErr = nt_child_inject_standard_handles(ProcInfo.hProcess, afReplace, ahChild, szErrMsg, sizeof(szErrMsg));
+            dwErr = nt_child_inject_standard_handles(ProcInfo.hProcess, pafReplace, pahChild, szErrMsg, sizeof(szErrMsg));
             if (dwErr != 0)
                 fprintf(stderr, "%s\n", szErrMsg);
         }
@@ -1093,10 +1091,78 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, PWINCH
     }
 
     /*
-     * Close unnecessary handles.
+     * Close unnecessary handles and cache the image.
      */
-    mkWinChildcareWorkerCloseStandardHandles(pChild);
     CloseHandle(ProcInfo.hThread);
+    kmk_cache_exec_image_w(pwszImageName);
+    return 0;
+}
+
+/**
+ * Converts a argument vector that has already been quoted correctly.
+ *
+ * The argument vector is typically the result of quote_argv().
+ *
+ * @returns 0 on success, non-zero on failure.
+ * @param   papszArgs           The argument vector to convert.
+ * @param   ppwszCommandLine    Where to return the command line.
+ */
+static int mkWinChildcareWorkerConvertQuotedArgvToCommandline(char **papszArgs, WCHAR **ppwszCommandLine)
+{
+    WCHAR   *pwszCmdLine;
+    WCHAR   *pwszDst;
+
+    /*
+     * Calc length the converted length.
+     */
+    unsigned cwcNeeded = 1;
+    unsigned i = 0;
+    const char *pszSrc;
+    while ((pszSrc = papszArgs[i]) != NULL)
+    {
+        int cwcThis = MultiByteToWideChar(CP_ACP, 0 /*fFlags*/, pszSrc, -1, NULL, 0);
+        if (cwcThis > 0 || *pszSrc == '\0')
+            cwcNeeded += cwcThis + 1;
+        else
+        {
+            DWORD dwErr = GetLastError();
+            fprintf(stderr, _("MultiByteToWideChar failed to convert argv[%u] (%s): %u\n"), i, pszSrc, dwErr);
+            return dwErr;
+        }
+        i++;
+    }
+
+    /*
+     * Allocate and do the conversion.
+     */
+    pwszCmdLine = pwszDst = (WCHAR *)xmalloc(cwcNeeded * sizeof(WCHAR));
+    i = 0;
+    while ((pszSrc = papszArgs[i]) != NULL)
+    {
+        int cwcThis;
+        if (i > 0)
+        {
+            *pwszDst++ = ' ';
+            cwcNeeded--;
+        }
+
+        cwcThis = MultiByteToWideChar(CP_ACP, 0 /*fFlags*/, pszSrc, -1, pwszDst, cwcNeeded);
+        if (!cwcThis && *pszSrc != '\0')
+        {
+            DWORD dwErr = GetLastError();
+            fprintf(stderr, _("MultiByteToWideChar failed to convert argv[%u] (%s): %u\n"), i, pszSrc, dwErr);
+            free(pwszCmdLine);
+            return dwErr;
+        }
+        if (cwcThis > 0 && pwszDst[cwcThis - 1] == '\0')
+            cwcThis--;
+        pwszDst += cwcThis;
+        cwcNeeded -= cwcThis;
+        i++;
+    }
+    *pwszDst++ = '\0';
+
+    *ppwszCommandLine = pwszCmdLine;
     return 0;
 }
 
@@ -1706,7 +1772,6 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
         else
         {
             fprintf(stderr, "%s: not found!\n", pszArg0);
-//__debugbreak();
             dwErr = ERROR_FILE_NOT_FOUND;
         }
     }
@@ -1919,7 +1984,12 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
          */
         if (rc == 0)
         {
-            rc = mkWinChildcareWorkerCreateProcess(pWorker, pChild, pwszImageName, pwszCommandLine, pwszzEnvironment);
+            BOOL afReplace[3] = { FALSE, pChild->u.Process.hStdOut != INVALID_HANDLE_VALUE, pChild->u.Process.hStdErr != INVALID_HANDLE_VALUE };
+            HANDLE ahChild[3] = { INVALID_HANDLE_VALUE, pChild->u.Process.hStdOut, pChild->u.Process.hStdErr };
+            rc = mkWinChildcareWorkerCreateProcess(pWorker, pwszImageName, pwszCommandLine, pwszzEnvironment,
+                                                   NULL /*pwszCwd*/, afReplace, ahChild, pChild->u.Process.fCatchOutput,
+                                                   &pChild->u.Process.hProcess);
+            mkWinChildcareWorkerCloseStandardHandles(pChild);
             if (rc == 0)
             {
                 /*
@@ -1957,13 +2027,18 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
 static void mkWinChildcareWorkerThreadHandleBuiltIn(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild)
 {
     PCKMKBUILTINENTRY pBuiltIn = pChild->u.BuiltIn.pBuiltIn;
-    KMKBUILTINCTX Ctx = { pBuiltIn->uName.s.sz, pChild->pMkChild ? &pChild->pMkChild->output : NULL };
+    KMKBUILTINCTX Ctx =
+    {
+        pBuiltIn->uName.s.sz,
+        pChild->pMkChild ? &pChild->pMkChild->output : NULL,
+        pWorker,
+    };
     if (pBuiltIn->uFnSignature == FN_SIG_MAIN)
         pChild->iExitCode = pBuiltIn->u.pfnMain(pChild->u.BuiltIn.cArgs, pChild->u.BuiltIn.papszArgs,
                                                 pChild->u.BuiltIn.papszEnv, &Ctx);
     else if (pBuiltIn->uFnSignature == FN_SIG_MAIN_SPAWNS)
         pChild->iExitCode = pBuiltIn->u.pfnMainSpawns(pChild->u.BuiltIn.cArgs, pChild->u.BuiltIn.papszArgs,
-                                                      pChild->u.BuiltIn.papszEnv, &Ctx, pChild->pMkChild, NULL);
+                                                      pChild->u.BuiltIn.papszEnv, &Ctx, pChild->pMkChild, NULL /*pPid*/);
     else
     {
         assert(0);
@@ -2114,6 +2189,7 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
             {
                 PWINCHILD pTailExpect;
 
+                pWorker->pCurChild = pChild;
                 switch (pChild->enmType)
                 {
                     case WINCHILDTYPE_PROCESS:
@@ -2136,6 +2212,7 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
                     default:
                         assert(0);
                 }
+                pWorker->pCurChild = NULL;
 
                 /*
                  * Move the child to the completed list.
@@ -2818,6 +2895,107 @@ int MkWinChildCreateRedirect(intptr_t hProcess, pid_t *pPid)
     PWINCHILD pChild = mkWinChildNew(WINCHILDTYPE_REDIRECT);
     pChild->u.Redirect.hProcess = (HANDLE)hProcess;
     return mkWinChildPushToCareWorker(pChild, pPid);
+}
+
+
+/**
+ * New interface used by redirect.c for spawning and waitin on a child.
+ *
+ * This interface is only used when kmk_builtin_redirect is already running on
+ * a worker thread.
+ *
+ * @returns exit status.
+ * @param   pvWorker        The worker instance.
+ * @param   pszExecutable   The executable image to run.
+ * @param   papszArgs       Argument vector.
+ * @param   fQuotedArgv     Whether the argument vector is already quoted and
+ *                          just need some space to be turned into a command
+ *                          line.
+ * @param   papszEnvVars    Environment vector.
+ * @param   pszCwd          The working directory of the child.  Optional.
+ * @param   pafReplace      Which standard handles to replace. Maybe modified!
+ * @param   pahReplace      The replacement handles.  Maybe modified!
+ *
+ */
+int MkWinChildBuiltInExecChild(void *pvWorker, const char *pszExecutable, char **papszArgs, BOOL fQuotedArgv,
+                               char **papszEnvVars, const char *pszCwd, BOOL pafReplace[3], HANDLE pahReplace[3])
+{
+    PWINCHILDCAREWORKER pWorker = (PWINCHILDCAREWORKER)pvWorker;
+    WCHAR              *pwszSearchPath   = NULL;
+    WCHAR              *pwszzEnvironment = NULL;
+    WCHAR              *pwszCommandLine  = NULL;
+    WCHAR              *pwszImageName    = NULL;
+    WCHAR              *pwszCwd          = NULL;
+    BOOL                fNeedShell       = FALSE;
+    int                 rc;
+    assert(pWorker->uMagic == WINCHILDCAREWORKER_MAGIC);
+    assert(pWorker->pCurChild != NULL && pWorker->pCurChild->uMagic == WINCHILD_MAGIC);
+
+    /*
+     * Convert the CWD first since it's optional and we don't need to clean
+     * up anything here if it fails.
+     */
+    if (pszCwd)
+    {
+        size_t cchCwd = strlen(pszCwd);
+        int    cwcCwd = MultiByteToWideChar(CP_ACP, 0 /*fFlags*/, pszCwd, cchCwd + 1, NULL, 0);
+        pwszCwd = xmalloc((cwcCwd + 1) * sizeof(WCHAR)); /* (+1 in case cwcCwd is 0) */
+        cwcCwd = MultiByteToWideChar(CP_ACP, 0 /*fFlags*/, pszCwd, cchCwd + 1, pwszCwd, cwcCwd + 1);
+        if (!cwcCwd)
+        {
+            rc = GetLastError();
+            fprintf(stderr, _("MultiByteToWideChar failed to convert CWD (%s): %u\n"), pszCwd, (unsigned)rc);
+            return rc;
+        }
+    }
+
+    /*
+     * Before we search for the image, we convert the environment so we don't
+     * have to traverse it twice to find the PATH.
+     */
+    rc = mkWinChildcareWorkerConvertEnvironment(papszEnvVars ? papszEnvVars : environ, 0/*cbEnvStrings*/,
+                                                &pwszzEnvironment, &pwszSearchPath);
+    /*
+     * Find the executable and maybe checking if it's a shell script, then
+     * convert it to a command line.
+     */
+    if (rc == 0)
+        rc = mkWinChildcareWorkerFindImage(pszExecutable, pwszSearchPath, pwszzEnvironment,
+                                           NULL /*pszNull*/, &pwszImageName, &fNeedShell);
+    if (rc == 0)
+    {
+        assert(!fNeedShell);
+        if (!fQuotedArgv)
+            rc = mkWinChildcareWorkerConvertCommandline(papszArgs, 0 /*fFlags*/, &pwszCommandLine);
+        else
+            rc = mkWinChildcareWorkerConvertQuotedArgvToCommandline(papszArgs, &pwszCommandLine);
+
+        /*
+         * Create the child process.
+         */
+        if (rc == 0)
+        {
+            HANDLE hProcess;
+            rc = mkWinChildcareWorkerCreateProcess(pWorker, pwszImageName, pwszCommandLine, pwszzEnvironment,
+                                                   pwszCwd, pafReplace, pahReplace, TRUE /*fCatchOutput*/, &hProcess);
+            if (rc == 0)
+            {
+                /*
+                 * Wait for the child to complete.
+                 */
+                rc = mkWinChildcareWorkerWaitForProcess(pWorker, pWorker->pCurChild, hProcess, pwszImageName,
+                                                        TRUE /*fCatchOutput*/);
+                CloseHandle(hProcess);
+            }
+        }
+    }
+
+    free(pwszCwd);
+    free(pwszCommandLine);
+    free(pwszImageName);
+    free(pwszzEnvironment);
+
+    return rc;
 }
 
 #endif /* CONFIG_NEW_WIN_CHILDREN */

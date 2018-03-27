@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3195 2018-03-27 18:09:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -91,6 +91,10 @@
 # ifndef LIBPATHSTRICT
 #  define LIBPATHSTRICT 3
 # endif
+#endif
+
+#ifndef KMK_BUILTIN_STANDALONE
+extern void kmk_cache_exec_image_a(const char *); /* imagecache.c */
 #endif
 
 
@@ -595,6 +599,74 @@ static int kRedirectExecFdOrders(PKMKBUILTINCTX pCtx, unsigned cOrders, REDIRECT
 #ifdef KBUILD_OS_WINDOWS
 
 /**
+ * Registers the child process with a care provider or waits on it to complete.
+ *
+ * @returns 0 or non-zero success indicator or child exit code, depending on
+ *          the value pfIsChildExitCode points to.
+ * @param   pCtx                The command execution context.
+ * @param   hProcess            The child process handle.
+ * @param   cVerbosity          The verbosity level.
+ * @param   pPidSpawned         Where to return the PID of the spawned child
+ *                              when we're inside KMK and we're return without
+ *                              waiting.
+ * @param   pfIsChildExitCode   Where to indicate whether the return exit code
+ *                              is from the child or from our setup efforts.
+ */
+static int kRedirectPostnatalCareOnWindows(PKMKBUILTINCTX pCtx, HANDLE hProcess, unsigned cVerbosity,
+                                           pid_t *pPidSpawned, KBOOL *pfIsChildExitCode)
+{
+    int   rcExit;
+    DWORD dwTmp;
+
+# ifndef KMK_BUILTIN_STANDALONE
+    /*
+     * Try register the child with a childcare provider, i.e. winchildren.c
+     * or sub_proc.c.
+     */
+#  ifndef CONFIG_NEW_WIN_CHILDREN
+    if (process_kmk_register_redirect(hProcess, pPidSpawned) == 0)
+#  else
+    if (   pPidSpawned
+        && MkWinChildCreateRedirect((intptr_t)hProcess, pPidSpawned) == 0)
+#  endif
+    {
+        if (cVerbosity > 0)
+            warnx(pCtx, "debug: spawned %d", *pPidSpawned);
+        *pfIsChildExitCode = K_FALSE;
+        return 0;
+    }
+#  ifndef CONFIG_NEW_WIN_CHILDREN
+    warn(pCtx, "sub_proc is out of slots, waiting for child...");
+#  else
+    if (pPidSpawned)
+        warn(pCtx, "MkWinChildCreateRedirect failed...");
+#  endif
+# endif
+
+    /*
+     * Either the provider is outbooked or we're not in a context (like
+     * standalone) where we get help with waiting and must to it ourselves
+     */
+    dwTmp = WaitForSingleObject(hProcess, INFINITE);
+    if (dwTmp != WAIT_OBJECT_0)
+        warnx(pCtx, "WaitForSingleObject failed: %#x\n", dwTmp);
+
+    if (GetExitCodeProcess(hProcess, &dwTmp))
+        rcExit = (int)dwTmp;
+    else
+    {
+        warnx(pCtx, "GetExitCodeProcess failed: %u\n", GetLastError());
+        TerminateProcess(hProcess, 127);
+        rcExit = 127;
+    }
+
+    CloseHandle(hProcess);
+    *pfIsChildExitCode = K_TRUE;
+    return rcExit;
+}
+
+
+/**
  * Tries to locate the executable image.
  *
  * This isn't quite perfect yet...
@@ -664,6 +736,53 @@ static const char *kRedirectCreateProcessWindowsFindImage(const char *pszExecuta
    }
 
    return pszExecutable;
+}
+
+
+/**
+ * Turns the orders into input for nt_child_inject_standard_handles and
+ * winchildren.c
+ *
+ * @returns 0 on success, non-zero on failure.
+ * @param   pCtx                The command execution context.
+ * @param   cOrders             Number of file operation orders.
+ * @param   paOrders            The file operation orders.
+ * @param   pafReplace          Replace (TRUE) or leave alone (FALSE) indicator
+ *                              for each of the starndard handles.
+ * @param   pahChild            Array of standard handles for injecting into the
+ *                              child.  Parallel to pafReplace.
+ */
+static int kRedirectOrderToWindowsHandles(PKMKBUILTINCTX pCtx, unsigned cOrders, REDIRECTORDERS *paOrders,
+                                          BOOL pafReplace[3], HANDLE pahChild[3])
+{
+    int i;
+    for (i = 0; i < (int)cOrders; i++)
+    {
+        int fdTarget = paOrders[i].fdTarget;
+        assert(fdTarget >= 0 && fdTarget < 3);
+        switch (paOrders[i].enmOrder)
+        {
+            case kRedirectOrder_Open:
+                if (   (paOrders[i].fOpen & O_APPEND)
+                    && lseek(paOrders[i].fdSource, 0, SEEK_END) < 0)
+                    return err(pCtx, 10, "lseek-to-end failed on %d (for %d)", paOrders[i].fdSource, fdTarget);
+                /* fall thru */
+            case kRedirectOrder_Dup:
+                pahChild[fdTarget] = (HANDLE)_get_osfhandle(paOrders[i].fdSource);
+                if (pahChild[fdTarget] == NULL || pahChild[fdTarget] == INVALID_HANDLE_VALUE)
+                    return err(pCtx, 10, "_get_osfhandle failed on %d (for %d)", paOrders[i].fdSource, fdTarget);
+                break;
+
+            case kRedirectOrder_Close:
+                pahChild[fdTarget] = NULL;
+                break;
+
+            default:
+                assert(0);
+        }
+        pafReplace[fdTarget] = TRUE;
+    }
+    return 0;
 }
 
 
@@ -773,6 +892,9 @@ static int kRedirectCreateProcessWindows(PKMKBUILTINCTX pCtx, const char *pszExe
             {
                 CloseHandle(ProcInfo.hThread);
                 *phProcess = ProcInfo.hProcess;
+# ifndef KMK_BUILTIN_STANDALONE
+                kmk_cache_exec_image_a(pszExecutable);
+# endif
                 rc = 0;
             }
             else
@@ -788,30 +910,7 @@ static int kRedirectCreateProcessWindows(PKMKBUILTINCTX pCtx, const char *pszExe
              */
             BOOL   afReplace[3] = { FALSE, FALSE, FALSE };
             HANDLE ahChild[3]   = { NULL,  NULL,  NULL  };
-            rc = 0;
-            for (i = 0; i < (int)cOrders; i++)
-            {
-                int fdTarget = paOrders[i].fdTarget;
-                assert(fdTarget >= 0 && fdTarget < 3);
-                switch (paOrders[i].enmOrder)
-                {
-                    case kRedirectOrder_Open:
-                        if (   (paOrders[i].fOpen & O_APPEND)
-                            && lseek(paOrders[i].fdSource, 0, SEEK_END) < 0)
-                            rc = err(pCtx, 10, "lseek-to-end failed on %d (for %d)", paOrders[i].fdSource, fdTarget);
-                    case kRedirectOrder_Dup:
-                        ahChild[fdTarget] = (HANDLE)_get_osfhandle(paOrders[i].fdSource);
-                        if (ahChild[fdTarget] == NULL || ahChild[fdTarget] == INVALID_HANDLE_VALUE)
-                            rc = err(pCtx, 10, "_get_osfhandle failed on %d (for %d)", paOrders[i].fdSource, fdTarget);
-                        break;
-                    case kRedirectOrder_Close:
-                        ahChild[fdTarget] = NULL;
-                        break;
-                    default:
-                        assert(0);
-                }
-                afReplace[fdTarget] = TRUE;
-            }
+            rc = kRedirectOrderToWindowsHandles(pCtx, cOrders, paOrders, afReplace, ahChild);
             if (rc == 0)
             {
                 /*
@@ -834,6 +933,9 @@ static int kRedirectCreateProcessWindows(PKMKBUILTINCTX pCtx, const char *pszExe
 
                     CloseHandle(ProcInfo.hThread);
                     *phProcess = ProcInfo.hProcess;
+# ifndef KMK_BUILTIN_STANDALONE
+                    kmk_cache_exec_image_a(pszExecutable);
+# endif
                     rc = 0;
                 }
                 else
@@ -847,6 +949,40 @@ static int kRedirectCreateProcessWindows(PKMKBUILTINCTX pCtx, const char *pszExe
     free(pszCmdLine);
     return rc;
 }
+
+# if !defined(KMK_BUILTIN_STANDALONE) && defined(CONFIG_NEW_WIN_CHILDREN)
+/**
+ * Pass the problem on to winchildren.c when we're on one of its workers.
+ *
+ * @returns 0 on success, non-zero on failure to create.
+ * @param   pCtx                The command execution context.
+ * @param   pszExecutable       The child process executable.
+ * @param   cArgs               Number of arguments.
+ * @param   papszArgs           The child argument vector.
+ * @param   papszEnvVars        The child environment vector.
+ * @param   pszCwd              The current working directory of the child.
+ * @param   cOrders             Number of file operation orders.
+ * @param   paOrders            The file operation orders.
+ * @param   phProcess           Where to return process handle.
+ * @param   pfIsChildExitCode   Where to indicate whether the return exit code
+ *                              is from the child or from our setup efforts.
+ */
+static int kRedirectExecProcessWithinOnWorker(PKMKBUILTINCTX pCtx, const char *pszExecutable, int cArgs, char **papszArgs,
+                                              char **papszEnvVars, const char *pszCwd, unsigned cOrders,
+                                              REDIRECTORDERS *paOrders, KBOOL *pfIsChildExitCode)
+{
+    BOOL   afReplace[3] = { FALSE, FALSE, FALSE };
+    HANDLE ahChild[3]   = { NULL,  NULL,  NULL  };
+    int rc = kRedirectOrderToWindowsHandles(pCtx, cOrders, paOrders, afReplace, ahChild);
+    if (rc == 0)
+    {
+        rc = MkWinChildBuiltInExecChild(pCtx->pvWorker, pszExecutable, papszArgs, TRUE /*fQuotedArgv*/,
+                                        papszEnvVars, pszCwd, afReplace, ahChild);
+        *pfIsChildExitCode = K_TRUE;
+    }
+    return rc;
+}
+# endif /* !KMK_BUILTIN_STANDALONE */
 
 #endif /* KBUILD_OS_WINDOWS */
 
@@ -963,48 +1099,21 @@ static int kRedirectDoSpawn(PKMKBUILTINCTX pCtx, const char *pszExecutable, int 
                  */
 # ifdef KBUILD_OS_WINDOWS
                 /* Windows is slightly complicated due to handles and winchildren.c. */
-                HANDLE hProcess = INVALID_HANDLE_VALUE;
-                rcExit = kRedirectCreateProcessWindows(pCtx, pszExecutable, cArgs, papszArgs, papszEnvVars,
-                                                       pszSavedCwd ? pszCwd : NULL, cOrders, paOrders, &hProcess);
-                if (rcExit == 0)
+                if (pPidSpawned)
+                    *pPidSpawned = 0;
+#  ifdef CONFIG_NEW_WIN_CHILDREN
+                if (pCtx->pvWorker && !pPidSpawned)
+                    rcExit = kRedirectExecProcessWithinOnWorker(pCtx, pszExecutable, cArgs, papszArgs, papszEnvVars,
+                                                                pszSavedCwd ? pszCwd : NULL, cOrders, paOrders,
+                                                                pfIsChildExitCode);
+                else
+#  endif
                 {
-#  ifndef CONFIG_NEW_WIN_CHILDREN
-                    if (process_kmk_register_redirect(hProcess, pPidSpawned) == 0)
-#  else
-                    if (   pPidSpawned
-                        && MkWinChildCreateRedirect((intptr_t)hProcess, pPidSpawned) == 0)
-#  endif
-                    {
-                        if (cVerbosity > 0)
-                            warnx(pCtx, "debug: spawned %d", *pPidSpawned);
-                    }
-                    else
-                    {
-                        DWORD dwTmp;
-#  ifndef CONFIG_NEW_WIN_CHILDREN
-                        warn(pCtx, "sub_proc is out of slots, waiting for child...");
-#  else
-                        if (pPidSpawned)
-                            warn(pCtx, "MkWinChildCreateRedirect failed...");
-#  endif
-                        dwTmp = WaitForSingleObject(hProcess, INFINITE);
-                        if (dwTmp != WAIT_OBJECT_0)
-                            warnx(pCtx, "WaitForSingleObject failed: %#x\n", dwTmp);
-
-                        if (GetExitCodeProcess(hProcess, &dwTmp))
-                            rcExit = (int)dwTmp;
-                        else
-                        {
-                            warnx(pCtx, "GetExitCodeProcess failed: %u\n", GetLastError());
-                            TerminateProcess(hProcess, 127);
-                            rcExit = 127;
-                        }
-
-                        CloseHandle(hProcess);
-                        if (pPidSpawned)
-                            *pPidSpawned = 0;
-                        *pfIsChildExitCode = K_TRUE;
-                    }
+                    HANDLE hProcess = INVALID_HANDLE_VALUE;
+                    rcExit = kRedirectCreateProcessWindows(pCtx, pszExecutable, cArgs, papszArgs, papszEnvVars,
+                                                           pszSavedCwd ? pszCwd : NULL, cOrders, paOrders, &hProcess);
+                    if (rcExit == 0)
+                        rcExit = kRedirectPostnatalCareOnWindows(pCtx, hProcess, cVerbosity, pPidSpawned, pfIsChildExitCode);
                 }
 
 # elif defined(KBUILD_OS_OS2)
@@ -1051,7 +1160,10 @@ static int kRedirectDoSpawn(PKMKBUILTINCTX pCtx, const char *pszExecutable, int 
 
                     dwWait = 11;
                     if (GetExitCodeProcess(hProcess, &dwWait))
+                    {
+                        *pfIsChildExitCode = K_TRUE;
                         rcExit = dwWait;
+                    }
                     else
                         rcExit = errx(pCtx, 11, "GetExitCodeProcess(%s) failed: %u", pszExecutable, GetLastError());
                 }
