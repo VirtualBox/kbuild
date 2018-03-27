@@ -39,7 +39,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #ifdef KMK
 # include <assert.h>
 # include "kmkbuiltin.h"
-extern void kmk_cache_exec_image(const char *); /* imagecache.c */
+extern void kmk_cache_exec_image_a(const char *); /* imagecache.c */
 #endif
 
 static char *make_command_line(char *shell_name, char *exec_path, char **argv);
@@ -843,11 +843,11 @@ process_begin(
                         command_line ? command_line : "NULL"));
 #ifdef KMK
 		if (exec_fname[0])
-			kmk_cache_exec_image(exec_fname);
+			kmk_cache_exec_image_a(exec_fname);
 		else if (exec_path)
-			kmk_cache_exec_image(exec_path);
+			kmk_cache_exec_image_a(exec_path);
 		else if (argv[0])
-			kmk_cache_exec_image(argv[0]);
+			kmk_cache_exec_image_a(argv[0]);
 
 		switch (process_priority) {
 		case 1: flags |= CREATE_SUSPENDED | IDLE_PRIORITY_CLASS; break;

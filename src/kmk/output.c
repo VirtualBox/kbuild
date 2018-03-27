@@ -125,10 +125,30 @@ static void membuf_dump (struct output *out)
           if (dst != prevdst)
             fflush(prevdst);
           prevdst = dst;
-# ifdef KBUILD_OS_WINDOWS
+# if 0 /* for debugging */
+          while (len > 0)
+            {
+              const char *nl = (const char *)memchr (src, '\n', len);
+              size_t line_len = nl ? nl - (const char *)src + 1 : len;
+              char *tmp = (char *)xmalloc (2 + line_len + 1);
+              tmp[0] = '>';
+              tmp[1] = ' ';
+              memcpy (&tmp[2], src, line_len);
+#  ifdef KBUILD_OS_WINDOWS
+              maybe_con_fwrite (tmp, 2 + line_len, 1, dst);
+#  else
+              fwrite (tmp, 2 + line_len, 1, dst);
+#  endif
+              free (tmp);
+              src  = (const char *)src + line_len;
+              len -= line_len;
+            }
+#else
+#  ifdef KBUILD_OS_WINDOWS
           maybe_con_fwrite (src, len, 1, dst);
-# else
+#  else
           fwrite (src, len, 1, dst);
+#  endif
 # endif
         }
       if (prevdst)

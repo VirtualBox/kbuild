@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3195 2018-03-27 18:09:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -88,6 +88,10 @@ typedef struct KMKBUILTINCTX
     const char *pszProgName;
     /** The KMK output synchronizer.   */
     struct output *pOut;
+#if defined(KBUILD_OS_WINDOWS) && !defined(KMK_BUILTIN_STANDALONE)
+    /** Pointer to the worker thread, if we're on one. */
+    void *pvWorker;
+#endif
 } KMKBUILTINCTX;
 /** Pointer to kmk built-in command execution context. */
 typedef KMKBUILTINCTX *PKMKBUILTINCTX;
