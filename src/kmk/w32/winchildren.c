@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3195 2018-03-27 18:09:23Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3196 2018-03-27 19:47:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -171,6 +171,9 @@ typedef struct WINCHILD
     int                     iSignal;
     /** Set if core was dumped. */
     int                     fCoreDumped;
+    /** Set if the a child process is a candidate for cl.exe where we supress
+     * annoying source name output. */
+    BOOL                    fProbableClExe;
 
     /** Type specific data. */
     union
@@ -267,6 +270,10 @@ typedef struct WINCCWPIPE
     unsigned char       iWhich;
     /** Set if we've got a read pending already. */
     BOOL                fReadPending;
+    /** Indicator that we've written out something.  This is cleared before
+     * we start catching output from a new child and use in the CL.exe
+     * supression heuristics. */
+    BOOL                fHaveWrittenOut;
     /** Number of bytes at the start of the buffer that we've already
      * written out.  We try write out whole lines. */
     DWORD               cbWritten;
@@ -640,7 +647,9 @@ static int mkWinChildDuplicateUtf16String(const WCHAR *pwszSrc, size_t cwcSrc, W
  */
 static void mkWinChildcareWorkerFlushUnwritten(PWINCHILD pChild, PWINCCWPIPE pPipe)
 {
-    DWORD cbUnwritten = pPipe->cbWritten - pPipe->offPendingRead;
+    DWORD cbUnwritten = pPipe->offPendingRead - pPipe->cbWritten;
+    assert(pPipe->cbWritten      <= pPipe->cbBuffer - 16);
+    assert(pPipe->offPendingRead <= pPipe->cbBuffer - 16);
     if (cbUnwritten)
     {
 #ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
@@ -657,7 +666,40 @@ static void mkWinChildcareWorkerFlushUnwritten(PWINCHILD pChild, PWINCCWPIPE pPi
                           &pPipe->pbBuffer[pPipe->cbWritten], cbUnwritten, &cbWritten, NULL))
                 pPipe->cbWritten += cbWritten <= cbUnwritten ? cbWritten : cbUnwritten; /* paranoia */
         }
+        pPipe->fHaveWrittenOut = TRUE;
     }
+}
+
+/**
+ * This logic mirrors kwSandboxConsoleFlushAll.
+ *
+ * @returns TRUE if it looks like a CL.EXE source line, otherwise FALSE.
+ * @param   pPipe               The pipe.
+ * @param   offStart            The start of the output in the pipe buffer.
+ * @param   offEnd              The end of the output in the pipe buffer.
+ */
+static BOOL mkWinChildcareWorkerIsClExeSourceLine(PWINCCWPIPE pPipe, DWORD offStart, DWORD offEnd)
+{
+    if (offEnd < offStart + 2)
+        return FALSE;
+    if (offEnd - offStart > 80)
+        return FALSE;
+
+    if (   pPipe->pbBuffer[offEnd - 2] != '\r'
+        || pPipe->pbBuffer[offEnd - 1] != '\n')
+        return FALSE;
+
+    offEnd -= 2;
+    while (offEnd-- > offStart)
+    {
+        char ch = pPipe->pbBuffer[offEnd];
+        if (isalnum(ch) || ch == '.' || ch == ' ' || ch == '_' || ch == '-')
+        { /* likely */ }
+        else
+            return FALSE;
+    }
+
+    return TRUE;
 }
 
 /**
@@ -674,6 +716,8 @@ static void mkWinChildcareWorkerCaughtMoreOutput(PWINCHILD pChild, PWINCCWPIPE p
 {
     DWORD offStart = pPipe->cbWritten;
     assert(offStart <= pPipe->offPendingRead);
+    assert(offStart <= pPipe->cbBuffer - 16);
+    assert(pPipe->offPendingRead <= pPipe->cbBuffer - 16);
     if (cbNewData > 0)
     {
         DWORD offRest;
@@ -691,10 +735,8 @@ static void mkWinChildcareWorkerCaughtMoreOutput(PWINCHILD pChild, PWINCCWPIPE p
 
         /* If none were found and we've less than 16 bytes left in the buffer, try
            find a word boundrary to flush on instead. */
-        if (   offRest > offStart
-            || pPipe->cbBuffer - pPipe->offPendingRead + offStart > 16)
-        { /* likely */ }
-        else
+        if (   offRest <= offStart
+            && pPipe->cbBuffer - pPipe->offPendingRead + offStart < 16)
         {
             offRest = pPipe->offPendingRead;
             while (   offRest > offStart
@@ -703,6 +745,14 @@ static void mkWinChildcareWorkerCaughtMoreOutput(PWINCHILD pChild, PWINCCWPIPE p
             if (offRest == offStart)
                 offRest = pPipe->offPendingRead;
         }
+        /* If this is a potential CL.EXE process, we will keep the source
+           filename unflushed and maybe discard it at the end. */
+        else if (   pChild->fProbableClExe
+                 && pPipe->iWhich == 1
+                 && offRest == pPipe->offPendingRead
+                 && mkWinChildcareWorkerIsClExeSourceLine(pPipe, offStart, offRest))
+            offRest = offStart;
+
         if (offRest > offStart)
         {
             /* Write out offStart..offRest. */
@@ -725,6 +775,7 @@ static void mkWinChildcareWorkerCaughtMoreOutput(PWINCHILD pChild, PWINCCWPIPE p
                     pPipe->cbWritten = offStart;
                 }
             }
+            pPipe->fHaveWrittenOut = TRUE;
         }
     }
 
@@ -744,10 +795,10 @@ static void mkWinChildcareWorkerCaughtMoreOutput(PWINCHILD pChild, PWINCCWPIPE p
  *
  * @param   pChild          The child.
  * @param   pPipe           The pipe.
- * @param   fFlushing       Set if we're flushing the pipe after the process
+ * @param   fDraining       Set if we're draining the pipe after the process
  *                          terminated.
  */
-static void mkWinChildcareWorkerCatchOutput(PWINCHILD pChild, PWINCCWPIPE pPipe, BOOL fFlushing)
+static void mkWinChildcareWorkerCatchOutput(PWINCHILD pChild, PWINCCWPIPE pPipe, BOOL fDraining)
 {
     /*
      * Deal with already pending read.
@@ -755,22 +806,18 @@ static void mkWinChildcareWorkerCatchOutput(PWINCHILD pChild, PWINCCWPIPE pPipe,
     if (pPipe->fReadPending)
     {
         DWORD cbRead = 0;
-        if (GetOverlappedResult(pPipe->hPipeMine, &pPipe->Overlapped, &cbRead, !fFlushing))
+        if (GetOverlappedResult(pPipe->hPipeMine, &pPipe->Overlapped, &cbRead, !fDraining))
         {
             mkWinChildcareWorkerCaughtMoreOutput(pChild, pPipe, cbRead);
             pPipe->fReadPending = FALSE;
         }
-        else if (fFlushing && GetLastError() == ERROR_IO_INCOMPLETE)
-        {
-            if (pPipe->offPendingRead > pPipe->cbWritten)
-                mkWinChildcareWorkerFlushUnwritten(pChild, pPipe);
+        else if (fDraining && GetLastError() == ERROR_IO_INCOMPLETE)
             return;
-        }
         else
         {
             fprintf(stderr, "warning: GetOverlappedResult failed: %u\n", GetLastError());
             pPipe->fReadPending = FALSE;
-            if (fFlushing)
+            if (fDraining)
                 return;
         }
     }
@@ -806,6 +853,37 @@ static void mkWinChildcareWorkerCatchOutput(PWINCHILD pChild, PWINCCWPIPE pPipe,
 }
 
 /**
+ * Makes sure the output pipes are drained and pushed to output.
+ *
+ * @param   pWorker             The worker.
+ * @param   pChild              The child.
+ */
+static void mkWinChildcareWorkerDrainPipes(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild)
+{
+    mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdOut, TRUE /*fDraining*/);
+    mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdErr, TRUE /*fDraining*/);
+
+    /* Drop lone 'source.c' line from CL.exe, but only if no other output at all. */
+    if (   pChild->fProbableClExe
+        && !pWorker->StdOut.fHaveWrittenOut
+        && !pWorker->StdErr.fHaveWrittenOut
+        && pWorker->StdErr.cbWritten == pWorker->StdErr.offPendingRead
+        && pWorker->StdOut.cbWritten < pWorker->StdOut.offPendingRead
+        && mkWinChildcareWorkerIsClExeSourceLine(&pWorker->StdOut, pWorker->StdOut.cbWritten, pWorker->StdOut.offPendingRead))
+    {
+        if (!pWorker->StdOut.fReadPending)
+            pWorker->StdOut.cbWritten = pWorker->StdOut.offPendingRead = 0;
+        else
+            pWorker->StdOut.cbWritten = pWorker->StdOut.offPendingRead;
+    }
+    else
+    {
+        mkWinChildcareWorkerFlushUnwritten(pChild, &pWorker->StdOut);
+        mkWinChildcareWorkerFlushUnwritten(pChild, &pWorker->StdErr);
+    }
+}
+
+/**
  * Commmon worker for waiting on a child process and retrieving the exit code.
  *
  * @returns Child exit code.
@@ -821,6 +899,11 @@ static int mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINC
 {
     DWORD const msStart = GetTickCount();
     DWORD       msNextMsg = msStart + 15000;
+
+    /* Reset the written indicators on the pipes before we start loop. */
+    pWorker->StdOut.fHaveWrittenOut = FALSE;
+    pWorker->StdErr.fHaveWrittenOut = FALSE;
+
     for (;;)
     {
         /*
@@ -834,9 +917,9 @@ static int mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINC
             HANDLE ahHandles[3] = { hProcess, pWorker->StdOut.hEvent, pWorker->StdErr.hEvent };
             dwStatus = WaitForMultipleObjects(3, ahHandles, FALSE /*fWaitAll*/, 1000 /*ms*/);
             if (dwStatus == WAIT_OBJECT_0 + 1)
-                mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdOut, FALSE /*fFlushing*/);
+                mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdOut, FALSE /*fDraining*/);
             else if (dwStatus == WAIT_OBJECT_0 + 2)
-                mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdErr, FALSE /*fFlushing*/);
+                mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdErr, FALSE /*fDraining*/);
         }
         assert(dwStatus != WAIT_FAILED);
 
@@ -849,11 +932,8 @@ static int mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINC
             if (GetExitCodeProcess(hProcess, &dwExitCode))
             {
                 pChild->iExitCode = (int)dwExitCode;
-                if (!fCatchOutput)
-                {
-                    mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdOut, TRUE /*fFlushing*/);
-                    mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdErr, TRUE /*fFlushing*/);
-                }
+                if (fCatchOutput)
+                    mkWinChildcareWorkerDrainPipes(pWorker, pChild);
                 return dwExitCode;
             }
         }
@@ -1463,6 +1543,25 @@ static BOOL mkWinChildcareWorkerCheckIfNeedShell(HANDLE hFile)
     return TRUE;
 }
 
+/**
+ * Checks if the image path looks like microsoft CL.exe.
+ *
+ * @returns TRUE / FALSE.
+ * @param   pwszImagePath   The executable image path to evalutate.
+ * @param   cwcImagePath    The length of the image path.
+ */
+static BOOL mkWinChildIsProbableClExe(WCHAR const *pwszImagePath, size_t cwcImagePath)
+{
+    assert(pwszImagePath[cwcImagePath] == '\0');
+    return cwcImagePath > 7
+        && (pwszImagePath[cwcImagePath - 7] == L'/' || pwszImagePath[cwcImagePath - 7] == L'\\')
+        && (pwszImagePath[cwcImagePath - 6] == L'c' || pwszImagePath[cwcImagePath - 6] == L'C')
+        && (pwszImagePath[cwcImagePath - 5] == L'l' || pwszImagePath[cwcImagePath - 5] == L'L')
+        &&  pwszImagePath[cwcImagePath - 4] == L'.'
+        && (pwszImagePath[cwcImagePath - 3] == L'e' || pwszImagePath[cwcImagePath - 3] == L'E')
+        && (pwszImagePath[cwcImagePath - 2] == L'x' || pwszImagePath[cwcImagePath - 2] == L'X')
+        && (pwszImagePath[cwcImagePath - 1] == L'e' || pwszImagePath[cwcImagePath - 1] == L'E');
+}
 
 /**
  * Tries to locate the image file, searching the path and maybe falling back on
@@ -1482,9 +1581,10 @@ static BOOL mkWinChildcareWorkerCheckIfNeedShell(HANDLE hFile)
  * @param   ppwszImagePath  Where to return the pointer to the image path.  This
  *                          could be the shell.
  * @param   pfNeedShell     Where to return shell vs direct execution indicator.
+ * @param   pfProbableClExe Where to return an indicator of probably CL.EXE.
  */
 static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchPath, WCHAR const *pwszzEnv,
-                                         const char *pszShell, WCHAR **ppwszImagePath, BOOL *pfNeedShell)
+                                         const char *pszShell, WCHAR **ppwszImagePath, BOOL *pfNeedShell, BOOL *pfProbableClExe)
 {
     /** @todo Slap a cache on this code. We usually end up executing the same
      *        stuff over and over again (e.g. compilers, linkers, etc).
@@ -1527,8 +1627,9 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
         while ((pwc = wcschr(pwc, L'/')) != NULL)
             *pwc++ = L'\\';
 
-        /* Don't need to set this all the time... */
+        /* Don't need to set these all the time... */
         *pfNeedShell = FALSE;
+        *pfProbableClExe = FALSE;
 
         /*
          * If any kind of path is specified in arg0, we will not search the
@@ -1571,7 +1672,10 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
 #else
             if (GetFileAttributesW(pwszPath) != INVALID_FILE_ATTRIBUTES)
 #endif
+            {
+                *pfProbableClExe = mkWinChildIsProbableClExe(pwszPath, cwcPath + 4 - 1);
                 return mkWinChildDuplicateUtf16String(pwszPath, cwcPath + 4, ppwszImagePath);
+            }
 
             /*
              * If no suffix was specified, try without .exe too, but now we need
@@ -1591,7 +1695,10 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
                         *pfNeedShell = mkWinChildcareWorkerCheckIfNeedShell(hFile);
                         CloseHandle(hFile);
                         if (!*pfNeedShell)
+                        {
+                            *pfProbableClExe = mkWinChildIsProbableClExe(pwszPath, cwcPath - 1);
                             return mkWinChildDuplicateUtf16String(pwszPath, cwcPath, ppwszImagePath);
+                        }
                     }
                 }
             }
@@ -1713,7 +1820,10 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
                     if (   dwAttribs != INVALID_FILE_ATTRIBUTES
                         && !(dwAttribs & FILE_ATTRIBUTE_DIRECTORY))
 #endif
+                    {
+                        *pfProbableClExe = mkWinChildIsProbableClExe(wszPathBuf, cwcCombined + (fHasExeSuffix ? 0 : 4) - 1);
                         return mkWinChildDuplicateUtf16String(wszPathBuf, cwcCombined + (fHasExeSuffix ? 0 : 4), ppwszImagePath);
+                    }
                     if (!fHasExeSuffix)
                     {
                         wszPathBuf[cwcCombined - 1] = L'\0';
@@ -1732,7 +1842,10 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
                                 *pfNeedShell = mkWinChildcareWorkerCheckIfNeedShell(hFile);
                                 CloseHandle(hFile);
                                 if (!*pfNeedShell)
+                                {
+                                    *pfProbableClExe = mkWinChildIsProbableClExe(wszPathBuf, cwcCombined - 1);
                                     return mkWinChildDuplicateUtf16String(wszPathBuf, cwcCombined, ppwszImagePath);
+                                }
                                 break;
                             }
                         }
@@ -1956,6 +2069,7 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
     WCHAR  *pwszCommandLine  = NULL;
     WCHAR  *pwszImageName    = NULL;
     BOOL    fNeedShell       = FALSE;
+    BOOL    fProbableClExe   = FALSE;
     int     rc;
 
     /*
@@ -1971,7 +2085,7 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
      */
     if (rc == 0)
         rc = mkWinChildcareWorkerFindImage(pChild->u.Process.papszArgs[0], pwszSearchPath, pwszzEnvironment,
-                                           pChild->u.Process.pszShell, &pwszImageName, &fNeedShell);
+                                           pChild->u.Process.pszShell, &pwszImageName, &fNeedShell, &pChild->fProbableClExe);
     if (rc == 0)
     {
         if (!fNeedShell)
@@ -2927,9 +3041,11 @@ int MkWinChildBuiltInExecChild(void *pvWorker, const char *pszExecutable, char *
     WCHAR              *pwszImageName    = NULL;
     WCHAR              *pwszCwd          = NULL;
     BOOL                fNeedShell       = FALSE;
+    PWINCHILD           pChild;
     int                 rc;
     assert(pWorker->uMagic == WINCHILDCAREWORKER_MAGIC);
-    assert(pWorker->pCurChild != NULL && pWorker->pCurChild->uMagic == WINCHILD_MAGIC);
+    pChild = pWorker->pCurChild;
+    assert(pChild != NULL && pChild->uMagic == WINCHILD_MAGIC);
 
     /*
      * Convert the CWD first since it's optional and we don't need to clean
@@ -2960,8 +3076,8 @@ int MkWinChildBuiltInExecChild(void *pvWorker, const char *pszExecutable, char *
      * convert it to a command line.
      */
     if (rc == 0)
-        rc = mkWinChildcareWorkerFindImage(pszExecutable, pwszSearchPath, pwszzEnvironment,
-                                           NULL /*pszNull*/, &pwszImageName, &fNeedShell);
+        rc = mkWinChildcareWorkerFindImage(pszExecutable, pwszSearchPath, pwszzEnvironment, NULL /*pszShell*/,
+                                           &pwszImageName, &fNeedShell, &pChild->fProbableClExe);
     if (rc == 0)
     {
         assert(!fNeedShell);
@@ -2983,8 +3099,7 @@ int MkWinChildBuiltInExecChild(void *pvWorker, const char *pszExecutable, char *
                 /*
                  * Wait for the child to complete.
                  */
-                rc = mkWinChildcareWorkerWaitForProcess(pWorker, pWorker->pCurChild, hProcess, pwszImageName,
-                                                        TRUE /*fCatchOutput*/);
+                rc = mkWinChildcareWorkerWaitForProcess(pWorker, pChild, hProcess, pwszImageName, TRUE /*fCatchOutput*/);
                 CloseHandle(hProcess);
             }
         }
