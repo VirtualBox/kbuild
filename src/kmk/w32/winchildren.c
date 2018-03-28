@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3196 2018-03-27 19:47:42Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3197 2018-03-28 16:11:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -100,6 +100,7 @@
 #include <intrin.h>
 
 #include "nt/nt_child_inject_standard_handles.h"
+#include "console.h"
 
 #ifndef KMK_BUILTIN_STANDALONE
 extern void kmk_cache_exec_image_w(const wchar_t *); /* imagecache.c */
@@ -110,6 +111,8 @@ extern void kmk_cache_exec_image_w(const wchar_t *); /* imagecache.c */
 *   Defined Constants And Macros                                                                                                 *
 *********************************************************************************************************************************/
 #define MKWINCHILD_MAX_PATH     1024
+
+#define MKWINCHILD_DO_SET_PROCESSOR_GROUP
 
 /** Checks the UTF-16 environment variable pointed to is the PATH. */
 #define IS_PATH_ENV_VAR(a_cwcVar, a_pwszVar) \
@@ -124,6 +127,11 @@ extern void kmk_cache_exec_image_w(const wchar_t *); /* imagecache.c */
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
 *********************************************************************************************************************************/
+/** Pointer to a childcare worker thread.   */
+typedef struct WINCHILDCAREWORKER *PWINCHILDCAREWORKER;
+/** Pointer to a windows child process. */
+typedef struct WINCHILD *PWINCHILD;
+
 /**
  * Child process type.
  */
@@ -147,8 +155,6 @@ typedef enum WINCHILDTYPE
 } WINCHILDTYPE;
 
 
-/** Pointer to a windows child process. */
-typedef struct WINCHILD *PWINCHILD;
 /**
  * Windows child process.
  */
@@ -174,6 +180,8 @@ typedef struct WINCHILD
     /** Set if the a child process is a candidate for cl.exe where we supress
      * annoying source name output. */
     BOOL                    fProbableClExe;
+    /** The worker executing this child. */
+    PWINCHILDCAREWORKER     pWorker;
 
     /** Type specific data. */
     union
@@ -333,8 +341,6 @@ typedef struct WINCHILDCAREWORKER
     /** TRUE if idle, FALSE if not. */
     long volatile           fIdle;
 } WINCHILDCAREWORKER;
-/** Pointer to a childcare worker thread.   */
-typedef WINCHILDCAREWORKER *PWINCHILDCAREWORKER;
 /** WINCHILD::uMagic value. */
 #define WINCHILDCAREWORKER_MAGIC    0xdad0dad0U
 
@@ -615,6 +621,90 @@ static PWINCHILD mkWinChildDequeFromLifo(PWINCHILD volatile *ppTail, PWINCHILD p
 }
 
 /**
+ * Output error message while running on a worker thread.
+ *
+ * @returns -1
+ * @param   pWorker             The calling worker.  Mainly for getting the
+ *                              current child and its stderr output unit.  Pass
+ *                              NULL if the output should go thru the child
+ *                              stderr buffering.
+ * @param   iType               The error type:
+ *                                  - 0: more of a info directly to stdout,
+ *                                  - 1: child related error,
+ *                                  - 2: child related error for immedate release.
+ * @param   pszFormat           The message format string.
+ * @param   ...                 Argument for the message.
+ */
+static int MkWinChildError(PWINCHILDCAREWORKER pWorker, int iType, const char *pszFormat, ...)
+{
+    /*
+     * Format the message into stack buffer.
+     */
+    char        szMsg[4096];
+    int         cchMsg;
+    int         cchPrefix;
+    va_list     va;
+
+    /* Compose the prefix, being paranoid about it not exceeding the buffer in any way. */
+    const char *pszInfix = iType == 0 ? "info: " : "error: ";
+    const char *pszProgram = program;
+    if (strlen(pszProgram) > 80)
+    {
+#ifdef KMK
+        pszProgram = "kmk";
+#else
+        pszProgram = "gnumake";
+#endif
+    }
+    if (makelevel == 0)
+        cchPrefix = snprintf(szMsg, sizeof(szMsg) / 2, "%s: %s", pszProgram, pszInfix);
+    else
+        cchPrefix = snprintf(szMsg, sizeof(szMsg) / 2, "%s[%u]: %s", pszProgram, makelevel, pszInfix);
+    assert(cchPrefix < sizeof(szMsg) / 2 && cchPrefix > 0);
+
+    /* Format the user specified message. */
+    va_start(va, pszFormat);
+    cchMsg = vsnprintf(&szMsg[cchPrefix], sizeof(szMsg) - 2 - cchPrefix, pszFormat, va);
+    va_end(va);
+    szMsg[sizeof(szMsg) - 2] = '\0';
+    cchMsg = strlen(szMsg);
+
+    /* Make sure there's a newline at the end of it (we reserved space for that). */
+    if (cchMsg <= 0 || szMsg[cchMsg - 1] != '\n')
+    {
+        szMsg[cchMsg++] = '\n';
+        szMsg[cchMsg]   = '\0';
+    }
+
+#ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
+    /*
+     * Try use the stderr of the current child of the worker.
+     */
+    if (   iType != 0
+        && iType != 3
+        && pWorker)
+    {
+        PWINCHILD pChild = pWorker->pCurChild;
+        if (pChild)
+        {
+            struct child *pMkChild = pChild->pMkChild;
+            if (pMkChild)
+            {
+                output_write_text(&pMkChild->output, 1 /*is_err*/, szMsg, cchMsg);
+                return -1;
+            }
+        }
+    }
+#endif
+
+    /*
+     * Fallback to writing directly to stderr.
+     */
+    maybe_con_fwrite(szMsg, cchMsg, 1, iType == 0 ? stdout : stderr);
+    return -1;
+}
+
+/**
  * Duplicates the given UTF-16 string.
  *
  * @returns 0
@@ -815,7 +905,7 @@ static void mkWinChildcareWorkerCatchOutput(PWINCHILD pChild, PWINCCWPIPE pPipe,
             return;
         else
         {
-            fprintf(stderr, "warning: GetOverlappedResult failed: %u\n", GetLastError());
+            MkWinChildError(pChild->pWorker, 2, "GetOverlappedResult failed: %u\n", GetLastError());
             pPipe->fReadPending = FALSE;
             if (fDraining)
                 return;
@@ -843,8 +933,8 @@ static void mkWinChildcareWorkerCatchOutput(PWINCHILD pChild, PWINCCWPIPE pPipe,
             if (dwErr == ERROR_IO_PENDING)
                 pPipe->fReadPending = TRUE;
             else
-                fprintf(stderr, "warning: ReadFile failed on standard %s: %u\n",
-                        pPipe->iWhich == 1 ? "output" : "error",  GetLastError());
+                MkWinChildError(pChild->pWorker, 2, "ReadFile failed on standard %s: %u\n",
+                                pPipe->iWhich == 1 ? "output" : "error",  GetLastError());
             return;
         }
 
@@ -955,11 +1045,11 @@ static int mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINC
                     if (   !pChild->pMkChild
                         || !pChild->pMkChild->file
                         || !pChild->pMkChild->file->name)
-                        printf("Pid %u ('%s') still running after %u seconds\n",
-                               GetProcessId(hProcess), pwszJob, (msNow - msStart) / 1000);
+                        MkWinChildError(NULL, 0, "Pid %u ('%s') still running after %u seconds\n",
+                                        GetProcessId(hProcess), pwszJob, (msNow - msStart) / 1000);
                     else
-                        printf("Target '%s' (pid %u) still running after %u seconds\n",
-                               pChild->pMkChild->file->name, GetProcessId(hProcess), (msNow - msStart) / 1000);
+                        MkWinChildError(NULL, 0, "Target '%s' (pid %u) still running after %u seconds\n",
+                                        pChild->pMkChild->file->name, GetProcessId(hProcess), (msNow - msStart) / 1000);
                 }
 
                 /* After 15s, 30s, 60s, 120s, 180s, ... */
@@ -1093,7 +1183,7 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, WCHAR 
         *phProcess = ProcInfo.hProcess;
     else
     {
-        fprintf(stderr, "CreateProcess(%ls) failed: %u\n", pwszImageName, dwErr);
+        MkWinChildError(pWorker, 1, "CreateProcess(%ls) failed: %u\n", pwszImageName, dwErr);
         return (int)dwErr;
     }
 
@@ -1124,18 +1214,20 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, WCHAR 
             }
             dwErr = nt_child_inject_standard_handles(ProcInfo.hProcess, pafReplace, pahChild, szErrMsg, sizeof(szErrMsg));
             if (dwErr != 0)
-                fprintf(stderr, "%s\n", szErrMsg);
+                MkWinChildError(pWorker, 1, "%s\n", szErrMsg);
         }
 
         /*
          * Assign processor group (ignore failure).
          */
+#ifdef MKWINCHILD_DO_SET_PROCESSOR_GROUP
         if (g_cProcessorGroups > 1)
         {
-            GROUP_AFFINITY Affinity = { ~(ULONG_PTR)0, pWorker->iProcessorGroup, { 0, 0, 0 } };
+            GROUP_AFFINITY Affinity = { 0, pWorker->iProcessorGroup, { 0, 0, 0 } };
             fRet = g_pfnSetThreadGroupAffinity(ProcInfo.hThread, &Affinity, NULL);
             assert(fRet);
         }
+#endif
 
 #ifdef KMK
         /*
@@ -1163,7 +1255,7 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, WCHAR 
             if (!fRet)
             {
                 dwErr = GetLastError();
-                fprintf(stderr, "ResumeThread failed on child process: %u\n", dwErr);
+                MkWinChildError(pWorker, 1, "ResumeThread failed on child process: %u\n", dwErr);
             }
         }
         if (dwErr != ERROR_SUCCESS)
@@ -1184,10 +1276,12 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, WCHAR 
  * The argument vector is typically the result of quote_argv().
  *
  * @returns 0 on success, non-zero on failure.
+ * @param   pWorker             The childcare worker.
  * @param   papszArgs           The argument vector to convert.
  * @param   ppwszCommandLine    Where to return the command line.
  */
-static int mkWinChildcareWorkerConvertQuotedArgvToCommandline(char **papszArgs, WCHAR **ppwszCommandLine)
+static int mkWinChildcareWorkerConvertQuotedArgvToCommandline(PWINCHILDCAREWORKER pWorker, char **papszArgs,
+                                                              WCHAR **ppwszCommandLine)
 {
     WCHAR   *pwszCmdLine;
     WCHAR   *pwszDst;
@@ -1206,7 +1300,7 @@ static int mkWinChildcareWorkerConvertQuotedArgvToCommandline(char **papszArgs, 
         else
         {
             DWORD dwErr = GetLastError();
-            fprintf(stderr, _("MultiByteToWideChar failed to convert argv[%u] (%s): %u\n"), i, pszSrc, dwErr);
+            MkWinChildError(pWorker, 1, _("MultiByteToWideChar failed to convert argv[%u] (%s): %u\n"), i, pszSrc, dwErr);
             return dwErr;
         }
         i++;
@@ -1230,7 +1324,7 @@ static int mkWinChildcareWorkerConvertQuotedArgvToCommandline(char **papszArgs, 
         if (!cwcThis && *pszSrc != '\0')
         {
             DWORD dwErr = GetLastError();
-            fprintf(stderr, _("MultiByteToWideChar failed to convert argv[%u] (%s): %u\n"), i, pszSrc, dwErr);
+            MkWinChildError(pWorker, 1, _("MultiByteToWideChar failed to convert argv[%u] (%s): %u\n"), i, pszSrc, dwErr);
             free(pwszCmdLine);
             return dwErr;
         }
@@ -1252,7 +1346,11 @@ static int mkWinChildcareWorkerConvertQuotedArgvToCommandline(char **papszArgs, 
 #define MKWCCWCMD_F_HAVE_SH         4
 #define MKWCCWCMD_F_HAVE_KASH_C     8 /**< kmk_ash -c "..." */
 
-static int mkWinChildcareWorkerConvertCommandline(char **papszArgs, unsigned fFlags, WCHAR **ppwszCommandLine)
+/*
+ * @param   pWorker         The childcare worker if on one, otherwise NULL.
+ */
+static int mkWinChildcareWorkerConvertCommandline(PWINCHILDCAREWORKER pWorker, char **papszArgs, unsigned fFlags,
+                                                  WCHAR **ppwszCommandLine)
 {
     struct ARGINFO
     {
@@ -1309,7 +1407,7 @@ static int mkWinChildcareWorkerConvertCommandline(char **papszArgs, unsigned fFl
             else
             {
                 DWORD dwErr = GetLastError();
-                fprintf(stderr, _("MultiByteToWideChar failed to convert argv[%u] (%s): %u\n"), i, pszSrc, dwErr);
+                MkWinChildError(pWorker, 1, _("MultiByteToWideChar failed to convert argv[%u] (%s): %u\n"), i, pszSrc, dwErr);
                 return dwErr;
             }
 #if 0
@@ -1478,9 +1576,10 @@ static int mkWinChildcareWorkerConvertCommandline(char **papszArgs, unsigned fFl
     return 0;
 }
 
-static int mkWinChildcareWorkerConvertCommandlineWithShell(const WCHAR *pwszShell, char **papszArgs, WCHAR **ppwszCommandLine)
+static int mkWinChildcareWorkerConvertCommandlineWithShell(PWINCHILDCAREWORKER pWorker, const WCHAR *pwszShell, char **papszArgs,
+                                                           WCHAR **ppwszCommandLine)
 {
-    fprintf(stderr, "%s: not found!\n", papszArgs[0]);
+    MkWinChildError(pWorker, 1, "%s: not found!\n", papszArgs[0]);
 //__debugbreak();
     return ERROR_FILE_NOT_FOUND;
 }
@@ -1572,6 +1671,7 @@ static BOOL mkWinChildIsProbableClExe(WCHAR const *pwszImagePath, size_t cwcImag
  * handle those.
  *
  * @returns 0 on success, windows error code on failure.
+ * @param   pWorker         The childcare worker.
  * @param   pszArg0         The first argument.
  * @param   pwszSearchPath  In case mkWinChildcareWorkerConvertEnvironment
  *                          had a chance of locating the search path already.
@@ -1583,8 +1683,9 @@ static BOOL mkWinChildIsProbableClExe(WCHAR const *pwszImagePath, size_t cwcImag
  * @param   pfNeedShell     Where to return shell vs direct execution indicator.
  * @param   pfProbableClExe Where to return an indicator of probably CL.EXE.
  */
-static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchPath, WCHAR const *pwszzEnv,
-                                         const char *pszShell, WCHAR **ppwszImagePath, BOOL *pfNeedShell, BOOL *pfProbableClExe)
+static int mkWinChildcareWorkerFindImage(PWINCHILDCAREWORKER pWorker, char const *pszArg0, WCHAR *pwszSearchPath,
+                                         WCHAR const *pwszzEnv, const char *pszShell,
+                                         WCHAR **ppwszImagePath, BOOL *pfNeedShell, BOOL *pfProbableClExe)
 {
     /** @todo Slap a cache on this code. We usually end up executing the same
      *        stuff over and over again (e.g. compilers, linkers, etc).
@@ -1880,18 +1981,18 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
             if (cwc > 0)
                 return mkWinChildDuplicateUtf16String(wszPathBuf, cwc, ppwszImagePath);
             dwErr = GetLastError();
-            fprintf(stderr, _("MultiByteToWideChar failed to convert shell (%s): %u\n"), pszShell, dwErr);
+            MkWinChildError(pWorker, 1, _("MultiByteToWideChar failed to convert shell (%s): %u\n"), pszShell, dwErr);
         }
         else
         {
-            fprintf(stderr, "%s: not found!\n", pszArg0);
+            MkWinChildError(pWorker, 1, "%s: not found!\n", pszArg0);
             dwErr = ERROR_FILE_NOT_FOUND;
         }
     }
     else
     {
         dwErr = GetLastError();
-        fprintf(stderr, _("MultiByteToWideChar failed to convert argv[0] (%s): %u\n"), pszArg0, dwErr);
+        MkWinChildError(pWorker, 1, _("MultiByteToWideChar failed to convert argv[0] (%s): %u\n"), pszArg0, dwErr);
     }
     return dwErr == ERROR_INSUFFICIENT_BUFFER ? ERROR_FILENAME_EXCED_RANGE : dwErr;
 }
@@ -1900,6 +2001,7 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
  * Creates the environment block.
  *
  * @returns 0 on success, windows error code on failure.
+ * @param   pWorker         The childcare worker if on one, otherwise NULL.
  * @param   papszEnv        The environment vector to convert.
  * @param   cbEnvStrings    The size of the environment strings, iff they are
  *                          sequential in a block.  Otherwise, zero.
@@ -1910,7 +2012,7 @@ static int mkWinChildcareWorkerFindImage(char const *pszArg0, WCHAR *pwszSearchP
  *                          if cbEnvStrings is non-zero, more efficient to let
  *                          mkWinChildcareWorkerFindImage() search when needed.
  */
-static int mkWinChildcareWorkerConvertEnvironment(char **papszEnv, size_t cbEnvStrings,
+static int mkWinChildcareWorkerConvertEnvironment(PWINCHILDCAREWORKER pWorker, char **papszEnv, size_t cbEnvStrings,
                                                   WCHAR **ppwszEnv, WCHAR const **ppwszSearchPath)
 {
     DWORD  dwErr;
@@ -1952,7 +2054,7 @@ static int mkWinChildcareWorkerConvertEnvironment(char **papszEnv, size_t cbEnvS
             }
             dwErr = GetLastError();
         }
-        fprintf(stderr, _("MultiByteToWideChar failed to convert environment block: %u\n"), dwErr);
+        MkWinChildError(pWorker, 1, _("MultiByteToWideChar failed to convert environment block: %u\n"), dwErr);
     }
     /*
      * Need to convert it string by string.
@@ -2030,8 +2132,8 @@ static int mkWinChildcareWorkerConvertEnvironment(char **papszEnv, size_t cbEnvS
                 }
                 if (cwcRc <= 0)
                 {
-                    fprintf(stderr, _("MultiByteToWideChar failed to convert environment string #%u (%s): %u\n"),
-                            iVar, pszSrc, dwErr);
+                    MkWinChildError(pWorker, 1, _("MultiByteToWideChar failed to convert environment string #%u (%s): %u\n"),
+                                    iVar, pszSrc, dwErr);
                     free(pwszzDst);
                     return dwErr;
                 }
@@ -2076,7 +2178,7 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
      * First we convert the environment so we get the PATH we need to
      * search for the executable.
      */
-    rc = mkWinChildcareWorkerConvertEnvironment(pChild->u.Process.papszEnv ? pChild->u.Process.papszEnv : environ,
+    rc = mkWinChildcareWorkerConvertEnvironment(pWorker, pChild->u.Process.papszEnv ? pChild->u.Process.papszEnv : environ,
                                                 pChild->u.Process.cbEnvStrings,
                                                 &pwszzEnvironment, &pwszSearchPath);
     /*
@@ -2084,14 +2186,15 @@ static void mkWinChildcareWorkerThreadHandleProcess(PWINCHILDCAREWORKER pWorker,
      * convert it to a command line.
      */
     if (rc == 0)
-        rc = mkWinChildcareWorkerFindImage(pChild->u.Process.papszArgs[0], pwszSearchPath, pwszzEnvironment,
+        rc = mkWinChildcareWorkerFindImage(pWorker, pChild->u.Process.papszArgs[0], pwszSearchPath, pwszzEnvironment,
                                            pChild->u.Process.pszShell, &pwszImageName, &fNeedShell, &pChild->fProbableClExe);
     if (rc == 0)
     {
         if (!fNeedShell)
-            rc = mkWinChildcareWorkerConvertCommandline(pChild->u.Process.papszArgs, 0 /*fFlags*/, &pwszCommandLine);
+            rc = mkWinChildcareWorkerConvertCommandline(pWorker, pChild->u.Process.papszArgs, 0 /*fFlags*/, &pwszCommandLine);
         else
-            rc = mkWinChildcareWorkerConvertCommandlineWithShell(pwszImageName, pChild->u.Process.papszArgs, &pwszCommandLine);
+            rc = mkWinChildcareWorkerConvertCommandlineWithShell(pWorker, pwszImageName, pChild->u.Process.papszArgs,
+                                                                 &pwszCommandLine);
 
         /*
          * Create the child process.
@@ -2183,17 +2286,17 @@ static void mkWinChildcareWorkerThreadHandleAppend(PWINCHILDCAREWORKER pWorker, 
                 pChild->iExitCode = 0;
                 return;
             }
-            fprintf(stderr, "kmk_builtin_append: close failed on '%s': %u (%s)\n",
-                    pChild->u.Append.pszFilename, errno, strerror(errno));
+            MkWinChildError(pWorker, 1, "kmk_builtin_append: close failed on '%s': %u (%s)\n",
+                            pChild->u.Append.pszFilename, errno, strerror(errno));
         }
         else
-            fprintf(stderr, "kmk_builtin_append: error writing %lu bytes to on '%s': %u (%s)\n",
-                    pChild->u.Append.cbAppend, pChild->u.Append.pszFilename, errno, strerror(errno));
+            MkWinChildError(pWorker, 1, "kmk_builtin_append: error writing %lu bytes to on '%s': %u (%s)\n",
+                            pChild->u.Append.cbAppend, pChild->u.Append.pszFilename, errno, strerror(errno));
         close(fd);
     }
     else
-        fprintf(stderr, "kmk_builtin_append: error opening '%s': %u (%s)\n",
-                pChild->u.Append.pszFilename, errno, strerror(errno));
+        MkWinChildError(pWorker, 1, "kmk_builtin_append: error opening '%s': %u (%s)\n",
+                        pChild->u.Append.pszFilename, errno, strerror(errno));
     pChild->iExitCode = 1;
 }
 
@@ -2250,15 +2353,29 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
     PWINCHILDCAREWORKER pWorker = (PWINCHILDCAREWORKER)pvUser;
     assert(pWorker->uMagic == WINCHILDCAREWORKER_MAGIC);
 
+#ifdef MKWINCHILD_DO_SET_PROCESSOR_GROUP
     /*
      * Adjust process group if necessary.
+     *
+     * Note! It seems that setting the mask to zero means that we select all
+     *       active processors.  Couldn't find any alternative API for getting
+     *       the correct active processor mask.
      */
     if (g_cProcessorGroups > 1)
     {
-        GROUP_AFFINITY Affinity = { ~(ULONG_PTR)0, pWorker->iProcessorGroup, { 0, 0, 0 } };
+        GROUP_AFFINITY Affinity = { 0 /* == all active apparently */ , pWorker->iProcessorGroup, { 0, 0, 0 } };
         BOOL fRet = g_pfnSetThreadGroupAffinity(GetCurrentThread(), &Affinity, NULL);
         assert(fRet); (void)fRet;
+# ifndef NDEBUG
+        {
+            GROUP_AFFINITY ActualAffinity = { 0xbeefbeefU, 0xbeef, { 0xbeef, 0xbeef, 0xbeef } };
+            fRet = GetThreadGroupAffinity(GetCurrentThread(), &ActualAffinity);
+            assert(fRet); (void)fRet;
+            assert(ActualAffinity.Group == pWorker->iProcessorGroup);
+        }
+# endif
     }
+#endif
 
     /*
      * Work loop.
@@ -2303,6 +2420,7 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
             {
                 PWINCHILD pTailExpect;
 
+                pChild->pWorker = pWorker;
                 pWorker->pCurChild = pChild;
                 switch (pChild->enmType)
                 {
@@ -2327,6 +2445,7 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
                         assert(0);
                 }
                 pWorker->pCurChild = NULL;
+                pChild->pWorker = NULL;
 
                 /*
                  * Move the child to the completed list.
@@ -2346,7 +2465,8 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
                             break;
                         if (SetEvent(g_hEvtWaitChildren))
                             break;
-                        fprintf(stderr, "SetEvent(g_hEvtWaitChildren=%p) failed: %u\n", g_hEvtWaitChildren, GetLastError());
+                        MkWinChildError(pWorker, 1, "SetEvent(g_hEvtWaitChildren=%p) failed: %u\n",
+                                        g_hEvtWaitChildren, GetLastError());
                         break;
                     }
                 }
@@ -2523,19 +2643,19 @@ static PWINCHILDCAREWORKER mkWinChildcareCreateWorker(void)
                 }
 
                 /* Bail out! */
-                fprintf(stderr, "warning! _beginthreadex failed: %u (%s)\n", errno, strerror(errno));
+                ONS (error, NILF, "_beginthreadex failed: %u (%s)\n", errno, strerror(errno));
                 mkWinChildcareDeleteWorkerPipe(&pWorker->StdErr);
             }
             else
-                fprintf(stderr, "warning! Failed to create stderr pipe: %u\n", GetLastError());
+                ON (error, NILF, "Failed to create stderr pipe: %u\n", GetLastError());
             mkWinChildcareDeleteWorkerPipe(&pWorker->StdOut);
         }
         else
-            fprintf(stderr, "warning! Failed to create stdout pipe: %u\n", GetLastError());
+            ON (error, NILF, "Failed to create stdout pipe: %u\n", GetLastError());
         CloseHandle(pWorker->hEvtIdle);
     }
     else
-        fprintf(stderr, "warning! CreateEvent failed: %u\n", GetLastError());
+        ON (error, NILF, "CreateEvent failed: %u\n", GetLastError());
     pWorker->uMagic = ~WINCHILDCAREWORKER_MAGIC;
     free(pWorker);
     return NULL;
@@ -3060,7 +3180,7 @@ int MkWinChildBuiltInExecChild(void *pvWorker, const char *pszExecutable, char *
         if (!cwcCwd)
         {
             rc = GetLastError();
-            fprintf(stderr, _("MultiByteToWideChar failed to convert CWD (%s): %u\n"), pszCwd, (unsigned)rc);
+            MkWinChildError(pWorker, 1, _("MultiByteToWideChar failed to convert CWD (%s): %u\n"), pszCwd, (unsigned)rc);
             return rc;
         }
     }
@@ -3069,22 +3189,22 @@ int MkWinChildBuiltInExecChild(void *pvWorker, const char *pszExecutable, char *
      * Before we search for the image, we convert the environment so we don't
      * have to traverse it twice to find the PATH.
      */
-    rc = mkWinChildcareWorkerConvertEnvironment(papszEnvVars ? papszEnvVars : environ, 0/*cbEnvStrings*/,
+    rc = mkWinChildcareWorkerConvertEnvironment(pWorker, papszEnvVars ? papszEnvVars : environ, 0/*cbEnvStrings*/,
                                                 &pwszzEnvironment, &pwszSearchPath);
     /*
      * Find the executable and maybe checking if it's a shell script, then
      * convert it to a command line.
      */
     if (rc == 0)
-        rc = mkWinChildcareWorkerFindImage(pszExecutable, pwszSearchPath, pwszzEnvironment, NULL /*pszShell*/,
+        rc = mkWinChildcareWorkerFindImage(pWorker, pszExecutable, pwszSearchPath, pwszzEnvironment, NULL /*pszShell*/,
                                            &pwszImageName, &fNeedShell, &pChild->fProbableClExe);
     if (rc == 0)
     {
         assert(!fNeedShell);
         if (!fQuotedArgv)
-            rc = mkWinChildcareWorkerConvertCommandline(papszArgs, 0 /*fFlags*/, &pwszCommandLine);
+            rc = mkWinChildcareWorkerConvertCommandline(pWorker, papszArgs, 0 /*fFlags*/, &pwszCommandLine);
         else
-            rc = mkWinChildcareWorkerConvertQuotedArgvToCommandline(papszArgs, &pwszCommandLine);
+            rc = mkWinChildcareWorkerConvertQuotedArgvToCommandline(pWorker, papszArgs, &pwszCommandLine);
 
         /*
          * Create the child process.
@@ -3280,11 +3400,11 @@ void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
     /*
      * Create the command line and environment.
      */
-    rc = mkWinChildcareWorkerConvertCommandline(papszArgs, 0 /*fFlags*/, &pwszCommandLine);
+    rc = mkWinChildcareWorkerConvertCommandline(NULL, papszArgs, 0 /*fFlags*/, &pwszCommandLine);
     if (rc != 0)
         ON(fatal, NILF, _("MkWinChildReExecMake: mkWinChildcareWorkerConvertCommandline failed: %u\n"), rc);
 
-    rc = mkWinChildcareWorkerConvertEnvironment(papszEnv ? papszEnv : environ, 0 /*cbEnvStrings*/,
+    rc = mkWinChildcareWorkerConvertEnvironment(NULL, papszEnv ? papszEnv : environ, 0 /*cbEnvStrings*/,
                                                 &pwszzEnvironment, &pwszPathIgnored);
     if (rc != 0)
         ON(fatal, NILF, _("MkWinChildReExecMake: mkWinChildcareWorkerConvertEnvironment failed: %u\n"), rc);
