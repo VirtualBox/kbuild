@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3199 2018-03-28 18:56:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3200 2018-03-28 20:32:11Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -70,6 +70,7 @@
 #define KWORKER_PID_HASH(a_pid) ((size_t)(a_pid) % 61)
 
 #define TUPLE(a_sz)     a_sz, sizeof(a_sz) - 1
+
 
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
@@ -1150,7 +1151,7 @@ l_again:
         }
 # else
         if (MkWinChildCreateSubmit((intptr_t)pWorker->OverlappedRead.hEvent, pWorker,
-                                   pWorker->pStdOut, pWorker->pStdErr, pPidSpawned) == 0)
+                                   pWorker->pStdOut, pWorker->pStdErr, pChild, pPidSpawned) == 0)
         { /* likely */ }
         else
         {
@@ -1690,9 +1691,12 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
             /* Before we send off the job, we should dump pending output, since
                the kWorker process currently does not coordinate its output with
                the output.c mechanics. */
+#ifdef CONFIG_NEW_WIN_CHILDREN
+            if (pCtx->pOut && !pWorker->pStdOut)
+#else
             if (pCtx->pOut)
+#endif
                 output_dump(pCtx->pOut);
-
             rcExit = kSubmitSendJobMessage(pCtx, pWorker, pvMsg, cbMsg, 0 /*fNoRespawning*/, cVerbosity);
             if (rcExit == 0)
                 rcExit = kSubmitMarkActive(pCtx, pWorker, cVerbosity, pChild, pPidSpawned);

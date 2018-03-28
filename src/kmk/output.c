@@ -130,14 +130,14 @@ static void membuf_dump (struct output *out)
             {
               const char *nl = (const char *)memchr (src, '\n', len);
               size_t line_len = nl ? nl - (const char *)src + 1 : len;
-              char *tmp = (char *)xmalloc (2 + line_len + 1);
-              tmp[0] = '>';
-              tmp[1] = ' ';
-              memcpy (&tmp[2], src, line_len);
+              char *tmp = (char *)xmalloc (1 + line_len + 1 + 1);
+              tmp[0] = '{';
+              memcpy (&tmp[1], src, line_len);
+              tmp[1 + line_len] = '}';
 #  ifdef KBUILD_OS_WINDOWS
-              maybe_con_fwrite (tmp, 2 + line_len, 1, dst);
+              maybe_con_fwrite (tmp, 1 + line_len + 1, 1, dst);
 #  else
-              fwrite (tmp, 2 + line_len, 1, dst);
+              fwrite (tmp, 1 + line_len + 1, 1, dst);
 #  endif
               free (tmp);
               src  = (const char *)src + line_len;

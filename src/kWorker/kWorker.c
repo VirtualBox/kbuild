@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3199 2018-03-28 18:56:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3200 2018-03-28 20:32:11Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -9533,24 +9533,6 @@ KWREPLACEMENTFUNCTION const g_aSandboxGetProcReplacements[] =
 /** Number of entries in g_aSandboxGetProcReplacements. */
 KU32 const                  g_cSandboxGetProcReplacements = K_ELEMENTS(g_aSandboxGetProcReplacements);
 
-/**
- * Thread that is spawned by the first terminal kwSandboxCtrlHandler invocation.
- *
- * This will wait 5 second in a hope that the main thread will shut down the
- * process nicly, otherwise it will terminate it forcefully.
- */
-static DWORD WINAPI kwSandboxCtrlThreadProc(PVOID pvUser)
-{
-    int i;
-    for (i = 0; i < 10; i++)
-    {
-        Sleep(500);
-        CancelIoEx(g_hPipe, NULL);
-    }
-    TerminateProcess(GetCurrentProcess(), (int)(intptr_t)pvUser);
-    return -1;
-}
-
 
 /**
  * Control handler.
@@ -9598,12 +9580,6 @@ static BOOL WINAPI kwSandboxCtrlHandler(DWORD dwCtrlType)
 
     /*
      * Terminate the process after 5 seconds.
-     *
-     * We don't want to wait here as the console server will otherwise not
-     * signal the other processes in the console, which is bad for kmk as it
-     * will continue to forge ahead.  So, the first time we get here we start
-     * a thread for doing the delayed termination.
-     *
      * If we get here a second time we just terminate the process ourselves.
      *
      * Note! We do no try call exit() here as it turned out to deadlock a lot
@@ -9612,11 +9588,14 @@ static BOOL WINAPI kwSandboxCtrlHandler(DWORD dwCtrlType)
     rcPrev = g_rcCtrlC;
     g_rcCtrlC = rc;
     WriteFile(GetStdHandle(STD_ERROR_HANDLE), pszMsg, (DWORD)strlen(pszMsg), &cbIgn, NULL);
-    CancelIoEx(g_hPipe, NULL); /* wake up idle main thread */
     if (rcPrev == 0)
     {
-        CreateThread(NULL, 0, kwSandboxCtrlThreadProc, (void*)(intptr_t)rc, 0 /*fFlags*/, NULL);
-        return TRUE;
+        int i;
+        for (i = 0; i < 10; i++)
+        {
+            CancelIoEx(g_hPipe, NULL); /* wake up idle main thread */
+            Sleep(500);
+        }
     }
     TerminateProcess(GetCurrentProcess(), rc);
     return TRUE;
