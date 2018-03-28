@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 3184 2018-03-23 22:36:43Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 3199 2018-03-28 18:56:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -493,7 +493,7 @@ typedef struct KFSCACHE
 /** @def KW_LOG
  * Generic logging.
  * @param a     Argument list for kFsCacheDbgPrintf  */
-#ifdef NDEBUG
+#if 1 /*def NDEBUG - enable when needed! */
 # define KFSCACHE_LOG(a) do { } while (0)
 #else
 # define KFSCACHE_LOG(a) kFsCacheDbgPrintf a

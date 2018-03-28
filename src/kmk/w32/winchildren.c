@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3197 2018-03-28 16:11:30Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3199 2018-03-28 18:56:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -86,6 +86,9 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
+#include <Windows.h>
+#include <Winternl.h>
+
 #include "../makeint.h"
 #include "../job.h"
 #include "../filedef.h"
@@ -93,8 +96,6 @@
 #include "../kmkbuiltin.h"
 #include "winchildren.h"
 
-#include <Windows.h>
-#include <Winternl.h>
 #include <assert.h>
 #include <process.h>
 #include <intrin.h>
@@ -131,6 +132,7 @@ extern void kmk_cache_exec_image_w(const wchar_t *); /* imagecache.c */
 typedef struct WINCHILDCAREWORKER *PWINCHILDCAREWORKER;
 /** Pointer to a windows child process. */
 typedef struct WINCHILD *PWINCHILD;
+
 
 /**
  * Child process type.
@@ -249,6 +251,10 @@ typedef struct WINCHILD
             HANDLE          hEvent;
             /** Parameter for the cleanup callback. */
             void           *pvSubmitWorker;
+            /** Standard output catching pipe. Optional. */
+            PWINCCWPIPE     pStdOut;
+            /** Standard error catching pipe. Optional. */
+            PWINCCWPIPE     pStdErr;
         } Submit;
 
         /** Data for WINCHILDTYPE_REDIRECT.   */
@@ -262,39 +268,6 @@ typedef struct WINCHILD
 } WINCHILD;
 /** WINCHILD::uMagic value. */
 #define WINCHILD_MAGIC      0xbabebabeU
-
-/**
- * A childcare worker pipe.
- */
-typedef struct WINCCWPIPE
-{
-    /** My end of the pipe. */
-    HANDLE              hPipeMine;
-    /** The child end of the pipe. */
-    HANDLE              hPipeChild;
-    /** The event for asynchronous reading. */
-    HANDLE              hEvent;
-    /** Which pipe this is (1 == stdout, 2 == stderr). */
-    unsigned char       iWhich;
-    /** Set if we've got a read pending already. */
-    BOOL                fReadPending;
-    /** Indicator that we've written out something.  This is cleared before
-     * we start catching output from a new child and use in the CL.exe
-     * supression heuristics. */
-    BOOL                fHaveWrittenOut;
-    /** Number of bytes at the start of the buffer that we've already
-     * written out.  We try write out whole lines. */
-    DWORD               cbWritten;
-    /** The buffer offset of the read currently pending. */
-    DWORD               offPendingRead;
-    /** Read buffer size. */
-    DWORD               cbBuffer;
-    /** The read buffer allocation. */
-    unsigned char      *pbBuffer;
-    /** Overlapped I/O structure. */
-    OVERLAPPED          Overlapped;
-} WINCCWPIPE;
-typedef WINCCWPIPE *PWINCCWPIPE;
 
 
 /**
@@ -329,9 +302,9 @@ typedef struct WINCHILDCAREWORKER
     /** The event the thread is idling on. */
     HANDLE                  hEvtIdle;
     /** The pipe catching standard output from a child. */
-    WINCCWPIPE              StdOut;
+    PWINCCWPIPE             pStdOut;
     /** The pipe catching standard error from a child. */
-    WINCCWPIPE              StdErr;
+    PWINCCWPIPE             pStdErr;
 
     /** Pointer to the current child. */
     PWINCHILD volatile      pCurChild;
@@ -743,7 +716,7 @@ static void mkWinChildcareWorkerFlushUnwritten(PWINCHILD pChild, PWINCCWPIPE pPi
     if (cbUnwritten)
     {
 #ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
-        if (pChild->pMkChild)
+        if (pChild && pChild->pMkChild)
         {
             output_write_bin(&pChild->pMkChild->output, pPipe->iWhich == 2, &pPipe->pbBuffer[pPipe->cbWritten], cbUnwritten);
             pPipe->cbWritten += cbUnwritten;
@@ -798,7 +771,7 @@ static BOOL mkWinChildcareWorkerIsClExeSourceLine(PWINCCWPIPE pPipe, DWORD offSt
  * There is no pending read when this function is called, so we're free to
  * reshuffle the buffer if desirable.
  *
- * @param   pChild          The child.
+ * @param   pChild          The child. Optional (kSubmit).
  * @param   iWhich          Which standard descriptor number.
  * @param   cbNewData       How much more output was caught.
  */
@@ -837,7 +810,8 @@ static void mkWinChildcareWorkerCaughtMoreOutput(PWINCHILD pChild, PWINCCWPIPE p
         }
         /* If this is a potential CL.EXE process, we will keep the source
            filename unflushed and maybe discard it at the end. */
-        else if (   pChild->fProbableClExe
+        else if (   pChild
+                 && pChild->fProbableClExe
                  && pPipe->iWhich == 1
                  && offRest == pPipe->offPendingRead
                  && mkWinChildcareWorkerIsClExeSourceLine(pPipe, offStart, offRest))
@@ -848,7 +822,7 @@ static void mkWinChildcareWorkerCaughtMoreOutput(PWINCHILD pChild, PWINCCWPIPE p
             /* Write out offStart..offRest. */
             DWORD cbToWrite = offRest - offStart;
 #ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
-            if (pChild->pMkChild)
+            if (pChild && pChild->pMkChild)
             {
                 output_write_bin(&pChild->pMkChild->output, pPipe->iWhich == 2, &pPipe->pbBuffer[offStart], cbToWrite);
                 offStart += cbToWrite;
@@ -883,7 +857,7 @@ static void mkWinChildcareWorkerCaughtMoreOutput(PWINCHILD pChild, PWINCCWPIPE p
 /**
  * Catches output from the given pipe.
  *
- * @param   pChild          The child.
+ * @param   pChild          The child. Optional (kSubmit).
  * @param   pPipe           The pipe.
  * @param   fDraining       Set if we're draining the pipe after the process
  *                          terminated.
@@ -905,7 +879,7 @@ static void mkWinChildcareWorkerCatchOutput(PWINCHILD pChild, PWINCCWPIPE pPipe,
             return;
         else
         {
-            MkWinChildError(pChild->pWorker, 2, "GetOverlappedResult failed: %u\n", GetLastError());
+            MkWinChildError(pChild ? pChild->pWorker : NULL, 2, "GetOverlappedResult failed: %u\n", GetLastError());
             pPipe->fReadPending = FALSE;
             if (fDraining)
                 return;
@@ -933,7 +907,8 @@ static void mkWinChildcareWorkerCatchOutput(PWINCHILD pChild, PWINCCWPIPE pPipe,
             if (dwErr == ERROR_IO_PENDING)
                 pPipe->fReadPending = TRUE;
             else
-                MkWinChildError(pChild->pWorker, 2, "ReadFile failed on standard %s: %u\n",
+                MkWinChildError(pChild ? pChild->pWorker : NULL, 2,
+                                "ReadFile failed on standard %s: %u\n",
                                 pPipe->iWhich == 1 ? "output" : "error",  GetLastError());
             return;
         }
@@ -945,31 +920,33 @@ static void mkWinChildcareWorkerCatchOutput(PWINCHILD pChild, PWINCCWPIPE pPipe,
 /**
  * Makes sure the output pipes are drained and pushed to output.
  *
- * @param   pWorker             The worker.
- * @param   pChild              The child.
+ * @param   pChild              The child. Optional (kSubmit).
+ * @param   pStdOut             The standard output pipe structure.
+ * @param   pStdErr             The standard error pipe structure.
  */
-static void mkWinChildcareWorkerDrainPipes(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild)
+void MkWinChildcareWorkerDrainPipes(PWINCHILD pChild, PWINCCWPIPE pStdOut, PWINCCWPIPE pStdErr)
 {
-    mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdOut, TRUE /*fDraining*/);
-    mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdErr, TRUE /*fDraining*/);
+    mkWinChildcareWorkerCatchOutput(pChild, pStdOut, TRUE /*fDraining*/);
+    mkWinChildcareWorkerCatchOutput(pChild, pStdErr, TRUE /*fDraining*/);
 
     /* Drop lone 'source.c' line from CL.exe, but only if no other output at all. */
-    if (   pChild->fProbableClExe
-        && !pWorker->StdOut.fHaveWrittenOut
-        && !pWorker->StdErr.fHaveWrittenOut
-        && pWorker->StdErr.cbWritten == pWorker->StdErr.offPendingRead
-        && pWorker->StdOut.cbWritten < pWorker->StdOut.offPendingRead
-        && mkWinChildcareWorkerIsClExeSourceLine(&pWorker->StdOut, pWorker->StdOut.cbWritten, pWorker->StdOut.offPendingRead))
+    if (   pChild
+        && pChild->fProbableClExe
+        && !pStdOut->fHaveWrittenOut
+        && !pStdErr->fHaveWrittenOut
+        && pStdErr->cbWritten == pStdErr->offPendingRead
+        && pStdOut->cbWritten < pStdOut->offPendingRead
+        && mkWinChildcareWorkerIsClExeSourceLine(pStdOut, pStdOut->cbWritten, pStdOut->offPendingRead))
     {
-        if (!pWorker->StdOut.fReadPending)
-            pWorker->StdOut.cbWritten = pWorker->StdOut.offPendingRead = 0;
+        if (!pStdOut->fReadPending)
+            pStdOut->cbWritten = pStdOut->offPendingRead = 0;
         else
-            pWorker->StdOut.cbWritten = pWorker->StdOut.offPendingRead;
+            pStdOut->cbWritten = pStdOut->offPendingRead;
     }
     else
     {
-        mkWinChildcareWorkerFlushUnwritten(pChild, &pWorker->StdOut);
-        mkWinChildcareWorkerFlushUnwritten(pChild, &pWorker->StdErr);
+        mkWinChildcareWorkerFlushUnwritten(pChild, pStdOut);
+        mkWinChildcareWorkerFlushUnwritten(pChild, pStdErr);
     }
 }
 
@@ -991,8 +968,8 @@ static int mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINC
     DWORD       msNextMsg = msStart + 15000;
 
     /* Reset the written indicators on the pipes before we start loop. */
-    pWorker->StdOut.fHaveWrittenOut = FALSE;
-    pWorker->StdErr.fHaveWrittenOut = FALSE;
+    pWorker->pStdOut->fHaveWrittenOut = FALSE;
+    pWorker->pStdErr->fHaveWrittenOut = FALSE;
 
     for (;;)
     {
@@ -1004,12 +981,12 @@ static int mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINC
             dwStatus = WaitForSingleObject(hProcess, 15001 /*ms*/);
         else
         {
-            HANDLE ahHandles[3] = { hProcess, pWorker->StdOut.hEvent, pWorker->StdErr.hEvent };
+            HANDLE ahHandles[3] = { hProcess, pWorker->pStdOut->hEvent, pWorker->pStdErr->hEvent };
             dwStatus = WaitForMultipleObjects(3, ahHandles, FALSE /*fWaitAll*/, 1000 /*ms*/);
             if (dwStatus == WAIT_OBJECT_0 + 1)
-                mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdOut, FALSE /*fDraining*/);
+                mkWinChildcareWorkerCatchOutput(pChild, pWorker->pStdOut, FALSE /*fDraining*/);
             else if (dwStatus == WAIT_OBJECT_0 + 2)
-                mkWinChildcareWorkerCatchOutput(pChild, &pWorker->StdErr, FALSE /*fDraining*/);
+                mkWinChildcareWorkerCatchOutput(pChild, pWorker->pStdErr, FALSE /*fDraining*/);
         }
         assert(dwStatus != WAIT_FAILED);
 
@@ -1023,7 +1000,7 @@ static int mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINC
             {
                 pChild->iExitCode = (int)dwExitCode;
                 if (fCatchOutput)
-                    mkWinChildcareWorkerDrainPipes(pWorker, pChild);
+                    MkWinChildcareWorkerDrainPipes(pChild, pWorker->pStdOut, pWorker->pStdErr);
                 return dwExitCode;
             }
         }
@@ -1204,12 +1181,12 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, WCHAR 
                 if (!pafReplace[1])
                 {
                     pafReplace[1] = TRUE;
-                    pahChild[1]   = pWorker->StdOut.hPipeChild;
+                    pahChild[1]   = pWorker->pStdOut->hPipeChild;
                 }
                 if (!pafReplace[2])
                 {
                     pafReplace[2] = TRUE;
-                    pahChild[2]   = pWorker->StdErr.hPipeChild;
+                    pahChild[2]   = pWorker->pStdErr->hPipeChild;
                 }
             }
             dwErr = nt_child_inject_standard_handles(ProcInfo.hProcess, pafReplace, pahChild, szErrMsg, sizeof(szErrMsg));
@@ -2308,16 +2285,46 @@ static void mkWinChildcareWorkerThreadHandleAppend(PWINCHILDCAREWORKER pWorker, 
  */
 static void mkWinChildcareWorkerThreadHandleSubmit(PWINCHILDCAREWORKER pWorker, PWINCHILD pChild)
 {
-    void *pvSubmitWorker = pChild->u.Submit.pvSubmitWorker;
+    void  *pvSubmitWorker = pChild->u.Submit.pvSubmitWorker;
+
+    /*
+     * Prep the wait handles.
+     */
+    HANDLE ahHandles[3]   = { pChild->u.Submit.hEvent, NULL, NULL };
+    DWORD  cHandles       = 1;
+    if (pChild->u.Submit.pStdOut)
+    {
+        assert(pChild->u.Submit.pStdErr);
+        pChild->u.Submit.pStdOut->fHaveWrittenOut = FALSE;
+        ahHandles[cHandles++] = pChild->u.Submit.pStdOut->hPipeMine;
+        pChild->u.Submit.pStdErr->fHaveWrittenOut = FALSE;
+        ahHandles[cHandles++] = pChild->u.Submit.pStdErr->hPipeMine;
+    }
+
+    /*
+     * Wait loop.
+     */
     for (;;)
     {
         int   iExitCode = -42;
         int   iSignal   = -1;
-        DWORD dwStatus  = WaitForSingleObject(pChild->u.Submit.hEvent, INFINITE);
-        assert(dwStatus != WAIT_FAILED);
-
+        DWORD dwStatus;
+        if (cHandles == 0)
+            dwStatus = WaitForSingleObject(ahHandles[0], INFINITE);
+        else
+        {
+            dwStatus = WaitForMultipleObjects(cHandles, ahHandles, FALSE /*fWaitAll*/, INFINITE);
+            assert(dwStatus != WAIT_FAILED);
+            if (dwStatus == WAIT_OBJECT_0 + 1)
+                mkWinChildcareWorkerCatchOutput(pChild, pChild->u.Submit.pStdOut, FALSE /*fDraining*/);
+            else if (dwStatus == WAIT_OBJECT_0 + 2)
+                mkWinChildcareWorkerCatchOutput(pChild, pChild->u.Submit.pStdErr, FALSE /*fDraining*/);
+        }
         if (kSubmitSubProcGetResult((intptr_t)pvSubmitWorker, &iExitCode, &iSignal) == 0)
         {
+            if (pChild->u.Submit.pStdOut)
+                MkWinChildcareWorkerDrainPipes(pChild, pChild->u.Submit.pStdOut, pChild->u.Submit.pStdErr);
+
             pChild->iExitCode = iExitCode;
             pChild->iSignal   = iSignal;
             /* Cleanup must be done on the main thread. */
@@ -2484,12 +2491,12 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
  * This is a custom CreatePipe implementation that allows for overlapped I/O on
  * our end of the pipe.  Silly that they don't offer an API that does this.
  *
- * @returns Success indicator.
+ * @returns The pipe that was created. NULL on failure.
  * @param   pPipe               The structure for the pipe.
  * @param   iWhich              Which standard descriptor this is a pipe for.
  * @param   idxWorker           The worker index.
  */
-static BOOL mkWinChildcareCreateWorkerPipe(PWINCCWPIPE pPipe, unsigned iWhich, unsigned int idxWorker)
+PWINCCWPIPE MkWinChildcareCreateWorkerPipe(unsigned iWhich, unsigned int idxWorker)
 {
     /*
      * We try generate a reasonably unique name from the get go, so this retry
@@ -2533,6 +2540,7 @@ static BOOL mkWinChildcareCreateWorkerPipe(PWINCCWPIPE pPipe, unsigned iWhich, u
                 HANDLE hEvent = CreateEventW(NULL /*pSecAttr*/, TRUE /*fManualReset*/, TRUE /*fInitialState*/, NULL /*pwszName*/);
                 if (hEvent != NULL)
                 {
+                    PWINCCWPIPE pPipe = (PWINCCWPIPE)xcalloc(sizeof(*pPipe));
                     pPipe->hPipeMine    = hPipeRead;
                     pPipe->hPipeChild   = hPipeWrite;
                     pPipe->hEvent       = hEvent;
@@ -2540,17 +2548,17 @@ static BOOL mkWinChildcareCreateWorkerPipe(PWINCCWPIPE pPipe, unsigned iWhich, u
                     pPipe->fReadPending = FALSE;
                     pPipe->cbBuffer     = cbPipe;
                     pPipe->pbBuffer     = xcalloc(cbPipe);
-                    return TRUE;
+                    return pPipe;
                 }
 
                 CloseHandle(hPipeWrite);
                 CloseHandle(hPipeRead);
-                return FALSE;
+                return NULL;
             }
             CloseHandle(hPipeRead);
         }
     }
-    return FALSE;
+    return NULL;
 }
 
 /**
@@ -2558,7 +2566,7 @@ static BOOL mkWinChildcareCreateWorkerPipe(PWINCCWPIPE pPipe, unsigned iWhich, u
  *
  * @param   pPipe       The pipe.
  */
-static void mkWinChildcareDeleteWorkerPipe(PWINCCWPIPE pPipe)
+void MkWinChildcareDeleteWorkerPipe(PWINCCWPIPE pPipe)
 {
     if (pPipe->hPipeChild != NULL)
     {
@@ -2601,9 +2609,11 @@ static PWINCHILDCAREWORKER mkWinChildcareCreateWorker(void)
     pWorker->hEvtIdle  = CreateEventW(NULL, FALSE /*fManualReset*/, FALSE /*fInitialState*/, NULL /*pwszName*/);
     if (pWorker->hEvtIdle)
     {
-        if (mkWinChildcareCreateWorkerPipe(&pWorker->StdOut, 1, pWorker->idxWorker))
+        pWorker->pStdOut = MkWinChildcareCreateWorkerPipe(1, pWorker->idxWorker);
+        if (pWorker->pStdOut)
         {
-            if (mkWinChildcareCreateWorkerPipe(&pWorker->StdErr, 2, pWorker->idxWorker))
+            pWorker->pStdErr = MkWinChildcareCreateWorkerPipe(2, pWorker->idxWorker);
+            if (pWorker->pStdErr)
             {
                 /* Before we start the thread, assign it to a processor group. */
                 if (g_cProcessorGroups > 1)
@@ -2644,11 +2654,11 @@ static PWINCHILDCAREWORKER mkWinChildcareCreateWorker(void)
 
                 /* Bail out! */
                 ONS (error, NILF, "_beginthreadex failed: %u (%s)\n", errno, strerror(errno));
-                mkWinChildcareDeleteWorkerPipe(&pWorker->StdErr);
+                MkWinChildcareDeleteWorkerPipe(pWorker->pStdErr);
             }
             else
                 ON (error, NILF, "Failed to create stderr pipe: %u\n", GetLastError());
-            mkWinChildcareDeleteWorkerPipe(&pWorker->StdOut);
+            MkWinChildcareDeleteWorkerPipe(pWorker->pStdOut);
         }
         else
             ON (error, NILF, "Failed to create stdout pipe: %u\n", GetLastError());
@@ -2980,7 +2990,7 @@ int MkWinChildCreateWithStdOutPipe(char **papszArgs, char **papszEnv, int fdErr,
     HANDLE hWritePipe;
     if (CreatePipe(&hReadPipe, &hWritePipe, NULL, 0 /* default size */))
     {
-        if (SetHandleInformation(hWritePipe, HANDLE_FLAG_INHERIT /* clear */ , HANDLE_FLAG_INHERIT /*set*/))
+        //if (SetHandleInformation(hWritePipe, HANDLE_FLAG_INHERIT /* clear */ , HANDLE_FLAG_INHERIT /*set*/))
         {
             int fdReadPipe = _open_osfhandle((intptr_t)hReadPipe, O_RDONLY);
             if (fdReadPipe >= 0)
@@ -3032,8 +3042,8 @@ int MkWinChildCreateWithStdOutPipe(char **papszArgs, char **papszEnv, int fdErr,
 
             ON(error, NILF, _("_open_osfhandle failed on pipe: %u\n"), errno);
         }
-        else
-            ON(error, NILF, _("SetHandleInformation failed on pipe: %u\n"), GetLastError());
+        //else
+        //    ON(error, NILF, _("SetHandleInformation failed on pipe: %u\n"), GetLastError());
         if (hReadPipe != INVALID_HANDLE_VALUE)
             CloseHandle(hReadPipe);
         CloseHandle(hWritePipe);
@@ -3108,12 +3118,16 @@ int MkWinChildCreateAppend(const char *pszFilename, char **ppszAppend, size_t cb
  * @param   hEvent          The event object handle to wait on.
  * @param   pvSubmitWorker  The argument to pass back to kSubmit to clean up.
  * @param   pPid            Where to return the pid.
+ * @param   pStdOut         Standard output pipe for the worker. Optional.
+ * @param   pStdErr         Standard error pipe for the worker. Optional.
  */
-int MkWinChildCreateSubmit(intptr_t hEvent, void *pvSubmitWorker, pid_t *pPid)
+int MkWinChildCreateSubmit(intptr_t hEvent, void *pvSubmitWorker, PWINCCWPIPE pStdOut, PWINCCWPIPE pStdErr, pid_t *pPid)
 {
     PWINCHILD pChild = mkWinChildNew(WINCHILDTYPE_SUBMIT);
     pChild->u.Submit.hEvent         = (HANDLE)hEvent;
     pChild->u.Submit.pvSubmitWorker = pvSubmitWorker;
+    pChild->u.Submit.pStdOut        = pStdOut;
+    pChild->u.Submit.pStdErr        = pStdErr;
     return mkWinChildPushToCareWorker(pChild, pPid);
 }
 

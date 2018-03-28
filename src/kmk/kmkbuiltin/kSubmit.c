@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3198 2018-03-28 16:15:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3199 2018-03-28 18:56:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -109,6 +109,12 @@ typedef struct WORKERINSTANCE
     HANDLE                  hPipe;
     /** For overlapped read (have valid event semaphore). */
     OVERLAPPED              OverlappedRead;
+# ifdef CONFIG_NEW_WIN_CHILDREN
+    /** Standard output catcher (reused). */
+    PWINCCWPIPE             pStdOut;
+    /** Standard error catcher (reused). */
+    PWINCCWPIPE             pStdErr;
+# endif
 #else
     /** The socket descriptor we use to talk to the kWorker process. */
     int                     fdSocket;
@@ -423,11 +429,10 @@ static int kSubmitSpawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, int 
         static DWORD        s_fDenyRemoteClients = ~(DWORD)0;
         wchar_t             wszPipeName[128];
         HANDLE              hWorkerPipe;
-        SECURITY_ATTRIBUTES SecAttrs = { /*nLength:*/ sizeof(SecAttrs), /*pAttrs:*/ NULL, /*bInheritHandle:*/ TRUE };
         int                 iProcessorGroup = -1; /** @todo determine process group. */
 
         /*
-         * Create the bi-directional pipe.  Worker end is marked inheritable, our end is not.
+         * Create the bi-directional pipe with overlapping I/O enabled.
          */
         if (s_fDenyRemoteClients == ~(DWORD)0)
             s_fDenyRemoteClients = GetVersion() >= 0x60000 ? PIPE_REJECT_REMOTE_CLIENTS : 0;
@@ -440,7 +445,7 @@ static int kSubmitSpawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, int 
                                        64 /*cbOutBuffer*/,
                                        65536 /*cbInBuffer*/,
                                        0 /*cMsDefaultTimeout -> 50ms*/,
-                                       &SecAttrs /* inherit */);
+                                       NULL /* pSecAttr - no inherit */);
         if (hWorkerPipe != INVALID_HANDLE_VALUE)
         {
             pWorker->hPipe = CreateFileW(wszPipeName,
@@ -518,6 +523,14 @@ static int kSubmitSpawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, int 
                         char   szErrMsg[256];
                         BOOL   afReplace[3] = { TRUE, FALSE, FALSE };
                         HANDLE ahReplace[3] = { hWorkerPipe, INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE };
+                        if (pWorker->pStdOut)
+                        {
+                            afReplace[1] = TRUE;
+                            afReplace[2] = TRUE;
+                            ahReplace[1] = pWorker->pStdOut->hPipeChild;
+                            ahReplace[2] = pWorker->pStdErr->hPipeChild;
+                        }
+
                         rc = nt_child_inject_standard_handles(ProcInfo.hProcess, afReplace, ahReplace, szErrMsg, sizeof(szErrMsg));
                         if (rc == 0)
                         {
@@ -569,7 +582,7 @@ static int kSubmitSpawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, int 
                         CloseHandle(ProcInfo.hProcess);
                     }
                     else
-                        rc = errx(pCtx, -2, "CreateProcessW failed: %u (exe=%s cmdline=%s)",
+                        rc = errx(pCtx, -2, "CreateProcessW failed: %u (exe=%S cmdline=%S)",
                                   GetLastError(), wszExecutable, wszCommandLine);
                     CloseHandle(pWorker->OverlappedRead.hEvent);
                     pWorker->OverlappedRead.hEvent = INVALID_HANDLE_VALUE;
@@ -637,16 +650,26 @@ static int kSubmitRespawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, in
         warnx(pCtx, "CloseHandle(pWorker->OverlappedRead.hEvent): %u", GetLastError());
     pWorker->OverlappedRead.hEvent = INVALID_HANDLE_VALUE;
 
+    if (pWorker->pStdOut)
+        MkWinChildcareWorkerDrainPipes(NULL, pWorker->pStdOut, pWorker->pStdErr);
+
     /* It's probably shutdown already, if not give it 10 milliseconds before
        we terminate it forcefully. */
     rcWait = WaitForSingleObject(pWorker->hProcess, 10);
     if (rcWait != WAIT_OBJECT_0)
     {
         BOOL fRc = TerminateProcess(pWorker->hProcess, 127);
+
+        if (pWorker->pStdOut)
+            MkWinChildcareWorkerDrainPipes(NULL, pWorker->pStdOut, pWorker->pStdErr);
+
         rcWait = WaitForSingleObject(pWorker->hProcess, 100);
         if (rcWait != WAIT_OBJECT_0)
             warnx(pCtx, "WaitForSingleObject returns %u (and TerminateProcess %d)", rcWait, fRc);
     }
+
+    if (pWorker->pStdOut)
+        MkWinChildcareWorkerDrainPipes(NULL, pWorker->pStdOut, pWorker->pStdErr);
 
     if (!CloseHandle(pWorker->hProcess))
         warnx(pCtx, "CloseHandle(pWorker->hProcess): %u", GetLastError());
@@ -718,18 +741,36 @@ static PWORKERINSTANCE kSubmitSelectWorkSpawnNewIfNecessary(PKMKBUILTINCTX pCtx,
      */
     pWorker = (PWORKERINSTANCE)xcalloc(sizeof(*pWorker));
     pWorker->cBits = cBitsWorker;
-    if (kSubmitSpawnWorker(pCtx, pWorker, cVerbosity) == 0)
+#if defined(CONFIG_NEW_WIN_CHILDREN) && defined(KBUILD_OS_WINDOWS)
+    if (output_sync != OUTPUT_SYNC_NONE)
     {
-        /*
-         * Insert it into the process ID hash table and idle list.
-         */
-        size_t idxHash = KWORKER_PID_HASH(pWorker->pid);
-        pWorker->pNextPidHash = g_apPidHash[idxHash];
-        g_apPidHash[idxHash] = pWorker;
-
-        kSubmitListAppend(&g_IdleList, pWorker);
-        return pWorker;
+        pWorker->pStdOut = MkWinChildcareCreateWorkerPipe(1, g_uWorkerSeqNo << 1);
+        pWorker->pStdErr = MkWinChildcareCreateWorkerPipe(2, g_uWorkerSeqNo << 1);
     }
+    if (   output_sync == OUTPUT_SYNC_NONE
+        || (   pWorker->pStdOut != NULL
+            && pWorker->pStdErr != NULL))
+#endif
+    {
+        if (kSubmitSpawnWorker(pCtx, pWorker, cVerbosity) == 0)
+        {
+            /*
+             * Insert it into the process ID hash table and idle list.
+             */
+            size_t idxHash = KWORKER_PID_HASH(pWorker->pid);
+            pWorker->pNextPidHash = g_apPidHash[idxHash];
+            g_apPidHash[idxHash] = pWorker;
+
+            kSubmitListAppend(&g_IdleList, pWorker);
+            return pWorker;
+        }
+    }
+#if defined(CONFIG_NEW_WIN_CHILDREN) && defined(KBUILD_OS_WINDOWS)
+    if (pWorker->pStdErr)
+        MkWinChildcareDeleteWorkerPipe(pWorker->pStdErr);
+    if (pWorker->pStdOut)
+        MkWinChildcareDeleteWorkerPipe(pWorker->pStdOut);
+#endif
 
     free(pWorker);
     return NULL;
@@ -1108,7 +1149,8 @@ l_again:
             goto l_again;
         }
 # else
-        if (MkWinChildCreateSubmit((intptr_t)pWorker->OverlappedRead.hEvent, pWorker, pPidSpawned) == 0)
+        if (MkWinChildCreateSubmit((intptr_t)pWorker->OverlappedRead.hEvent, pWorker,
+                                   pWorker->pStdOut, pWorker->pStdErr, pPidSpawned) == 0)
         { /* likely */ }
         else
         {
