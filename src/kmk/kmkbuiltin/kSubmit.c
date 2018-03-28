@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3194 2018-03-27 14:05:17Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3198 2018-03-28 16:15:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -55,6 +55,7 @@
 # else
 #  include "../w32/winchildren.h"
 # endif
+# include "nt/nt_child_inject_standard_handles.h"
 #endif
 
 #include "kbuild.h"
@@ -68,6 +69,7 @@
 /** Hashes a pid. */
 #define KWORKER_PID_HASH(a_pid) ((size_t)(a_pid) % 61)
 
+#define TUPLE(a_sz)     a_sz, sizeof(a_sz) - 1
 
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
@@ -168,6 +170,11 @@ static unsigned             g_cAltArchBits = 64;
 static char const           g_szAltArch[]  = "amd64";
 #else
 # error "Port me!"
+#endif
+
+#ifdef KBUILD_OS_WINDOWS
+/** Pointer to kernel32!SetThreadGroupAffinity. */
+static BOOL (WINAPI *g_pfnSetThreadGroupAffinity)(HANDLE, const GROUP_AFFINITY*, GROUP_AFFINITY *);
 #endif
 
 
@@ -289,6 +296,80 @@ static PWORKERINSTANCE kSubmitFindWorkerByPid(pid_t pid)
 
 
 /**
+ * Calcs the path to the kWorker binary for the worker.
+ *
+ * @returns
+ * @param   pCtx            The command execution context.
+ * @param   pWorker         The worker (for its bitcount).
+ * @param   pszExecutable   The output buffer.
+ * @param   cbExecutable    The output buffer size.
+ */
+static int kSubmitCalcExecutablePath(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, char *pszExecutable, size_t cbExecutable)
+{
+#if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
+    static const char   s_szWorkerName[] = "kWorker.exe";
+#else
+    static const char   s_szWorkerName[] = "kWorker";
+#endif
+    const char         *pszBinPath = get_kbuild_bin_path();
+    size_t const        cchBinPath = strlen(pszBinPath);
+    size_t              cchExecutable;
+    if (   pWorker->cBits == g_cArchBits
+        ?  cchBinPath + 1 + sizeof(s_szWorkerName) <= cbExecutable
+        :  cchBinPath + 1 - sizeof(g_szArch) + sizeof(g_szAltArch) + sizeof(s_szWorkerName) <= cbExecutable )
+    {
+        memcpy(pszExecutable, pszBinPath, cchBinPath);
+        cchExecutable = cchBinPath;
+
+        /* Replace the arch bin directory extension with the alternative one if requested. */
+        if (pWorker->cBits != g_cArchBits)
+        {
+            if (   cchBinPath < sizeof(g_szArch)
+                || memcmp(&pszExecutable[cchBinPath - sizeof(g_szArch) + 1], g_szArch, sizeof(g_szArch) - 1) != 0)
+                return errx(pCtx, 1, "KBUILD_BIN_PATH does not end with main architecture (%s) as expected: %s",
+                            pszBinPath, g_szArch);
+            cchExecutable -= sizeof(g_szArch) - 1;
+            memcpy(&pszExecutable[cchExecutable], g_szAltArch, sizeof(g_szAltArch) - 1);
+            cchExecutable += sizeof(g_szAltArch) - 1;
+        }
+
+        /* Append a slash and the worker name. */
+        pszExecutable[cchExecutable++] = '/';
+        memcpy(&pszExecutable[cchExecutable], s_szWorkerName, sizeof(s_szWorkerName));
+        return 0;
+    }
+    return errx(pCtx, 1, "KBUILD_BIN_PATH is too long");
+}
+
+
+#ifdef KBUILD_OS_WINDOWS
+/**
+ * Calcs the UTF-16 path to the kWorker binary for the worker.
+ *
+ * @returns
+ * @param   pCtx            The command execution context.
+ * @param   pWorker         The worker (for its bitcount).
+ * @param   pwszExecutable  The output buffer.
+ * @param   cwcExecutable   The output buffer size.
+ */
+static int kSubmitCalcExecutablePathW(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, wchar_t *pwszExecutable, size_t cwcExecutable)
+{
+    char szExecutable[MAX_PATH];
+    int rc = kSubmitCalcExecutablePath(pCtx, pWorker, szExecutable, sizeof(szExecutable));
+    if (rc == 0)
+    {
+        int cwc = MultiByteToWideChar(CP_ACP, 0 /*fFlags*/, szExecutable, strlen(szExecutable) + 1,
+                                      pwszExecutable, cwcExecutable);
+        if (cwc > 0)
+            return 0;
+        return errx(pCtx, 1, "MultiByteToWideChar failed on '%s': %u", szExecutable, GetLastError());
+    }
+    return rc;
+}
+#endif
+
+
+/**
  * Creates a new worker process.
  *
  * @returns 0 on success, non-zero value on failure.
@@ -301,69 +382,57 @@ static PWORKERINSTANCE kSubmitFindWorkerByPid(pid_t pid)
  */
 static int kSubmitSpawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, int cVerbosity)
 {
-#if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
-    static const char s_szWorkerName[] = "kWorker.exe";
+    int rc;
+#ifdef KBUILD_OS_WINDOWS
+    wchar_t wszExecutable[MAX_PATH];
 #else
-    static const char s_szWorkerName[] = "kWorker";
-#endif
-    const char     *pszBinPath = get_kbuild_bin_path();
-    size_t const    cchBinPath = strlen(pszBinPath);
-    size_t          cchExectuable;
-    size_t const    cbExecutableBuf = GET_PATH_MAX;
     PATH_VAR(szExecutable);
-#define TUPLE(a_sz)     a_sz, sizeof(a_sz) - 1
+#endif
+
+    /*
+     * Get the output path so it can be passed on as a volatile.
+     */
+    const char      *pszVarVolatile;
     struct variable *pVarVolatile = lookup_variable(TUPLE("PATH_OUT"));
     if (pVarVolatile)
-    { /* likely */ }
+        pszVarVolatile = "PATH_OUT";
     else
     {
         pVarVolatile = lookup_variable(TUPLE("PATH_OUT_BASE"));
-        if (!pVarVolatile)
+        if (pVarVolatile)
+            pszVarVolatile = "PATH_OUT_BASE";
+        else
             warn(pCtx, "Neither PATH_OUT_BASE nor PATH_OUT was found.");
     }
+    if (pVarVolatile && strchr(pVarVolatile->value, '"'))
+        return errx(pCtx, -1, "%s contains double quotes.", pszVarVolatile);
+    if (pVarVolatile && strlen(pVarVolatile->value) >= GET_PATH_MAX)
+        return errx(pCtx, -1, "%s is too long (max %u)", pszVarVolatile, GET_PATH_MAX);
 
     /*
      * Construct the executable path.
      */
-    if (   pWorker->cBits == g_cArchBits
-        ?  cchBinPath + 1 + sizeof(s_szWorkerName) <= cbExecutableBuf
-        :  cchBinPath + 1 - sizeof(g_szArch) + sizeof(g_szAltArch) + sizeof(s_szWorkerName) <= cbExecutableBuf )
+#ifdef KBUILD_OS_WINDOWS
+    rc = kSubmitCalcExecutablePathW(pCtx, pWorker, wszExecutable, K_ELEMENTS(wszExecutable));
+#else
+    rc = kSubmitCalcExecutablePath(pCtx, pWorker, szExecutable, GET_PATH_MAX);
+#endif
+    if (rc == 0)
     {
 #ifdef KBUILD_OS_WINDOWS
         static DWORD        s_fDenyRemoteClients = ~(DWORD)0;
-        wchar_t             wszPipeName[64];
+        wchar_t             wszPipeName[128];
         HANDLE              hWorkerPipe;
         SECURITY_ATTRIBUTES SecAttrs = { /*nLength:*/ sizeof(SecAttrs), /*pAttrs:*/ NULL, /*bInheritHandle:*/ TRUE };
-#else
-        int                 aiPair[2] = { -1, -1 };
-#endif
+        int                 iProcessorGroup = -1; /** @todo determine process group. */
 
-        memcpy(szExecutable, pszBinPath, cchBinPath);
-        cchExectuable = cchBinPath;
-
-        /* Replace the arch bin directory extension with the alternative one if requested. */
-        if (pWorker->cBits != g_cArchBits)
-        {
-            if (   cchBinPath < sizeof(g_szArch)
-                || memcmp(&szExecutable[cchBinPath - sizeof(g_szArch) + 1], g_szArch, sizeof(g_szArch) - 1) != 0)
-                return errx(pCtx, 1, "KBUILD_BIN_PATH does not end with main architecture (%s) as expected: %s",
-                            pszBinPath, g_szArch);
-            cchExectuable -= sizeof(g_szArch) - 1;
-            memcpy(&szExecutable[cchExectuable], g_szAltArch, sizeof(g_szAltArch) - 1);
-            cchExectuable += sizeof(g_szAltArch) - 1;
-        }
-
-        /* Append a slash and the worker name. */
-        szExecutable[cchExectuable++] = '/';
-        memcpy(&szExecutable[cchExectuable], s_szWorkerName, sizeof(s_szWorkerName));
-
-#ifdef KBUILD_OS_WINDOWS
         /*
          * Create the bi-directional pipe.  Worker end is marked inheritable, our end is not.
          */
         if (s_fDenyRemoteClients == ~(DWORD)0)
             s_fDenyRemoteClients = GetVersion() >= 0x60000 ? PIPE_REJECT_REMOTE_CLIENTS : 0;
-        _snwprintf(wszPipeName, sizeof(wszPipeName), L"\\\\.\\pipe\\kmk-%u-kWorker-%u", getpid(), g_uWorkerSeqNo++);
+        _snwprintf(wszPipeName, sizeof(wszPipeName), L"\\\\.\\pipe\\kmk-%u-kWorker-%u-%u",
+                   GetCurrentProcessId(), g_uWorkerSeqNo++, GetTickCount());
         hWorkerPipe = CreateNamedPipeW(wszPipeName,
                                        PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE /* win2k sp2+ */,
                                        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | s_fDenyRemoteClients,
@@ -387,69 +456,154 @@ static int kSubmitSpawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, int 
                                                               TRUE /*bInitialState*/, NULL /*pwszName*/);
                 if (pWorker->OverlappedRead.hEvent != NULL)
                 {
-                    char        szHandleArg[32];
-                    extern int process_priority; /* main.c */
-                    char        szPriorityArg[32];
-                    const char *apszArgs[10];
-                    int         cArgs = 0;
-                    apszArgs[cArgs++] = szExecutable;
-                    apszArgs[cArgs++] = "--pipe";
-                    _snprintf(szHandleArg, sizeof(szHandleArg), "%p", hWorkerPipe);
-                    apszArgs[cArgs++] = szHandleArg;
-                    if (pVarVolatile)
+                    extern int          process_priority; /* main.c */
+                    wchar_t             wszCommandLine[MAX_PATH * 3];
+                    wchar_t            *pwszDst = wszCommandLine;
+                    size_t              cwcDst = K_ELEMENTS(wszCommandLine);
+                    int                 cwc;
+                    DWORD               fFlags;
+                    STARTUPINFOW        StartupInfo;
+                    PROCESS_INFORMATION ProcInfo = { NULL, NULL, 0, 0 };
+
+                    /*
+                     * Compose the command line.
+                     */
+                    cwc = _snwprintf(pwszDst, cwcDst, L"\"%s\" ", wszExecutable);
+                    assert(cwc > 0 && cwc < cwcDst);
+                    pwszDst += cwc;
+                    cwcDst  -= cwc;
+                    if (pVarVolatile && *pVarVolatile->value)
                     {
-                        apszArgs[cArgs++] = "--volatile";
-                        apszArgs[cArgs++] = pVarVolatile->value;
+                        char chEnd = strchr(pVarVolatile->value, '\0')[-1];
+                        if (chEnd == '\\')
+                            cwc = _snwprintf(pwszDst, cwcDst, L" --volatile \"%S.\"", pVarVolatile->value);
+                        else
+                            cwc = _snwprintf(pwszDst, cwcDst, L" --volatile \"%S\"", pVarVolatile->value);
+                        assert(cwc > 0 && cwc < cwcDst);
+                        pwszDst += cwc;
+                        cwcDst  -= cwc;
                     }
-                    if (process_priority != 0)
+                    *pwszDst = '\0';
+
+                    /*
+                     * Fill in the startup information.
+                     */
+                    memset(&StartupInfo, 0, sizeof(StartupInfo));
+                    StartupInfo.cb = sizeof(StartupInfo);
+                    GetStartupInfoW(&StartupInfo);
+                    StartupInfo.dwFlags    &= ~STARTF_USESTDHANDLES;
+                    StartupInfo.lpReserved2 = NULL;
+                    StartupInfo.cbReserved2 = 0;
+
+                    /*
+                     * Flags and such.
+                     */
+                    fFlags = CREATE_SUSPENDED;
+                    switch (process_priority)
                     {
-                        apszArgs[cArgs++] = "--priority";
-                        _snprintf(szPriorityArg, sizeof(szPriorityArg), "%u", process_priority);
-                        apszArgs[cArgs++] = szPriorityArg;
+                        case 1: fFlags |= CREATE_SUSPENDED | IDLE_PRIORITY_CLASS; break;
+                        case 2: fFlags |= CREATE_SUSPENDED | BELOW_NORMAL_PRIORITY_CLASS; break;
+                        case 3: fFlags |= CREATE_SUSPENDED | NORMAL_PRIORITY_CLASS; break;
+                        case 4: fFlags |= CREATE_SUSPENDED | HIGH_PRIORITY_CLASS; break;
+                        case 5: fFlags |= CREATE_SUSPENDED | REALTIME_PRIORITY_CLASS; break;
                     }
-                    apszArgs[cArgs] = NULL;
 
                     /*
                      * Create the worker process.
                      */
-                    pWorker->hProcess = (HANDLE) _spawnve(_P_NOWAIT, szExecutable, apszArgs, environ);
-                    if ((intptr_t)pWorker->hProcess != -1)
+                    if (CreateProcessW(wszExecutable, wszCommandLine, NULL /*pProcSecAttr*/, NULL /*pThreadSecAttr*/,
+                                       FALSE /*fInheritHandles*/, fFlags, NULL /*pwszzEnvironment*/,
+                                       NULL /*pwszCwd*/, &StartupInfo, &ProcInfo))
                     {
-                        CloseHandle(hWorkerPipe);
-                        pWorker->pid = GetProcessId(pWorker->hProcess);
-                        if (cVerbosity > 0)
-                            warnx(pCtx, "created %d bit worker %d\n", pWorker->cBits, pWorker->pid);
-                        return 0;
+                        char   szErrMsg[256];
+                        BOOL   afReplace[3] = { TRUE, FALSE, FALSE };
+                        HANDLE ahReplace[3] = { hWorkerPipe, INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE };
+                        rc = nt_child_inject_standard_handles(ProcInfo.hProcess, afReplace, ahReplace, szErrMsg, sizeof(szErrMsg));
+                        if (rc == 0)
+                        {
+                            BOOL fRet;
+                            switch (process_priority)
+                            {
+                                case 1: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_IDLE); break;
+                                case 2: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_BELOW_NORMAL); break;
+                                case 3: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_NORMAL); break;
+                                case 4: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_HIGHEST); break;
+                                case 5: fRet = SetThreadPriority(ProcInfo.hThread, THREAD_PRIORITY_TIME_CRITICAL); break;
+                                default: fRet = TRUE;
+                            }
+                            if (!fRet)
+                                warnx(pCtx, "warning: failed to set kWorker thread priority: %u\n", GetLastError());
+
+                            if (iProcessorGroup >= 0)
+                            {
+                                GROUP_AFFINITY NewAff = { ~(uintptr_t)0, (WORD)iProcessorGroup, 0, 0, 0 };
+                                GROUP_AFFINITY OldAff = {             0,                     0, 0, 0, 0 };
+                                if (!g_pfnSetThreadGroupAffinity(ProcInfo.hThread, &NewAff, &OldAff))
+                                    warnx(pCtx, "warning: Failed to set processor group to %d: %u\n",
+                                          iProcessorGroup, GetLastError());
+                            }
+
+                            /*
+                             * Now, we just need to resume the thread.
+                             */
+                            if (ResumeThread(ProcInfo.hThread))
+                            {
+                                CloseHandle(hWorkerPipe);
+                                CloseHandle(ProcInfo.hThread);
+                                pWorker->pid      = ProcInfo.dwProcessId;
+                                pWorker->hProcess = ProcInfo.hProcess;
+                                if (cVerbosity > 0)
+                                    warnx(pCtx, "created %d bit worker %d\n", pWorker->cBits, pWorker->pid);
+                                return 0;
+                            }
+
+                            /*
+                             * Failed, bail out.
+                             */
+                            rc = errx(pCtx, -3, "ResumeThread failed: %u", GetLastError());
+                        }
+                        else
+                            rc = errx(pCtx, -3, "%s", szErrMsg);
+                        TerminateProcess(ProcInfo.hProcess, 1234);
+                        CloseHandle(ProcInfo.hThread);
+                        CloseHandle(ProcInfo.hProcess);
                     }
-                    err(pCtx, 1, "_spawnve(,%s,,)", szExecutable);
+                    else
+                        rc = errx(pCtx, -2, "CreateProcessW failed: %u (exe=%s cmdline=%s)",
+                                  GetLastError(), wszExecutable, wszCommandLine);
                     CloseHandle(pWorker->OverlappedRead.hEvent);
                     pWorker->OverlappedRead.hEvent = INVALID_HANDLE_VALUE;
                 }
                 else
-                    errx(pCtx, 1, "CreateEventW failed: %u", GetLastError());
+                    rc = errx(pCtx, -1, "CreateEventW failed: %u", GetLastError());
                 CloseHandle(pWorker->hPipe);
                 pWorker->hPipe = INVALID_HANDLE_VALUE;
             }
             else
-                errx(pCtx, 1, "Opening named pipe failed: %u", GetLastError());
+                rc = errx(pCtx, -1, "Opening named pipe failed: %u", GetLastError());
             CloseHandle(hWorkerPipe);
         }
         else
-            errx(pCtx, 1, "CreateNamedPipeW failed: %u", GetLastError());
+            rc = errx(pCtx, -1, "CreateNamedPipeW failed: %u", GetLastError());
 
 #else
         /*
          * Create a socket pair.
          */
+        int aiPair[2] = { -1, -1 };
         if (socketpair(AF_LOCAL, SOCK_STREAM, 0, aiPair) == 0)
+        {
             pWorker->fdSocket = aiPair[1];
+
+            rc = -1;
+        }
         else
-            err(pCtx, 1, "socketpair");
+            rc = err(pCtx, -1, "socketpair");
 #endif
     }
     else
-        errx(pCtx, 1, "KBUILD_BIN_PATH is too long");
-    return -1;
+        rc = errx(pCtx, -1, "KBUILD_BIN_PATH is too long");
+    return rc;
 }
 
 

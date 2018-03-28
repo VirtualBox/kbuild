@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3198 2018-03-28 16:15:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -11167,13 +11167,44 @@ int main(int argc, char **argv)
             }
             else
                 return kwErrPrintfRc(2, "--priority takes an argument!\n");
-
+        }
+        else if (strcmp(argv[i], "--group") == 0)
+        {
+            i++;
+            if (i < argc)
+            {
+                char *pszEnd = NULL;
+                unsigned long uValue = strtoul(argv[i], &pszEnd, 16);
+                if (   *argv[i]
+                    && pszEnd != NULL
+                    && *pszEnd == '\0'
+                    && uValue == (WORD)uValue)
+                {
+                    typedef BOOL (WINAPI *PFNSETTHREADGROUPAFFINITY)(HANDLE, const GROUP_AFFINITY*, GROUP_AFFINITY *);
+                    PFNSETTHREADGROUPAFFINITY pfnSetThreadGroupAffinity;
+                    pfnSetThreadGroupAffinity = (PFNSETTHREADGROUPAFFINITY)GetProcAddress(GetModuleHandleW(L"KERNEL32.DLL"),
+                                                                                          "SetThreadGroupAffinity");
+                    if (pfnSetThreadGroupAffinity)
+                    {
+                        GROUP_AFFINITY NewAff = { ~(uintptr_t)0, (WORD)uValue, 0, 0, 0 };
+                        GROUP_AFFINITY OldAff = {             0,            0, 0, 0, 0 };
+                        if (!pfnSetThreadGroupAffinity(GetCurrentThread(), &NewAff, &OldAff))
+                            kwErrPrintf("Failed to set processor group to %lu: %u\n", uValue, GetLastError());
+                    }
+                    else
+                        kwErrPrintf("Cannot set processor group to %lu because SetThreadGroupAffinity was not found\n", uValue);
+                }
+                else
+                    return kwErrPrintfRc(2, "Invalid --priority argument: %s\n", argv[i]);
+            }
+            else
+                return kwErrPrintfRc(2, "--priority takes an argument!\n");
         }
         else if (   strcmp(argv[i], "--help") == 0
                  || strcmp(argv[i], "-h") == 0
                  || strcmp(argv[i], "-?") == 0)
         {
-            printf("usage: kWorker [--volatile dir] [--priority <1-5>] --pipe <pipe-handle>\n"
+            printf("usage: kWorker [--volatile dir] [--priority <1-5>] [--group <processor-grp>\n"
                    "usage: kWorker <--help|-h>\n"
                    "usage: kWorker <--version|-V>\n"
                    "usage: kWorker [--volatile dir] --test [<times> [--chdir <dir>] [--breakpoint] -- args\n"
@@ -11188,8 +11219,43 @@ int main(int argc, char **argv)
             return kwErrPrintfRc(2, "Unknown argument '%s'\n", argv[i]);
     }
 
+    /*
+     * If no --pipe argument, then assume its standard input.
+     * We need to carefully replace the CRT stdin with a handle to "nul".
+     */
     if (hPipe == INVALID_HANDLE_VALUE)
-        return kwErrPrintfRc(2, "Missing --pipe <pipe-handle> argument!\n");
+    {
+        hPipe = GetStdHandle(STD_INPUT_HANDLE);
+        if (GetFileType(hPipe) == FILE_TYPE_PIPE)
+        {
+            HANDLE hDuplicate = INVALID_HANDLE_VALUE;
+            if (DuplicateHandle(GetCurrentProcess(), hPipe, GetCurrentProcess(), &hDuplicate, 0, FALSE, DUPLICATE_SAME_ACCESS))
+            {
+                int fdNul = _wopen(L"nul", O_RDWR | O_BINARY);
+                if (fdNul >= 0)
+                {
+                    if (_dup2(fdNul, 0) >= 0)
+                    {
+                        close(fdNul);
+                        kHlpAssert(GetStdHandle(STD_INPUT_HANDLE) != hPipe);
+                        hPipe = hDuplicate;
+                    }
+                    else
+                        return kwErrPrintfRc(2, "DuplicateHandle pipe failed: %u\n", GetLastError());
+                }
+                else
+                    return kwErrPrintfRc(2, "DuplicateHandle pipe failed: %u\n", GetLastError());
+            }
+            else
+                return kwErrPrintfRc(2, "DuplicateHandle pipe failed: %u\n", GetLastError());
+        }
+        else
+            return kwErrPrintfRc(2, "No --pipe <pipe-handle> argument and standard input is not a valid pipe handle (%#x, %u)\n",
+                                 GetFileType(hPipe), GetLastError());
+    }
+    else if (GetFileType(hPipe) != FILE_TYPE_PIPE)
+        return kwErrPrintfRc(2, "The specified --pipe %p is not a pipe handle: type %#x (last err %u)!\n",
+                             GetFileType(hPipe), GetLastError());
 
     /*
      * Serve the pipe.
