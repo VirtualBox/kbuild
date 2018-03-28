@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3200 2018-03-28 20:32:11Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3202 2018-03-28 21:39:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -1022,7 +1022,7 @@ static int mkWinChildcareWorkerWaitForProcess(PWINCHILDCAREWORKER pWorker, PWINC
                     if (   !pChild->pMkChild
                         || !pChild->pMkChild->file
                         || !pChild->pMkChild->file->name)
-                        MkWinChildError(NULL, 0, "Pid %u ('%s') still running after %u seconds\n",
+                        MkWinChildError(NULL, 0, "Pid %u ('%ls') still running after %u seconds\n",
                                         GetProcessId(hProcess), pwszJob, (msNow - msStart) / 1000);
                     else
                         MkWinChildError(NULL, 0, "Target '%s' (pid %u) still running after %u seconds\n",
