@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 3203 2018-03-28 22:23:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -76,7 +76,7 @@ typedef struct KMKNTOPENDIR
 /** The cache.*/
 PKFSCACHE   g_pFsCache = NULL;
 /** Number of times dir_cache_invalid_missing was called. */
-static KU32 g_cInvalidates = 0;
+static KU32 volatile g_cInvalidates = 0;
 /** Set by dir_cache_volatile_dir to indicate that the user has marked the
  * volatile parts of the file system with custom revisioning and we only need to
  * flush these.  This is very handy when using a separate output directory
@@ -650,10 +650,10 @@ void dir_cache_invalid_after_job(void)
  * Invalidate the whole directory cache
  *
  * Used by $(dircache-ctl invalidate)
+ * @note    Multi-thread safe.
  */
 void dir_cache_invalid_all(void)
 {
-    assert(GetCurrentThreadId() == g_idMainThread);
     g_cInvalidates++;
     kFsCacheInvalidateAll(g_pFsCache);
 }
@@ -662,10 +662,10 @@ void dir_cache_invalid_all(void)
  * Invalidate missing bits of the directory cache.
  *
  * Used by $(dircache-ctl invalidate-missing)
+ * @note    Multi-thread safe.
  */
 void dir_cache_invalid_missing(void)
 {
-    assert(GetCurrentThreadId() == g_idMainThread);
     g_cInvalidates++;
     kFsCacheInvalidateAll(g_pFsCache);
 }
@@ -674,10 +674,10 @@ void dir_cache_invalid_missing(void)
  * Invalidate the volatile bits of the directory cache.
  *
  * Used by $(dircache-ctl invalidate-missing)
+ * @note    Multi-thread safe.
  */
 void dir_cache_invalid_volatile(void)
 {
-    assert(GetCurrentThreadId() == g_idMainThread);
     g_cInvalidates++;
     if (g_fFsCacheIsUsingCustomRevision)
         kFsCacheInvalidateCustomBoth(g_pFsCache);

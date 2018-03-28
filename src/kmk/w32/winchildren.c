@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3202 2018-03-28 21:39:02Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3203 2018-03-28 22:23:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -1640,6 +1640,48 @@ static BOOL mkWinChildIsProbableClExe(WCHAR const *pwszImagePath, size_t cwcImag
 }
 
 /**
+ * Temporary workaround for seemingly buggy kFsCache.c / dir-nt-bird.c.
+ *
+ * Something is not invalidated / updated correctly!
+ */
+static BOOL mkWinChildcareWorkerIsRegularFileW(PWINCHILDCAREWORKER pWorker, wchar_t const *pwszPath)
+{
+    BOOL fRet = FALSE;
+#ifdef KMK
+    if (utf16_regular_file_p(pwszPath))
+        fRet = TRUE;
+    else
+#endif
+    {
+        /* Don't believe the cache. */
+        DWORD dwAttr = GetFileAttributesW(pwszPath);
+        if (dwAttr != INVALID_FILE_ATTRIBUTES)
+        {
+            if (!(dwAttr & FILE_ATTRIBUTE_DIRECTORY))
+            {
+#ifdef KMK
+                extern void dir_cache_invalid_volatile(void);
+                dir_cache_invalid_volatile();
+                if (utf16_regular_file_p(pwszPath))
+                    MkWinChildError(pWorker, 1, "kFsCache was out of sync! pwszPath=%S\n", pwszPath);
+                else
+                {
+                    dir_cache_invalid_all();
+                    if (utf16_regular_file_p(pwszPath))
+                        MkWinChildError(pWorker, 1, "kFsCache was really out of sync! pwszPath=%S\n", pwszPath);
+                    else
+                        MkWinChildError(pWorker, 1, "kFsCache is really out of sync!! pwszPath=%S\n", pwszPath);
+                }
+#endif
+                fRet = TRUE;
+            }
+        }
+    }
+    return fRet;
+}
+
+
+/**
  * Tries to locate the image file, searching the path and maybe falling back on
  * the shell in case it knows more (think cygwin with its own view of the file
  * system).
@@ -1745,11 +1787,7 @@ static int mkWinChildcareWorkerFindImage(PWINCHILDCAREWORKER pWorker, char const
                 pwszPath[cwcPath + 3] = L'\0';
             }
 
-#ifdef KMK
-            if (utf16_regular_file_p(pwszPath))
-#else
-            if (GetFileAttributesW(pwszPath) != INVALID_FILE_ATTRIBUTES)
-#endif
+            if (mkWinChildcareWorkerIsRegularFileW(pWorker, pwszPath))
             {
                 *pfProbableClExe = mkWinChildIsProbableClExe(pwszPath, cwcPath + 4 - 1);
                 return mkWinChildDuplicateUtf16String(pwszPath, cwcPath + 4, ppwszImagePath);
@@ -1763,7 +1801,7 @@ static int mkWinChildcareWorkerFindImage(PWINCHILDCAREWORKER pWorker, char const
             {
                 pwszPath[cwcPath - 1] = L'\0';
 #ifdef KMK
-                if (utf16_regular_file_p(pwszPath))
+                if (mkWinChildcareWorkerIsRegularFileW(pWorker, pwszPath))
 #endif
                 {
                     hFile = CreateFileW(pwszPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
@@ -1836,10 +1874,6 @@ static int mkWinChildcareWorkerFindImage(PWINCHILDCAREWORKER pWorker, char const
                 cwcCombined = cwcComponent + 1 + cwcArg0;
                 if (cwcComponent > 0 && cwcCombined <= MKWINCHILD_MAX_PATH)
                 {
-#ifndef KMK
-                    DWORD dwAttribs;
-#endif
-
                     /* Copy the component into wszPathBuf, maybe abspath'ing it. */
                     DWORD  cwcAbsPath = 0;
                     if (   *pwszSearchPath != L'\\'
@@ -1891,13 +1925,7 @@ static int mkWinChildcareWorkerFindImage(PWINCHILDCAREWORKER pWorker, char const
                         wszPathBuf[cwcCombined + 2] = L'e';
                         wszPathBuf[cwcCombined + 3] = L'\0';
                     }
-#ifdef KMK
-                    if (utf16_regular_file_p(wszPathBuf))
-#else
-                    dwAttribs = GetFileAttributesW(wszPathBuf);
-                    if (   dwAttribs != INVALID_FILE_ATTRIBUTES
-                        && !(dwAttribs & FILE_ATTRIBUTE_DIRECTORY))
-#endif
+                    if (mkWinChildcareWorkerIsRegularFileW(pWorker, wszPathBuf))
                     {
                         *pfProbableClExe = mkWinChildIsProbableClExe(wszPathBuf, cwcCombined + (fHasExeSuffix ? 0 : 4) - 1);
                         return mkWinChildDuplicateUtf16String(wszPathBuf, cwcCombined + (fHasExeSuffix ? 0 : 4), ppwszImagePath);
@@ -1906,7 +1934,7 @@ static int mkWinChildcareWorkerFindImage(PWINCHILDCAREWORKER pWorker, char const
                     {
                         wszPathBuf[cwcCombined - 1] = L'\0';
 #ifdef KMK
-                        if (utf16_regular_file_p(wszPathBuf))
+                        if (mkWinChildcareWorkerIsRegularFileW(pWorker, wszPathBuf))
 #endif
                         {
                             /*
