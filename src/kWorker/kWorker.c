@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3198 2018-03-28 16:15:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3199 2018-03-28 18:56:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -927,7 +927,15 @@ static int          g_cVerbose = 2;
 static KBOOL        g_fRestart = K_FALSE;
 
 /** Whether control-C/SIGINT or Control-Break/SIGBREAK have been seen. */
-static KBOOL volatile g_fCtrlC = K_FALSE;
+static int volatile g_rcCtrlC = 0;
+
+/** The communication pipe handle.  We break this when we see Ctrl-C such. */
+#ifdef KBUILD_OS_WINDOWS
+static HANDLE       g_hPipe = INVALID_HANDLE_VALUE;
+#else
+static int          g_hPipe = -1;
+#endif
+
 
 /* Further down. */
 extern KWREPLACEMENTFUNCTION const g_aSandboxReplacements[];
@@ -6656,7 +6664,7 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
     BOOL        fRet;
     KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hFile);
     g_cWriteFileCalls++;
-    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread || g_fCtrlC);
+    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread || g_rcCtrlC != 0);
     if (idxHandle < g_Sandbox.cHandles)
     {
         PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
@@ -7367,7 +7375,7 @@ static BOOL WINAPI kwSandbox_Kernel32_CloseHandle(HANDLE hObject)
 {
     BOOL        fRet;
     KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hObject);
-    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread || g_fCtrlC);
+    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread || g_rcCtrlC != 0);
     if (idxHandle < g_Sandbox.cHandles)
     {
         PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
@@ -9525,6 +9533,24 @@ KWREPLACEMENTFUNCTION const g_aSandboxGetProcReplacements[] =
 /** Number of entries in g_aSandboxGetProcReplacements. */
 KU32 const                  g_cSandboxGetProcReplacements = K_ELEMENTS(g_aSandboxGetProcReplacements);
 
+/**
+ * Thread that is spawned by the first terminal kwSandboxCtrlHandler invocation.
+ *
+ * This will wait 5 second in a hope that the main thread will shut down the
+ * process nicly, otherwise it will terminate it forcefully.
+ */
+static DWORD WINAPI kwSandboxCtrlThreadProc(PVOID pvUser)
+{
+    int i;
+    for (i = 0; i < 10; i++)
+    {
+        Sleep(500);
+        CancelIoEx(g_hPipe, NULL);
+    }
+    TerminateProcess(GetCurrentProcess(), (int)(intptr_t)pvUser);
+    return -1;
+}
+
 
 /**
  * Control handler.
@@ -9534,42 +9560,65 @@ KU32 const                  g_cSandboxGetProcReplacements = K_ELEMENTS(g_aSandbo
  */
 static BOOL WINAPI kwSandboxCtrlHandler(DWORD dwCtrlType)
 {
+    DWORD        cbIgn;
+    int volatile rc; /* volatile for debugging */
+    int volatile rcPrev;
+    const char  *pszMsg;
     switch (dwCtrlType)
     {
         case CTRL_C_EVENT:
-            fprintf(stderr, "kWorker: Ctrl-C\n");
-            g_fCtrlC = K_TRUE;
-            exit(9);
+            rc = 9;
+            pszMsg = "kWorker: Ctrl-C\r\n";
             break;
 
         case CTRL_BREAK_EVENT:
-            fprintf(stderr, "kWorker: Ctrl-Break\n");
-            g_fCtrlC = K_TRUE;
-            exit(10);
+            rc = 10;
+            pszMsg = "kWorker: Ctrl-Break\r\n";
             break;
 
         case CTRL_CLOSE_EVENT:
-            fprintf(stderr, "kWorker: console closed\n");
-            g_fCtrlC = K_TRUE;
-            exit(11);
+            rc = 11;
+            pszMsg = "kWorker: console closed\r\n";
             break;
 
         case CTRL_LOGOFF_EVENT:
-            fprintf(stderr, "kWorker: logoff event\n");
-            g_fCtrlC = K_TRUE;
-            exit(11);
+            rc = 11;
+            pszMsg = "kWorker: logoff event\r\n";
             break;
 
         case CTRL_SHUTDOWN_EVENT:
-            fprintf(stderr, "kWorker: shutdown event\n");
-            g_fCtrlC = K_TRUE;
-            exit(11);
+            rc = 11;
+            pszMsg = "kWorker: shutdown event\r\n";
             break;
 
         default:
             fprintf(stderr, "kwSandboxCtrlHandler: %#x\n", dwCtrlType);
-            break;
+            return TRUE;
     }
+
+    /*
+     * Terminate the process after 5 seconds.
+     *
+     * We don't want to wait here as the console server will otherwise not
+     * signal the other processes in the console, which is bad for kmk as it
+     * will continue to forge ahead.  So, the first time we get here we start
+     * a thread for doing the delayed termination.
+     *
+     * If we get here a second time we just terminate the process ourselves.
+     *
+     * Note! We do no try call exit() here as it turned out to deadlock a lot
+     *       flusing file descriptors (stderr back when we first wrote to it).
+     */
+    rcPrev = g_rcCtrlC;
+    g_rcCtrlC = rc;
+    WriteFile(GetStdHandle(STD_ERROR_HANDLE), pszMsg, (DWORD)strlen(pszMsg), &cbIgn, NULL);
+    CancelIoEx(g_hPipe, NULL); /* wake up idle main thread */
+    if (rcPrev == 0)
+    {
+        CreateThread(NULL, 0, kwSandboxCtrlThreadProc, (void*)(intptr_t)rc, 0 /*fFlags*/, NULL);
+        return TRUE;
+    }
+    TerminateProcess(GetCurrentProcess(), rc);
     return TRUE;
 }
 
@@ -10606,7 +10655,7 @@ static int kSubmitWriteIt(HANDLE hPipe, const void *pvBuf, KU32 cbToWrite)
 {
     KU8 const  *pbBuf  = (KU8 const *)pvBuf;
     KU32        cbLeft = cbToWrite;
-    for (;;)
+    while (g_rcCtrlC == 0)
     {
         DWORD cbActuallyWritten = 0;
         if (WriteFile(hPipe, pbBuf, cbLeft, &cbActuallyWritten, NULL /*pOverlapped*/))
@@ -10626,6 +10675,7 @@ static int kSubmitWriteIt(HANDLE hPipe, const void *pvBuf, KU32 cbToWrite)
             return -1;
         }
     }
+    return -1;
 }
 
 
@@ -10645,7 +10695,7 @@ static int kSubmitReadIt(HANDLE hPipe, void *pvBuf, KU32 cbToRead, KBOOL fMayShu
 {
     KU8 *pbBuf  = (KU8 *)pvBuf;
     KU32 cbLeft = cbToRead;
-    for (;;)
+    while (g_rcCtrlC == 0)
     {
         DWORD cbActuallyRead = 0;
         if (ReadFile(hPipe, pbBuf, cbLeft, &cbActuallyRead, NULL /*pOverlapped*/))
@@ -10670,6 +10720,7 @@ static int kSubmitReadIt(HANDLE hPipe, void *pvBuf, KU32 cbToRead, KBOOL fMayShu
             return -1;
         }
     }
+    return -1;
 }
 
 
@@ -11237,7 +11288,6 @@ int main(int argc, char **argv)
                     if (_dup2(fdNul, 0) >= 0)
                     {
                         close(fdNul);
-                        kHlpAssert(GetStdHandle(STD_INPUT_HANDLE) != hPipe);
                         hPipe = hDuplicate;
                     }
                     else
@@ -11256,6 +11306,7 @@ int main(int argc, char **argv)
     else if (GetFileType(hPipe) != FILE_TYPE_PIPE)
         return kwErrPrintfRc(2, "The specified --pipe %p is not a pipe handle: type %#x (last err %u)!\n",
                              GetFileType(hPipe), GetLastError());
+    g_hPipe = hPipe;
 
     /*
      * Serve the pipe.
@@ -11295,7 +11346,8 @@ int main(int argc, char **argv)
 
                     /* The first string after the header is the command. */
                     psz = (const char *)&pbMsgBuf[sizeof(cbMsg)];
-                    if (strcmp(psz, "JOB") == 0)
+                    if (   strcmp(psz, "JOB") == 0
+                        && g_rcCtrlC == 0)
                     {
                         struct
                         {
@@ -11313,7 +11365,8 @@ int main(int argc, char **argv)
                             && !g_fRestart)
                         {
                             kwSandboxCleanupLate(&g_Sandbox);
-                            continue;
+                            if (g_rcCtrlC == 0)
+                                continue;
                         }
                     }
                     else
@@ -11346,7 +11399,7 @@ int main(int argc, char **argv)
 #endif
         if (getenv("KWORKER_STATS") != NULL)
             kwPrintStats();
-        return rc > 0 ? 0 : 1;
+        return g_rcCtrlC != 0 ? g_rcCtrlC : rc > 0 ? 0 : 1;
     }
 }
 

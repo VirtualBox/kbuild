@@ -1,4 +1,4 @@
-/* $Id: winchildren.h 3195 2018-03-27 18:09:23Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.h 3199 2018-03-28 18:56:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -26,6 +26,41 @@
 #ifndef INCLUDED_WINCHILDREN_H
 #define INCLUDED_WINCHILDREN_H
 
+#ifdef DECLARE_HANDLE
+/**
+ * A childcare worker pipe.
+ */
+typedef struct WINCCWPIPE
+{
+    /** My end of the pipe. */
+    HANDLE              hPipeMine;
+    /** The child end of the pipe. */
+    HANDLE              hPipeChild;
+    /** The event for asynchronous reading. */
+    HANDLE              hEvent;
+    /** Which pipe this is (1 == stdout, 2 == stderr). */
+    unsigned char       iWhich;
+    /** Set if we've got a read pending already. */
+    BOOL                fReadPending;
+    /** Indicator that we've written out something.  This is cleared before
+     * we start catching output from a new child and use in the CL.exe
+     * supression heuristics. */
+    BOOL                fHaveWrittenOut;
+    /** Number of bytes at the start of the buffer that we've already
+     * written out.  We try write out whole lines. */
+    DWORD               cbWritten;
+    /** The buffer offset of the read currently pending. */
+    DWORD               offPendingRead;
+    /** Read buffer size. */
+    DWORD               cbBuffer;
+    /** The read buffer allocation. */
+    unsigned char      *pbBuffer;
+    /** Overlapped I/O structure. */
+    OVERLAPPED          Overlapped;
+} WINCCWPIPE;
+#endif
+
+typedef struct WINCCWPIPE *PWINCCWPIPE;
 
 void    MkWinChildInit(unsigned int cJobSlot);
 void    MkWinChildReExecMake(char **papszArgs, char **papszEnv);
@@ -38,7 +73,12 @@ int     MkWinChildCreateBuiltIn(struct KMKBUILTINENTRY const *pBuiltIn, int cArg
                                 char **papszEnv, struct child *pMkChild, pid_t *pPid);
 int     MkWinChildCreateAppend(const char *pszFilename, char **ppszAppend, size_t cbAppend, int fTruncate,
                                struct child *pMkChild, pid_t *pPid);
-int     MkWinChildCreateSubmit(intptr_t hEvent, void *pvSubmitWorker, pid_t *pPid);
+
+int     MkWinChildCreateSubmit(intptr_t hEvent, void *pvSubmitWorker, PWINCCWPIPE pStdOut, PWINCCWPIPE pStdErr, pid_t *pPid);
+PWINCCWPIPE MkWinChildcareCreateWorkerPipe(unsigned iWhich, unsigned int idxWorker);
+void    MkWinChildcareWorkerDrainPipes(struct WINCHILD *pChild, PWINCCWPIPE pStdOut, PWINCCWPIPE pStdErr);
+void    MkWinChildcareDeleteWorkerPipe(PWINCCWPIPE pPipe);
+
 int     MkWinChildCreateRedirect(intptr_t hProcess, pid_t *pPid);
 # ifdef DECLARE_HANDLE
 int     MkWinChildBuiltInExecChild(void *pvWorker, const char *pszExecutable, char **papszArgs, BOOL fQuotedArgv,
@@ -53,6 +93,7 @@ void    MkWinChildExclusiveRelease(void);
 #undef  CLOSE_ON_EXEC
 #define CLOSE_ON_EXEC(a_fd) MkWinChildUnrelatedCloseOnExec(a_fd)
 int     MkWinChildUnrelatedCloseOnExec(int fd);
+
 
 #endif
 
