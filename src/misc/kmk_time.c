@@ -1,4 +1,4 @@
-/* $Id: kmk_time.c 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_time.c 3208 2018-03-29 03:54:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
@@ -39,6 +39,7 @@
 # include <direct.h>
 # include <process.h>
 # include <Windows.h>
+# include "quote_argv.h"
 #else
 # include <unistd.h>
 # include <sys/time.h>
@@ -193,6 +194,7 @@ int main(int argc, char **argv)
     int                 i, j;
     int                 cTimes = 1;
 #if defined(_MSC_VER)
+    int                 fUnquoted = 0;
     FILETIME ftStart,   ft;
     unsigned _int64     usMin, usMax, usAvg, usTotal, usCur;
     unsigned _int64     iStart;
@@ -232,6 +234,13 @@ int main(int argc, char **argv)
                 psz = "V";
             else if (!strcmp(psz, "-iterations"))
                 psz = "i";
+#if defined(_MSC_VER)
+            else if (!strcmp(psz, "-unquoted"))
+            {
+                fUnquoted = 1;
+                continue;
+            }
+#endif
         }
 
         switch (*psz)
@@ -242,7 +251,7 @@ int main(int argc, char **argv)
 
             case 'V':
                 printf("kmk_time - kBuild version %d.%d.%d (r%u)\n"
-                       "Copyright (C) 2007-2009 knut st. osmundsen\n",
+                       "Copyright (C) 2007-2018 knut st. osmundsen\n",
                        KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH,
                        KBUILD_SVN_REV);
                 return 0;
@@ -286,13 +295,16 @@ int main(int argc, char **argv)
         /*
          * Execute the program (it's actually supposed to be a command I think, but wtf).
          */
-
 #if defined(_MSC_VER)
-        /** @todo
-         * We'll have to find the '--' in the commandline and pass that
-         * on to CreateProcess or spawn. Otherwise, the argument qouting
-         * is gonna be messed up.
-         */
+        if (!fUnquoted)
+        {
+            if (quote_argv(argc - i, &argv[i], 0 /*fWatcomBrainDamage*/, 0 /*fFreeOrLeak*/) != 0)
+            {
+                fprintf(stderr, "%s: error: quote_argv failed\n");
+                return 8;
+            }
+        }
+
         GetSystemTimeAsFileTime(&ftStart);
         rc = _spawnvp(_P_WAIT, argv[i], &argv[i]);
         if (rc == -1)

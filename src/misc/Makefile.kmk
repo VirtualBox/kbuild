@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3208 2018-03-29 03:54:02Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk_time.
 #
@@ -30,6 +30,7 @@ PROGRAMS += kmk_time
 kmk_time_TEMPLATE = BIN
 kmk_time_DEFS = KBUILD_SVN_REV=$(KBUILD_SVN_REV)
 kmk_time_SOURCES = kmk_time.c
+kmk_time_SOURCES.win = ../lib/quote_argv.c
 
 include $(KBUILD_PATH)/subfooter.kmk
 
