@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3195 2018-03-27 18:09:23Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3207 2018-03-29 03:51:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -1519,8 +1519,7 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
             /*
              * Zap environment switch?
              */
-            if (   chOpt == 'Z'
-                || chOpt == 'i' /* GNU env compatibility. */ )
+            if (chOpt == 'Z') /* (no -i option here, as it's reserved for stdin) */
             {
                 rcExit = kBuiltinOptEnvZap(pCtx, &papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity);
                 continue;
