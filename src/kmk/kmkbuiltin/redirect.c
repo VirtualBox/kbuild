@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3207 2018-03-29 03:51:24Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3210 2018-03-29 14:51:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -113,7 +113,7 @@ extern void kmk_cache_exec_image_a(const char *); /* imagecache.c */
 static int kmk_redirect_usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
     kmk_builtin_ctx_printf(pCtx, fIsErr,
-                           "usage: %s [-[rwa+tb]<fd> <file>] [-d<fd>=<src-fd>] [-c<fd>]\n"
+                           "usage: %s [-[rwa+tb]<fd> <file>] [-d<fd>=<src-fd>] [-c<fd>] [--stdin-pipe]\n"
                            "           [-Z] [-E <var=val>] [-C <dir>] [--wcc-brain-damage]\n"
                            "           [-v] -- <program> [args]\n"
                            "   or: %s --help\n"
@@ -126,10 +126,13 @@ static int kmk_redirect_usage(PKMKBUILTINCTX pCtx, int fIsErr)
                            "   e = stderr\n"
                            "\n"
                            "The -d switch duplicate the right hand file descriptor (src-fd) to the left\n"
-                           "hand side one (fd). The latter is limited to standard handles on windows.\n"
+                           "hand side one (fd).  The latter is limited to standard handles on windows.\n"
                            "\n"
                            "The -c switch will close the specified file descriptor. Limited to standard\n"
                            "handles on windows.\n"
+                           "\n"
+                           "The --stdin-pipe switch will replace stdin with the read end of an anonymous\n"
+                           "pipe.  This is for tricking things like rsh.exe that blocks reading on stdin.\n"
                            "\n"
                            "The -Z switch zaps the environment.\n"
                            "\n"
@@ -177,6 +180,8 @@ typedef struct REDIRECTORDERS
     int         fOpen;
     /** The filename - NULL if close only. */
     const char *pszFilename;
+    /** The other pipe end, needs closing in cleanup. */
+    int         fdOtherPipeEnd;
 #ifndef USE_POSIX_SPAWN
     /** Saved file descriptor. */
     int         fdSaved;
@@ -196,6 +201,77 @@ static KBOOL kRedirectHasConflict(int fd, unsigned cOrders, REDIRECTORDERS *paOr
             return K_TRUE;
     return K_FALSE;
 #endif
+}
+
+
+/**
+ * Creates a pair of pipe descriptors that does not conflict with any previous
+ * orders.
+ *
+ * The pipe is open with both descriptors being inherited by the child as it's
+ * supposed to be a dummy pipe for stdin that won't break.
+ *
+ * @returns 0 on success, exit code on failure (error message displayed).
+ * @param   pCtx                The command execution context.
+ * @param   paFds               Where to return the pipe descriptors
+ * @param   cOrders             The number of orders.
+ * @param   paOrders            The order array.
+ * @param   fdTarget            The target descriptor (0).
+ */
+static int kRedirectCreateStdInPipeWithoutConflict(PKMKBUILTINCTX pCtx, int paFds[2],
+                                                   unsigned cOrders, REDIRECTORDERS *paOrders, int fdTarget)
+{
+    struct
+    {
+        int     aFds[2];
+    }           aTries[32];
+    unsigned    cTries = 0;
+
+    while (cTries < K_ELEMENTS(aTries))
+    {
+#ifdef _MSC_VER
+        int rc = _pipe(aTries[cTries].aFds, 0, _O_BINARY);
+#else
+        int rc = pipe(aTries[cTries].aFds);
+#endif
+        if (rc >= 0)
+        {
+            if (   !kRedirectHasConflict(aTries[cTries].aFds[0], cOrders, paOrders)
+                && !kRedirectHasConflict(aTries[cTries].aFds[1], cOrders, paOrders)
+#ifndef _MSC_VER
+                && aTries[cTries].aFds[0] != fdTarget
+                && aTries[cTries].aFds[1] != fdTarget
+#endif
+                )
+            {
+                paFds[0] = aTries[cTries].aFds[0];
+                paFds[1] = aTries[cTries].aFds[1];
+
+                while (cTries-- > 0)
+                {
+                    close(aTries[cTries].aFds[0]);
+                    close(aTries[cTries].aFds[1]);
+                }
+                return 0;
+            }
+        }
+        else
+        {
+            err(pCtx, -1, "failed to create stdin pipe (try #%u)", cTries + 1);
+            break;
+        }
+        cTries++;
+    }
+    if (cTries >= K_ELEMENTS(aTries))
+        errx(pCtx, -1, "failed to find a conflict free pair of pipe descriptor for stdin!");
+
+    /* cleanup */
+    while (cTries-- > 0)
+    {
+        close(aTries[cTries].aFds[0]);
+        close(aTries[cTries].aFds[1]);
+    }
+    return 1;
 }
 
 
@@ -330,6 +406,13 @@ static void kRedirectCleanupFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders,
         {
             close(paOrders[i].fdSource);
             paOrders[i].fdSource = -1;
+
+            if (paOrders[i].fdOtherPipeEnd >= 0)
+            {
+                close(paOrders[i].fdOtherPipeEnd);
+                paOrders[i].fdOtherPipeEnd = -1;
+            }
+
             if (   fFailure
                 && paOrders[i].fRemoveOnFailure
                 && paOrders[i].pszFilename)
@@ -919,6 +1002,8 @@ static int kRedirectCreateProcessWindows(PKMKBUILTINCTX pCtx, const char *pszExe
                 if (CreateProcessA(pszExecutable, pszCmdLine, NULL /*pProcAttrs*/, NULL /*pThreadAttrs*/,
                                    FALSE /*fInheritHandles*/, CREATE_SUSPENDED, pszzEnv, pszCwd, &StartupInfo, &ProcInfo))
                 {
+                    unsigned  i;
+
                     /* Inject the handles and try make it start executing. */
                     char szErrMsg[128];
                     rc = nt_child_inject_standard_handles(ProcInfo.hProcess, afReplace, ahChild, szErrMsg, sizeof(szErrMsg));
@@ -926,6 +1011,18 @@ static int kRedirectCreateProcessWindows(PKMKBUILTINCTX pCtx, const char *pszExe
                         rc = errx(pCtx, 10, "%s", szErrMsg);
                     else if (!ResumeThread(ProcInfo.hThread))
                         rc = errx(pCtx, 10, "ResumeThread failed: %u", GetLastError());
+
+                    /* Duplicate the write end of any stdin pipe handles into the child. */
+                    for (i = 0; i < cOrders; i++)
+                        if (paOrders[cOrders].fdOtherPipeEnd >= 0)
+                        {
+                            HANDLE hIgnored = INVALID_HANDLE_VALUE;
+                            HANDLE hPipeW   = (HANDLE)_get_osfhandle(paOrders[i].fdOtherPipeEnd);
+                            if (!DuplicateHandle(GetCurrentProcess(), hPipeW, ProcInfo.hProcess, &hIgnored, 0 /*fDesiredAccess*/,
+                                                 TRUE /*fInheritable*/, DUPLICATE_SAME_ACCESS))
+                                rc = errx(pCtx, 10, "DuplicateHandle failed on other stdin pipe end %d/%p: %u",
+                                          paOrders[i].fdOtherPipeEnd, hPipeW, GetLastError());
+                        }
 
                     /* Kill it if any of that fails. */
                     if (rc != 0)
@@ -1364,6 +1461,8 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
                     chOpt = 'c';
                 else if (strcmp(pszArg, "verbose") == 0)
                     chOpt = 'v';
+                else if (strcmp(pszArg, "stdin-pipe") == 0)
+                    chOpt = 'I';
                 else
                 {
                     errx(pCtx, 2, "Unknown option: '%s'", pszArg - 2);
@@ -1559,7 +1658,7 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
             }
 
             /*
-             * Okay, it is some file descriptor opearation.  Make sure we've got room for it.
+             * Okay, it is some file descriptor operation.  Make sure we've got room for it.
              */
             if (cOrders + 1 < K_ELEMENTS(aOrders))
             {
@@ -1568,6 +1667,7 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
                 aOrders[cOrders].fOpen            = 0;
                 aOrders[cOrders].fRemoveOnFailure = 0;
                 aOrders[cOrders].pszFilename      = NULL;
+                aOrders[cOrders].fdOtherPipeEnd   = -1;
 #ifndef USE_POSIX_SPAWN
                 aOrders[cOrders].fdSaved          = -1;
 #endif
@@ -1642,6 +1742,27 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
                             rcExit = errx(pCtx, 2, "posix_spawn_file_actions_addclose(%d) failed: %s", fd, strerror(rcExit));
 #endif
                     }
+                }
+            }
+            else if (chOpt == 'I')
+            {
+                /*
+                 * Replace stdin with the read end of an anonymous pipe.
+                 */
+                int aFds[2] = { -1, -1 };
+                rcExit = kRedirectCreateStdInPipeWithoutConflict(pCtx, aFds, cOrders, aOrders,  0 /*fdTarget*/);
+                if (rcExit == 0)
+                {
+                    aOrders[cOrders].enmOrder       = kRedirectOrder_Dup;
+                    aOrders[cOrders].fdTarget       = 0;
+                    aOrders[cOrders].fdSource       = aFds[0];
+                    aOrders[cOrders].fdOtherPipeEnd = aFds[1];
+                    cOrders++;
+#ifdef USE_POSIX_SPAWN
+                    rcExit = posix_spawn_file_actions_adddup2(&FileActions, aFds[0], 0);
+                    if (rcExit != 0)
+                        rcExit = errx(pCtx, 2, "posix_spawn_file_actions_addclose(%d) failed: %s", fd, strerror(rcExit));
+#endif
                 }
             }
             else
