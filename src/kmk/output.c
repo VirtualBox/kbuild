@@ -92,6 +92,10 @@ static void membuf_dump (struct output *out)
          unsynchronized; still better than silently discarding it.
          We want to keep this lock for as little time as possible.  */
       void *sem = acquire_semaphore ();
+# if defined (KBUILD_OS_WINDOWS) || defined (KBUILD_OS_OS2) || defined (KBUILD_OS_DOS)
+      int prev_mode_out = _setmode (fileno (stdout), _O_BINARY);
+      int prev_mode_err = _setmode (fileno (stderr), _O_BINARY);
+# endif
 
 # ifndef KMK /* this drives me bananas. */
       /* Log the working directory for this dump.  */
@@ -160,6 +164,10 @@ static void membuf_dump (struct output *out)
 # endif
 
       /* Exit the critical section.  */
+# if defined (KBUILD_OS_WINDOWS) || defined (KBUILD_OS_OS2) || defined (KBUILD_OS_DOS)
+      _setmode (fileno (stdout), prev_mode_out);
+      _setmode (fileno (stderr), prev_mode_err);
+# endif
       if (sem)
         release_semaphore (sem);
 
@@ -402,8 +410,8 @@ output_write_bin (struct output *out, int is_err, const char *src, size_t len)
   if (!out || !out->syncout)
     {
       FILE *f = is_err ? stderr : stdout;
-# ifdef KBUILD_OS_WINDOWS
-      /* On windows we need to disable \n -> \r\n converts that is common on
+# if defined (KBUILD_OS_WINDOWS) || defined (KBUILD_OS_OS2) || defined (KBUILD_OS_DOS)
+      /* On DOS platforms we need to disable \n -> \r\n converts that is common on
          standard output/error.  Also optimize for console output. */
       int saved_errno;
       int fd = fileno (f);
@@ -688,7 +696,7 @@ pump_from_tmp (int from, FILE *to)
   static char buffer[8192];
 #endif
 
-#ifdef WINDOWS32
+# if defined (KBUILD_OS_WINDOWS) || defined (KBUILD_OS_OS2) || defined (KBUILD_OS_DOS)
   int prev_mode;
 
   /* "from" is opened by open_tmpfd, which does it in binary mode, so
@@ -715,7 +723,7 @@ pump_from_tmp (int from, FILE *to)
       fflush (to);
     }
 
-#ifdef WINDOWS32
+# if defined (KBUILD_OS_WINDOWS) || defined (KBUILD_OS_OS2) || defined (KBUILD_OS_DOS)
   /* Switch "to" back to its original mode, so that log messages by
      Make have the same EOL format as without --output-sync.  */
   _setmode (fileno (to), prev_mode);
