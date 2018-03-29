@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3203 2018-03-28 22:23:23Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3205 2018-03-29 00:42:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -1437,9 +1437,10 @@ static int mkWinChildcareWorkerConvertCommandline(PWINCHILDCAREWORKER pWorker, c
 
                         case '"':
                             if (fFlags & (MKWCCWCMD_F_CYGWIN_SHELL | MKWCCWCMD_F_MKS_SHELL))
-                                cwcDstExtra += 1;
+                                cwcDstExtra += 1; /* just an extra '"' */
                             else
-                                cwcDstExtra += 1 + cBackslashes;
+                                cwcDstExtra += 1 + cBackslashes; /* extra '\\' for the '"' and for each preceeding slash. */
+                            cBackslashes = 0;
                             break;
 
                         case ' ':
@@ -1454,6 +1455,7 @@ static int mkWinChildcareWorkerConvertCommandline(PWINCHILDCAREWORKER pWorker, c
                     }
                 }
 
+                /* If we're quoting the argument and it ends with trailing '\\', it/they must be escaped. */
                 if (   cBackslashes > 0
                     && paArgInfo[i].fQuoteIt
                     && !(fFlags & (MKWCCWCMD_F_CYGWIN_SHELL | MKWCCWCMD_F_MKS_SHELL)))
@@ -1506,7 +1508,7 @@ static int mkWinChildcareWorkerConvertCommandline(PWINCHILDCAREWORKER pWorker, c
         {
             /* Do the conversion into the end of the output buffer, then move
                it up to where it should be char by char.  */
-            size_t          cBackslashes;
+            int             cBackslashes;
             size_t          cwcLeft     = paArgInfo[i].cwcDst - paArgInfo[i].cwcDstExtra;
             WCHAR volatile *pwchSlowSrc = pwszDst + paArgInfo[i].cwcDstExtra;
             WCHAR volatile *pwchSlowDst = pwszDst;
@@ -1524,15 +1526,22 @@ static int mkWinChildcareWorkerConvertCommandline(PWINCHILDCAREWORKER pWorker, c
                     cBackslashes++;
                 else if (   (fFlags & (MKWCCWCMD_F_CYGWIN_SHELL | MKWCCWCMD_F_HAVE_SH))
                          ==           (MKWCCWCMD_F_CYGWIN_SHELL | MKWCCWCMD_F_HAVE_SH))
+                {
                     *pwchSlowDst++ = L'"'; /* cygwin: '"' instead of '\\', no escaped slashes. */
+                    cBackslashes = 0;
+                }
                 else
                 {
                     if (!(fFlags & (MKWCCWCMD_F_CYGWIN_SHELL | MKWCCWCMD_F_MKS_SHELL)))
-                        cBackslashes = 1;
-                    while (cBackslashes-- > 0)
+                        cBackslashes += 1; /* one extra escape the '"' and one for each preceeding slash. */
+                    while (cBackslashes > 0)
+                    {
                         *pwchSlowDst++ = L'\\';
+                        cBackslashes--;
+                    }
                 }
                 *pwchSlowDst++ = wcSrc;
+                assert((uintptr_t)pwchSlowDst <= (uintptr_t)pwchSlowSrc);
             }
 
             if (paArgInfo[i].fEndSlashes)
