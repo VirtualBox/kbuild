@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 3219 2018-03-30 22:30:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -1068,7 +1068,7 @@ int kmk_builtin_kDepObj(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
                     if (pszOutput[0] == '-' && !pszOutput[1])
                         pOutput = stdout;
                     else
-                        pOutput = fopen(pszOutput, "w");
+                        pOutput = fopen(pszOutput, "w" KMK_FOPEN_NO_INHERIT_MODE);
                     if (!pOutput)
                         return err(pCtx, 1, "Failed to create output file '%s'", pszOutput);
                     break;
@@ -1144,7 +1144,7 @@ int kmk_builtin_kDepObj(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
         }
         else
         {
-            pInput = fopen(argv[i], "rb");
+            pInput = fopen(argv[i], "rb" KMK_FOPEN_NO_INHERIT_MODE);
             if (!pInput)
                 return err(pCtx, 1, "Failed to open input file '%s'", argv[i]);
             fInput = 1;

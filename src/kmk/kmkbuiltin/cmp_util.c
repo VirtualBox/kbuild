@@ -480,7 +480,7 @@ cmp_fd_and_file_ex(PKMKBUILTINCTX pCtx, int fd1, const char *file1, off_t skip1,
         file2 = "stdin";
     }
     else
-        fd2 = open(file2, O_RDONLY | O_BINARY, 0);
+        fd2 = open(file2, O_RDONLY | O_BINARY | KMK_OPEN_NO_INHERIT, 0);
     if (fd2 >= 0)
     {
         rc = cmp_fd_and_fd_ex(pCtx, fd1, file1, skip1,
@@ -533,7 +533,7 @@ cmp_file_and_file_ex(PKMKBUILTINCTX pCtx, const char *file1, off_t skip1,
         special = 1;
     }
     else
-        fd1 = open(file1, O_RDONLY | O_BINARY, 0);
+        fd1 = open(file1, O_RDONLY | O_BINARY | KMK_OPEN_NO_INHERIT, 0);
     if (fd1 >= 0)
     {
         rc = cmp_fd_and_file_ex(pCtx, fd1, file1, skip1,

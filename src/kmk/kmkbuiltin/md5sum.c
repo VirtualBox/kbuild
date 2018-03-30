@@ -1,4 +1,4 @@
-/* $Id: md5sum.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 3219 2018-03-30 22:30:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
@@ -167,7 +167,7 @@ static void *open_file(const char *pszFilename, unsigned fText)
     int fFlags;
 
     /* figure out the appropriate flags. */
-    fFlags = O_RDONLY;
+    fFlags = O_RDONLY | KMK_OPEN_NO_INHERIT;
 #ifdef O_SEQUENTIAL
     fFlags |= _O_SEQUENTIAL;
 #elif defined(_O_SEQUENTIAL)
