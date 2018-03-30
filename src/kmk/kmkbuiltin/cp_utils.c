@@ -35,6 +35,9 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #endif
 #endif /* not lint */
 
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
 #define MSC_DO_64_BIT_IO
 #include "config.h"
 #ifndef _MSC_VER
@@ -71,10 +74,14 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #include "cp_extern.h"
 #include "cmp_extern.h"
 
+
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
 #define	cp_pct(x,y)	(int)(100.0 * (double)(x) / (double)(y))
 
 #ifndef MAXBSIZE
-# define MAXBSIZE 0x20000
+# define MAXBSIZE 0x10000
 #endif
 #ifndef O_BINARY
 # define O_BINARY 0
@@ -86,9 +93,9 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 
 
 int
-copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, int *pcopied)
+copy_file(CPUTILSINSTANCE *pThis, const FTSENT *entp, int dne, int changed_only, int *pcopied)
 {
-	static char buf[MAXBSIZE];
+	/*static*/ char buf[MAXBSIZE];
 	struct stat *fs;
 	int ch, checkch, from_fd, rcount, rval, to_fd;
 	ssize_t wcount;
@@ -102,7 +109,7 @@ copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, in
 	*pcopied = 0;
 
 	if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY | KMK_OPEN_NO_INHERIT, 0)) == -1) {
-		warn(pCtx, "open: %s", entp->fts_path);
+		warn(pThis->pCtx, "open: %s", entp->fts_path);
 		return (1);
 	}
 
@@ -119,7 +126,7 @@ copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, in
 	if (!dne) {
 		/* compare the files first if requested */
 		if (changed_only) {
-                        if (cmp_fd_and_file(pCtx, from_fd, entp->fts_path, to.p_path,
+                        if (cmp_fd_and_file(pThis->pCtx, from_fd, entp->fts_path, pThis->to.p_path,
 					    1 /* silent */, 0 /* lflag */,
 					    0 /* special */) == OK_EXIT) {
 				close(from_fd);
@@ -128,45 +135,45 @@ copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, in
 			if (lseek(from_fd, 0, SEEK_SET) != 0) {
     				close(from_fd);
 				if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY | KMK_OPEN_NO_INHERIT, 0)) == -1) {
-					warn(pCtx, "open: %s", entp->fts_path);
+					warn(pThis->pCtx, "open: %s", entp->fts_path);
 					return (1);
 				}
 			}
 		}
 
 #define YESNO "(y/n [n]) "
-		if (nflag) {
-			if (vflag)
-				kmk_builtin_ctx_printf(pCtx, 0, "%s not overwritten\n", to.p_path);
+		if (pThis->nflag) {
+			if (pThis->vflag)
+				kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s not overwritten\n", pThis->to.p_path);
 			return (0);
-		} else if (iflag) {
+		} else if (pThis->iflag) {
 			(void)fprintf(stderr, "overwrite %s? %s",
-					to.p_path, YESNO);
+					pThis->to.p_path, YESNO);
 			checkch = ch = getchar();
 			while (ch != '\n' && ch != EOF)
 				ch = getchar();
 			if (checkch != 'y' && checkch != 'Y') {
 				(void)close(from_fd);
-				kmk_builtin_ctx_printf(pCtx, 1, "not overwritten\n");
+				kmk_builtin_ctx_printf(pThis->pCtx, 1, "not overwritten\n");
 				return (1);
 			}
 		}
 
-		if (fflag) {
+		if (pThis->fflag) {
 		    /* remove existing destination file name,
 		     * create a new file  */
-		    (void)unlink(to.p_path);
-		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY | KMK_OPEN_NO_INHERIT,
+		    (void)unlink(pThis->to.p_path);
+		    to_fd = open(pThis->to.p_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY | KMK_OPEN_NO_INHERIT,
 				 fs->st_mode & ~(S_ISUID | S_ISGID));
 		} else
 		    /* overwrite existing destination file name */
-		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_BINARY | KMK_OPEN_NO_INHERIT, 0);
+		    to_fd = open(pThis->to.p_path, O_WRONLY | O_TRUNC | O_BINARY | KMK_OPEN_NO_INHERIT, 0);
 	} else
-		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY | KMK_OPEN_NO_INHERIT,
+		to_fd = open(pThis->to.p_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY | KMK_OPEN_NO_INHERIT,
 		    fs->st_mode & ~(S_ISUID | S_ISGID));
 
 	if (to_fd == -1) {
-		warn(pCtx, "open: %s", to.p_path);
+		warn(pThis->pCtx, "open: %s", pThis->to.p_path);
 		(void)close(from_fd);
 		return (1);
 	}
@@ -184,7 +191,7 @@ copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, in
 	    fs->st_size <= 8 * 1048576) {
 		if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
 		    MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
-			warn(pCtx, "mmap: %s", entp->fts_path);
+			warn(pThis->pCtx, "mmap: %s", entp->fts_path);
 			rval = 1;
 		} else {
 			wtotal = 0;
@@ -192,24 +199,26 @@ copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, in
 			    bufp += wcount, wresid -= (size_t)wcount) {
 				wcount = write(to_fd, bufp, wresid);
 				wtotal += wcount;
-				if (info) {
-					info = 0;
-					kmk_builtin_ctx_printf(pCtx, 1,
+# if defined(SIGINFO) && defined(KMK_BUILTIN_STANDALONE)
+				if (g_cp_info) {
+					g_cp_info = 0;
+					kmk_builtin_ctx_printf(pThis->pCtx, 1,
 						"%s -> %s %3d%%\n",
-						entp->fts_path, to.p_path,
+						entp->fts_path, pThis->to.p_path,
 						cp_pct(wtotal, fs->st_size));
 
 				}
+#endif
 				if (wcount >= (ssize_t)wresid || wcount <= 0)
 					break;
 			}
 			if (wcount != (ssize_t)wresid) {
-				warn(pCtx, "write[%zd != %zu]: %s", wcount, wresid, to.p_path);
+				warn(pThis->pCtx, "write[%zd != %zu]: %s", wcount, wresid, pThis->to.p_path);
 				rval = 1;
 			}
 			/* Some systems don't unmap on close(2). */
 			if (munmap(p, fs->st_size) < 0) {
-				warn(pCtx, "munmap: %s", entp->fts_path);
+				warn(pThis->pCtx, "munmap: %s", entp->fts_path);
 				rval = 1;
 			}
 		}
@@ -222,25 +231,27 @@ copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, in
 			    bufp += wcount, wresid -= wcount) {
 				wcount = write(to_fd, bufp, wresid);
 				wtotal += wcount;
-				if (info) {
-					info = 0;
-					kmk_builtin_ctx_printf(pCtx, 1,
+#if defined(SIGINFO) && defined(KMK_BUILTIN_STANDALONE)
+				if (g_cp_info) {
+					g_cp_info = 0;
+					kmk_builtin_ctx_printf(pThis->pCtx, 1,
 						"%s -> %s %3d%%\n",
-						entp->fts_path, to.p_path,
+						entp->fts_path, pThis->to.p_path,
 						cp_pct(wtotal, fs->st_size));
 
 				}
+#endif
 				if (wcount >= (ssize_t)wresid || wcount <= 0)
 					break;
 			}
 			if (wcount != (ssize_t)wresid) {
-				warn(pCtx, "write[%zd != %zu]: %s", wcount, wresid, to.p_path);
+				warn(pThis->pCtx, "write[%zd != %zu]: %s", wcount, wresid, pThis->to.p_path);
 				rval = 1;
 				break;
 			}
 		}
 		if (rcount < 0) {
-			warn(pCtx, "read: %s", entp->fts_path);
+			warn(pThis->pCtx, "read: %s", entp->fts_path);
 			rval = 1;
 		}
 	}
@@ -252,70 +263,70 @@ copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, in
 	 * to remove it if we created it and its length is 0.
 	 */
 
-	if (pflag && setfile(pCtx, fs, to_fd))
+	if (pThis->pflag && copy_file_attribs(pThis, fs, to_fd))
 		rval = 1;
 	(void)close(from_fd);
 	if (close(to_fd)) {
-		warn(pCtx, "close: %s", to.p_path);
+		warn(pThis->pCtx, "close: %s", pThis->to.p_path);
 		rval = 1;
 	}
 	return (rval);
 }
 
 int
-copy_link(PKMKBUILTINCTX pCtx, const FTSENT *p, int exists)
+copy_link(CPUTILSINSTANCE *pThis, const FTSENT *p, int exists)
 {
 	int len;
 	char llink[PATH_MAX];
 
 	if ((len = readlink(p->fts_path, llink, sizeof(llink) - 1)) == -1) {
-		warn(pCtx, "readlink: %s", p->fts_path);
+		warn(pThis->pCtx, "readlink: %s", p->fts_path);
 		return (1);
 	}
 	llink[len] = '\0';
-	if (exists && unlink(to.p_path)) {
-		warn(pCtx, "unlink: %s", to.p_path);
+	if (exists && unlink(pThis->to.p_path)) {
+		warn(pThis->pCtx, "unlink: %s", pThis->to.p_path);
 		return (1);
 	}
-	if (symlink(llink, to.p_path)) {
-		warn(pCtx, "symlink: %s", llink);
+	if (symlink(llink, pThis->to.p_path)) {
+		warn(pThis->pCtx, "symlink: %s", llink);
 		return (1);
 	}
-	return (pflag ? setfile(pCtx, p->fts_statp, -1) : 0);
+	return (pThis->pflag ? copy_file_attribs(pThis, p->fts_statp, -1) : 0);
 }
 
 int
-copy_fifo(PKMKBUILTINCTX pCtx, struct stat *from_stat, int exists)
+copy_fifo(CPUTILSINSTANCE *pThis, struct stat *from_stat, int exists)
 {
-	if (exists && unlink(to.p_path)) {
-		warn(pCtx, "unlink: %s", to.p_path);
+	if (exists && unlink(pThis->to.p_path)) {
+		warn(pThis->pCtx, "unlink: %s", pThis->to.p_path);
 		return (1);
 	}
-	if (mkfifo(to.p_path, from_stat->st_mode)) {
-		warn(pCtx, "mkfifo: %s", to.p_path);
+	if (mkfifo(pThis->to.p_path, from_stat->st_mode)) {
+		warn(pThis->pCtx, "mkfifo: %s", pThis->to.p_path);
 		return (1);
 	}
-	return (pflag ? setfile(pCtx, from_stat, -1) : 0);
+	return (pThis->pflag ? copy_file_attribs(pThis, from_stat, -1) : 0);
 }
 
 int
-copy_special(PKMKBUILTINCTX pCtx, struct stat *from_stat, int exists)
+copy_special(CPUTILSINSTANCE *pThis, struct stat *from_stat, int exists)
 {
-	if (exists && unlink(to.p_path)) {
-		warn(pCtx, "unlink: %s", to.p_path);
+	if (exists && unlink(pThis->to.p_path)) {
+		warn(pThis->pCtx, "unlink: %s", pThis->to.p_path);
 		return (1);
 	}
-	if (mknod(to.p_path, from_stat->st_mode, from_stat->st_rdev)) {
-		warn(pCtx, "mknod: %s", to.p_path);
+	if (mknod(pThis->to.p_path, from_stat->st_mode, from_stat->st_rdev)) {
+		warn(pThis->pCtx, "mknod: %s", pThis->to.p_path);
 		return (1);
 	}
-	return (pflag ? setfile(pCtx, from_stat, -1) : 0);
+	return (pThis->pflag ? copy_file_attribs(pThis, from_stat, -1) : 0);
 }
 
 int
-setfile(PKMKBUILTINCTX pCtx, struct stat *fs, int fd)
+copy_file_attribs(CPUTILSINSTANCE *pThis, struct stat *fs, int fd)
 {
-	static struct timeval tv[2];
+	/*static*/ struct timeval tv[2];
 	struct stat ts;
 	int rval, gotstat, islink, fdval;
 
@@ -333,12 +344,12 @@ setfile(PKMKBUILTINCTX pCtx, struct stat *fs, int fd)
         tv[1].tv_sec = fs->st_mtime;
         tv[0].tv_usec = tv[1].tv_usec = 0;
 #endif
-	if (islink ? lutimes(to.p_path, tv) : utimes(to.p_path, tv)) {
-		warn(pCtx, "%sutimes: %s", islink ? "l" : "", to.p_path);
+	if (islink ? lutimes(pThis->to.p_path, tv) : utimes(pThis->to.p_path, tv)) {
+		warn(pThis->pCtx, "%sutimes: %s", islink ? "l" : "", pThis->to.p_path);
 		rval = 1;
 	}
 	if (fdval ? fstat(fd, &ts) :
-	    (islink ? lstat(to.p_path, &ts) : stat(to.p_path, &ts)))
+	    (islink ? lstat(pThis->to.p_path, &ts) : stat(pThis->to.p_path, &ts)))
 		gotstat = 0;
 	else {
 		gotstat = 1;
@@ -353,10 +364,10 @@ setfile(PKMKBUILTINCTX pCtx, struct stat *fs, int fd)
 	 */
 	if (!gotstat || fs->st_uid != ts.st_uid || fs->st_gid != ts.st_gid)
 		if (fdval ? fchown(fd, fs->st_uid, fs->st_gid) :
-		    (islink ? lchown(to.p_path, fs->st_uid, fs->st_gid) :
-		    chown(to.p_path, fs->st_uid, fs->st_gid))) {
+		    (islink ? lchown(pThis->to.p_path, fs->st_uid, fs->st_gid) :
+		    chown(pThis->to.p_path, fs->st_uid, fs->st_gid))) {
 			if (errno != EPERM) {
-				warn(pCtx, "chown: %s", to.p_path);
+				warn(pThis->pCtx, "chown: %s", pThis->to.p_path);
 				rval = 1;
 			}
 			fs->st_mode &= ~(S_ISUID | S_ISGID);
@@ -364,9 +375,9 @@ setfile(PKMKBUILTINCTX pCtx, struct stat *fs, int fd)
 
 	if (!gotstat || fs->st_mode != ts.st_mode)
 		if (fdval ? fchmod(fd, fs->st_mode) :
-		    (islink ? lchmod(to.p_path, fs->st_mode) :
-		    chmod(to.p_path, fs->st_mode))) {
-			warn(pCtx, "chmod: %s", to.p_path);
+		    (islink ? lchmod(pThis->to.p_path, fs->st_mode) :
+		    chmod(pThis->to.p_path, fs->st_mode))) {
+			warn(pThis->pCtx, "chmod: %s", pThis->to.p_path);
 			rval = 1;
 		}
 
@@ -375,8 +386,8 @@ setfile(PKMKBUILTINCTX pCtx, struct stat *fs, int fd)
 		if (fdval ?
 		    fchflags(fd, fs->st_flags) :
 		    (islink ? (errno = ENOSYS) :
-		    chflags(to.p_path, fs->st_flags))) {
-			warn(pCtx, "chflags: %s", to.p_path);
+		    chflags(pThis->to.p_path, fs->st_flags))) {
+			warn(pThis->pCtx, "chflags: %s", pThis->to.p_path);
 			rval = 1;
 		}
 #endif
