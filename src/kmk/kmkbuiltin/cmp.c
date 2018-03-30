@@ -34,6 +34,10 @@
 static char sccsid[] = "@(#)cmp.c	8.3 (Berkeley) 4/2/94";
 __RCSID("$NetBSD: cmp.c,v 1.15 2006/01/19 20:44:57 garbled Exp $"); */
 
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
+#define FAKES_NO_GETOPT_H /* bird */
 #ifdef _MSC_VER
 # define MSC_DO_64_BIT_IO /* for correct off_t */
 #endif
@@ -50,11 +54,14 @@ __RCSID("$NetBSD: cmp.c,v 1.15 2006/01/19 20:44:57 garbled Exp $"); */
 #else
 # include "mscfakes.h"
 #endif
-#include "getopt.h"
+#include "getopt_r.h"
 #include "kmkbuiltin.h"
 #include "cmp_extern.h"
 
 
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
 static const struct option long_options[] =
 {
     { "help",   					no_argument, 0, 261 },
@@ -68,22 +75,14 @@ static int usage(PKMKBUILTINCTX pCtx, int is_err);
 int
 kmk_builtin_cmp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
+    struct getopt_state_r gos;
     off_t skip1 = 0, skip2 = 0;
     int lflag = 0, sflag = 0;
     int ch;
     char *file1, *file2;
 
-#ifdef KMK_BUILTIN_STANDALONE
-    setlocale(LC_ALL, "");
-#endif
-
-    /* reset getopt and set progname. */
-    opterr = 1;
-    optarg = NULL;
-    optopt = 0;
-    optind = 0; /* init */
-
-    while ((ch = getopt_long(argc, argv, "ls", long_options, NULL)) != -1)
+    getopt_initialize_r(&gos, argc, argv, "ls", long_options, envp, pCtx);
+    while ((ch = getopt_long_r(&gos, NULL)) != -1)
     {
         switch (ch)
         {
@@ -103,8 +102,8 @@ kmk_builtin_cmp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
                 return usage(pCtx, 1);
         }
     }
-    argv += optind;
-    argc -= optind;
+    argv += gos.optind;
+    argc -= gos.optind;
 
     if (argc < 2 || argc > 4)
         return usage(pCtx, 1);
@@ -147,6 +146,7 @@ usage(PKMKBUILTINCTX pCtx, int is_err)
 int main(int argc, char **argv, char **envp)
 {
     KMKBUILTINCTX Ctx = { "kmk_cmp", NULL };
+    setlocale(LC_ALL, "");
     return kmk_builtin_cmp(argc, argv, envp, &Ctx);
 }
 #endif
