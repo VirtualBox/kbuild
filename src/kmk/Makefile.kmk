@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3214 2018-03-30 21:03:40Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -105,6 +105,8 @@ kmkmissing_SOURCES = \
 	kmkbuiltin/strmode.c \
 	kmkbuiltin/kbuild_protection.c \
 	kmkbuiltin/common-env-and-cwd-opt.c \
+	kmkbuiltin/getopt_r.c \
+	kmkbuiltin/getopt1_r.c \
 	getopt.c \
 	getopt1.c \
 	electric.c
