@@ -101,7 +101,7 @@ copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, in
 
 	*pcopied = 0;
 
-	if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY, 0)) == -1) {
+	if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY | KMK_OPEN_NO_INHERIT, 0)) == -1) {
 		warn(pCtx, "open: %s", entp->fts_path);
 		return (1);
 	}
@@ -127,7 +127,7 @@ copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, in
 			}
 			if (lseek(from_fd, 0, SEEK_SET) != 0) {
     				close(from_fd);
-				if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY, 0)) == -1) {
+				if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY | KMK_OPEN_NO_INHERIT, 0)) == -1) {
 					warn(pCtx, "open: %s", entp->fts_path);
 					return (1);
 				}
@@ -156,13 +156,13 @@ copy_file(PKMKBUILTINCTX pCtx, const FTSENT *entp, int dne, int changed_only, in
 		    /* remove existing destination file name,
 		     * create a new file  */
 		    (void)unlink(to.p_path);
-		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY,
+		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY | KMK_OPEN_NO_INHERIT,
 				 fs->st_mode & ~(S_ISUID | S_ISGID));
 		} else
 		    /* overwrite existing destination file name */
-		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_BINARY, 0);
+		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_BINARY | KMK_OPEN_NO_INHERIT, 0);
 	} else
-		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY,
+		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY | KMK_OPEN_NO_INHERIT,
 		    fs->st_mode & ~(S_ISUID | S_ISGID));
 
 	if (to_fd == -1) {

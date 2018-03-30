@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 3219 2018-03-30 22:30:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -365,7 +365,7 @@ int mkstemp(char *temp)
         int fd;
         if (doname(pszX, pszEnd))
             return -1;
-        fd = open(temp, _O_EXCL | _O_CREAT | _O_BINARY | _O_RDWR, 0777);
+        fd = open(temp, _O_EXCL | _O_CREAT | _O_BINARY | _O_RDWR | KMK_OPEN_NO_INHERIT, 0777);
         if (fd >= 0)
             return fd;
     }

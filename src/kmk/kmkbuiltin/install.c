@@ -550,12 +550,12 @@ install(PINSTALLINSTANCE pThis, const char *from_name, const char *to_name, u_lo
 		/* Can't hard link or we failed, continue as nothing happend. */
 	}
 
-	if (!devnull && (from_fd = open(from_name, O_RDONLY | O_BINARY, 0)) < 0)
+	if (!devnull && (from_fd = open(from_name, O_RDONLY | O_BINARY | KMK_OPEN_NO_INHERIT, 0)) < 0)
 		return err(pThis->pCtx, EX_OSERR, "%s", from_name);
 
 	/* If we don't strip, we can compare first. */
 	if (pThis->docompare && !pThis->dostrip && target) {
-		if ((to_fd = open(to_name, O_RDONLY | O_BINARY, 0)) < 0) {
+		if ((to_fd = open(to_name, O_RDONLY | O_BINARY | KMK_OPEN_NO_INHERIT, 0)) < 0) {
 			rc = err(pThis->pCtx, EX_OSERR, "%s", to_name);
 			goto l_done;
 		}
@@ -612,7 +612,7 @@ install(PINSTALLINSTANCE pThis, const char *from_name, const char *to_name, u_lo
 #if !defined(__EMX__) && !defined(_MSC_VER)
 		close(to_fd);
 #endif
-		to_fd = open(tempcopy ? tempfile : to_name, O_RDONLY | O_BINARY, 0);
+		to_fd = open(tempcopy ? tempfile : to_name, O_RDONLY | O_BINARY | KMK_OPEN_NO_INHERIT, 0);
 		if (to_fd < 0) {
 			rc = err(pThis->pCtx, EX_OSERR, "stripping %s", to_name);
 			goto l_done;
@@ -626,7 +626,7 @@ install(PINSTALLINSTANCE pThis, const char *from_name, const char *to_name, u_lo
 		temp_fd = to_fd;
 
 		/* Re-open to_fd using the real target name. */
-		if ((to_fd = open(to_name, O_RDONLY | O_BINARY, 0)) < 0) {
+		if ((to_fd = open(to_name, O_RDONLY | O_BINARY | KMK_OPEN_NO_INHERIT, 0)) < 0) {
 			rc = err(pThis->pCtx, EX_OSERR, "%s", to_name);
 			goto l_done;
 		}
@@ -706,7 +706,7 @@ install(PINSTALLINSTANCE pThis, const char *from_name, const char *to_name, u_lo
 
 		/* Re-open to_fd so we aren't hosed by the rename(2). */
 		(void) close(to_fd);
-		if ((to_fd = open(to_name, O_RDONLY | O_BINARY, 0)) < 0) {
+		if ((to_fd = open(to_name, O_RDONLY | O_BINARY | KMK_OPEN_NO_INHERIT, 0)) < 0) {
 			rc = err(pThis->pCtx, EX_OSERR, "%s", to_name);
 			goto l_done;
 		}
@@ -912,7 +912,7 @@ create_newfile(PINSTALLINSTANCE pThis, const char *path, int target, struct stat
 				saved_errno = errno;
 	}
 
-	newfd = open(path, O_CREAT | O_RDWR | O_TRUNC | O_BINARY, S_IRUSR | S_IWUSR);
+	newfd = open(path, O_CREAT | O_RDWR | O_TRUNC | O_BINARY | KMK_OPEN_NO_INHERIT, S_IRUSR | S_IWUSR);
 	if (newfd < 0 && saved_errno != 0)
 		errno = saved_errno;
 	return newfd;

@@ -221,7 +221,7 @@ scanfiles(CATINSTANCE *pThis, char *argv[], int cooked)
 			fd = STDIN_FILENO;
 		} else {
 			pThis->filename = path;
-			fd = open(path, O_RDONLY);
+			fd = open(path, O_RDONLY | KMK_OPEN_NO_INHERIT);
 #ifndef NO_UDOM_SUPPORT
 			if (fd < 0 && errno == EOPNOTSUPP)
 				fd = udom_open(pThis, path, O_RDONLY);

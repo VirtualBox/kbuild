@@ -373,7 +373,7 @@ static fastcopy(char *from, char *to, struct stat *sbp)
 	int nread, from_fd, to_fd;
 	acl_t acl;
 
-	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
+	if ((from_fd = open(from, O_RDONLY | KMK_OPEN_NO_INHERIT, 0)) < 0) {
 		warn("%s", from);
 		return (1);
 	}
@@ -388,7 +388,7 @@ static fastcopy(char *from, char *to, struct stat *sbp)
 		blen = sbp->st_blksize;
 	}
 	while ((to_fd =
-	    open(to, O_CREAT | O_EXCL | O_TRUNC | O_WRONLY, 0)) < 0) {
+	    open(to, O_CREAT | O_EXCL | O_TRUNC | O_WRONLY | KMK_OPEN_NO_INHERIT, 0)) < 0) {
 		if (errno == EEXIST && unlink(to) == 0)
 			continue;
 		warn("%s", to);
