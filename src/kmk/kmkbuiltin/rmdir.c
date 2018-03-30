@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.20 2005/01/26 06:51:28 ssouhlal Ex
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
+#define FAKES_NO_GETOPT_H /* bird */
 #include "config.h"
 #include "err.h"
 #include <stdio.h>
@@ -57,7 +58,7 @@ __FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.20 2005/01/26 06:51:28 ssouhlal Ex
 #ifdef HAVE_ALLOCA_H
 # include <alloca.h>
 #endif
-#include "getopt.h"
+#include "getopt_r.h"
 #include "kmkbuiltin.h"
 
 #ifdef _MSC_VER
@@ -109,6 +110,7 @@ int
 kmk_builtin_rmdir(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
 	RMDIRINSTANCE This;
+	struct getopt_state_r gos;
 	int ch, errors;
 
 	/* Initialize global instance. */
@@ -118,12 +120,8 @@ kmk_builtin_rmdir(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 	This.vflag = 0;
 	This.pflag = 0;
 
-	/* kmk: reset getopt and set progname */
-	opterr = 1;
-	optarg = NULL;
-	optopt = 0;
-	optind = 0; /* init */
-	while ((ch = getopt_long(argc, argv, "pv", long_options, NULL)) != -1)
+	getopt_initialize_r(&gos, argc, argv, "pv", long_options, envp, pCtx);
+	while ((ch = getopt_long_r(&gos, NULL)) != -1)
 		switch(ch) {
 		case 'p':
 			This.pflag = 1;
@@ -146,8 +144,8 @@ kmk_builtin_rmdir(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 		default:
 			return usage(pCtx, 1);
 		}
-	argc -= optind;
-	argv += optind;
+	argc -= gos.optind;
+	argv += gos.optind;
 
 	if (argc == 0)
 		return /*usage(stderr)*/0;

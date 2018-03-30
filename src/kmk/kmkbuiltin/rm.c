@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
+#define FAKES_NO_GETOPT_H /* bird */
 #include "config.h"
 #include <sys/stat.h>
 #if !defined(_MSC_VER) && !defined(__HAIKU__)
@@ -68,7 +69,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #endif
 #include <unistd.h>
 #include <ctype.h>
-#include "getopt.h"
+#include "getopt_r.h"
 #ifdef __HAIKU__
 # include "haikufakes.h"
 #endif
@@ -186,6 +187,7 @@ int
 kmk_builtin_rm(int argc, char *argv[], char **envp, PKMKBUILTINCTX pCtx)
 {
 	RMINSTANCE This;
+	struct getopt_state_r gos;
 	int ch, rflag;
 
 	/* Init global instance data */
@@ -204,14 +206,9 @@ kmk_builtin_rm(int argc, char *argv[], char **envp, PKMKBUILTINCTX pCtx)
 	This.uid = 0;
 	kBuildProtectionInit(&This.g_ProtData, pCtx);
 
-	/* kmk: reset getopt and set program name. */
-	opterr = 1;
-	optarg = NULL;
-	optopt = 0;
-	optind = 0; /* init */
-
 	rflag = 0;
-	while ((ch = getopt_long(argc, argv, "dfiPRvW", long_options, NULL)) != -1)
+	getopt_initialize_r(&gos, argc, argv, "dfiPRvW", long_options, envp, pCtx);
+	while ((ch = getopt_long_r(&gos, NULL)) != -1)
 		switch (ch) {
 		case 'd':
 			This.dflag = 1;
@@ -261,7 +258,7 @@ kmk_builtin_rm(int argc, char *argv[], char **envp, PKMKBUILTINCTX pCtx)
 			kBuildProtectionDisable(&This.g_ProtData, KBUILDPROTECTIONTYPE_FULL);
 			break;
 		case 267:
-			if (kBuildProtectionSetDepth(&This.g_ProtData, optarg)) {
+			if (kBuildProtectionSetDepth(&This.g_ProtData, gos.optarg)) {
 			    kBuildProtectionTerm(&This.g_ProtData);
 			    return 1;
 			}
@@ -276,8 +273,8 @@ kmk_builtin_rm(int argc, char *argv[], char **envp, PKMKBUILTINCTX pCtx)
 			kBuildProtectionTerm(&This.g_ProtData);
 			return usage(pCtx, 1);
 		}
-	argc -= optind;
-	argv += optind;
+	argc -= gos.optind;
+	argv += gos.optind;
 
 	if (argc < 1) {
 		kBuildProtectionTerm(&This.g_ProtData);
@@ -346,6 +343,9 @@ rm_tree(PRMINSTANCE pThis, char **argv)
 #define	SKIPPED	1
 
 	flags = FTS_PHYSICAL;
+#ifndef KMK_BUILTIN_STANDALONE
+	flags |= FTS_NOCHDIR; /* Must not change the directory from inside kmk! */
+#endif
 	if (!needstat)
 		flags |= FTS_NOSTAT;
 #ifdef FTS_WHITEOUT
