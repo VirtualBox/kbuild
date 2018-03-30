@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 ssouhlal Exp $");
 #endif
 
+#define FAKES_NO_GETOPT_H
 #include "config.h"
 #ifndef _MSC_VER
 # include <sys/param.h>
@@ -78,7 +79,7 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #if defined(__EMX__) || defined(_MSC_VER)
 # include <process.h>
 #endif
-#include "getopt.h"
+#include "getopt_r.h"
 #ifdef __sun__
 # include "solfakes.h"
 #endif
@@ -174,6 +175,7 @@ int
 kmk_builtin_install(int argc, char *argv[], char ** envp, PKMKBUILTINCTX pCtx)
 {
 	INSTALLINSTANCE This;
+	struct getopt_state_r gos;
 	struct stat from_sb, to_sb;
 	mode_t *set;
 	u_long fset = 0;
@@ -202,18 +204,13 @@ kmk_builtin_install(int argc, char *argv[], char ** envp, PKMKBUILTINCTX pCtx)
 	This.hard_link_files_when_possible = 0;
 	This.dos2unix = 0;
 
-	/* reset getopt and set progname. */
-	opterr = 1;
-	optarg = NULL;
-	optopt = 0;
-	optind = 0; /* init */
-
 	iflags = 0;
 	group = owner = NULL;
-	while ((ch = getopt_long(argc, argv, "B:bCcdf:g:Mm:o:pSsv", long_options, NULL)) != -1)
+	getopt_initialize_r(&gos, argc, argv, "B:bCcdf:g:Mm:o:pSsv", long_options, envp, pCtx);
+	while ((ch = getopt_long_r(&gos, NULL)) != -1)
 		switch(ch) {
 		case 'B':
-			This.suffix = optarg;
+			This.suffix = gos.optarg;
 			/* FALLTHROUGH */
 		case 'b':
 			This.dobackup = 1;
@@ -238,20 +235,20 @@ kmk_builtin_install(int argc, char *argv[], char ** envp, PKMKBUILTINCTX pCtx)
 #endif
 			break;
 		case 'g':
-			group = optarg;
+			group = gos.optarg;
 			break;
 		case 'M':
 			This.nommap = 1;
 			break;
                 case 'm':
-			if (!(set = bsd_setmode(optarg)))
-				return errx(pCtx, EX_USAGE, "invalid file mode: %s", optarg);
+			if (!(set = bsd_setmode(gos.optarg)))
+				return errx(pCtx, EX_USAGE, "invalid file mode: %s", gos.optarg);
 			This.mode = bsd_getmode(set, 0);
 			free(set);
 			This.mode_given = 1;
 			break;
 		case 'o':
-			owner = optarg;
+			owner = gos.optarg;
 			break;
 		case 'p':
 			This.docompare = This.dopreserve = 1;
@@ -292,8 +289,8 @@ kmk_builtin_install(int argc, char *argv[], char ** envp, PKMKBUILTINCTX pCtx)
 		default:
 			return usage(pCtx, 1);
 		}
-	argc -= optind;
-	argv += optind;
+	argc -= gos.optind;
+	argv += gos.optind;
 
 	/* some options make no sense when creating directories */
 	if (This.dostrip && This.dodir) {
