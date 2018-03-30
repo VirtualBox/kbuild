@@ -49,6 +49,7 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
+#define FAKES_NO_GETOPT_H /* bird */
 #if !defined(KMK_BUILTIN_STANDALONE) && !defined(BUILTIN) && !defined(SHELL)
 # include "../makeint.h"
 # include "../filedef.h"
@@ -69,7 +70,7 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "getopt.h"
+#include "getopt_r.h"
 #ifdef __sun__
 # include "solfakes.h"
 #endif
@@ -138,6 +139,7 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 typedef struct PRINTFINSTANCE
 {
     PKMKBUILTINCTX pCtx;
+    /* former globals */
     size_t b_length;
     char *b_fmt;
     int	rval;
@@ -145,6 +147,12 @@ typedef struct PRINTFINSTANCE
 #ifndef KMK_BUILTIN_STANDALONE
     char *g_o;
 #endif
+    /* former function level statics in common_printf(); both need freeing. */
+    char *a, *t;
+
+    /* former function level statics in conv_expand(); needs freeing. */
+    char *conv_str;
+
     /* Buffer the output because windows doesn't do line buffering of stdout. */
     size_t g_cchBuf;
     char g_achBuf[256];
@@ -166,10 +174,11 @@ static struct option long_options[] =
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
-static int	 common_printf(PPRINTFINSTANCE pThis, int argc, char *argv[]);
+static int 	 common_printf(PPRINTFINSTANCE pThis, char *argv[], PKMKBUILTINCTX pCtx);
+static int 	 common_printf_inner(PPRINTFINSTANCE pThis, char *argv[]);
 static void	 conv_escape_str(PPRINTFINSTANCE, char *, void (*)(PPRINTFINSTANCE, int));
 static char	*conv_escape(PPRINTFINSTANCE, char *, char *);
-static char	*conv_expand(const char *);
+static const char *conv_expand(PPRINTFINSTANCE, const char *);
 static int	 getchr(PPRINTFINSTANCE);
 static double	 getdouble(PPRINTFINSTANCE);
 static int	 getwidth(PPRINTFINSTANCE);
@@ -190,25 +199,12 @@ static int	wrap_printf(PPRINTFINSTANCE, const char *, ...);
 
 int kmk_builtin_printf(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
-	int ch;
 	PRINTFINSTANCE This;
-	This.pCtx = pCtx;
-	This.b_length = 0;
-	This.b_fmt = NULL;
-	This.rval = 0;
-	This.gargv = NULL;
-#ifndef KMK_BUILTIN_STANDALONE
-	This.g_o = NULL;
-#endif
-	This.g_cchBuf = 0;
+	struct getopt_state_r gos;
+	int ch;
 
-	/* kmk: reset getopt, set progname and reset buffer. */
-	opterr = 1;
-	optarg = NULL;
-	optopt = 0;
-	optind = 0; /* init */
-
-	while ((ch = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
+	getopt_initialize_r(&gos, argc, argv, "", long_options, envp, pCtx);
+	while ((ch = getopt_long_r(&gos, NULL)) != -1) {
 		switch (ch) {
 		case 261:
 			usage(pCtx, 0);
@@ -220,12 +216,16 @@ int kmk_builtin_printf(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 			return usage(pCtx, 1);
 		}
 	}
-	argc -= optind;
-	argv += optind;
+	argc -= gos.optind;
+	argv += gos.optind;
 
 	if (argc < 1)
 		return usage(pCtx, 1);
-	return common_printf(&This, argc, argv);
+
+#ifndef KMK_BUILTIN_STANDALONE
+	This.g_o = NULL;
+#endif
+	return common_printf(&This, argv, pCtx);
 }
 
 #ifdef KMK_BUILTIN_STANDALONE
@@ -248,15 +248,8 @@ char *kmk_builtin_func_printf(char *o, char **argv, const char *funcname)
 	if (argc == 0)
 	    fatal(NILF, strlen(funcname) + INTSTR_LENGTH, _("$(%s): no format string\n"), funcname);
 
-	This.pCtx = NULL;
-	This.b_length = 0;
-	This.b_fmt = NULL;
-	This.rval = 0;
-	This.gargv = NULL;
-	This.g_cchBuf = 0;
 	This.g_o = o;
-
-	rc = common_printf(&This, argc, argv);
+	rc = common_printf(&This, argv, NULL);
 	o = This.g_o;
 
 	if (rc != 0)
@@ -265,7 +258,40 @@ char *kmk_builtin_func_printf(char *o, char **argv, const char *funcname)
 }
 #endif /* KMK_BUILTIN_STANDALONE */
 
-static int common_printf(PPRINTFINSTANCE pThis, int argc, char *argv[])
+static int common_printf(PPRINTFINSTANCE pThis, char *argv[], PKMKBUILTINCTX pCtx)
+{
+	int rc;
+
+	/* Init all but g_o. */
+	pThis->pCtx = pCtx;
+	pThis->b_length = 0;
+	pThis->b_fmt = NULL;
+	pThis->rval = 0;
+	pThis->gargv = NULL;
+	pThis->g_cchBuf = 0;
+	pThis->a = NULL;
+	pThis->t = NULL;
+	pThis->conv_str = NULL;
+
+	rc = common_printf_inner(pThis, argv);
+
+	/* Cleanup allocations. */
+	if (pThis->a) {
+		free(pThis->a);
+		pThis->a = NULL;
+	}
+	if (pThis->t) {
+		free(pThis->t);
+		pThis->t = NULL;
+	}
+	if (pThis->conv_str) {
+		free(pThis->conv_str);
+		pThis->conv_str = NULL;
+	}
+	return rc;
+}
+
+static int common_printf_inner(PPRINTFINSTANCE pThis, char *argv[])
 {
 	char *fmt, *start;
 	int fieldwidth, precision;
@@ -274,12 +300,6 @@ static int common_printf(PPRINTFINSTANCE pThis, int argc, char *argv[])
 	int ch;
 	char longbuf[64];
 
-	/* kmk: reinitialize globals */
-	pThis->b_length = 0;
-	pThis->b_fmt = NULL;
-	pThis->rval = 0;
-	pThis->gargv = NULL;
-	pThis->g_cchBuf = 0;
 	format = *argv;
 	pThis->gargv = ++argv;
 
@@ -337,7 +357,7 @@ static int common_printf(PPRINTFINSTANCE pThis, int argc, char *argv[])
 			switch (ch) {
 
 			case 'B': {
-				const char *p = conv_expand(getstr(pThis));
+				const char *p = conv_expand(pThis, getstr(pThis));
 				*fmt = 's';
 				PF(start, p);
 				break;
@@ -346,27 +366,28 @@ static int common_printf(PPRINTFINSTANCE pThis, int argc, char *argv[])
 				/* There has to be a better way to do this,
 				 * but the string we generate might have
 				 * embedded nulls. */
-				static char *a, *t;
 				char *cp = getstr(pThis);
 				/* Free on entry in case shell longjumped out */
-				if (a != NULL)
-					free(a);
-				a = NULL;
-				if (t != NULL)
-					free(t);
-				t = NULL;
+				if (pThis->a != NULL) {
+					free(pThis->a);
+					pThis->a = NULL;
+				}
+				if (pThis->t != NULL) {
+					free(pThis->t);
+					pThis->t = NULL;
+				}
 				/* Count number of bytes we want to output */
 				pThis->b_length = 0;
 				conv_escape_str(pThis, cp, b_count);
-				t = malloc(pThis->b_length + 1);
-				if (t == NULL)
+				pThis->t = malloc(pThis->b_length + 1);
+				if (pThis->t == NULL)
 					break;
-				memset(t, 'x', pThis->b_length);
-				t[pThis->b_length] = 0;
+				memset(pThis->t, 'x', pThis->b_length);
+				pThis->t[pThis->b_length] = 0;
 				/* Get printf to calculate the lengths */
 				*fmt = 's';
-				APF(&a, start, t);
-				pThis->b_fmt = a;
+				APF(&pThis->a, start, pThis->t);
+				pThis->b_fmt = pThis->a;
 				/* Output leading spaces and data bytes */
 				conv_escape_str(pThis, cp, b_output);
 				/* Add any trailing spaces */
@@ -709,21 +730,19 @@ conv_escape(PPRINTFINSTANCE pThis, char *str, char *conv_ch)
 
 /* expand a string so that everything is printable */
 
-static char *
-conv_expand(const char *str)
+static const char *
+conv_expand(PPRINTFINSTANCE pThis, const char *str)
 {
-	static char *conv_str;
-	static char no_memory[] = "<no memory>";
+	static const char no_memory[] = "<no memory>";
 	char *cp;
 	int ch;
 
-	if (conv_str)
-		free(conv_str);
+	if (pThis->conv_str)
+		free(pThis->conv_str);
 	/* get a buffer that is definitely large enough.... */
-	conv_str = malloc(4 * strlen(str) + 1);
-	if (!conv_str)
+	pThis->conv_str = cp = malloc(4 * strlen(str) + 1);
+	if (!cp)
 		return no_memory;
-	cp = conv_str;
 
 	while ((ch = *(const unsigned char *)str++) != '\0') {
 		switch (ch) {
@@ -770,7 +789,7 @@ conv_expand(const char *str)
 	}
 
 	*cp = 0;
-	return conv_str;
+	return pThis->conv_str;
 }
 
 static char *

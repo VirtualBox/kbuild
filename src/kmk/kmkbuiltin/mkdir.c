@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 __FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $");
 #endif
 
+#define FAKES_NO_GETOPT_H /* bird */
 #include "config.h"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -60,7 +61,7 @@ __FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $
 #ifdef HAVE_ALLOCA_H
 # include <alloca.h>
 #endif
-#include "getopt.h"
+#include "getopt_r.h"
 #ifdef __HAIKU__
 # include "haikufakes.h"
 #endif
@@ -89,6 +90,7 @@ static int	usage(PKMKBUILTINCTX pCtx, int fIsErr);
 int
 kmk_builtin_mkdir(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
+	struct getopt_state_r gos;
 	int ch, exitval, success, pflag, vflag;
 	mode_t omode, *set = (mode_t *)NULL;
 	char *mode;
@@ -96,15 +98,11 @@ kmk_builtin_mkdir(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 	omode = pflag = vflag = 0;
 	mode = NULL;
 
-	/* kmk: reset getopt and set progname */
-	opterr = 1;
-	optarg = NULL;
-	optopt = 0;
-	optind = 0; /* init */
-	while ((ch = getopt_long(argc, argv, "m:pv", long_options, NULL)) != -1)
+	getopt_initialize_r(&gos, argc, argv, "m:pv", long_options, envp, pCtx);
+	while ((ch = getopt_long_r(&gos, NULL)) != -1)
 		switch(ch) {
 		case 'm':
-			mode = optarg;
+			mode = gos.optarg;
 			break;
 		case 'p':
 			pflag = 1;
@@ -122,8 +120,8 @@ kmk_builtin_mkdir(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 			return usage(pCtx, 1);
 		}
 
-	argc -= optind;
-	argv += optind;
+	argc -= gos.optind;
+	argv += gos.optind;
 	if (argv[0] == NULL)
 		return usage(pCtx, 1);
 

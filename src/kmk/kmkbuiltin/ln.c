@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)ln.c	8.2 (Berkeley) 3/31/94";
 __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 #endif /* no $id */
 
+#define FAKES_NO_GETOPT_H /* bird */
 #include "config.h"
 #ifndef _MSC_VER
 # include <sys/param.h>
@@ -54,7 +55,7 @@ __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "getopt.h"
+#include "getopt_r.h"
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
@@ -92,6 +93,7 @@ int
 kmk_builtin_ln(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
 	LNINSTANCE This;
+	struct getopt_state_r gos;
 	struct stat sb;
 	char *sourcedir;
 	int ch, exitval;
@@ -106,13 +108,8 @@ kmk_builtin_ln(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 	This.linkch = 0;
 	This.linkf = NULL;
 
-	/* kmk: reset getopt() and set program name. */
-	opterr = 1;
-	optarg = NULL;
-	optopt = 0;
-	optind = 0; /* init */
-
-	while ((ch = getopt_long(argc, argv, "fhinsv", long_options, NULL)) != -1)
+	getopt_initialize_r(&gos, argc, argv, "fhinsv", long_options, envp, pCtx);
+	while ((ch = getopt_long_r(&gos, NULL)) != -1)
 		switch (ch) {
 		case 'f':
 			This.fflag = 1;
@@ -142,8 +139,8 @@ kmk_builtin_ln(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 			return usage(pCtx, 1);
 		}
 
-	argv += optind;
-	argc -= optind;
+	argv += gos.optind;
+	argc -= gos.optind;
 
 	This.linkf = This.sflag ? symlink : link;
 	This.linkch = This.sflag ? '-' : '=';
