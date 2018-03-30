@@ -41,6 +41,10 @@ static char sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
 /*#include <sys/cdefs.h> */
 /*__FBSDID("$FreeBSD: src/bin/chmod/chmod.c,v 1.33 2005/01/10 08:39:20 imp Exp $");*/
 
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
+#define FAKES_NO_GETOPT_H /* bird */
 #include "config.h"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -63,9 +67,24 @@ static char sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
 #ifdef __HAIKU__
 # include "haikufakes.h"
 #endif
-#include "getopt.h"
+#include "getopt_r.h"
 #include "kmkbuiltin.h"
 
+
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
+
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
 extern void * bsd_setmode(const char *p);
 extern mode_t bsd_getmode(const void *bbox, mode_t omode);
 extern void bsd_strmode(mode_t mode, char *p);
@@ -76,17 +95,11 @@ extern int lchmod(const char *, mode_t);
 
 static int usage(PKMKBUILTINCTX pCtx, int is_err);
 
-static struct option long_options[] =
-{
-    { "help",   					no_argument, 0, 261 },
-    { "version",   					no_argument, 0, 262 },
-    { 0, 0,	0, 0 },
-};
-
 
 int
 kmk_builtin_chmod(int argc, char *argv[], char **envp, PKMKBUILTINCTX pCtx)
 {
+	struct getopt_state_r gos;
 	FTS *ftsp;
 	FTSENT *p;
 	mode_t *set;
@@ -96,15 +109,11 @@ kmk_builtin_chmod(int argc, char *argv[], char **envp, PKMKBUILTINCTX pCtx)
 	mode_t newmode;
 	int (*change_mode)(const char *, mode_t);
 
-	/* kmk: reset getopt and set progname */
-	opterr = 1;
-	optarg = NULL;
-	optopt = 0;
-	optind = 0; /* init */
-
 	set = NULL;
 	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
-	while ((ch = getopt_long(argc, argv, "HLPRXfghorstuvwx", long_options, NULL)) != -1)
+
+	getopt_initialize_r(&gos, argc, argv, "HLPRXfghorstuvwx", long_options, envp, pCtx);
+	while ((ch = getopt_long_r(&gos, NULL)) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -142,10 +151,10 @@ kmk_builtin_chmod(int argc, char *argv[], char **envp, PKMKBUILTINCTX pCtx)
 		 */
 		case 'g': case 'o': case 'r': case 's':
 		case 't': case 'u': case 'w': case 'X': case 'x':
-			if (argv[optind - 1][0] == '-' &&
-			    argv[optind - 1][1] == ch &&
-			    argv[optind - 1][2] == '\0')
-				--optind;
+			if (argv[gos.optind - 1][0] == '-' &&
+			    argv[gos.optind - 1][1] == ch &&
+			    argv[gos.optind - 1][2] == '\0')
+				--gos.optind;
 			goto done;
 		case 'v':
 			vflag++;
@@ -159,8 +168,8 @@ kmk_builtin_chmod(int argc, char *argv[], char **envp, PKMKBUILTINCTX pCtx)
 		default:
 			return usage(pCtx, 1);
 		}
-done:	argv += optind;
-	argc -= optind;
+done:	argv += gos.optind;
+	argc -= gos.optind;
 
 	if (argc < 2)
 		return usage(pCtx, 1);
@@ -178,6 +187,9 @@ done:	argv += optind;
 		}
 	} else
 		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
+#ifndef KMK_BUILTIN_STANDALONE
+	fts_options |= FTS_NOCHDIR; /* Don't change the CWD while inside kmk. */
+#endif
 
 	if (hflag)
 		change_mode = lchmod;
