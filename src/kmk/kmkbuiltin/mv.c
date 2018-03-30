@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
+#define FAKES_NO_GETOPT_H /* bird */
 #include "config.h"
 #include <sys/types.h>
 #ifndef _MSC_VER
@@ -79,7 +80,7 @@ __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 # include <sysexits.h>
 #endif
 #include <unistd.h>
-#include "getopt.h"
+#include "getopt_r.h"
 #ifdef __sun__
 # include "solfakes.h"
 #endif
@@ -120,41 +121,18 @@ static struct option long_options[] =
 extern void 	bsd_strmode(mode_t mode, char *p); /* strmode.c */
 
 static int	do_move(PMVINSTANCE, char *, char *);
-#ifdef CROSS_DEVICE_MOVE
+#if 0 // def CROSS_DEVICE_MOVE
 static int	fastcopy(char *, char *, struct stat *);
 static int	copy(char *, char *);
 #endif
 static int	usage(PKMKBUILTINCTX, int);
 
 
-#if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(__DragonFly__) && !defined(__OpenBSD__)
-# ifdef __OS2__
-static
-# endif
-const char *user_from_uid(uid_t id, int x)
-{
-	static char s_buf[64];
-	sprintf(s_buf, "%ld", (long int)id);
-	(void)x;
-	return s_buf;
-}
-# ifdef __OS2__
-static
-# endif
-const char *group_from_gid(gid_t id, int x)
-{
-	static char s_buf[64];
-	sprintf(s_buf, "%ld", (long int)id);
-	(void)x;
-	return s_buf;
-}
-#endif /* 'not in libc' */
-
-
 int
 kmk_builtin_mv(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
 	MVINSTANCE This;
+	struct getopt_state_r gos;
 	size_t baselen, len;
 	int rval;
 	char *p, *endp;
@@ -169,13 +147,8 @@ kmk_builtin_mv(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 	This.nflg = 0;
 	This.vflg = 0;
 
-	/* kmk: reset getopt and set progname */
-	opterr = 1;
-	optarg = NULL;
-	optopt = 0;
-	optind = 0; /* init */
-
-	while ((ch = getopt_long(argc, argv, "finv", long_options, NULL)) != -1)
+	getopt_initialize_r(&gos, argc, argv, "finv", long_options, envp, pCtx);
+	while ((ch = getopt_long_r(&gos, NULL)) != -1)
 		switch (ch) {
 		case 'i':
 			This.iflg = 1;
@@ -200,8 +173,8 @@ kmk_builtin_mv(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 		default:
 			return usage(pCtx, 1);
 		}
-	argc -= optind;
-	argv += optind;
+	argc -= gos.optind;
+	argv += gos.optind;
 
 	if (argc < 2)
 		return usage(pCtx, 1);
@@ -300,10 +273,17 @@ do_move(PMVINSTANCE pThis, char *from, char *to)
 			ask = 1;
 		} else if (access(to, W_OK) && !stat(to, &sb)) {
 			bsd_strmode(sb.st_mode, modep);
+#if 0 /* probably not thread safe, also BSDism. */
 			(void)fprintf(stderr, "override %s%s%s/%s for %s? %s",
 			    modep + 1, modep[9] == ' ' ? "" : " ",
 			    user_from_uid((unsigned long)sb.st_uid, 0),
 			    group_from_gid((unsigned long)sb.st_gid, 0), to, YESNO);
+#else
+			(void)fprintf(stderr, "override %s%s%ul/%ul for %s? %s",
+			              modep + 1, modep[9] == ' ' ? "" : " ",
+			              (unsigned long)sb.st_uid, (unsigned long)sb.st_gid,
+			              to, YESNO);
+#endif
 			ask = 1;
 		}
 		if (ask) {
@@ -334,7 +314,7 @@ do_move(PMVINSTANCE pThis, char *from, char *to)
 #endif
 
 	if (errno == EXDEV) {
-#ifndef CROSS_DEVICE_MOVE
+#if 1 //ndef CROSS_DEVICE_MOVE
 		warnx(pThis->pCtx, "cannot move `%s' to a different device: `%s'", from, to);
 		return (1);
 #else
@@ -367,7 +347,7 @@ do_move(PMVINSTANCE pThis, char *from, char *to)
 		return (1);
 	}
 
-#ifdef CROSS_DEVICE_MOVE
+#if 0//def CROSS_DEVICE_MOVE
 	/*
 	 * If rename fails because we're trying to cross devices, and
 	 * it's a regular file, do the copy internally; otherwise, use
@@ -382,7 +362,7 @@ do_move(PMVINSTANCE pThis, char *from, char *to)
 #endif
 }
 
-#ifdef CROSS_DEVICE_MOVE
+#if 0 //def CROSS_DEVICE_MOVE - using static buffers and fork.
 int
 static fastcopy(char *from, char *to, struct stat *sbp)
 {
