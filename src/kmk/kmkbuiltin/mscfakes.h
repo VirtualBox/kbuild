@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 3213 2018-03-30 21:03:28Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
@@ -37,7 +37,9 @@
 #include <time.h>
 #include <stdarg.h>
 #include <malloc.h>
-#include "getopt.h"
+#ifndef FAKES_NO_GETOPT_H
+# include "getopt.h"
+#endif
 #ifndef MSCFAKES_NO_WINDOWS_H
 # include <Windows.h>
 #endif
