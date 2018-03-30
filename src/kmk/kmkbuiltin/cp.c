@@ -59,6 +59,11 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
  * in "to") to form the final target path.
  */
 
+
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
+#define FAKES_NO_GETOPT_H /* bird */
 #include "config.h"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -72,7 +77,7 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "getopt.h"
+#include "getopt_r.h"
 #include "k/kDefs.h"
 #ifdef _MSC_VER
 # include "mscfakes.h"
@@ -86,6 +91,9 @@ extern size_t strlcpy(char *, const char *, size_t);
 #endif
 
 
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
 #ifndef S_IFWHT
 #define S_IFWHT 0
 #define S_ISWHT(s) 0
@@ -115,21 +123,26 @@ extern size_t strlcpy(char *, const char *, size_t);
                 *--(p).p_end = 0;					\
 }
 
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
+typedef struct CPINSTANCE
+{
+	CPUTILSINSTANCE Utils;
+	int Rflag, rflag;
+	int cp_ignore_non_existing, cp_changed_only;
+	KBUILDPROTECTION g_ProtData;
+} CPINSTANCE;
+
 /* have wrappers for globals in cp_extern! */
 
-static KBUILDPROTECTION g_ProtData;
-const char *cp_argv0;
-static char emptystring[] = "";
-
-PATH_T to = { to.p_path, emptystring, "" };
-
-int fflag, iflag, nflag, pflag, vflag;
-static int Rflag, rflag;
-volatile sig_atomic_t info;
-static int cp_ignore_non_existing, cp_changed_only;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
+
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
 enum cp_arg {
     CP_OPT_HELP = 261,
     CP_OPT_VERSION,
@@ -141,6 +154,7 @@ enum cp_arg {
     CP_OPT_DISABLE_FULL_PROTECTION,
     CP_OPT_PROTECTION_DEPTH
 };
+
 static struct option long_options[] =
 {
     { "help",   					no_argument, 0, CP_OPT_HELP },
@@ -155,10 +169,23 @@ static struct option long_options[] =
     { 0, 0,	0, 0 },
 };
 
+static char emptystring[] = "";
 
-static int copy(PKMKBUILTINCTX pCtx, char *[], enum op, int);
+#if defined(SIGINFO) && defined(KMK_BUILTIN_STANDALONE)
+volatile sig_atomic_t g_cp_info;
+#endif
+
+
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
+static int copy(CPINSTANCE *pThis, char * const *, enum op, int);
+#ifdef FTSCALL
+static int FTSCALL mastercmp(const FTSENT * const *, const FTSENT * const *);
+#else
 static int mastercmp(const FTSENT **, const FTSENT **);
-#ifdef SIGINFO
+#endif
+#if defined(SIGINFO) && defined(KMK_BUILTIN_STANDALONE)
 static void siginfo(int __unused);
 #endif
 static int usage(PKMKBUILTINCTX, int);
@@ -166,29 +193,31 @@ static int usage(PKMKBUILTINCTX, int);
 int
 kmk_builtin_cp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
+	CPINSTANCE This;
+	struct getopt_state_r gos;
 	struct stat to_stat, tmp_stat;
 	enum op type;
 	int Hflag, Lflag, Pflag, ch, fts_options, r, have_trailing_slash, rc;
 	char *target;
 
         /* init globals */
-        cp_argv0 = argv[0];
-        to.p_end = to.p_path;
-        to.target_end = emptystring;
-        memset(to.p_path, 0, sizeof(to.p_path));
-        fflag = iflag = nflag = pflag = vflag = Rflag = rflag = 0;
-        info = 0;
-	cp_ignore_non_existing = cp_changed_only = 0;
-	kBuildProtectionInit(&g_ProtData, pCtx);
-
-        /* reset getopt and set progname. */
-        opterr = 1;
-        optarg = NULL;
-        optopt = 0;
-        optind = 0; /* init */
+	This.Utils.pCtx = pCtx;
+        This.Utils.to.p_end = This.Utils.to.p_path;
+        This.Utils.to.target_end = emptystring;
+        memset(This.Utils.to.p_path, 0, sizeof(This.Utils.to.p_path));
+        This.Utils.fflag = 0;
+	This.Utils.iflag = 0;
+	This.Utils.nflag = 0;
+	This.Utils.pflag = 0;
+	This.Utils.vflag = 0;
+	This.Rflag = 0;
+	This.rflag = 0;
+	This.cp_ignore_non_existing = This.cp_changed_only = 0;
+	kBuildProtectionInit(&This.g_ProtData, pCtx);
 
 	Hflag = Lflag = Pflag = 0;
-	while ((ch = getopt_long(argc, argv, "HLPRfinprv", long_options, NULL)) != -1)
+	getopt_initialize_r(&gos, argc, argv, "HLPRfinprv", long_options, envp, pCtx);
+	while ((ch = getopt_long_r(&gos, NULL)) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -203,76 +232,76 @@ kmk_builtin_cp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 			Hflag = Lflag = 0;
 			break;
 		case 'R':
-			Rflag = 1;
+			This.Rflag = 1;
 			break;
 		case 'f':
-			fflag = 1;
-			iflag = nflag = 0;
+			This.Utils.fflag = 1;
+			This.Utils.iflag = This.Utils.nflag = 0;
 			break;
 		case 'i':
-			iflag = 1;
-			fflag = nflag = 0;
+			This.Utils.iflag = 1;
+			This.Utils.fflag = This.Utils.nflag = 0;
 			break;
 		case 'n':
-			nflag = 1;
-			fflag = iflag = 0;
+			This.Utils.nflag = 1;
+			This.Utils.fflag = This.Utils.iflag = 0;
 			break;
 		case 'p':
-			pflag = 1;
+			This.Utils.pflag = 1;
 			break;
 		case 'r':
-			rflag = 1;
+			This.rflag = 1;
 			break;
 		case 'v':
-			vflag = 1;
+			This.Utils.vflag = 1;
 			break;
 		case CP_OPT_HELP:
 			usage(pCtx, 0);
-			kBuildProtectionTerm(&g_ProtData);
+			kBuildProtectionTerm(&This.g_ProtData);
 			return 0;
 		case CP_OPT_VERSION:
-			kBuildProtectionTerm(&g_ProtData);
+			kBuildProtectionTerm(&This.g_ProtData);
 			return kbuild_version(argv[0]);
 		case CP_OPT_IGNORE_NON_EXISTING:
-			cp_ignore_non_existing = 1;
+			This.cp_ignore_non_existing = 1;
 			break;
 		case CP_OPT_CHANGED:
-			cp_changed_only = 1;
+			This.cp_changed_only = 1;
 			break;
 		case CP_OPT_DISABLE_PROTECTION:
-			kBuildProtectionDisable(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
+			kBuildProtectionDisable(&This.g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
 			break;
 		case CP_OPT_ENABLE_PROTECTION:
-			kBuildProtectionEnable(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
+			kBuildProtectionEnable(&This.g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
 			break;
 		case CP_OPT_ENABLE_FULL_PROTECTION:
-			kBuildProtectionEnable(&g_ProtData, KBUILDPROTECTIONTYPE_FULL);
+			kBuildProtectionEnable(&This.g_ProtData, KBUILDPROTECTIONTYPE_FULL);
 			break;
 		case CP_OPT_DISABLE_FULL_PROTECTION:
-			kBuildProtectionDisable(&g_ProtData, KBUILDPROTECTIONTYPE_FULL);
+			kBuildProtectionDisable(&This.g_ProtData, KBUILDPROTECTIONTYPE_FULL);
 			break;
 		case CP_OPT_PROTECTION_DEPTH:
-			if (kBuildProtectionSetDepth(&g_ProtData, optarg)) {
-				kBuildProtectionTerm(&g_ProtData);
+			if (kBuildProtectionSetDepth(&This.g_ProtData, gos.optarg)) {
+				kBuildProtectionTerm(&This.g_ProtData);
 				return 1;
 			}
 			break;
 		default:
-			kBuildProtectionTerm(&g_ProtData);
+			kBuildProtectionTerm(&This.g_ProtData);
 		        return usage(pCtx, 1);
 		}
-	argc -= optind;
-	argv += optind;
+	argc -= gos.optind;
+	argv += gos.optind;
 
 	if (argc < 2) {
-		kBuildProtectionTerm(&g_ProtData);
+		kBuildProtectionTerm(&This.g_ProtData);
 		return usage(pCtx, 1);
 	}
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
-	if (rflag) {
-		if (Rflag) {
-			kBuildProtectionTerm(&g_ProtData);
+	if (This.rflag) {
+		if (This.Rflag) {
+			kBuildProtectionTerm(&This.g_ProtData);
 			return errx(pCtx, 1,
 		    "the -R and -r options may not be specified together.");
 		}
@@ -282,7 +311,7 @@ kmk_builtin_cp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL;
         }
-	if (Rflag) {
+	if (This.Rflag) {
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;
 		if (Lflag) {
@@ -293,25 +322,25 @@ kmk_builtin_cp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL | FTS_COMFOLLOW;
 	}
-#ifdef SIGINFO
+#if defined(SIGINFO) && defined(KMK_BUILTIN_STANDALONE)
 	(void)signal(SIGINFO, siginfo);
 #endif
 
 	/* Save the target base in "to". */
 	target = argv[--argc];
-	if (strlcpy(to.p_path, target, sizeof(to.p_path)) >= sizeof(to.p_path)) {
-		kBuildProtectionTerm(&g_ProtData);
+	if (strlcpy(This.Utils.to.p_path, target, sizeof(This.Utils.to.p_path)) >= sizeof(This.Utils.to.p_path)) {
+		kBuildProtectionTerm(&This.g_ProtData);
 		return errx(pCtx, 1, "%s: name too long", target);
 	}
-	to.p_end = to.p_path + strlen(to.p_path);
-        if (to.p_path == to.p_end) {
-		*to.p_end++ = '.';
-		*to.p_end = 0;
+	This.Utils.to.p_end = This.Utils.to.p_path + strlen(This.Utils.to.p_path);
+        if (This.Utils.to.p_path == This.Utils.to.p_end) {
+		*This.Utils.to.p_end++ = '.';
+		*This.Utils.to.p_end = 0;
 	}
-	have_trailing_slash = IS_SLASH(to.p_end[-1]);
+	have_trailing_slash = IS_SLASH(This.Utils.to.p_end[-1]);
 	if (have_trailing_slash)
-		STRIP_TRAILING_SLASH(to);
-	to.target_end = to.p_end;
+		STRIP_TRAILING_SLASH(This.Utils.to);
+	This.Utils.to.target_end = This.Utils.to.p_end;
 
 	/* Set end of argument list for fts(3). */
 	argv[argc] = NULL;
@@ -330,17 +359,17 @@ kmk_builtin_cp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 	 *
 	 * In (2), the real target is not directory, but "directory/source".
 	 */
-	r = stat(to.p_path, &to_stat);
+	r = stat(This.Utils.to.p_path, &to_stat);
 	if (r == -1 && errno != ENOENT) {
-		kBuildProtectionTerm(&g_ProtData);
-		return err(pCtx, 1, "stat: %s", to.p_path);
+		kBuildProtectionTerm(&This.g_ProtData);
+		return err(pCtx, 1, "stat: %s", This.Utils.to.p_path);
 	}
 	if (r == -1 || !S_ISDIR(to_stat.st_mode)) {
 		/*
 		 * Case (1).  Target is not a directory.
 		 */
 		if (argc > 1) {
-			kBuildProtectionTerm(&g_ProtData);
+			kBuildProtectionTerm(&This.g_ProtData);
 			return usage(pCtx, 1);
 		}
 		/*
@@ -351,12 +380,12 @@ kmk_builtin_cp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 		 * the initial mkdir().
 		 */
 		if (r == -1) {
-			if (rflag || (Rflag && (Lflag || Hflag)))
+			if (This.rflag || (This.Rflag && (Lflag || Hflag)))
 				stat(*argv, &tmp_stat);
 			else
 				lstat(*argv, &tmp_stat);
 
-			if (S_ISDIR(tmp_stat.st_mode) && (Rflag || rflag))
+			if (S_ISDIR(tmp_stat.st_mode) && (This.Rflag || This.rflag))
 				type = DIR_TO_DNE;
 			else
 				type = FILE_TO_FILE;
@@ -364,12 +393,12 @@ kmk_builtin_cp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 			type = FILE_TO_FILE;
 
 		if (have_trailing_slash && type == FILE_TO_FILE) {
-			kBuildProtectionTerm(&g_ProtData);
+			kBuildProtectionTerm(&This.g_ProtData);
 			if (r == -1)
 				return errx(pCtx, 1, "directory %s does not exist",
-				            to.p_path);
+				            This.Utils.to.p_path);
 			else
-				return errx(pCtx, 1, "%s is not a directory", to.p_path);
+				return errx(pCtx, 1, "%s is not a directory", This.Utils.to.p_path);
 		}
 	} else
 		/*
@@ -379,16 +408,16 @@ kmk_builtin_cp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 
 	/* Finally, check that the "to" directory isn't protected. */
 	rc = 1;
-	if (!kBuildProtectionScanEnv(&g_ProtData, envp, "KMK_CP_")
-	 && !kBuildProtectionEnforce(&g_ProtData,
-				     Rflag || rflag
+	if (!kBuildProtectionScanEnv(&This.g_ProtData, envp, "KMK_CP_")
+	 && !kBuildProtectionEnforce(&This.g_ProtData,
+				     This.Rflag || This.rflag
 				     ? KBUILDPROTECTIONTYPE_RECURSIVE
 				     : KBUILDPROTECTIONTYPE_FULL,
-				     to.p_path)) {
-	    rc = copy(pCtx, argv, type, fts_options);
+				     This.Utils.to.p_path)) {
+	    rc = copy(&This, argv, type, fts_options);
 	}
 
-	kBuildProtectionTerm(&g_ProtData);
+	kBuildProtectionTerm(&This.g_ProtData);
 	return rc;
 }
 
@@ -401,7 +430,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 
 static int
-copy(PKMKBUILTINCTX pCtx, char *argv[], enum op type, int fts_options)
+copy(CPINSTANCE *pThis, char * const *argv, enum op type, int fts_options)
 {
 	struct stat to_stat;
 	FTS *ftsp;
@@ -419,16 +448,16 @@ copy(PKMKBUILTINCTX pCtx, char *argv[], enum op type, int fts_options)
 	umask(~mask);
 
 	if ((ftsp = fts_open(argv, fts_options, mastercmp)) == NULL)
-		return err(pCtx, 1, "fts_open");
+		return err(pThis->Utils.pCtx, 1, "fts_open");
 	for (badcp = rval = 0; (curr = fts_read(ftsp)) != NULL; badcp = 0) {
                 int copied = 0;
 
 		switch (curr->fts_info) {
 		case FTS_NS:
-			if (   cp_ignore_non_existing
+			if (   pThis->cp_ignore_non_existing
 			    && curr->fts_errno == ENOENT) {
-				if (vflag) {
-					warnx(pCtx, "fts: %s: %s", curr->fts_path,
+				if (pThis->Utils.vflag) {
+					warnx(pThis->Utils.pCtx, "fts: %s: %s", curr->fts_path,
 					      strerror(curr->fts_errno));
 				}
 				continue;
@@ -436,12 +465,12 @@ copy(PKMKBUILTINCTX pCtx, char *argv[], enum op type, int fts_options)
 			/* fall thru */
 		case FTS_DNR:
 		case FTS_ERR:
-			warnx(pCtx, "fts: %s: %s",
+			warnx(pThis->Utils.pCtx, "fts: %s: %s",
 			    curr->fts_path, strerror(curr->fts_errno));
 			badcp = rval = 1;
 			continue;
 		case FTS_DC:			/* Warn, continue. */
-			warnx(pCtx, "%s: directory causes a cycle", curr->fts_path);
+			warnx(pThis->Utils.pCtx, "%s: directory causes a cycle", curr->fts_path);
 			badcp = rval = 1;
 			continue;
 		default:
@@ -491,20 +520,20 @@ copy(PKMKBUILTINCTX pCtx, char *argv[], enum op type, int fts_options)
 
 			p = &curr->fts_path[base];
 			nlen = curr->fts_pathlen - base;
-			target_mid = to.target_end;
+			target_mid = pThis->Utils.to.target_end;
 			if (!IS_SLASH(*p) && !IS_SLASH(target_mid[-1]))
 				*target_mid++ = '/';
 			*target_mid = 0;
-			if (target_mid - to.p_path + nlen >= PATH_MAX) {
-				warnx(pCtx, "%s%s: name too long (not copied)",
-				    to.p_path, p);
+			if (target_mid - pThis->Utils.to.p_path + nlen >= PATH_MAX) {
+				warnx(pThis->Utils.pCtx, "%s%s: name too long (not copied)",
+				    pThis->Utils.to.p_path, p);
 				badcp = rval = 1;
 				continue;
 			}
 			(void)strncat(target_mid, p, nlen);
-			to.p_end = target_mid + nlen;
-			*to.p_end = 0;
-			STRIP_TRAILING_SLASH(to);
+			pThis->Utils.to.p_end = target_mid + nlen;
+			*pThis->Utils.to.p_end = 0;
+			STRIP_TRAILING_SLASH(pThis->Utils.to);
 		}
 
 		if (curr->fts_info == FTS_DP) {
@@ -524,15 +553,15 @@ copy(PKMKBUILTINCTX pCtx, char *argv[], enum op type, int fts_options)
 			 * honour setuid, setgid and sticky bits, but we
 			 * normally want to preserve them on directories.
 			 */
-			if (pflag) {
-				if (setfile(pCtx, curr->fts_statp, -1))
+			if (pThis->Utils.pflag) {
+				if (copy_file_attribs(&pThis->Utils, curr->fts_statp, -1))
 				    rval = 1;
 			} else {
 				mode = curr->fts_statp->st_mode;
 				if ((mode & (S_ISUID | S_ISGID | S_ISTXT)) ||
 				    ((mode | S_IRWXU) & mask) != (mode & mask))
-					if (chmod(to.p_path, mode & mask) != 0){
-						warn(pCtx, "chmod: %s", to.p_path);
+					if (chmod(pThis->Utils.to.p_path, mode & mask) != 0){
+						warn(pThis->Utils.pCtx, "chmod: %s", pThis->Utils.to.p_path);
 						rval = 1;
 					}
 			}
@@ -540,15 +569,15 @@ copy(PKMKBUILTINCTX pCtx, char *argv[], enum op type, int fts_options)
 		}
 
 		/* Not an error but need to remember it happened */
-		if (stat(to.p_path, &to_stat) == -1)
+		if (stat(pThis->Utils.to.p_path, &to_stat) == -1)
 			dne = 1;
 		else {
 			if (to_stat.st_dev == curr->fts_statp->st_dev &&
 			    to_stat.st_dev != 0 &&
 			    to_stat.st_ino == curr->fts_statp->st_ino &&
 			    to_stat.st_ino != 0) {
-				warnx(pCtx, "%s and %s are identical (not copied).",
-				    to.p_path, curr->fts_path);
+				warnx(pThis->Utils.pCtx, "%s and %s are identical (not copied).",
+				    pThis->Utils.to.p_path, curr->fts_path);
 				badcp = rval = 1;
 				if (S_ISDIR(curr->fts_statp->st_mode))
 					(void)fts_set(ftsp, curr, FTS_SKIP);
@@ -556,9 +585,9 @@ copy(PKMKBUILTINCTX pCtx, char *argv[], enum op type, int fts_options)
 			}
 			if (!S_ISDIR(curr->fts_statp->st_mode) &&
 			    S_ISDIR(to_stat.st_mode)) {
-				warnx(pCtx, "cannot overwrite directory %s with "
+				warnx(pThis->Utils.pCtx, "cannot overwrite directory %s with "
 				    "non-directory %s",
-				    to.p_path, curr->fts_path);
+				    pThis->Utils.to.p_path, curr->fts_path);
 				badcp = rval = 1;
 				continue;
 			}
@@ -572,17 +601,17 @@ copy(PKMKBUILTINCTX pCtx, char *argv[], enum op type, int fts_options)
 			if ((fts_options & FTS_LOGICAL) ||
 			    ((fts_options & FTS_COMFOLLOW) &&
 			    curr->fts_level == 0)) {
-				if (copy_file(pCtx, curr, dne, cp_changed_only, &copied))
+				if (copy_file(&pThis->Utils, curr, dne, pThis->cp_changed_only, &copied))
 					badcp = rval = 1;
 			} else {
-				if (copy_link(pCtx, curr, !dne))
+				if (copy_link(&pThis->Utils, curr, !dne))
 					badcp = rval = 1;
 			}
 			break;
 #endif
 		case S_IFDIR:
-			if (!Rflag && !rflag) {
-				warnx(pCtx, "%s is a directory (not copied).",
+			if (!pThis->Rflag && !pThis->rflag) {
+				warnx(pThis->Utils.pCtx, "%s is a directory (not copied).",
 				    curr->fts_path);
 				(void)fts_set(ftsp, curr, FTS_SKIP);
 				badcp = rval = 1;
@@ -597,54 +626,54 @@ copy(PKMKBUILTINCTX pCtx, char *argv[], enum op type, int fts_options)
 			 * umask blocks owner writes, we fail..
 			 */
 			if (dne) {
-				if (mkdir(to.p_path,
+				if (mkdir(pThis->Utils.to.p_path,
 				    curr->fts_statp->st_mode | S_IRWXU) < 0)
-					return err(pCtx, 1, "mkdir: %s", to.p_path);
+					return err(pThis->Utils.pCtx, 1, "mkdir: %s", pThis->Utils.to.p_path);
 			} else if (!S_ISDIR(to_stat.st_mode)) {
 				errno = ENOTDIR;
-				return err(pCtx, 1, "to-mode: %s", to.p_path);
+				return err(pThis->Utils.pCtx, 1, "to-mode: %s", pThis->Utils.to.p_path);
 			}
 			/*
 			 * Arrange to correct directory attributes later
 			 * (in the post-order phase) if this is a new
 			 * directory, or if the -p flag is in effect.
 			 */
-			curr->fts_number = pflag || dne;
+			curr->fts_number = pThis->Utils.pflag || dne;
 			break;
 #ifdef S_IFBLK
 		case S_IFBLK:
 #endif
 		case S_IFCHR:
-			if (Rflag) {
-				if (copy_special(pCtx, curr->fts_statp, !dne))
+			if (pThis->Rflag) {
+				if (copy_special(&pThis->Utils, curr->fts_statp, !dne))
 					badcp = rval = 1;
 			} else {
-				if (copy_file(pCtx, curr, dne, cp_changed_only, &copied))
+				if (copy_file(&pThis->Utils, curr, dne, pThis->cp_changed_only, &copied))
 					badcp = rval = 1;
 			}
 			break;
 #ifdef S_IFIFO
 		case S_IFIFO:
 #endif
-			if (Rflag) {
-				if (copy_fifo(pCtx, curr->fts_statp, !dne))
+			if (pThis->Rflag) {
+				if (copy_fifo(&pThis->Utils, curr->fts_statp, !dne))
 					badcp = rval = 1;
 			} else {
-				if (copy_file(pCtx, curr, dne, cp_changed_only, &copied))
+				if (copy_file(&pThis->Utils, curr, dne, pThis->cp_changed_only, &copied))
 					badcp = rval = 1;
 			}
 			break;
 		default:
-			if (copy_file(pCtx, curr, dne, cp_changed_only, &copied))
+			if (copy_file(&pThis->Utils, curr, dne, pThis->cp_changed_only, &copied))
 				badcp = rval = 1;
 			break;
 		}
-		if (vflag && !badcp)
-			kmk_builtin_ctx_printf(pCtx, 0, copied ? "%s -> %s\n" : "%s matches %s - not copied\n",
-					       curr->fts_path, to.p_path);
+		if (pThis->Utils.vflag && !badcp)
+			kmk_builtin_ctx_printf(pThis->Utils.pCtx, 0, copied ? "%s -> %s\n" : "%s matches %s - not copied\n",
+					       curr->fts_path, pThis->Utils.to.p_path);
 	}
 	if (errno)
-		return err(pCtx, 1, "fts_read");
+		return err(pThis->Utils.pCtx, 1, "fts_read");
 	return (rval);
 }
 
@@ -656,8 +685,11 @@ copy(PKMKBUILTINCTX pCtx, char *argv[], enum op type, int fts_options)
  *	parent directory, whereas directories tend not to be.  Copying the
  *	files first reduces seeking.
  */
-static int
-mastercmp(const FTSENT **a, const FTSENT **b)
+#ifdef FTSCALL
+static int FTSCALL mastercmp(const FTSENT * const *a, const FTSENT * const *b)
+#else
+static int mastercmp(const FTSENT **a, const FTSENT **b)
+#endif
 {
 	int a_info, b_info;
 
@@ -674,12 +706,12 @@ mastercmp(const FTSENT **a, const FTSENT **b)
 	return (0);
 }
 
-#ifdef SIGINFO
+#if defined(SIGINFO) && defined(KMK_BUILTIN_STANDALONE)
 static void
 siginfo(int sig __unused)
 {
 
-	info = 1;
+	g_cp_info = 1;
 }
 #endif
 
