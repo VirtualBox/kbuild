@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 3019 2017-01-07 00:07:08Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 3223 2018-03-31 02:29:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -954,11 +954,53 @@ static int birdStatOnlyInternal(const char *pszPath, int fFollowLink, MY_FILE_BA
  */
 int birdStatModTimeOnly(const char *pszPath, BirdTimeSpec_T *pTimeSpec, int fFollowLink)
 {
-    MY_FILE_BASIC_INFORMATION BasicInfo;
-    int rc = birdStatOnlyInternal(pszPath, fFollowLink, &BasicInfo);
-    if (!rc)
-        birdNtTimeToTimeSpec(BasicInfo.LastWriteTime.QuadPart, pTimeSpec);
-    return rc;
+    /*
+     * Convert the path and call NtQueryFullAttributesFile.
+     *
+     * Note! NtQueryAttributesFile cannot be used as it only returns attributes.
+     */
+    MY_UNICODE_STRING  NtPath;
+
+    birdResolveImports();
+    if (birdDosToNtPath(pszPath, &NtPath) == 0)
+    {
+        MY_OBJECT_ATTRIBUTES                ObjAttr;
+        MY_FILE_NETWORK_OPEN_INFORMATION    Info;
+        MY_NTSTATUS                         rcNt;
+
+        memset(&Info, 0xfe, sizeof(Info));
+
+        MyInitializeObjectAttributes(&ObjAttr, &NtPath, OBJ_CASE_INSENSITIVE, NULL /*hRoot*/, NULL /*pSecAttr*/);
+        rcNt = g_pfnNtQueryFullAttributesFile(&ObjAttr, &Info);
+
+        birdFreeNtPath(&NtPath);
+        if (MY_NT_SUCCESS(rcNt))
+        {
+            birdNtTimeToTimeSpec(Info.LastWriteTime.QuadPart, pTimeSpec);
+
+            /* Do the trailing slash check. */
+            if (   (Info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                || !birdIsPathDirSpec(pszPath))
+            {
+                MY_FILE_BASIC_INFORMATION BasicInfo;
+                if (   !(Info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+                    || !fFollowLink)
+                    return 0;
+
+                /* Fallback on birdStatOnlyInternal to follow the reparse point.  */
+                if (!birdStatOnlyInternal(pszPath, fFollowLink, &BasicInfo))
+                {
+                    birdNtTimeToTimeSpec(BasicInfo.LastWriteTime.QuadPart, pTimeSpec);
+                    return 0;
+                }
+            }
+            else
+                errno = ENOTDIR;
+        }
+        else
+            birdSetErrnoFromNt(rcNt);
+    }
+    return -1;
 }
 
 

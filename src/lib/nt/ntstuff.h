@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 3021 2017-01-07 16:52:16Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 3223 2018-03-31 02:29:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -178,6 +178,7 @@ typedef struct MY_FILE_NETWORK_OPEN_INFORMATION
     LARGE_INTEGER   AllocationSize;
     LARGE_INTEGER   EndOfFile;
     ULONG           FileAttributes;
+    ULONG           AlignmentPadding;
 } MY_FILE_NETWORK_OPEN_INFORMATION;
 
 typedef struct MY_FILE_INTERNAL_INFORMATION
