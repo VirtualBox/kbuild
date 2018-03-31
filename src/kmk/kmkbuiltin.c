@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3222 2018-03-31 01:54:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -252,7 +252,7 @@ static const KMKBUILTINENTRY g_aBuiltIns[] =
     BUILTIN_ENTRY(kmk_builtin_append,   "append",       FN_SIG_MAIN_SPAWNS,     0, 0),
     BUILTIN_ENTRY(kmk_builtin_printf,   "printf",       FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_echo,     "echo",         FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_install,  "install",      FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_install,  "install",      FN_SIG_MAIN,            1, 0),
     BUILTIN_ENTRY(kmk_builtin_kDepObj,  "kDepObj",      FN_SIG_MAIN,            1, 0),
 #ifdef KBUILD_OS_WINDOWS
     BUILTIN_ENTRY(kmk_builtin_kSubmit,  "kSubmit",      FN_SIG_MAIN_SPAWNS,     0, 1),
@@ -260,20 +260,20 @@ static const KMKBUILTINENTRY g_aBuiltIns[] =
     BUILTIN_ENTRY(kmk_builtin_mkdir,    "mkdir",        FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_mv,       "mv",           FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_redirect, "redirect",     FN_SIG_MAIN_SPAWNS,     1, 1),
-    BUILTIN_ENTRY(kmk_builtin_rm,       "rm",           FN_SIG_MAIN,            0, 1),
+    BUILTIN_ENTRY(kmk_builtin_rm,       "rm",           FN_SIG_MAIN,            1, 1),
     BUILTIN_ENTRY(kmk_builtin_rmdir,    "rmdir",        FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_test,     "test",         FN_SIG_MAIN_TO_SPAWN,   0, 0),
     /* Less frequently used commands: */
     BUILTIN_ENTRY(kmk_builtin_kDepIDB,  "kDepIDB",      FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_chmod,    "chmod",        FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_cp,       "cp",           FN_SIG_MAIN,            0, 1),
+    BUILTIN_ENTRY(kmk_builtin_cp,       "cp",           FN_SIG_MAIN,            1, 1),
     BUILTIN_ENTRY(kmk_builtin_expr,     "expr",         FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_ln,       "ln",           FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_md5sum,   "md5sum",       FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_md5sum,   "md5sum",       FN_SIG_MAIN,            1, 0),
     BUILTIN_ENTRY(kmk_builtin_cmp,      "cmp",          FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_cat,      "cat",          FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_touch,    "touch",        FN_SIG_MAIN,            0, 0),
-    BUILTIN_ENTRY(kmk_builtin_sleep,    "sleep",        FN_SIG_MAIN,            0, 0),
+    BUILTIN_ENTRY(kmk_builtin_sleep,    "sleep",        FN_SIG_MAIN,            1, 0),
     BUILTIN_ENTRY(kmk_builtin_dircache, "dircache",     FN_SIG_MAIN,            0, 0),
 };
 
