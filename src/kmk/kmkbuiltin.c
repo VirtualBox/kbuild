@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 3222 2018-03-31 01:54:47Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3225 2018-05-29 08:56:36Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -458,9 +458,9 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
 
 #ifndef KBUILD_OS_WINDOWS
 /** Dummy. */
-int kmk_builtin_dircache(int argc, char **argv, char **envp)
+int kmk_builtin_dircache(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 {
-    (void)argc; (void)argv; (void)envp;
+    (void)argc; (void)argv; (void)envp; (void)pCtx;
     return 0;
 }
 #endif
