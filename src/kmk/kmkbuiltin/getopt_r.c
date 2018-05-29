@@ -78,6 +78,7 @@ Modifications:
 # include <stdlib.h>
 # include <unistd.h>
 #endif	/* GNU C library.  */
+#include <stdlib.h> /* bird: we don't define getopt, so we're good. */
 
 #ifdef VMS
 # include <unixlib.h>

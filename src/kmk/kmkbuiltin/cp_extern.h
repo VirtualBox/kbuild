@@ -45,7 +45,7 @@ typedef struct CPUTILSINSTANCE {
 } CPUTILSINSTANCE;
 
 #if defined(SIGINFO) && defined(KMK_BUILTIN_STANDALONE)
-extern volatile sig_atomic_t info;
+extern volatile sig_atomic_t g_cp_info;
 #endif
 
 int	copy_fifo(CPUTILSINSTANCE *pThis, struct stat *, int);
