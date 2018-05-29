@@ -324,7 +324,7 @@ kmk_builtin_install(int argc, char *argv[], char ** envp, PKMKBUILTINCTX pCtx)
 #ifndef _MSC_VER
 		struct group *gp;
 		if ((gp = getgrnam(group)) != NULL)
-			gid = gp->gr_gid;
+			This.gid = gp->gr_gid;
 		else
 #endif
 		{
@@ -339,7 +339,7 @@ kmk_builtin_install(int argc, char *argv[], char ** envp, PKMKBUILTINCTX pCtx)
 #ifndef _MSC_VER
                 struct passwd *pp;
 		if ((pp = getpwnam(owner)) != NULL)
-			uid = pp->pw_uid;
+			This.uid = pp->pw_uid;
 		else
 #endif
 		{
@@ -736,9 +736,9 @@ install(PINSTALLINSTANCE pThis, const char *from_name, const char *to_name, u_lo
 	 * chown may lose the setuid bits.
 	 */
 #ifdef UF_IMMUTABLE
-	if ((gid != (gid_t)-1 && gid != to_sb.st_gid) ||
-	    (uid != (uid_t)-1 && uid != to_sb.st_uid) ||
-	    (mode != (to_sb.st_mode & ALLPERMS))) {
+	if ((pThis->gid != (gid_t)-1 && gid != to_sb.st_gid) ||
+	    (pThis->uid != (uid_t)-1 && uid != to_sb.st_uid) ||
+	    (pThis->mode != (to_sb.st_mode & ALLPERMS))) {
 		/* Try to turn off the immutable bits. */
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)fchflags(to_fd, to_sb.st_flags & ~NOCHANGEBITS);
