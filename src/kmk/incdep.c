@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 3141 2018-03-14 21:58:32Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 3230 2018-05-29 09:05:38Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -256,7 +256,7 @@ incdep_xmalloc (struct incdep *cur, size_t size)
     {
       ptr = malloc_zone_malloc (incdep_zone, size);
       if (!ptr)
-        fatal (NILF, _("virtual memory exhausted"));
+        O (fatal, NILF, _("virtual memory exhausted"));
     }
   else
     ptr = xmalloc (size);
