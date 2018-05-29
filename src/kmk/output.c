@@ -449,10 +449,13 @@ output_write_bin (struct output *out, int is_err, const char *src, size_t len)
   return ret;
 }
 
+#endif /* CONFIG_WITH_OUTPUT_IN_MEMORY */
+
 /* write/fwrite like function, text mode. */
 ssize_t
 output_write_text (struct output *out, int is_err, const char *src, size_t len)
 {
+#ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
 # if defined (KBUILD_OS_WINDOWS) || defined (KBUILD_OS_OS2) || defined (KBUILD_OS_DOS)
   ssize_t ret = len;
   if (!out || !out->syncout)
@@ -487,9 +490,37 @@ output_write_text (struct output *out, int is_err, const char *src, size_t len)
 # else
   return output_write_bin (out, is_err, src, len);
 # endif
+#else
+  ssize_t ret = len;
+  if (! out || ! out->syncout)
+    {
+      FILE *f = is_err ? stderr : stdout;
+# ifdef KBUILD_OS_WINDOWS
+      maybe_con_fwrite(src, len, 1, f);
+# else
+      fwrite (src, len, 1, f);
+# endif
+      fflush (f);
+    }
+  else
+    {
+      int fd = is_err ? out->err : out->out;
+      int r;
+
+      EINTRLOOP (r, lseek (fd, 0, SEEK_END));
+      while (1)
+        {
+          EINTRLOOP (r, write (fd, src, len));
+          if (r == len || r <= 0)
+            break;
+          len -= r;
+          src += r;
+        }
+    }
+  return ret;
+#endif
 }
 
-#endif /* CONFIG_WITH_OUTPUT_IN_MEMORY */
 
 
 /* Write a string to the current STDOUT or STDERR.  */
