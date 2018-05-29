@@ -736,8 +736,8 @@ install(PINSTALLINSTANCE pThis, const char *from_name, const char *to_name, u_lo
 	 * chown may lose the setuid bits.
 	 */
 #ifdef UF_IMMUTABLE
-	if ((pThis->gid != (gid_t)-1 && gid != to_sb.st_gid) ||
-	    (pThis->uid != (uid_t)-1 && uid != to_sb.st_uid) ||
+	if ((pThis->gid != (gid_t)-1 && pThis->gid != to_sb.st_gid) ||
+	    (pThis->uid != (uid_t)-1 && pThis->uid != to_sb.st_uid) ||
 	    (pThis->mode != (to_sb.st_mode & ALLPERMS))) {
 		/* Try to turn off the immutable bits. */
 		if (to_sb.st_flags & NOCHANGEBITS)
