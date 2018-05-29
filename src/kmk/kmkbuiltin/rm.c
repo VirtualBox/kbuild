@@ -454,7 +454,7 @@ rm_tree(PRMINSTANCE pThis, char **argv)
 			case FTS_W:
 				rval = undelete(p->fts_accpath);
 				if (rval == 0 && (pThis->fflag && errno == ENOENT)) {
-					if (vflag)
+					if (pThis->vflag)
 						kmk_builtin_ctx_printf(pThis->pCtx, 0, "%s\n", p->fts_path);
 					continue;
 				}
@@ -557,7 +557,7 @@ rm_file(PRMINSTANCE pThis, char **argv)
 			continue;
 		rval = 0;
 #ifdef UF_APPEND
-		if (!uid &&
+		if (!pThis->uid &&
 		    (sb.st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 		    !(sb.st_flags & (SF_APPEND|SF_IMMUTABLE)))
 			rval = chflags(f, sb.st_flags & ~(UF_APPEND|UF_IMMUTABLE));
