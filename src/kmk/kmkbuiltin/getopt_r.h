@@ -87,7 +87,7 @@ typedef struct getopt_state_r
 /*static*/ int ordering;
 
 /* Value of POSIXLY_CORRECT environment variable.  */
-/*static*/ char *posixly_correct;
+/*static*/ const char *posixly_correct; /* bird: added 'const' */
 
 /* Describe the part of ARGV that contains non-options that have
    been skipped.  `first_nonopt' is the index in ARGV of the first of them;
