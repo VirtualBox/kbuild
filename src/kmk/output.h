@@ -16,6 +16,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #ifndef INCLUDED_MAKE_OUTPUT_H
 #define INCLUDED_MAKE_OUTPUT_H
+#include <stdio.h> /* darwin*/
 
 #ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
 /*  Output run. */

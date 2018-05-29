@@ -1061,7 +1061,7 @@ print_heap_stats (void)
   malloc_zone_statistics (NULL, &s);
   printf (_("\n# CRT Heap: %u bytes in use, in %u blocks, avg %u bytes/block\n"),
           (unsigned)s.size_in_use, (unsigned)s.blocks_in_use,
-          s.blocks_in_use ? (unsigned)(s.size_in_use / s.blocks_in_use : 0));
+          s.blocks_in_use ? (unsigned)(s.size_in_use / s.blocks_in_use) : 0);
   printf (_("#           %u bytes max in use (high water mark)\n"),
           (unsigned)s.max_size_in_use);
   printf (_("#           %u bytes reserved,  %u bytes free (estimate)\n"),
