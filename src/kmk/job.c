@@ -1119,6 +1119,14 @@ free_child (struct child *child)
 #endif
   output_close (&child->output);
 
+  /* bird: Make sure the output_context doesn't point to a freed structure when
+           we return from this function.  This is probably an issue elsewhere
+           in the code, however it doesn't cost us much fixing it here.  (The
+           access after free was caught in a die() scenario, both in error
+           situations and successful ones.)  */
+  if (output_context == &child->output)
+    OUTPUT_UNSET();
+
   if (!jobserver_tokens)
     ONS (fatal, NILF, "INTERNAL: Freeing child %p (%s) but no tokens left!\n",
          (void *)child, child->file->name);
