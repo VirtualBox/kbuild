@@ -1,4 +1,4 @@
-/* $Id: quote_argv.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
+/* $Id: quote_argv.c 3235 2018-10-28 14:15:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * quote_argv - Correctly quote argv for spawn, windows specific.
  */
@@ -121,7 +121,7 @@ int quote_argv(int argc, char **argv, int fWatcomBrainDamage, int fFreeOrLeak)
             char   ch;
             int    fComplicated = pszQuotes || (cchOrg > 0 && pszOrg[cchOrg - 1] == '\\');
             size_t cchNew       = fComplicated ? cchOrg * 2 + 2 : cchOrg + 2;
-            char  *pszNew       = (char *)malloc(cchNew + 1 /*term*/ + 3 /*passthru hack*/);
+            char  *pszNew       = (char *)malloc(cchNew + 1 /*term*/);
             if (!pszNew)
                 return -1;
 
@@ -137,18 +137,21 @@ int quote_argv(int argc, char **argv, int fWatcomBrainDamage, int fFreeOrLeak)
                     cchUnquoted = 1;
                 else if (pszOrg[0] == '-' || pszOrg[0] == '/') /* Switch quoting. */
                 {
+                    const char *pszNeedQuoting;
                     if (isWatcomPassThruOption(pszOrg))
-                        cchUnquoted = strlen(pszOrg) + 1;
-                    else
                     {
-                        const char *pszNeedQuoting = (const char *)memchr(pszOrg, '=', cchOrg); /* For -i=dir and similar. */
-                        if (   pszNeedQuoting == NULL
-                            || (uintptr_t)pszNeedQuoting > (uintptr_t)(pszProblem ? pszProblem : pszQuotes))
-                            pszNeedQuoting = pszProblem ? pszProblem : pszQuotes;
-                        else
-                            pszNeedQuoting++;
-                        cchUnquoted = pszNeedQuoting - pszOrg;
+                        argv[i] = pszOrgOrg;
+                        free(pszNew);
+                        continue; /* No quoting needed, skip to the next argument. */
                     }
+
+                    pszNeedQuoting = (const char *)memchr(pszOrg, '=', cchOrg); /* For -i=dir and similar. */
+                    if (   pszNeedQuoting == NULL
+                        || (uintptr_t)pszNeedQuoting > (uintptr_t)(pszProblem ? pszProblem : pszQuotes))
+                        pszNeedQuoting = pszProblem ? pszProblem : pszQuotes;
+                    else
+                        pszNeedQuoting++;
+                    cchUnquoted = pszNeedQuoting - pszOrg;
                 }
                 if (cchUnquoted)
                 {
