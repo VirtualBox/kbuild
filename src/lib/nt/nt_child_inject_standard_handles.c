@@ -1,4 +1,4 @@
-/* $Id: nt_child_inject_standard_handles.c 3179 2018-03-22 19:50:04Z knut.osmundsen@oracle.com $ */
+/* $Id: nt_child_inject_standard_handles.c 3236 2018-10-28 14:15:41Z knut.osmundsen@oracle.com $ */
 /** @file
  * Injecting standard handles into a child process.
  */
@@ -243,6 +243,7 @@ int nt_child_inject_standard_handles(HANDLE hProcess, BOOL pafReplace[3], HANDLE
      * here or the PEB address will be set to zero for 64-bit children.
      */
 #if K_ARCH_BITS != 64
+/** @todo On vista PEB can be above 4GB!   */
     if (s_fHostIs64Bit && pfnNtWow64QueryInformationProcess64)
     {
         rcNt = pfnNtWow64QueryInformationProcess64(hProcess, ProcessBasicInformation, &BasicInfo.Wow64,
