@@ -1,4 +1,4 @@
-/* $Id: err.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: err.c 3237 2018-12-25 04:11:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * Override err.h so we get the program name right.
  */
@@ -28,6 +28,12 @@
 *******************************************************************************/
 #ifdef HAVE_CONFIG_H
 # include "config.h"
+# ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+# endif
+# ifdef HAVE_STDINT_H
+#  include <stdint.h>
+# endif
 #else
 # include <stdlib.h>
 # define snprintf _snprintf

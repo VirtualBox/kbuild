@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3210 2018-03-29 14:51:12Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3237 2018-12-25 04:11:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -32,6 +32,7 @@
 #include "makeint.h"
 #include <assert.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -421,6 +422,7 @@ static void kRedirectCleanupFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders,
     }
 }
 
+#if !defined(USE_POSIX_SPAWN) && !defined(KBUILD_OS_WINDOWS)
 
 /**
  * Wrapper that chooses between fprintf and kmk_builtin_ctx_printf to get
@@ -453,7 +455,6 @@ static void safe_err_printf(PKMKBUILTINCTX pCtx, FILE *pWorkingStdErr, const cha
         fwrite(szMsg, cchMsg, 1, pWorkingStdErr);
 }
 
-#if !defined(USE_POSIX_SPAWN) && !defined(KBUILD_OS_WINDOWS)
 
 /**
  * Saves a file handle to one which isn't inherited and isn't affected by the
@@ -1290,11 +1291,13 @@ static int kRedirectDoSpawn(PKMKBUILTINCTX pCtx, const char *pszExecutable, int 
                     /* Wait for the child. */
                     for (;;)
                     {
-                        pid_t pid = waitpid(pidChild, &rcExit, 0 /*block*/);
+                        int rcExitRaw = 1;
+                        pid_t pid = waitpid(pidChild, &rcExitRaw, 0 /*block*/);
                         if (pid == pidChild)
                         {
+                            rcExit = WIFEXITED(rcExitRaw) ? WEXITSTATUS(rcExitRaw) : 63;
                             if (cVerbosity > 0)
-                                warnx(pCtx, "debug: %d exit code: %d", pidChild, rcExit);
+                                warnx(pCtx, "debug: %d exit code: %d (%d)", pidChild, rcExit, rcExitRaw);
                             break;
                         }
                         if (   errno != EINTR
