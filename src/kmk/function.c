@@ -2920,8 +2920,14 @@ abspath (const char *name, char *apath)
       if (STOP_SET (name[0], MAP_DIRSEP))
         root_len = 1;
 #endif
+#ifdef KMK
+      memcpy (apath, name, root_len);
+      apath[root_len] = '\0';
+      assert (strlen (apath) == root_len);
+#else
       strncpy (apath, name, root_len);
       apath[root_len] = '\0';
+#endif
       dest = apath + root_len;
       /* Get past the root, since we already copied it.  */
       name += root_len;
