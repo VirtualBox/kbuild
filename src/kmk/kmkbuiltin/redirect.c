@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3237 2018-12-25 04:11:26Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3247 2018-12-25 21:02:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -1764,7 +1764,7 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
 #ifdef USE_POSIX_SPAWN
                     rcExit = posix_spawn_file_actions_adddup2(&FileActions, aFds[0], 0);
                     if (rcExit != 0)
-                        rcExit = errx(pCtx, 2, "posix_spawn_file_actions_addclose(%d) failed: %s", fd, strerror(rcExit));
+                        rcExit = errx(pCtx, 2, "posix_spawn_file_actions_adddup2(0) failed: %s", strerror(rcExit));
 #endif
                 }
             }

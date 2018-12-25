@@ -543,7 +543,7 @@ rm_file(PRMINSTANCE pThis, char **argv)
 			}
 #ifdef FTS_WHITEOUT
 		} else if (pThis->Wflag) {
-			errx(pThis->pCtx, "%s: %s\n", f, strerror(EEXIST));
+			errx(pThis->pCtx, 1, "%s: %s\n", f, strerror(EEXIST));
 			pThis->eval = 1;
 			continue;
 #endif

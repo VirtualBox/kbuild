@@ -279,7 +279,7 @@ do_move(PMVINSTANCE pThis, char *from, char *to)
 			    user_from_uid((unsigned long)sb.st_uid, 0),
 			    group_from_gid((unsigned long)sb.st_gid, 0), to, YESNO);
 #else
-			(void)fprintf(stderr, "override %s%s%ul/%ul for %s? %s",
+			(void)fprintf(stderr, "override %s%s%lu/%lu for %s? %s",
 			              modep + 1, modep[9] == ' ' ? "" : " ",
 			              (unsigned long)sb.st_uid, (unsigned long)sb.st_gid,
 			              to, YESNO);

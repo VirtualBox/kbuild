@@ -308,7 +308,7 @@ int kmk_builtin_test(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx, ch
 			    res = err(pCtx, 1, "quote_argv: out of memory");
 # else
 			execvp(argv_spawn[0], argv_spawn);
-			res = err(1, "execvp(%s,..)", argv_spawn[0]);
+			res = err(pCtx, 1, "execvp(%s,..)", argv_spawn[0]);
 # endif
 #else /* in kmk */
 			/* let job.c spawn the process, make a job.c style argv_spawn copy. */
