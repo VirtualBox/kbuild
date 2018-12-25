@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3237 2018-12-25 04:11:26Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3245 2018-12-25 21:01:36Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -108,10 +108,10 @@ typedef struct KMKBUILTINENTRY
     {
         struct
         {
-            char    cch;
-            char    sz[15];
+            unsigned char   cch;
+            char            sz[15];
         } s;
-        size_t      cchAndStart;
+        size_t              cchAndStart;
     } uName;
     union
     {
