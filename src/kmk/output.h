@@ -85,8 +85,8 @@ void output_start (void);
 void outputs (int is_err, const char *msg);
 #ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
 ssize_t output_write_bin (struct output *out, int is_err, const char *src, size_t len);
-ssize_t output_write_text (struct output *out, int is_err, const char *src, size_t len);
 #endif
+ssize_t output_write_text (struct output *out, int is_err, const char *src, size_t len);
 
 #ifndef NO_OUTPUT_SYNC
 int output_tmpfd (void);
