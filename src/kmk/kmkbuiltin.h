@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3224 2018-04-08 15:49:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3237 2018-12-25 04:11:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -34,6 +34,9 @@
 # include <sys/types.h>
 #endif
 #include <fcntl.h>
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
 
 /* For the GNU/hurd weirdo. */
 #ifndef PATH_MAX
