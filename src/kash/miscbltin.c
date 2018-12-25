@@ -387,8 +387,9 @@ ulimitcmd(shinstance *psh, int argc, char **argv)
 
 			while ((c = *p++) >= '0' && c <= '9')
 			{
+				shrlim_t const prev = val;
 				val = (val * 10) + (long)(c - '0');
-				if (val < (shrlim_t) 0)
+				if (val < prev)
 					break;
 			}
 			if (c)

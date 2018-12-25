@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2681 2013-04-14 18:41:58Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3240 2018-12-25 20:47:49Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -582,7 +582,7 @@ DWORD shfile_query_handle_access_mask(HANDLE h, PACCESS_MASK pMask)
  *
  * @param   pszPath             The path to fix.
  */
-static void shfile_fix_slashes(char *pszPath)
+K_INLINE void shfile_fix_slashes(char *pszPath)
 {
 #if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
     while ((pszPath = strchr(pszPath, '\\')))
@@ -1462,6 +1462,7 @@ long shfile_write(shfdtab *pfdtab, int fd, const void *buf, size_t len)
         x = fstat(fd, &s);
         TRACE2((NULL, "shfile_write(%d) - %lu bytes (%d) - pos %lu - before; %o\n",
                 fd, (long)s.st_size, x, (long)lseek(fd, 0, SEEK_CUR), s.st_mode ));
+        K_NOREF(x);
         errno = iSavedErrno;
     }
 
