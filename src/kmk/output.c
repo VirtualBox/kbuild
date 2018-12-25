@@ -511,7 +511,7 @@ output_write_text (struct output *out, int is_err, const char *src, size_t len)
       while (1)
         {
           EINTRLOOP (r, write (fd, src, len));
-          if (r == len || r <= 0)
+          if ((size_t)r == len || r <= 0)
             break;
           len -= r;
           src += r;
