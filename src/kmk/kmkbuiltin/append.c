@@ -1,4 +1,4 @@
-/* $Id: append.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 3246 2018-12-25 21:02:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - append text to file.
  */
@@ -35,6 +35,7 @@
 #endif
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
