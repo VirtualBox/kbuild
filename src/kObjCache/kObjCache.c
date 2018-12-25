@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 3167 2018-03-20 21:47:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 3239 2018-12-25 20:47:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -942,6 +942,7 @@ kOCDepConsumer(PKOCDEP pDepState, const char *pszInput, size_t cchInput)
                 psz++;
                 cchInput -= psz - pszInput;
                 pszInput = psz;
+                /* fall thru */
 
             case kOCDepState_NeedHash:
                 while (cchInput > 0 && MY_IS_BLANK(*pszInput))
@@ -954,6 +955,7 @@ kOCDepConsumer(PKOCDEP pDepState, const char *pszInput, size_t cchInput)
                 pszInput++;
                 cchInput--;
                 enmState = kOCDepState_NeedLine_l;
+                /* fall thru */
 
             case kOCDepState_NeedLine_l:
             case kOCDepState_NeedLine_l_HaveSpace:
@@ -978,6 +980,7 @@ kOCDepConsumer(PKOCDEP pDepState, const char *pszInput, size_t cchInput)
                 pszInput++;
                 if (!--cchInput)
                     return pDepState->enmState = kOCDepState_NeedLine_i;
+                /* fall thru */
 
             case kOCDepState_NeedLine_i:
                 if (*pszInput != 'i')
@@ -985,6 +988,7 @@ kOCDepConsumer(PKOCDEP pDepState, const char *pszInput, size_t cchInput)
                 pszInput++;
                 if (!--cchInput)
                     return pDepState->enmState = kOCDepState_NeedLine_n;
+                /* fall thru */
 
             case kOCDepState_NeedLine_n:
                 if (*pszInput != 'n')
@@ -992,6 +996,7 @@ kOCDepConsumer(PKOCDEP pDepState, const char *pszInput, size_t cchInput)
                 pszInput++;
                 if (!--cchInput)
                     return pDepState->enmState = kOCDepState_NeedLine_e;
+                /* fall thru */
 
             case kOCDepState_NeedLine_e:
                 if (*pszInput != 'e')
@@ -999,12 +1004,14 @@ kOCDepConsumer(PKOCDEP pDepState, const char *pszInput, size_t cchInput)
                 pszInput++;
                 if (!--cchInput)
                     return pDepState->enmState = kOCDepState_NeedSpaceBeforeDigit;
+                /* fall thru */
 
             case kOCDepState_NeedSpaceBeforeDigit:
                 if (!MY_IS_BLANK(*pszInput))
                     break;
                 pszInput++;
                 cchInput--;
+                /* fall thru */
 
             case kOCDepState_NeedFirstDigit:
                 while (cchInput > 0 && MY_IS_BLANK(*pszInput))
@@ -1016,12 +1023,14 @@ kOCDepConsumer(PKOCDEP pDepState, const char *pszInput, size_t cchInput)
                     break;
                 pszInput++;
                 cchInput--;
+                /* fall thru */
 
             case kOCDepState_NeedMoreDigits:
                 while (cchInput > 0 && isdigit(*pszInput))
                     cchInput--, pszInput++;
                 if (!cchInput)
                     return pDepState->enmState = kOCDepState_NeedMoreDigits;
+                /* fall thru */
 
             case kOCDepState_NeedQuote:
                 while (cchInput > 0 && MY_IS_BLANK(*pszInput))
@@ -1033,6 +1042,7 @@ kOCDepConsumer(PKOCDEP pDepState, const char *pszInput, size_t cchInput)
                     break;
                 pszInput++;
                 cchInput--;
+                /* fall thru */
 
             case kOCDepState_NeedEndQuote:
             {
@@ -1080,6 +1090,7 @@ kOCDepConsumer(PKOCDEP pDepState, const char *pszInput, size_t cchInput)
                     off++;
                 }
             }
+            /* fall thru */
 
             case kOCDepState_Invalid:
                 assert(0);
@@ -5101,7 +5112,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 3167 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 3239 $)\n"
                    "Copyright (c) 2007-2012 knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
