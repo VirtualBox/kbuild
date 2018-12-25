@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 3219 2018-03-30 22:30:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 3238 2018-12-25 18:07:55Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -43,6 +43,9 @@ typedef intptr_t ssize_t;
 #include "k/kDefs.h"
 #include "k/kTypes.h"
 #include "k/kLdrFmts/pe.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 #include "kDep.h"
 #include "err.h"
 #include "kmkbuiltin.h"
