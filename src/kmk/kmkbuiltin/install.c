@@ -858,16 +858,20 @@ compare(int from_fd, size_t from_len, int to_fd, size_t to_len)
 int
 create_tempfile(const char *path, char *temp, size_t tsize)
 {
-	char *p;
-
-	(void)strncpy(temp, path, tsize);
-	temp[tsize - 1] = '\0';
-	if ((p = last_slash(temp)) != NULL)
-		p++;
+	static char s_szTemplate[] = "INS@XXXXXX";
+	const char *p = last_slash(path);
+	if (p) {
+		size_t cchDir = ++p - path;
+		if (cchDir + sizeof(s_szTemplate) <= tsize) {
+			memcpy(temp, path, cchDir);
+			memcpy(&temp[cchDir], s_szTemplate, sizeof(s_szTemplate));
+		} else
+			return EOVERFLOW;
+	} else if (tsize >= sizeof(s_szTemplate))
+		memcpy(temp, s_szTemplate, sizeof(s_szTemplate));
 	else
-		p = temp;
-	(void)strncpy(p, "INS@XXXX", &temp[tsize - 1] - p);
-	temp[tsize - 1] = '\0';
+		return EOVERFLOW;
+
 	return (mkstemp(temp));
 }
 
