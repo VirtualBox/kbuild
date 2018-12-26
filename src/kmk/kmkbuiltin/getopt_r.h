@@ -33,6 +33,8 @@ Modifications:
 #ifndef INCLUDED_GETOPT_R_H
 #define INCLUDED_GETOPT_R_H 1
 
+#include <stddef.h>
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
