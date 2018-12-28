@@ -1,4 +1,4 @@
-# $Id: GXX3.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: GXX3.kmk 3250 2018-12-28 22:43:52Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic GCC v3.2.x using the system GCC and Binutils, for building C++ code.
 #
@@ -36,6 +36,7 @@ TOOL_GXX3 := Generic GCC v3.2.x or later using the system GCC and Binutils, for 
 # Tool Specific Properties
 TOOL_GXX3_CC  ?= gcc$(HOSTSUFF_EXE)
 TOOL_GXX3_CXX ?= g++$(HOSTSUFF_EXE)
+TOOL_GXX3_PCH ?= $(TOOL_GXX3_CXX)
 TOOL_GXX3_AS  ?= gcc$(HOSTSUFF_EXE)
 ifeq ($(KBUILD_TARGET),solaris)
  TOOL_GXX3_AR ?= gar$(HOSTSUFF_EXE)
@@ -72,6 +73,7 @@ endif
 ifdef SLKRUNS
  TOOL_GXX3_CC  += -fmessage-length=0
  TOOL_GXX3_CXX += -fmessage-length=0
+ TOOL_GXX3_PCH += -fmessage-length=0
 endif
 
 # General Properties used by kBuild
@@ -84,13 +86,20 @@ TOOL_GXX3_CINCS            ?=
 TOOL_GXX3_CDEFS            ?=
 
 TOOL_GXX3_CXXOBJSUFF       ?= .o
-TOOL_GXX3_CXXOBJSUFF       ?= .o
 TOOL_GXX3_CXXFLAGS         ?=
 TOOL_GXX3_CXXFLAGS.debug   ?= -g
 TOOL_GXX3_CXXFLAGS.profile ?= -O2 #-g -pg
 TOOL_GXX3_CXXFLAGS.release ?= -O2
 TOOL_GXX3_CXXINCS          ?=
 TOOL_GXX3_CXXDEFS          ?=
+
+TOOL_GXX3_PCHOBJSUFF       ?= .h.gch
+TOOL_GXX3_PCHFLAGS         ?= $(TOOL_GXX3_CXXFLAGS)
+TOOL_GXX3_PCHFLAGS.debug   ?= $(TOOL_GXX3_CXXFLAGS.debug)
+TOOL_GXX3_PCHFLAGS.profile ?= $(TOOL_GXX3_CXXFLAGS.profile)
+TOOL_GXX3_PCHFLAGS.release ?= $(TOOL_GXX3_CXXFLAGS.release)
+TOOL_GXX3_PCHINCS          ?= $(TOOL_GXX3_CXXINCS)
+TOOL_GXX3_PCHDEFS          ?= $(TOOL_GXX3_CXXDEFS)
 
 TOOL_GXX3_ASFLAGS          ?= -x assembler-with-cpp
 TOOL_GXX3_ASFLAGS.debug    ?= -g
@@ -162,10 +171,10 @@ endif # !KBUILD_USE_KOBJCACHE
 # @param    $(deps)		Other dependencies.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_GXX3_COMPILE_CXX_DEPEND =
 TOOL_GXX3_COMPILE_CXX_DEPORD =
 ifdef KBUILD_USE_KOBJCACHE
 TOOL_GXX3_COMPILE_CXX_USES_KOBJCACHE = 1
+TOOL_GXX3_COMPILE_CXX_DEPEND =
 TOOL_GXX3_COMPILE_CXX_OUTPUT = $(outbase).ii
 define TOOL_GXX3_COMPILE_CXX_CMDS
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
@@ -182,16 +191,44 @@ define TOOL_GXX3_COMPILE_CXX_CMDS
 	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 else # !KBUILD_USE_KOBJCACHE
+TOOL_GXX3_COMPILE_CXX_DEPEND = $($(target)_1_GCC_PCH_FILE)
 TOOL_GXX3_COMPILE_CXX_OUTPUT =
 define TOOL_GXX3_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_GXX3_CXX) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
-		-o $(obj)\
+		-o $(obj) $(if-expr defined($(target)_PCH_HDR) \
+		,-Winvalid-pch -H -include $(basename $($(target)_1_GCC_PCH_FILE)),) \
 		$(abspath $(source))
 	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 endif # !KBUILD_USE_KOBJCACHE
+
+
+## Precompile C++ header.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)	    Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)		Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+TOOL_GXX3_COMPILE_PCH_DEPORD = $($(target)_1_GCC_PCH_DIR)
+TOOL_GXX3_COMPILE_PCH_DEPEND =
+TOOL_GXX3_COMPILE_PCH_OUTPUT = $($(target)_1_GCC_PCH_FILE)
+define TOOL_GXX3_COMPILE_PCH_CMDS
+	$(QUIET)$(TOOL_GXX3_PCH) -c\
+		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(abspath $(source))
+	$(INSTALL) --hard-link-files-when-possible -m 0644 -- "$(obj)" "$($(target)_1_GCC_PCH_FILE)"
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
+endef
 
 
 ## Compile Assembly source.
