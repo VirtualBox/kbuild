@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 3140 2018-03-14 21:28:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 3251 2019-01-01 19:30:40Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -1135,9 +1135,8 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
     size_t cch;
 
     /*
-     * Strip the source filename of any uncessary leading path and root specs.
+     * Strip the source filename of any unnecessary leading path and root specs.
      */
-    /* */
     if (    pSource->value_length > pPathTarget->value_length
         &&  !strncmp(pSource->value, pPathTarget->value, pPathTarget->value_length))
     {
