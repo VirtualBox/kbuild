@@ -734,7 +734,7 @@ int one_shell;
    attempts to synchronize the output of parallel jobs such that the results
    of each job stay together.  */
 
-#if defined(KMK) && defined(KBUILD_OS_WINDOWS)
+#ifdef KMK
 int output_sync = OUTPUT_SYNC_TARGET;
 #else
 int output_sync = OUTPUT_SYNC_NONE;
