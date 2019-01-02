@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 3160 2018-03-19 22:39:19Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 3256 2019-01-02 22:17:28Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -56,7 +56,7 @@ define def_target_source_rule
 ifndef NO_COMPILE_CMDS_DEPS
 $(obj): .MUST_MAKE = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_CMDS_PREV_),$$(commands $$@),FORCE)
 endif
-ifdef TOOL_$(tool)_COMPILE_$(type)_USES_KOBJCACHE
+ifneq ($(TOOL_$(tool)_COMPILE_$(type)_USES_KOBJCACHE),)
 _OUT_FILES += $(outbase).koc
 $(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_) : \
 		$($(target)_$(source)_DEPEND_) \
@@ -499,6 +499,16 @@ local units       := \
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre))
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre_2))
 
+# kObjCache.
+ifdef KBUILD_USE_KOBJCACHE
+ ifneq ($($(target)_KOBJCACHE),)
+local use_objcache := 1
+ else
+local use_objcache :=
+ endif
+local use_objcache :=
+endif
+
 # source -> object
 $(evalval def_target_sources)
 
@@ -703,6 +713,16 @@ local units       := \
 	$($(target)_USES)
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre))
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre_2))
+
+# kObjCache.
+ifdef KBUILD_USE_KOBJCACHE
+ ifneq ($($(target)_KOBJCACHE),)
+local use_objcache := 1
+ else
+local use_objcache :=
+ endif
+local use_objcache :=
+endif
 
 # source -> object
 $(evalval def_target_sources)
