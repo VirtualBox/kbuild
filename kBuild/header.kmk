@@ -1,4 +1,4 @@
-# $Id: header.kmk 3250 2018-12-28 22:43:52Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3253 2019-01-02 00:23:15Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3250 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3253 $  )
 
 
 #
@@ -1097,7 +1097,7 @@ PROPS_TOOLS := TOOL CTOOL CXXTOOL PCHTOOL OBJCTOOL OBJCXXTOOL ASTOOL RCTOOL ARTO
 # will do the necessary inheritance for templates, sdks, tools and targets.
 PROPS_SINGLE := $(PROPS_TOOLS) TEMPLATE INSTTYPE INST STAGE NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU FETCHDIR \
 	OBJSUFF COBJSUFF CXXOBJSUFF PCHOBJSUFF OBJCOBJSUFF OBJCXXOBJSUFF ASOBJSUFF RCOBJSUFF SYSSUFF BINSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF \
-	MODE UID GID LD_DEBUG DEBUG_INSTTYPE DEBUG_INST DEBUG_STAGE
+	MODE UID GID LD_DEBUG DEBUG_INSTTYPE DEBUG_INST DEBUG_STAGE PCH_HDR
 ## PROPS_SINGLE_LNK
 # Subset of PROPS_SINGLE which applies to all linkable targets.
 PROPS_SINGLE_LNK := $(filter-out FETCHTOOL UNPACKTOOL PATCHTOOL FETCHDIR, $(PROPS_SINGLE))
