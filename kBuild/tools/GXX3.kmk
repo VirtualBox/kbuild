@@ -1,4 +1,4 @@
-# $Id: GXX3.kmk 3255 2019-01-02 19:14:57Z knut.osmundsen@oracle.com $
+# $Id: GXX3.kmk 3256 2019-01-02 22:17:28Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic GCC v3.2.x using the system GCC and Binutils, for building C++ code.
 #
@@ -129,10 +129,10 @@ TOOL_GXX3_LDFLAGS.profile  ?= -g
 # @param    $(objsuff)  Object suffix.
 TOOL_GXX3_COMPILE_C_DEPEND =
 TOOL_GXX3_COMPILE_C_DEPORD =
-ifdef KBUILD_USE_KOBJCACHE
-TOOL_GXX3_COMPILE_C_USES_KOBJCACHE = 1
-TOOL_GXX3_COMPILE_C_OUTPUT = $(outbase).i
+TOOL_GXX3_COMPILE_C_OUTPUT         = $(if-expr "$(use_objcache)" != "",$(outbase).i,)
+TOOL_GXX3_COMPILE_C_USES_KOBJCACHE = $(if-expr "$(use_objcache)" != "",1,)
 define TOOL_GXX3_COMPILE_C_CMDS
+if "$(use_objcache)" != ""
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
 		--kObjCache-cpp $(outbase).i\
 		$(TOOL_GXX3_CC) -E -o -\
@@ -144,19 +144,15 @@ define TOOL_GXX3_COMPILE_C_CMDS
 		$(flags) -fpreprocessed -x c\
 		-o $(obj)\
 		-
-	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
-endef
-else # !KBUILD_USE_KOBJCACHE
-TOOL_GXX3_COMPILE_C_OUTPUT =
-define TOOL_GXX3_COMPILE_C_CMDS
+else
 	$(QUIET)$(TOOL_GXX3_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
+endif
 	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
-endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Compile C++ source.
@@ -171,12 +167,12 @@ endif # !KBUILD_USE_KOBJCACHE
 # @param    $(deps)     Other dependencies.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_GXX3_COMPILE_CXX_DEPEND = $($(target)_1_GCC_PCH_FILE)
-TOOL_GXX3_COMPILE_CXX_DEPORD =
-ifdef KBUILD_USE_KOBJCACHE
-TOOL_GXX3_COMPILE_CXX_USES_KOBJCACHE = 1
-TOOL_GXX3_COMPILE_CXX_OUTPUT = $(outbase).ii
+TOOL_GXX3_COMPILE_CXX_DEPEND         = $($(target)_1_GCC_PCH_FILE)
+TOOL_GXX3_COMPILE_CXX_DEPORD         =
+TOOL_GXX3_COMPILE_CXX_OUTPUT         = $(if-expr "$(use_objcache)" != "",$(outbase).ii,)
+TOOL_GXX3_COMPILE_CXX_USES_KOBJCACHE = $(if-expr "$(use_objcache)" != "",1,)
 define TOOL_GXX3_COMPILE_CXX_CMDS
+if "$(use_objcache)" != ""
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
 		--kObjCache-cpp $(outbase).ii\
 		$(TOOL_GXX3_CXX) -E -o - $(if-expr defined($(target)_PCH_HDR)\
@@ -189,20 +185,16 @@ define TOOL_GXX3_COMPILE_CXX_CMDS
 		$(flags) -fpreprocessed $(if-expr defined($(target)_PCH_HDR),-fpch-preprocess,) -x c++\
 		-o $(obj)\
 		-
-	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
-endef
-else # !KBUILD_USE_KOBJCACHE
-TOOL_GXX3_COMPILE_CXX_OUTPUT =
-define TOOL_GXX3_COMPILE_CXX_CMDS
+else
 	$(QUIET)$(TOOL_GXX3_CXX) -c\
 		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj) $(if-expr defined($(target)_PCH_HDR) \
 		,-Winvalid-pch -include $(basename $($(target)_1_GCC_PCH_FILE)),) \
 		$(abspath $(source))
+endif
 	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
-endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Precompile C++ header.
