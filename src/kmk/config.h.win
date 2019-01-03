@@ -428,7 +428,8 @@ char *ttyname (int);
 #define STDC_HEADERS 1
 
 /* Define if struct stat contains a nanoseconds field */
-#define ST_MTIM_NSEC tv_nsec /* bird */
+#define ST_MTIM_NSEC st_mtim.tv_nsec   /* bird */
+#define ST_ATIM_NSEC st_atim.tv_nsec   /* bird */
 
 /* Define to 1 on System V Release 4. */
 /* #undef SVR4 */
