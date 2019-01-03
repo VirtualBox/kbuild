@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3245 2018-12-25 21:01:36Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3261 2019-01-03 17:13:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -73,7 +73,7 @@
 
 
 #include "kbuild_version.h"
-#ifndef KMK_BUILTIN_STANDALONE
+#if !defined(KMK_BUILTIN_STANDALONE) && !defined(KWORKER)
 # include "../output.h"
 #endif
 
