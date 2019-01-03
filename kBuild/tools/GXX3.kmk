@@ -1,4 +1,4 @@
-# $Id: GXX3.kmk 3256 2019-01-02 22:17:28Z knut.osmundsen@oracle.com $
+# $Id: GXX3.kmk 3257 2019-01-03 02:46:05Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic GCC v3.2.x using the system GCC and Binutils, for building C++ code.
 #
@@ -167,9 +167,9 @@ endef
 # @param    $(deps)     Other dependencies.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
+TOOL_GXX3_COMPILE_CXX_OUTPUT         = $(if-expr "$(use_objcache)" != "",$(outbase).ii,)
 TOOL_GXX3_COMPILE_CXX_DEPEND         = $($(target)_1_GCC_PCH_FILE)
 TOOL_GXX3_COMPILE_CXX_DEPORD         =
-TOOL_GXX3_COMPILE_CXX_OUTPUT         = $(if-expr "$(use_objcache)" != "",$(outbase).ii,)
 TOOL_GXX3_COMPILE_CXX_USES_KOBJCACHE = $(if-expr "$(use_objcache)" != "",1,)
 define TOOL_GXX3_COMPILE_CXX_CMDS
 if "$(use_objcache)" != ""
@@ -209,9 +209,9 @@ endef
 # @param    $(deps)		Other dependencies.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_GXX3_COMPILE_PCH_DEPORD = $($(target)_1_GCC_PCH_DIR)
-TOOL_GXX3_COMPILE_PCH_DEPEND =
 TOOL_GXX3_COMPILE_PCH_OUTPUT = $($(target)_1_GCC_PCH_FILE)
+TOOL_GXX3_COMPILE_PCH_DEPEND =
+TOOL_GXX3_COMPILE_PCH_DEPORD = $($(target)_1_GCC_PCH_DIR)
 define TOOL_GXX3_COMPILE_PCH_CMDS
 	$(QUIET)$(TOOL_GXX3_PCH) -c\
 		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
