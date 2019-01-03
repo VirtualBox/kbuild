@@ -414,10 +414,12 @@
 #define STDC_HEADERS 1
 
 /* Define if struct stat contains a nanoseconds field */
-#ifdef __USE_XOPEN2K8
+#if defined(__USE_XOPEN2K8) || defined(__USE_MISC)
 # define ST_MTIM_NSEC st_mtim.tv_nsec
+# define ST_ATIM_NSEC st_atim.tv_nsec
 #else
 # define ST_MTIM_NSEC st_mtimensec
+# define ST_ATIM_NSEC st_atimensec
 #endif
 
 /* Define to 1 on System V Release 4. */
