@@ -882,17 +882,21 @@ output_dump (struct output *out)
          We want to keep this lock for as little time as possible.  */
       void *sem = acquire_semaphore ();
 
+# ifndef KMK /* this drives me bananas. */
       /* Log the working directory for this dump.  */
       if (print_directory_flag && output_sync != OUTPUT_SYNC_RECURSE)
         traced = log_working_directory (1);
+# endif
 
       if (outfd_not_empty)
         pump_from_tmp (out->out, stdout);
       if (errfd_not_empty && out->err != out->out)
         pump_from_tmp (out->err, stderr);
 
+# ifndef KMK /* this drives me bananas. */
       if (traced)
         log_working_directory (0);
+# endif
 
       /* Exit the critical section.  */
       if (sem)
