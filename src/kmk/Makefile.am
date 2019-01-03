@@ -89,6 +89,8 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/touch.c \
                \
 		kmkbuiltin/err.c \
+		kmkbuiltin/getopt_r.c \
+		kmkbuiltin/getopt1_r.c \
 		kmkbuiltin/fts.c \
 		kmkbuiltin/setmode.c \
 		kmkbuiltin/strmode.c \
@@ -101,7 +103,7 @@ kmk_redirect_SOURCES = kmkbuiltin/redirect.c \
 		kmkbuiltin/common-env-and-cwd-opt.c \
 		kmkbuiltin/err.c \
 		../lib/kbuild_version.c
-kmk_redirect_CFLAGS = -UKMK
+kmk_redirect_CFLAGS = -UKMK -DKMK_BUILTIN_STANDALONE
 
 EXTRA_kmk_SOURCES = vmsjobs.c remote-stub.c remote-cstms.c
 
