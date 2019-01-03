@@ -1,4 +1,4 @@
-# $Id: GXX3PLAIN.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: GXX3PLAIN.kmk 3258 2019-01-03 05:34:09Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic GCC v3.2.x or later using the system GCC, any Unix linker and Unix archiver to build C++ code.
 #
@@ -36,6 +36,7 @@ TOOL_GXX3PLAIN := Generic GCC v3.2.x or later using the system GCC, any Unix lin
 # Tool Specific Properties
 TOOL_GXX3PLAIN_CC  ?= gcc$(HOSTSUFF_EXE)
 TOOL_GXX3PLAIN_CXX ?= g++$(HOSTSUFF_EXE)
+TOOL_GXX3PLAIN_PCH ?= $(TOOL_GXX3PLAIN_CXX)
 TOOL_GXX3PLAIN_AS  ?= gcc$(HOSTSUFF_EXE)
 TOOL_GXX3PLAIN_AR  ?= ar$(HOSTSUFF_EXE)
 TOOL_GXX3PLAIN_RANLIB ?= ranlib$(HOSTSUFF_EXE)
@@ -73,13 +74,20 @@ TOOL_GXX3PLAIN_CINCS            ?=
 TOOL_GXX3PLAIN_CDEFS            ?=
 
 TOOL_GXX3PLAIN_CXXOBJSUFF       ?= .o
-TOOL_GXX3PLAIN_CXXOBJSUFF       ?= .o
 TOOL_GXX3PLAIN_CXXFLAGS         ?=
 TOOL_GXX3PLAIN_CXXFLAGS.debug   ?= -g
 TOOL_GXX3PLAIN_CXXFLAGS.profile ?= -O2 #-g -pg
 TOOL_GXX3PLAIN_CXXFLAGS.release ?= -O2
 TOOL_GXX3PLAIN_CXXINCS          ?=
 TOOL_GXX3PLAIN_CXXDEFS          ?=
+
+TOOL_GXX3PLAIN_PCHOBJSUFF       ?= .h.gch
+TOOL_GXX3PLAIN_PCHFLAGS         ?= $(TOOL_GXX3PLAIN_CXXFLAGS)
+TOOL_GXX3PLAIN_PCHFLAGS.debug   ?= $(TOOL_GXX3PLAIN_CXXFLAGS.debug)
+TOOL_GXX3PLAIN_PCHFLAGS.profile ?= $(TOOL_GXX3PLAIN_CXXFLAGS.profile)
+TOOL_GXX3PLAIN_PCHFLAGS.release ?= $(TOOL_GXX3PLAIN_CXXFLAGS.release)
+TOOL_GXX3PLAIN_PCHINCS          ?= $(TOOL_GXX3PLAIN_CXXINCS)
+TOOL_GXX3PLAIN_PCHDEFS          ?= $(TOOL_GXX3PLAIN_CXXDEFS)
 
 TOOL_GXX3PLAIN_ASFLAGS          ?= -x assembler-with-cpp
 TOOL_GXX3PLAIN_ASFLAGS.debug    ?= -g
@@ -107,10 +115,10 @@ TOOL_GXX3PLAIN_LDFLAGS          ?=
 # @param    $(objsuff)  Object suffix.
 TOOL_GXX3PLAIN_COMPILE_C_DEPEND =
 TOOL_GXX3PLAIN_COMPILE_C_DEPORD =
-ifdef KBUILD_USE_KOBJCACHE
-TOOL_GXX3PLAIN_COMPILE_C_USES_KOBJCACHE = 1
-TOOL_GXX3PLAIN_COMPILE_C_OUTPUT = $(outbase).i
+TOOL_GXX3PLAIN_COMPILE_C_OUTPUT         = $(if-expr "$(use_objcache)" != "",$(outbase).i,)
+TOOL_GXX3PLAIN_COMPILE_C_USES_KOBJCACHE = $(if-expr "$(use_objcache)" != "",1,)
 define TOOL_GXX3PLAIN_COMPILE_C_CMDS
+if "$(use_objcache)" != ""
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
 		--kObjCache-cpp $(outbase).i\
 		$(TOOL_GXX3PLAIN_CC) -E -o -\
@@ -122,22 +130,60 @@ define TOOL_GXX3PLAIN_COMPILE_C_CMDS
 		$(flags) -fpreprocessed -x c\
 		-o $(obj)\
 		-
-	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
-endef
-else # !KBUILD_USE_KOBJCACHE
-TOOL_GXX3PLAIN_COMPILE_C_OUTPUT =
-define TOOL_GXX3PLAIN_COMPILE_C_CMDS
+else
 	$(QUIET)$(TOOL_GXX3PLAIN_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
+endif
 	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
-endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Compile C++ source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)      Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+TOOL_GXX3PLAIN_COMPILE_CXX_OUTPUT         = $(if-expr "$(use_objcache)" != "",$(outbase).ii,)
+TOOL_GXX3PLAIN_COMPILE_CXX_DEPEND         = $($(target)_1_GCC_PCH_FILE)
+TOOL_GXX3PLAIN_COMPILE_CXX_DEPORD         =
+TOOL_GXX3PLAIN_COMPILE_CXX_USES_KOBJCACHE = $(if-expr "$(use_objcache)" != "",1,)
+define TOOL_GXX3PLAIN_COMPILE_CXX_CMDS
+if "$(use_objcache)" != ""
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
+		--kObjCache-cpp $(outbase).ii\
+		$(TOOL_GXX3PLAIN_CXX) -E -o - $(if-expr defined($(target)_PCH_HDR)\
+		,-fpch-preprocess -Winvalid-pch -I$($(target)_1_GCC_PCH_DIR) -include $(basename $($(target)_1_GCC_PCH_FILE)),)\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		$(abspath $(source))\
+		--kObjCache-cc $(obj)\
+		$(TOOL_GXX3PLAIN_CXX) -c\
+		$(flags) -fpreprocessed $(if-expr defined($(target)_PCH_HDR),-fpch-preprocess,) -x c++\
+		-o $(obj)\
+		-
+else
+	$(QUIET)$(TOOL_GXX3PLAIN_CXX) -c\
+		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj) $(if-expr defined($(target)_PCH_HDR) \
+		,-Winvalid-pch -include $(basename $($(target)_1_GCC_PCH_FILE)),) \
+		$(abspath $(source))
+endif
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
+endef
+
+
+## Precompile C++ header.
 # @param    $(target)   Normalized main target name.
 # @param    $(source)   Source filename (relative).
 # @param    $(obj)      Object file name. This shall be (re)created by the compilation.
@@ -149,36 +195,18 @@ endif # !KBUILD_USE_KOBJCACHE
 # @param    $(deps)		Other dependencies.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_GXX3PLAIN_COMPILE_CXX_DEPEND =
-TOOL_GXX3PLAIN_COMPILE_CXX_DEPORD =
-ifdef KBUILD_USE_KOBJCACHE
-TOOL_GXX3PLAIN_COMPILE_CXX_USES_KOBJCACHE = 1
-TOOL_GXX3PLAIN_COMPILE_CXX_OUTPUT = $(outbase).ii
-define TOOL_GXX3PLAIN_COMPILE_CXX_CMDS
-	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
-		--kObjCache-cpp $(outbase).ii\
-		$(TOOL_GXX3PLAIN_CXX) -E -o -\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
-		$(abspath $(source))\
-		--kObjCache-cc $(obj)\
-		$(TOOL_GXX3PLAIN_CXX) -c\
-		$(flags) -fpreprocessed -x c++\
-		-o $(obj)\
-		-
-	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
-endef
-else # !KBUILD_USE_KOBJCACHE
-TOOL_GXX3PLAIN_COMPILE_CXX_OUTPUT =
-define TOOL_GXX3PLAIN_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_GXX3PLAIN_CXX) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+TOOL_GXX3PLAIN_COMPILE_PCH_OUTPUT = $($(target)_1_GCC_PCH_FILE)
+TOOL_GXX3PLAIN_COMPILE_PCH_DEPEND =
+TOOL_GXX3PLAIN_COMPILE_PCH_DEPORD = $($(target)_1_GCC_PCH_DIR)
+define TOOL_GXX3PLAIN_COMPILE_PCH_CMDS
+	$(QUIET)$(TOOL_GXX3PLAIN_PCH) -c\
+		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
+	$(INSTALL) --hard-link-files-when-possible -m 0644 -- "$(obj)" "$($(target)_1_GCC_PCH_FILE)"
 	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
-endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Compile Assembly source.
@@ -220,7 +248,7 @@ TOOL_GXX3PLAIN_LINK_LIBRARY_OUTPUT =
 TOOL_GXX3PLAIN_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_GXX3PLAIN_LINK_LIBRARY_DEPORD =
 define TOOL_GXX3PLAIN_LINK_LIBRARY_CMDS
-	$(call xargs,$(QUIET)$(TOOL_GXX3PLAIN_AR) $(flags) $(out),$(objs))
+	$(call xargs,$(QUIET)$(TOOL_GXX3PLAIN_AR) $(flags) $(out),$(filter-out %.h.gch,$(objs)))
 	$(foreach lib,$(othersrc)\
 		,$(NL)$(TAB)$(call MSG_AR_MERGE,$(target),$(out),$(lib)) \
 		$(NL)$(TAB)$(QUIET)$(RM_EXT) -f $(dir $(outbase))ar.tmp.dir/* \
@@ -253,7 +281,7 @@ TOOL_GXX3PLAIN_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(l
 		$(filter %.def, $(othersrc))
 TOOL_GXX3PLAIN_LINK_PROGRAM_DEPORD =
 define TOOL_GXX3PLAIN_LINK_PROGRAM_CMDS
-	$(QUIET)$(TOOL_GXX3PLAIN_LD) $(flags) -o $(out) $(objs)\
+	$(QUIET)$(TOOL_GXX3PLAIN_LD) $(flags) -o $(out) $(filter-out %.h.gch,$(objs))\
 		$(filter %.def, $(othersrc))\
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
@@ -281,7 +309,7 @@ TOOL_GXX3PLAIN_LINK_DLL_DEPORD =
 define TOOL_GXX3PLAIN_LINK_DLL_CMDS
 	$(QUIET)$(TOOL_GXX3PLAIN_LD) $(TOOL_GXX3PLAIN_LDFLAGS.dll) $(flags) -o $(out)\
 		$(if $(filter-out win32 os2, $(KBUILD_TARGET)),$(call TOOL_GXX3PLAIN_LD_SONAME,$(target),$(out)))\
-		$(objs)\
+		$(filter-out %.h.gch,$(objs))\
 		$(filter %.def, $(othersrc))\
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
@@ -312,7 +340,7 @@ TOOL_GXX3PLAIN_LINK_SYSMOD_DEPORD =
 define TOOL_GXX3PLAIN_LINK_SYSMOD_CMDS
 	$(QUIET)$(if $(TOOL_GXX3PLAIN_LD_SYSMOD.$(bld_trg)),$(TOOL_GXX3PLAIN_LD_SYSMOD.$(bld_trg)),$(TOOL_GXX3PLAIN_LD_SYSMOD))\
 		$(TOOL_GXX3PLAIN_LDFLAGS_SYSMOD.$(bld_trg)) $(flags) -o $(out) \
-		$(objs)\
+		$(filter-out %.h.gch,$(objs))\
 		$(filter %.def, $(othersrc))\
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))

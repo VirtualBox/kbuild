@@ -1,4 +1,4 @@
-# $Id: GXX3OMF.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: GXX3OMF.kmk 3258 2019-01-03 05:34:09Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v3 targeting OS/2 OMF, for building C++ code.
 #
@@ -36,6 +36,7 @@ TOOL_GXX3OMF := GCC v3 targeting OS/2 OMF, for building C++ code.
 # Tool Specific Properties
 TOOL_GXX3OMF_CC  ?= gcc$(HOSTSUFF_EXE)
 TOOL_GXX3OMF_CXX ?= g++$(HOSTSUFF_EXE)
+TOOL_GXX3OMF_PCH ?= $(TOOL_GXX3OMF_CXX)
 TOOL_GXX3OMF_AS  ?= gcc$(HOSTSUFF_EXE)
 TOOL_GXX3OMF_AR  ?= emxomfar$(HOSTSUFF_EXE)
 TOOL_GXX3OMF_AR_IMP ?= emximp$(HOSTSUFF_EXE)
@@ -66,13 +67,20 @@ TOOL_GXX3OMF_CINCS            ?=
 TOOL_GXX3OMF_CDEFS            ?=
 
 TOOL_GXX3OMF_CXXOBJSUFF       ?= .o
-TOOL_GXX3OMF_CXXOBJSUFF       ?= .o
 TOOL_GXX3OMF_CXXFLAGS         ?= -Zomf
 TOOL_GXX3OMF_CXXFLAGS.debug   ?= -g
 TOOL_GXX3OMF_CXXFLAGS.profile ?= -O2 #-g -pg
 TOOL_GXX3OMF_CXXFLAGS.release ?= -O2
 TOOL_GXX3OMF_CXXINCS          ?=
 TOOL_GXX3OMF_CXXDEFS          ?=
+
+TOOL_GXX3OMF_PCHOBJSUFF       ?= .h.gch
+TOOL_GXX3OMF_PCHFLAGS         ?= $(TOOL_GXX3OMF_CXXFLAGS)
+TOOL_GXX3OMF_PCHFLAGS.debug   ?= $(TOOL_GXX3OMF_CXXFLAGS.debug)
+TOOL_GXX3OMF_PCHFLAGS.profile ?= $(TOOL_GXX3OMF_CXXFLAGS.profile)
+TOOL_GXX3OMF_PCHFLAGS.release ?= $(TOOL_GXX3OMF_CXXFLAGS.release)
+TOOL_GXX3OMF_PCHINCS          ?= $(TOOL_GXX3OMF_CXXINCS)
+TOOL_GXX3OMF_PCHDEFS          ?= $(TOOL_GXX3OMF_CXXDEFS)
 
 TOOL_GXX3OMF_ASFLAGS          ?= -x assembler-with-cpp -Zomf
 TOOL_GXX3OMF_ASFLAGS.debug    ?= -g
@@ -107,10 +115,10 @@ TOOL_GXX3OMF_LDFLAGS.profile  ?= -g
 # @param    $(objsuff)  Object suffix.
 TOOL_GXX3OMF_COMPILE_C_DEPEND =
 TOOL_GXX3OMF_COMPILE_C_DEPORD =
-ifdef KBUILD_USE_KOBJCACHE
-TOOL_GXX3OMF_COMPILE_C_USES_KOBJCACHE = 1
-TOOL_GXX3OMF_COMPILE_C_OUTPUT = $(outbase).i
+TOOL_GXX3OMF_COMPILE_C_OUTPUT         = $(if-expr "$(use_objcache)" != "",$(outbase).i,)
+TOOL_GXX3OMF_COMPILE_C_USES_KOBJCACHE = $(if-expr "$(use_objcache)" != "",1,)
 define TOOL_GXX3OMF_COMPILE_C_CMDS
+if "$(use_objcache)" != ""
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
 		--kObjCache-cpp $(outbase).i\
 		$(TOOL_GXX3OMF_CC) -E -o -\
@@ -122,22 +130,60 @@ define TOOL_GXX3OMF_COMPILE_C_CMDS
 		$(flags) -fpreprocessed -x c\
 		-o $(obj)\
 		-
-	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
-endef
-else # !KBUILD_USE_KOBJCACHE
-TOOL_GXX3OMF_COMPILE_C_OUTPUT =
-define TOOL_GXX3OMF_COMPILE_C_CMDS
+else
 	$(QUIET)$(TOOL_GXX3OMF_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP \
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
+endif
 	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
-endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Compile C++ source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)      Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+TOOL_GXX3OMF_COMPILE_CXX_OUTPUT         = $(if-expr "$(use_objcache)" != "",$(outbase).ii,)
+TOOL_GXX3OMF_COMPILE_CXX_DEPEND         = $($(target)_1_GCC_PCH_FILE)
+TOOL_GXX3OMF_COMPILE_CXX_DEPORD         =
+TOOL_GXX3OMF_COMPILE_CXX_USES_KOBJCACHE = $(if-expr "$(use_objcache)" != "",1,)
+define TOOL_GXX3OMF_COMPILE_CXX_CMDS
+if "$(use_objcache)" != ""
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
+		--kObjCache-cpp $(outbase).ii\
+		$(TOOL_GXX3OMF_CXX) -E -o - $(if-expr defined($(target)_PCH_HDR)\
+		,-fpch-preprocess -Winvalid-pch -I$($(target)_1_GCC_PCH_DIR) -include $(basename $($(target)_1_GCC_PCH_FILE)),)\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		$(abspath $(source))\
+		--kObjCache-cc $(obj)\
+		$(TOOL_GXX3OMF_CXX) -c\
+		$(flags) -fpreprocessed $(if-expr defined($(target)_PCH_HDR),-fpch-preprocess,) -x c++\
+		-o $(obj)\
+		-
+else
+	$(QUIET)$(TOOL_GXX3OMF_CXX) -c\
+		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj) $(if-expr defined($(target)_PCH_HDR) \
+		,-Winvalid-pch -include $(basename $($(target)_1_GCC_PCH_FILE)),) \
+		$(abspath $(source))
+endif
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
+endef
+
+
+## Precompile C++ header.
 # @param    $(target)   Normalized main target name.
 # @param    $(source)   Source filename (relative).
 # @param    $(obj)      Object file name. This shall be (re)created by the compilation.
@@ -147,39 +193,20 @@ endif # !KBUILD_USE_KOBJCACHE
 # @param    $(incs)     Includes. No -I or something.
 # @param    $(dirdep)   Directory creation dependency.
 # @param    $(deps)		Other dependencies.
-#
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_GXX3OMF_COMPILE_CXX_DEPEND =
-TOOL_GXX3OMF_COMPILE_CXX_DEPORD =
-ifdef KBUILD_USE_KOBJCACHE
-TOOL_GXX3OMF_COMPILE_CXX_USES_KOBJCACHE = 1
-TOOL_GXX3OMF_COMPILE_CXX_OUTPUT = $(outbase).ii
-define TOOL_GXX3OMF_COMPILE_CXX_CMDS
-	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
-		--kObjCache-cpp $(outbase).ii\
-		$(TOOL_GXX3OMF_CXX) -E -o -\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+TOOL_GXX3OMF_COMPILE_PCH_OUTPUT = $($(target)_1_GCC_PCH_FILE)
+TOOL_GXX3OMF_COMPILE_PCH_DEPEND =
+TOOL_GXX3OMF_COMPILE_PCH_DEPORD = $($(target)_1_GCC_PCH_DIR)
+define TOOL_GXX3OMF_COMPILE_PCH_CMDS
+	$(QUIET)$(TOOL_GXX3OMF_PCH) -c\
+		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
-		$(abspath $(source))\
-		--kObjCache-cc $(obj)\
-		$(TOOL_GXX3OMF_CXX) -c\
-		$(flags) -fpreprocessed -x c++\
-		-o $(obj)\
-		-
-	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
-endef
-else # !KBUILD_USE_KOBJCACHE
-TOOL_GXX3OMF_COMPILE_CXX_OUTPUT =
-define TOOL_GXX3OMF_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_GXX3OMF_CXX) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP \
 		-o $(obj)\
 		$(abspath $(source))
+	$(INSTALL) --hard-link-files-when-possible -m 0644 -- "$(obj)" "$($(target)_1_GCC_PCH_FILE)"
 	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
-endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Compile Assembly source.
@@ -250,7 +277,7 @@ define TOOL_GXX3OMF_LINK_LIBRARY_CMDS
 		,$(QUIET)$(APPEND) -n $(outbase).rsp $(filter %.def %.imp %.dll,$(othersrc))\
 		 $(NL)$(TAB)$(QUIET)$(QUIET)$(TOOL_GXX3OMF_AR_IMP) -o $(out) @$(outbase).rsp\
 		 $(NL)$(TAB)$(QUIET)$(RM) -f $(outbase).rsp)
-	$(QUIET)$(APPEND) -n $(outbase).rsp $(flags) $(out) $(objs) $(filter-out %.def %.imp %.dll,$(othersrc))
+	$(QUIET)$(APPEND) -n $(outbase).rsp $(flags) $(out) $(filter-out %.h.gch,$(objs)) $(filter-out %.def %.imp %.dll,$(othersrc))
 	$(QUIET)$(TOOL_GXX3OMF_AR) @$(outbase).rsp
 endef
 
@@ -276,7 +303,7 @@ define TOOL_GXX3OMF_LINK_PROGRAM_CMDS
 	$(QUIET)$(APPEND) -n $(outbase).rsp\
 		$(flags)\
 		-o $(out)\
-		$(objs)\
+		$(filter-out %.h.gch,$(objs))\
 		$(foreach p,$(libpath), -L$(p))\
 		$(othersrc)\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
@@ -307,7 +334,7 @@ define TOOL_GXX3OMF_LINK_DLL_CMDS
 		$(TOOL_GXX3OMF_LDFLAGS.dll)\
 		$(flags)\
 		-o $(out)\
-		$(objs)\
+		$(filter-out %.h.gch,$(objs))\
 		$(foreach p,$(libpath), -L$(p))\
 		$(othersrc)\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
@@ -338,7 +365,7 @@ define TOOL_GXX3OMF_LINK_SYSMOD_CMDS
 		$(TOOL_GXX3OMF_LDFLAGS.sysmod)\
 		$(flags)\
 		-o $(out)\
-		$(objs)\
+		$(filter-out %.h.gch,$(objs))\
 		$(foreach p,$(libpath), -L$(p))\
 		$(othersrc)\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
