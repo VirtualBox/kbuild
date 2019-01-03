@@ -16,6 +16,7 @@ A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#ifndef FAKES_NO_GETOPT_H /* bird: hack for rhel4 unistd.h dragging in getopt.h */
 #ifndef _GETOPT_H
 #define _GETOPT_H 1
 
@@ -128,3 +129,4 @@ extern int _getopt_internal ();
 #endif
 
 #endif /* getopt.h */
+#endif /* bird hack */

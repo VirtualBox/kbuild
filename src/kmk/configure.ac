@@ -161,24 +161,25 @@ AC_FUNC_STRCOLL
 AC_FUNC_ALLOCA
 AC_FUNC_CLOSEDIR_VOID
 
-# See if the user wants to add (or not) GNU Guile support
-PKG_PROG_PKG_CONFIG
-AC_ARG_WITH([guile], [AS_HELP_STRING([--with-guile],
-            [Support GNU Guile for embedded scripting])])
-
-# For some strange reason, at least on Ubuntu, each version of Guile
-# comes with it's own PC file so we have to specify them as individual
-# packages.  Ugh.
-AS_IF([test "x$with_guile" != xno],
-[ PKG_CHECK_MODULES([GUILE], [guile-2.0], [have_guile=yes],
-  [PKG_CHECK_MODULES([GUILE], [guile-1.8], [have_guile=yes],
-    [have_guile=no])])
-])
-
-AS_IF([test "$have_guile" = yes],
-      [AC_DEFINE([HAVE_GUILE], [1], [Embed GNU Guile support])])
-
-AM_CONDITIONAL([HAVE_GUILE], [test "$have_guile" = yes])
+# bird: This guile detection does not work on rhel4.  Disabled it all since we doesn't care about guile.
+## See if the user wants to add (or not) GNU Guile support
+#PKG_PROG_PKG_CONFIG
+#AC_ARG_WITH([guile], [AS_HELP_STRING([--with-guile],
+#            [Support GNU Guile for embedded scripting])])
+#
+## For some strange reason, at least on Ubuntu, each version of Guile
+## comes with it's own PC file so we have to specify them as individual
+## packages.  Ugh.
+#AS_IF([test "x$with_guile" != xno],
+#[ PKG_CHECK_MODULES([GUILE], [guile-2.0], [have_guile=yes],
+#  [PKG_CHECK_MODULES([GUILE], [guile-1.8], [have_guile=yes],
+#    [have_guile=no])])
+#])
+#
+#AS_IF([test "$have_guile" = yes],
+#      [AC_DEFINE([HAVE_GUILE], [1], [Embed GNU Guile support])])
+#
+#AM_CONDITIONAL([HAVE_GUILE], [test "$have_guile" = yes])
 
 AC_FUNC_GETLOADAVG
 
@@ -506,7 +507,10 @@ AS_IF([test "x$make_cv_load" = xno && test "x$user_load" = xyes],
 ])
 
 # Specify what files are to be created.
-AC_CONFIG_FILES([Makefile glob/Makefile po/Makefile.in config/Makefile \
+# bird: Removed po/Makefile.in.
+#AC_CONFIG_FILES([Makefile glob/Makefile po/Makefile.in config/Makefile \
+#                 doc/Makefile w32/Makefile tests/config-flags.pm])
+AC_CONFIG_FILES([Makefile glob/Makefile config/Makefile \
                  doc/Makefile w32/Makefile tests/config-flags.pm])
 
 # OK, do it!
