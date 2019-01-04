@@ -774,6 +774,9 @@ acquire_semaphore (void)
   fl.l_len = 1;
   if (fcntl (sync_handle, F_SETLKW, &fl) != -1)
     return &fl;
+#ifdef KBUILD_OS_DARWIN /* F_SETLKW isn't supported on pipes */
+  if (errno != EBADF)
+#endif  
   perror ("fcntl()");
   return NULL;
 }
