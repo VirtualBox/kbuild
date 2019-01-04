@@ -246,7 +246,7 @@
 /* #undef HAVE_STRNCMPI */
 
 /* Define to 1 if you have the `strndup' function. */
-#define HAVE_STRNDUP 1
+/* #define HAVE_STRNDUP 1 - not in snow leopard */
 
 /* Define to 1 if you have the `strnicmp' function. */
 /* #undef HAVE_STRNICMP */
