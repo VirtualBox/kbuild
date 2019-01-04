@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 3279 2019-01-04 17:29:39Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 3280 2019-01-04 17:32:03Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -134,7 +134,7 @@ $(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OU
 		| $($(target)_$(source)_DEPORD_) $(target_intermediate_vars)
 	%$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
 else
-$(obj) + $($(target)_$(source)_OUTPUT_) +| $($(target)_$(source)_OUTPUT_MAYBE_) :
+$(obj) + $($(target)_$(source)_OUTPUT_) +| $($(target)_$(source)_OUTPUT_MAYBE_) : \
 		$($(target)_$(source)_DEPEND_) $(value _DEP_COMPILE_CMDS) \
 		| $($(target)_$(source)_DEPORD_) $(target_intermediate_vars)
 	%$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
