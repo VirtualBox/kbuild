@@ -649,6 +649,8 @@ void fatal (const floc *flocp, size_t length, const char *fmt, ...)
                                       (_f), (_s1), (_n), (_s2))                     /* bird */
 #define OSSSS(_t,_a,_f,_s1,_s2,_s3,_s4) _t((_a), strlen (_s1) + strlen (_s2) + strlen (_s3) + strlen (_s4), \
                                            (_f), (_s1), (_s2), (_s3), (_s4))        /* bird */
+#define OSSN(_t,_a,_f,_s1,_s2,_n)       _t((_a), strlen (_s1) + strlen (_s2) + INTSTR_LENGTH, \
+                                          (_f), (_s1), (_s2), (_n))                 /* bird */
 #define OSSNS(_t,_a,_f,_s1,_s2,_n,_s3) _t((_a), strlen (_s1) + strlen (_s2) + strlen (_s3) + INTSTR_LENGTH, \
                                           (_f), (_s1), (_s2), (_n), (_s3))          /* bird */
 #define ONNS(_t,_a,_f,_n1,_n2,_s1)     _t((_a), INTSTR_LENGTH * 2 + strlen (_s1), \

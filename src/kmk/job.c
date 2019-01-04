@@ -3353,7 +3353,7 @@ construct_command_argv_internal (char *line, char **restp, const char *shell,
 
 # ifdef __EMX__ /* is this necessary? */
     if (!unixy_shell && shellflags)
-      shellflags[0] = '/'; /* "/c" */
+      ((char *)shellflags)[0] = '/'; /* "/c" */
 # endif
 
     /* In .ONESHELL mode we are allowed to throw the entire current

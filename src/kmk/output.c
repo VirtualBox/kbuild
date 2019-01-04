@@ -732,7 +732,7 @@ pump_from_tmp (int from, FILE *to)
 
   /* "from" is opened by open_tmpfd, which does it in binary mode, so
      we need the mode of "to" to match that.  */
-  prev_mode = _setmode (fileno (to), _O_BINARY);
+  prev_mode = _setmode (fileno (to), O_BINARY);
 #endif
 
   if (lseek (from, 0, SEEK_SET) == -1)
