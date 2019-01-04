@@ -5308,7 +5308,7 @@ func_os2_libpath (char *o, char **argv, const char *funcname UNUSED)
       rc = DosSetExtLIBPATH (buf, fVar);
       if (rc != NO_ERROR)
         {
-          OSSN (error, (NILF, _("$(libpath): failed to set `%s' to `%s', rc=%d"), argv[0], buf, rc);
+          OSSN (error, NILF, _("$(libpath): failed to set `%s' to `%s', rc=%d"), argv[0], buf, rc);
           return variable_buffer_output (o, "", 0);
         }
 

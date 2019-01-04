@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3261 2019-01-03 17:13:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3273 2019-01-04 00:48:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -74,7 +74,7 @@
 
 #include "kbuild_version.h"
 #if !defined(KMK_BUILTIN_STANDALONE) && !defined(KWORKER)
-# include "../output.h"
+# include "output.h"
 #endif
 
 struct child;
