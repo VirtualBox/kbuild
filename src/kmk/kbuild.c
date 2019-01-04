@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 3251 2019-01-01 19:30:40Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 3278 2019-01-04 17:08:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -2006,7 +2006,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     struct variable *pDefs, *pIncs, *pFlags;
 #endif
     struct variable *pObj       = kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(pTarget, pSource, pOutBase, pObjSuff, "obj", &pDep, &pDirDep);
-    int fInstallOldVars = 0;
+    int fInstallOldObjsVar = 0;
     char *pszDstVar, *pszDst, *pszSrcVar, *pszSrc, *pszVal, *psz;
     char *pszSavedVarBuf;
     unsigned cchSavedVarBuf;
@@ -2122,7 +2122,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     */
     /** @todo Make all these local variables, if someone needs the info later it
      *        can be recalculated. (Ticket #80.) */
-    cch = sizeof("TOOL_") + pTool->value_length + sizeof("_COMPILE_") + pType->value_length + sizeof("_OUTPUT_MAYBE");
+    cch = sizeof("TOOL_") + pTool->value_length + sizeof("_COMPILE_") + pType->value_length + sizeof("_USES_KOBJCACHE");
     if (cch < pTarget->value_length + sizeof("$(_2_OBJS)"))
         cch = pTarget->value_length + sizeof("$(_2_OBJS)");
     psz = pszSrcVar = alloca(cch);
@@ -2142,16 +2142,18 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(pszSrc, "_CMDS", sizeof("_CMDS"));
     memcpy(pszDst, "_CMDS_", sizeof("_CMDS_"));
     pVar = kbuild_get_recursive_variable(pszSrcVar);
-    do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
-                             !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
+    if (iVer <= 2)
+        do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
+                                 !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
     do_variable_definition_2(NILF, "kbsrc_cmds", pVar->value, pVar->value_length,
                              !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_OUTPUT", sizeof("_OUTPUT"));
     memcpy(pszDst, "_OUTPUT_", sizeof("_OUTPUT_"));
     pVar = kbuild_get_recursive_variable(pszSrcVar);
-    pOutput = do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
-                                       !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
+    if (iVer <= 2)
+        pOutput = do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
+                                           !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
     pOutput = do_variable_definition_2(NILF, "kbsrc_output", pVar->value, pVar->value_length,
                                        !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
 
@@ -2160,14 +2162,16 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     pVar = kbuild_query_recursive_variable(pszSrcVar);
     if (pVar)
     {
-        pOutputMaybe = do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
-                                                !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
+        if (iVer <= 2)
+            pOutputMaybe = do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
+                                                    !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
         pOutputMaybe = do_variable_definition_2(NILF, "kbsrc_output_maybe", pVar->value, pVar->value_length,
                                                 !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
     }
     else
     {
-        pOutputMaybe = do_variable_definition_2(NILF, pszDstVar, "", 0, 1, 0, o_local, f_simple, 0 /* !target_var */);
+        if (iVer <= 2)
+            pOutputMaybe = do_variable_definition_2(NILF, pszDstVar, "", 0, 1, 0, o_local, f_simple, 0 /* !target_var */);
         pOutputMaybe = do_variable_definition_2(NILF, "kbsrc_output_maybe", "", 0, 1, 0, o_local, f_simple, 0 /* !target_var */);
     }
 
@@ -2180,9 +2184,10 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(psz, pDeps->value, pDeps->value_length);     psz += pDeps->value_length;
     *psz++ = ' ';
     memcpy(psz, pSource->value, pSource->value_length + 1);
-    do_variable_definition_2(NILF, pszDstVar, pszVal, pVar->value_length + 1 + pDeps->value_length + 1 + pSource->value_length,
-                             !pVar->recursive && !pDeps->recursive && !pSource->recursive,
-                             NULL, o_local, f_simple, 0 /* !target_var */);
+    if (iVer <= 2)
+        do_variable_definition_2(NILF, pszDstVar, pszVal, pVar->value_length + 1 + pDeps->value_length + 1 + pSource->value_length,
+                                 !pVar->recursive && !pDeps->recursive && !pSource->recursive,
+                                 NULL, o_local, f_simple, 0 /* !target_var */);
     do_variable_definition_2(NILF, "kbsrc_depend", pszVal, pVar->value_length + 1 + pDeps->value_length + 1 + pSource->value_length,
                              !pVar->recursive && !pDeps->recursive && !pSource->recursive,
                              pszVal, o_local, f_simple, 0 /* !target_var */);
@@ -2196,10 +2201,11 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(psz, pDirDep->value, pDirDep->value_length); psz += pDirDep->value_length;
     *psz++ = ' ';
     memcpy(psz, pOrderDeps->value, pOrderDeps->value_length + 1);
-    do_variable_definition_2(NILF, pszDstVar, pszVal,
-                             pVar->value_length + 1 + pDirDep->value_length + 1 + pOrderDeps->value_length,
-                             !pVar->recursive && !pDirDep->recursive && !pOrderDeps->recursive,
-                             NULL, o_local, f_simple, 0 /* !target_var */);
+    if (iVer <= 2)
+        do_variable_definition_2(NILF, pszDstVar, pszVal,
+                                 pVar->value_length + 1 + pDirDep->value_length + 1 + pOrderDeps->value_length,
+                                 !pVar->recursive && !pDirDep->recursive && !pOrderDeps->recursive,
+                                 NULL, o_local, f_simple, 0 /* !target_var */);
     do_variable_definition_2(NILF, "kbsrc_depord", pszVal,
                              pVar->value_length + 1 + pDirDep->value_length + 1 + pOrderDeps->value_length,
                              !pVar->recursive && !pDirDep->recursive && !pOrderDeps->recursive,
@@ -2218,7 +2224,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     */
     memcpy(pszDstVar + pTarget->value_length, "_2_OBJS", sizeof("_2_OBJS"));
     pVar = kbuild_query_recursive_variable_n(pszDstVar, pTarget->value_length + sizeof("_2_OBJS") - 1);
-    fInstallOldVars |= iVer <= 2 && (!pVar || !pVar->value_length);
+    fInstallOldObjsVar |= iVer <= 2 && (!pVar || !pVar->value_length);
     if (pVar)
     {
         if (pVar->recursive)
@@ -2234,9 +2240,9 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
                                   NULL /* flocp */);
 
     /*
-     * Install legacy variables.
+     * Install legacy variable.
      */
-    if (fInstallOldVars)
+    if (fInstallOldObjsVar)
     {
         /* $(target)_OBJS_ = $($(target)_2_OBJS)*/
         memcpy(pszDstVar + pTarget->value_length, "_OBJS_", sizeof("_OBJS_"));
@@ -2258,8 +2264,33 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     /*
     $(eval $(def_target_source_rule))
     */
-    pVar = kbuild_get_recursive_variable("def_target_source_rule");
-    pszVal = variable_expand_string_2 (o, pVar->value, pVar->value_length, &psz);
+    if (iVer > 2)
+    {
+        /*ifneq ($(TOOL_$(tool)_COMPILE_$(type)_USES_KOBJCACHE),)*/
+        int fUsesObjCache = 0;
+        memcpy(pszSrc, "_USES_KOBJCACHE", sizeof("_USES_KOBJCACHE"));
+        pVar = lookup_variable(pszSrcVar, pszSrc + sizeof("_USES_KOBJCACHE") - 1 - pszSrcVar);
+        if (pVar)
+        {
+            if (   !pVar->recursive
+                || IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR(pVar))
+                fUsesObjCache = pVar->value_length > 0;
+            else
+            {
+                unsigned int cchTmp = 0;
+                char *pszTmp = allocated_variable_expand_2(pVar->value, pVar->value_length, &cchTmp);
+                free(pszTmp);
+                fUsesObjCache = cchTmp > 0;
+            }
+        }
+        if (!fUsesObjCache)
+            pVar = kbuild_get_recursive_variable("def_target_source_rule_v3plus");
+        else
+            pVar = kbuild_get_recursive_variable("def_target_source_rule_v3plus_objcache");
+    }
+    else
+        pVar = kbuild_get_recursive_variable("def_target_source_rule");
+    pszVal = variable_expand_string_2(o, pVar->value, pVar->value_length, &psz);
     assert(!((size_t)pszVal & 3));
 
     install_variable_buffer(&pszSavedVarBuf, &cchSavedVarBuf);
