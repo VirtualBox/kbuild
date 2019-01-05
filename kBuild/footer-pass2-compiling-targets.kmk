@@ -1,10 +1,10 @@
-# $Id: footer-pass2-compiling-targets.kmk 3284 2019-01-05 01:40:31Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 3285 2019-01-05 03:24:58Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
 
 #
-# Copyright (c) 2004-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
+# Copyright (c) 2004-2019 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -557,6 +557,16 @@ local use_objcache :=
 local use_objcache :=
 endif
 
+# Target level intermediates (before units!).
+local target_intermediate_vars := $$$$($(target)_2_INTERMEDIATES) $(foreach var, \
+	$(target)_INTERMEDIATES \
+	$(target)_INTERMEDIATES.$(bld_trg) \
+	$(target)_INTERMEDIATES.$(bld_trg).$(bld_trg_arch) \
+	$(target)_INTERMEDIATES.$(bld_trg_arch) \
+	$(target)_INTERMEDIATES.$(bld_trg_cpu) \
+	$(target)_INTERMEDIATES.$(bld_type) \
+	,$(if-expr defined($(var)),$$$$($(var)),))
+
 # Do units pre source callouts.
 local units       := \
 	$($(target)_USES.$(bld_trg).$(bld_trg_arch))\
@@ -566,16 +576,6 @@ local units       := \
 	$($(target)_USES)
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre))
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre_2))
-
-# target level intermediates
-local target_intermediate_vars := $$$$($(target)_2_INTERMEDIATES) $(foreach var, \
-	$(target)_INTERMEDIATES \
-	$(target)_INTERMEDIATES.$(bld_trg) \
-	$(target)_INTERMEDIATES.$(bld_trg).$(bld_trg_arch) \
-	$(target)_INTERMEDIATES.$(bld_trg_arch) \
-	$(target)_INTERMEDIATES.$(bld_trg_cpu) \
-	$(target)_INTERMEDIATES.$(bld_type) \
-	,$(if-expr defined($(var)),$$$$($(var)),))
 
 # source -> object
 $(evalval def_target_sources)
@@ -783,6 +783,16 @@ local use_objcache :=
 local use_objcache :=
 endif
 
+# Target level intermediates (before units!).
+local target_intermediate_vars := $$$$($(target)_2_INTERMEDIATES) $(foreach var, \
+	$(target)_INTERMEDIATES \
+	$(target)_INTERMEDIATES.$(bld_trg) \
+	$(target)_INTERMEDIATES.$(bld_trg).$(bld_trg_arch) \
+	$(target)_INTERMEDIATES.$(bld_trg_arch) \
+	$(target)_INTERMEDIATES.$(bld_trg_cpu) \
+	$(target)_INTERMEDIATES.$(bld_type) \
+	,$(if-expr defined($(var)),$$$$($(var)),))
+
 # Do units pre source callouts.
 local units       := \
 	$($(target)_USES.$(bld_trg).$(bld_trg_arch))\
@@ -792,16 +802,6 @@ local units       := \
 	$($(target)_USES)
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre))
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre_2))
-
-# target level intermediates
-local target_intermediate_vars := $$$$($(target)_2_INTERMEDIATES) $(foreach var, \
-	$(target)_INTERMEDIATES \
-	$(target)_INTERMEDIATES.$(bld_trg) \
-	$(target)_INTERMEDIATES.$(bld_trg).$(bld_trg_arch) \
-	$(target)_INTERMEDIATES.$(bld_trg_arch) \
-	$(target)_INTERMEDIATES.$(bld_trg_cpu) \
-	$(target)_INTERMEDIATES.$(bld_type) \
-	,$(if-expr defined($(var)),$$$$($(var)),))
 
 # source -> object
 $(evalval def_target_sources)
