@@ -86,6 +86,7 @@ AC_TYPE_UINTMAX_T
 # Find out whether our struct stat returns nanosecond resolution timestamps.
 
 AC_STRUCT_ST_MTIM_NSEC
+AC_STRUCT_ST_ATIM_NSEC
 AC_CACHE_CHECK([whether to use high resolution file timestamps],
                [make_cv_file_timestamp_hi_res],
 [ make_cv_file_timestamp_hi_res=no
