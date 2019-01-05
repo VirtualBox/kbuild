@@ -1,4 +1,4 @@
-# $Id: dtrace.kmk 3160 2018-03-19 22:39:19Z knut.osmundsen@oracle.com $
+# $Id: dtrace.kmk 3284 2019-01-05 01:40:31Z knut.osmundsen@oracle.com $
 ## @file
 # DTrace unit.
 #
@@ -32,7 +32,7 @@
 #
 
 ifdef UNIT_dtrace
- $(error kBuild: The lex unit was included twice!)
+ $(error kBuild: The dtrace unit was included twice!)
 endif
 UNIT_dtrace = dtrace
 
@@ -90,7 +90,7 @@ endif
 
 # update globals
 _OUT_FILES += $(out)
-$(target)_INTERMEDIATES += $(out)
+$(target)_2_INTERMEDIATES += $(out)
 
 endef # def_dtrace_hdr_rule
 
@@ -133,7 +133,7 @@ endif
 _OUT_FILES += $(out)
 $(target)_2_OBJS <= $(out)
 
-endef # def_dtrace_hdr_rule
+endef # def_dtrace_obj_rule
 
 
 ##

@@ -1,4 +1,4 @@
-# $Id: lex.kmk 3160 2018-03-19 22:39:19Z knut.osmundsen@oracle.com $
+# $Id: lex.kmk 3284 2019-01-05 01:40:31Z knut.osmundsen@oracle.com $
 ## @file
 # lex unit.
 #
@@ -87,7 +87,7 @@ endif
 # update globals
 _OUT_FILES += $(out) $(output_extra) $(output_maybe)
 $(target)_GEN_SOURCES_ += $(out)
-$(target)_INTERMEDIATES += $(intermediates)
+$(target)_2_INTERMEDIATES += $(intermediates)
 
 endef # def_lex_rule
 

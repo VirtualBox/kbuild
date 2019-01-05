@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 3160 2018-03-19 22:39:19Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 3284 2019-01-05 01:40:31Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -640,7 +640,7 @@ else
 endif
 endif
 
-$(target)_INTERMEDIATES += $(realout)
+$(target)_2_INTERMEDIATES += $(realout)
 $(target)_GEN_SOURCES_ += $(realout)
 $(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
@@ -734,7 +734,7 @@ else
 endif
 endif
 
-$(target)_INTERMEDIATES += $(realout)
+$(target)_2_INTERMEDIATES += $(realout)
 $(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
 endef # def_unit_qt5_target_pre_handle_ui_dx
@@ -827,7 +827,7 @@ else
 endif
 endif
 
-$(target)_INTERMEDIATES += $(realout)
+$(target)_2_INTERMEDIATES += $(realout)
 $(target)_GEN_SOURCES_ += $(realout)
 $(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
@@ -927,7 +927,7 @@ else
 endif
 endif
 
-$(target)_INTERMEDIATES += $(realout)
+$(target)_2_INTERMEDIATES += $(realout)
 $(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
 endef

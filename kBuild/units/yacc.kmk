@@ -1,4 +1,4 @@
-# $Id: yacc.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: yacc.kmk 3284 2019-01-05 01:40:31Z knut.osmundsen@oracle.com $
 ## @file
 # yacc/bison unit.
 #
@@ -82,7 +82,7 @@ endif
 # update globals and target properties.
 _OUT_FILES += $(out) $(output_extra) $(output_maybe)
 $(target)_GEN_SOURCES_ += $(out)
-$(target)_INTERMEDIATES += $(intermediates)
+$(target)_2_INTERMEDIATES += $(intermediates)
 
 endef # def_yacc_rule
 

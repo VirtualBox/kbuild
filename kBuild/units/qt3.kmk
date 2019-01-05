@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 3284 2019-01-05 01:40:31Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -512,7 +512,7 @@ ifndef NO_COMPILE_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
 
-$(target)_INTERMEDIATES += $(realout.h)
+$(target)_2_INTERMEDIATES += $(realout.h)
 $(target)_GEN_SOURCES_ += $(realout.cpp)
 $(target)_CLEAN += $(out.h) $(out.cpp) $(realout.h) $(realout.cpp) $(more_output) $(maybe_output) $(dep)
 
@@ -601,7 +601,7 @@ ifndef NO_COMPILE_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
 
-$(target)_INTERMEDIATES += $(realout)
+$(target)_2_INTERMEDIATES += $(realout)
 $(target)_GEN_SOURCES_ += $(realout)
 $(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
@@ -692,7 +692,7 @@ ifndef NO_COMPILE_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
 
-$(target)_INTERMEDIATES += $(realout)
+$(target)_2_INTERMEDIATES += $(realout)
 $(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
 endef

@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 3280 2019-01-04 17:32:03Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 3284 2019-01-05 01:40:31Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -91,7 +91,7 @@ $$(basename $$(notdir $$(obj))).o: $$(obj)
  # @param    $(obj)    The object file.
  define def_target_source_rule_v3plus_objcache
 _OUT_FILES += $(outbase).koc
-$(outbase).koc +| $(obj) $(kbsrc_output) $(kbsrc_output_maybe) : $(kbsrc_depend) | $(kbsrc_depord) $(target_intermediate_vars)
+$$(outbase).koc +| $$(obj) $$(kbsrc_output) $$(kbsrc_output_maybe) : $$(kbsrc_depend) | $$(kbsrc_depord) $(target_intermediate_vars)
 	%$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
 
 $(kbsrc_cmds)
@@ -545,6 +545,7 @@ $(call KB_FN_ASSIGN_DEPRECATED,TARGET_$(target),$($(target)_1_TARGET), $(target)
 # no local here - must be writable across some foreachs.
 othersrc          :=
 $(target)_2_OBJS  :=
+$(target)_2_INTERMEDIATES =
 
 # kObjCache.
 ifdef KBUILD_USE_KOBJCACHE
@@ -556,17 +557,6 @@ local use_objcache :=
 local use_objcache :=
 endif
 
-# target level intermediates
-local target_intermediate_vars := $(foreach var, \
-	$(target)_INTERMEDIATES \
-	$(target)_INTERMEDIATES.$(bld_trg) \
-	$(target)_INTERMEDIATES.$(bld_trg).$(bld_trg_arch) \
-	$(target)_INTERMEDIATES.$(bld_trg_arch) \
-	$(target)_INTERMEDIATES.$(bld_trg_cpu) \
-	$(target)_INTERMEDIATES.$(bld_type) \
-	,$(if-expr defined($(var)),$$$$($(var)),))
-#$(info target_intermediate_vars=$(target_intermediate_vars))
-
 # Do units pre source callouts.
 local units       := \
 	$($(target)_USES.$(bld_trg).$(bld_trg_arch))\
@@ -576,6 +566,16 @@ local units       := \
 	$($(target)_USES)
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre))
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre_2))
+
+# target level intermediates
+local target_intermediate_vars := $$$$($(target)_2_INTERMEDIATES) $(foreach var, \
+	$(target)_INTERMEDIATES \
+	$(target)_INTERMEDIATES.$(bld_trg) \
+	$(target)_INTERMEDIATES.$(bld_trg).$(bld_trg_arch) \
+	$(target)_INTERMEDIATES.$(bld_trg_arch) \
+	$(target)_INTERMEDIATES.$(bld_trg_cpu) \
+	$(target)_INTERMEDIATES.$(bld_type) \
+	,$(if-expr defined($(var)),$$$$($(var)),))
 
 # source -> object
 $(evalval def_target_sources)
@@ -771,6 +771,7 @@ endif
 # no local here - must be writable across some foreachs.
 othersrc          :=
 $(target)_2_OBJS  :=
+$(target)_2_INTERMEDIATES =
 
 # kObjCache.
 ifdef KBUILD_USE_KOBJCACHE
@@ -782,17 +783,6 @@ local use_objcache :=
 local use_objcache :=
 endif
 
-# target level intermediates
-local target_intermediate_vars := $(foreach var, \
-	$(target)_INTERMEDIATES \
-	$(target)_INTERMEDIATES.$(bld_trg) \
-	$(target)_INTERMEDIATES.$(bld_trg).$(bld_trg_arch) \
-	$(target)_INTERMEDIATES.$(bld_trg_arch) \
-	$(target)_INTERMEDIATES.$(bld_trg_cpu) \
-	$(target)_INTERMEDIATES.$(bld_type) \
-	,$(if-expr defined($(var)),$$$$($(var)),))
-#$(info target_intermediate_vars=$(target_intermediate_vars))
-
 # Do units pre source callouts.
 local units       := \
 	$($(target)_USES.$(bld_trg).$(bld_trg_arch))\
@@ -802,6 +792,16 @@ local units       := \
 	$($(target)_USES)
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre))
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre_2))
+
+# target level intermediates
+local target_intermediate_vars := $$$$($(target)_2_INTERMEDIATES) $(foreach var, \
+	$(target)_INTERMEDIATES \
+	$(target)_INTERMEDIATES.$(bld_trg) \
+	$(target)_INTERMEDIATES.$(bld_trg).$(bld_trg_arch) \
+	$(target)_INTERMEDIATES.$(bld_trg_arch) \
+	$(target)_INTERMEDIATES.$(bld_trg_cpu) \
+	$(target)_INTERMEDIATES.$(bld_type) \
+	,$(if-expr defined($(var)),$$$$($(var)),))
 
 # source -> object
 $(evalval def_target_sources)
