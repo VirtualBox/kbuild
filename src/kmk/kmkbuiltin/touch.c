@@ -1,4 +1,4 @@
-/* $Id: touch.c 3248 2018-12-26 04:05:33Z knut.osmundsen@oracle.com $ */
+/* $Id: touch.c 3282 2019-01-05 00:57:52Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_touch - Simple touch implementation.
  */
@@ -68,16 +68,6 @@
 #define TWO_CHARS_TO_INT(chHigh, chLow)  ( ((unsigned)(chHigh) - (unsigned)'0') * 10 + ((unsigned)(chLow) - (unsigned)'0') )
 /** Checks an alleged digit. */
 #define IS_DIGIT(chDigit, uMax)          ( ((unsigned)(chDigit) - (unsigned)'0') <= (unsigned)(uMax) )
-
-/* Missing config.h bits for high res timestamp. */
-#if FILE_TIMESTAMP_HI_RES
-# ifndef ST_ATIM_NSEC
-#  define ST_ATIM_NSEC st_atim.tv_nsec
-# endif
-# ifndef ST_MTIM_NSEC
-#  define ST_MTIM_NSEC st_mtim.tv_nsec
-# endif
-#endif
 
 
 /*********************************************************************************************************************************
