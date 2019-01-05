@@ -130,3 +130,34 @@ AC_DEFUN([AC_STRUCT_ST_MTIM_NSEC],
   fi
  ]
 )
+
+dnl bird: Copy of above for atime
+AC_DEFUN([AC_STRUCT_ST_ATIM_NSEC],
+ [AC_CACHE_CHECK([for nanoseconds access time field of struct stat],
+   ac_cv_struct_st_atim_nsec,
+   [ac_save_CPPFLAGS="$CPPFLAGS"
+    ac_cv_struct_st_atim_nsec=no
+    # st_atim.tv_nsec -- the usual case
+    # st_atim._tv_nsec -- Solaris 2.6, if
+    #	(defined _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED == 1
+    #	 && !defined __EXTENSIONS__)
+    # st_atim.st__tim.tv_nsec -- UnixWare 2.1.2
+    # st_atime_n -- AIX 5.2 and above
+    # st_atimespec.tv_nsec -- Darwin (Mac OSX)
+    for ac_val in st_atim.tv_nsec st_atim._tv_nsec st_atim.st__tim.tv_nsec st_atime_n st_atimespec.tv_nsec; do
+      CPPFLAGS="$ac_save_CPPFLAGS -DST_ATIM_NSEC=$ac_val"
+      AC_TRY_COMPILE([#include <sys/types.h>
+#include <sys/stat.h>
+	], [struct stat s; s.ST_ATIM_NSEC;],
+        [ac_cv_struct_st_atim_nsec=$ac_val; break])
+    done
+    CPPFLAGS="$ac_save_CPPFLAGS"
+   ])
+
+  if test $ac_cv_struct_st_atim_nsec != no; then
+    AC_DEFINE_UNQUOTED([ST_ATIM_NSEC], [$ac_cv_struct_st_atim_nsec],
+	[Define if struct stat contains a nanoseconds field])
+  fi
+ ]
+)
+
