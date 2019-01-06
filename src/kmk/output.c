@@ -802,12 +802,24 @@ output_tmpfd (void)
   FILE *tfile = tmpfile ();
 
   if (! tfile)
-    pfatal_with_name ("tmpfile");
+    {
+#ifdef KMK
+      if (output_context && output_context->syncout)
+        output_context->syncout = 0; /* Avoid inifinit recursion. */
+#endif
+      pfatal_with_name ("tmpfile");
+    }
 
   /* Create a duplicate so we can close the stream.  */
   fd = dup (fileno (tfile));
   if (fd < 0)
-    pfatal_with_name ("dup");
+    {
+#ifdef KMK
+      if (output_context && output_context->syncout)
+        output_context->syncout = 0; /* Avoid inifinit recursion. */
+#endif
+      pfatal_with_name ("dup");
+    }
 
   fclose (tfile);
 
@@ -827,7 +839,12 @@ setup_tmpfile (struct output *out)
   static int combined_output = -1;
 
   if (combined_output < 0)
-    combined_output = sync_init ();
+    {
+#ifdef KMK /* prevent infinite recursion if sync_init() calls perror_with_name. */
+      combined_output = 0;
+#endif
+      combined_output = sync_init ();
+    }
 
   if (STREAM_OK (stdout))
     {
