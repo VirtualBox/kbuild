@@ -29,6 +29,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef __sun__
+# define _POSIX_C_SOURCE 199506L /* for dirfd() */
+# define __EXTENSIONS__  1       /* for u_short and friends */
+#endif
 #if HAVE_NBTOOL_CONFIG_H
 #include "nbtool_config.h"
 #endif
@@ -64,11 +68,7 @@ __RCSID("$NetBSD: __fts13.c,v 1.44 2005/01/19 00:59:48 mycroft Exp $");
 
 #ifdef __sun__
 # include "solfakes.h"
-# ifndef __XOPEN_OR_POSIX
-#  define dirfd(dir) ((dir)->dd_fd)
-#else
-#  define dirfd(dir) ((dir)->d_fd)
-#endif
+# define dirfd(dir) ((dir)->d_fd)
 #endif
 #ifdef _MSC_VER
 # include "mscfakes.h"
