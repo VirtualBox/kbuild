@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 3245 2018-12-25 21:01:36Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3291 2019-01-08 15:06:54Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -315,15 +315,15 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
         {
             default:                                   /* fall thru */
 # if K_ARCH_BITS >= 64
-            case 7: cchAndStart |= (size_t)pszCmd[6] << (K_ARCH_BITS - 56); /* fall thru */
-            case 6: cchAndStart |= (size_t)pszCmd[5] << (K_ARCH_BITS - 48); /* fall thru */
-            case 5: cchAndStart |= (size_t)pszCmd[4] << (K_ARCH_BITS - 40); /* fall thru */
-            case 4: cchAndStart |= (size_t)pszCmd[3] << (K_ARCH_BITS - 32); /* fall thru */
+            case 7: cchAndStart |= (size_t)pszCmd[6];                       /* fall thru */
+            case 6: cchAndStart |= (size_t)pszCmd[5] << (K_ARCH_BITS - 56); /* fall thru */
+            case 5: cchAndStart |= (size_t)pszCmd[4] << (K_ARCH_BITS - 48); /* fall thru */
+            case 4: cchAndStart |= (size_t)pszCmd[3] << (K_ARCH_BITS - 40); /* fall thru */
 # endif
             /* fall thru - gcc 8.2.0 is confused by # endif */
-            case 3: cchAndStart |= (size_t)pszCmd[2] << (K_ARCH_BITS - 24); /* fall thru */
-            case 2: cchAndStart |= (size_t)pszCmd[1] << (K_ARCH_BITS - 16); /* fall thru */
-            case 1: cchAndStart |= (size_t)pszCmd[0] << (K_ARCH_BITS -  8); /* fall thru */
+            case 3: cchAndStart |= (size_t)pszCmd[2] << (K_ARCH_BITS - 32); /* fall thru */
+            case 2: cchAndStart |= (size_t)pszCmd[1] << (K_ARCH_BITS - 24); /* fall thru */
+            case 1: cchAndStart |= (size_t)pszCmd[0] << (K_ARCH_BITS - 16); /* fall thru */
             case 0: break;
         }
 #else
