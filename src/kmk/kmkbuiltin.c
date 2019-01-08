@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 3291 2019-01-08 15:06:54Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3293 2019-01-08 21:13:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -298,6 +298,9 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
     {
         struct KMKBUILTINENTRY const *pEntry;
         size_t cchAndStart;
+#if K_ENDIAN == K_ENDIAN_BIG
+        size_t cch;
+#endif
         int    cLeft;
 
         pszCmd += sizeof(s_szPrefix) - 1;
@@ -310,8 +313,9 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
 #endif
         cchAndStart = strlen(pszCmd);
 #if K_ENDIAN == K_ENDIAN_BIG
+        cch = cchAndStart;
         cchAndStart <<= K_ARCH_BITS - 8;
-        switch (cchAndStart)
+        switch (cch)
         {
             default:                                   /* fall thru */
 # if K_ARCH_BITS >= 64
