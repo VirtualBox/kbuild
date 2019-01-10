@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 3127 2017-11-22 20:15:12Z knut.osmundsen@oracle.com $
+# $Id: env.sh 3295 2019-01-10 16:35:56Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -362,7 +362,7 @@ if test -z "$KBUILD_HOST_ARCH"; then
         alpha)
             KBUILD_HOST_ARCH='alpha'
             ;;
-        aarch32|arm|arm1|arm2|arm3|arm6|armv1|armv2|armv3*|armv4*|armv5*|armv6*|armv7*)
+        aarch32|arm|arm1|arm2|arm3|arm6|armv1|armv2|armv3*|armv4*|armv5*|armv6*|armv7*|armv8*)
             KBUILD_HOST_ARCH='arm32'
             ;;
         aarch64*)
