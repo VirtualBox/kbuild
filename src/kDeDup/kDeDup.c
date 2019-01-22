@@ -1,4 +1,4 @@
-/* $Id: kDeDup.c 3129 2018-01-06 13:55:09Z knut.osmundsen@oracle.com $ */
+/* $Id: kDeDup.c 3296 2019-01-22 21:29:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDeDup - Utility that finds duplicate files, optionally hardlinking them.
  */
@@ -28,19 +28,29 @@
 *   Header Files                                                               *
 *******************************************************************************/
 #include <k/kTypes.h>
-//#include <stdlib.h>
-#include <wchar.h>
+#include <errno.h>
 #include <string.h>
 #include <stdio.h>
+#include <wchar.h>
+#if K_OS != K_OS_WINDOWS
+# include <stdlib.h>
+# include <unistd.h>
+# include <sys/fcntl.h>
+# include <sys/stat.h>
+#endif
 
 #include "md5.h"
 //#include "sha2.h"
 
-#include "nt/ntstuff.h"
-#include "nt/ntstat.h"
-#include "nt/fts-nt.h"
-#include "nt/nthlp.h"
-#include "nt/ntunlink.h"
+#if K_OS == K_OS_WINDOWS
+# include "nt/ntstuff.h"
+# include "nt/ntstat.h"
+# include "nt/fts-nt.h"
+# include "nt/nthlp.h"
+# include "nt/ntunlink.h"
+#else
+# include "fts.h"
+#endif
 
 
 /*********************************************************************************************************************************
@@ -86,8 +96,22 @@ typedef struct KDUPFILENODE
     PKDUPFILENODE   pNextGlobalDup;
 
     /** The path to this file (variable size). */
+#if K_OS == K_OS_WINDOWS
     wchar_t         wszPath[1];
+#else
+    char            szPath[1];
+#endif
 } KDUPFILENODE;
+
+#if K_OS == K_OS_WINDOWS
+# define PATH_PRI    "ls"
+# define PATH_MEMB   wszPath
+# define FTS_ACCPATH fts_wcsaccpath
+#else
+# define PATH_PRI    "s"
+# define PATH_MEMB   szPath
+# define FTS_ACCPATH fts_accpath
+#endif
 
 /*#define KAVL_EQUAL_ALLOWED*/
 #define KAVL_CHECK_FOR_EQUAL_INSERT
@@ -107,13 +131,13 @@ typedef struct KDUPFILENODE
 
 #define register
 #include <k/kAvlTmpl/kAvlBase.h>
-#include <k/kAvlTmpl/kAvlDoWithAll.h>
+//#include <k/kAvlTmpl/kAvlDoWithAll.h>
 //#include <k/kAvlTmpl/kAvlEnum.h> - busted
 #include <k/kAvlTmpl/kAvlGet.h>
-#include <k/kAvlTmpl/kAvlGetBestFit.h>
-#include <k/kAvlTmpl/kAvlGetWithParent.h>
-#include <k/kAvlTmpl/kAvlRemove2.h>
-#include <k/kAvlTmpl/kAvlRemoveBestFit.h>
+//#include <k/kAvlTmpl/kAvlGetBestFit.h>
+//#include <k/kAvlTmpl/kAvlGetWithParent.h>
+//#include <k/kAvlTmpl/kAvlRemove2.h>
+//#include <k/kAvlTmpl/kAvlRemoveBestFit.h>
 #include <k/kAvlTmpl/kAvlUndef.h>
 #undef register
 
@@ -154,13 +178,13 @@ typedef struct KDUPSIZENODE
 #define KAVL_DECL(rettype)      static rettype
 
 #include <k/kAvlTmpl/kAvlBase.h>
-#include <k/kAvlTmpl/kAvlDoWithAll.h>
+//#include <k/kAvlTmpl/kAvlDoWithAll.h>
 //#include <k/kAvlTmpl/kAvlEnum.h> - busted
 #include <k/kAvlTmpl/kAvlGet.h>
-#include <k/kAvlTmpl/kAvlGetBestFit.h>
-#include <k/kAvlTmpl/kAvlGetWithParent.h>
-#include <k/kAvlTmpl/kAvlRemove2.h>
-#include <k/kAvlTmpl/kAvlRemoveBestFit.h>
+//#include <k/kAvlTmpl/kAvlGetBestFit.h>
+//#include <k/kAvlTmpl/kAvlGetWithParent.h>
+//#include <k/kAvlTmpl/kAvlRemove2.h>
+//#include <k/kAvlTmpl/kAvlRemoveBestFit.h>
 #include <k/kAvlTmpl/kAvlUndef.h>
 
 
@@ -216,12 +240,38 @@ static void *kDupAlloc(KSIZE cb)
     void *pvRet = malloc(cb);
     if (pvRet)
         return pvRet;
-    fprintf(stderr, "kDeDup: error: out of memory! (cb=%#z)\n", cb);
+    fprintf(stderr, "kDeDup: error: out of memory! (cb=%#zx)\n", cb);
     return NULL;
 }
 
 /** Wrapper around free() for symmetry. */
 #define kDupFree(ptr) free(ptr)
+
+#if K_OS != K_OS_WINDOWS
+/** Wrapper around read() that hides EINTR and such. */
+static ssize_t kDupReadFile(int fd, void *pvBuf, size_t cbToRead)
+{
+    ssize_t cbRet;
+    do
+        cbRet = read(fd, pvBuf, cbToRead);
+    while (cbRet < 0 && errno == EINTR);
+    if (cbRet > 0 && (size_t)cbRet != cbToRead)
+    {
+        for (;;)
+        {
+            size_t cbLeft = cbToRead - (size_t)cbRet;
+            ssize_t cbPart;
+            do
+                cbPart = read(fd, (KU8 *)pvBuf + (size_t)cbRet, cbLeft);
+            while (cbPart < 0 && errno == EINTR);
+            if (cbPart <= 0)
+                break;
+            cbRet += cbPart;
+        }
+    }
+    return cbRet;
+}
+#endif
 
 
 static void kDupHashFile(PKDUPFILENODE pFileNode, FTSENT *pFtsEnt)
@@ -232,6 +282,7 @@ static void kDupHashFile(PKDUPFILENODE pFileNode, FTSENT *pFtsEnt)
     /*
      * Open the file.
      */
+#if K_OS == K_OS_WINDOWS
     HANDLE hFile;
     if (pFtsEnt && pFtsEnt->fts_parent && pFtsEnt->fts_parent->fts_dirfd != INVALID_HANDLE_VALUE)
         hFile = birdOpenFileExW(pFtsEnt->fts_parent->fts_dirfd, pFtsEnt->fts_wcsname,
@@ -250,6 +301,14 @@ static void kDupHashFile(PKDUPFILENODE pFileNode, FTSENT *pFtsEnt)
                                 FILE_NON_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
                                 OBJ_CASE_INSENSITIVE);
     if (hFile != INVALID_HANDLE_VALUE)
+#else  /* K_OS != K_OS_WINDOWS */
+# ifdef O_BINARY
+    int fd = open(pFileNode->szPath, O_RDONLY | O_BINARY);
+# else
+    int fd = open(pFileNode->szPath, O_RDONLY);
+# endif
+    if (fd >= 0)
+#endif /* K_OS != K_OS_WINDOWS */
     {
         /*
          * Init the hash calculation contexts.
@@ -268,6 +327,7 @@ static void kDupHashFile(PKDUPFILENODE pFileNode, FTSENT *pFtsEnt)
         for (;;)
         {
             static KU8          s_abBuffer[2*1024*1024];
+#if K_OS == K_OS_WINDOWS
             MY_NTSTATUS         rcNt;
             MY_IO_STATUS_BLOCK  Ios;
             Ios.Information = -1;
@@ -295,12 +355,37 @@ static void kDupHashFile(PKDUPFILENODE pFileNode, FTSENT *pFtsEnt)
                 birdCloseFile(hFile);
                 return;
             }
+#else  /* K_OS != K_OS_WINDOWS */
+            ssize_t cbRead = kDupReadFile(fd, s_abBuffer, sizeof(s_abBuffer));
+            if (cbRead > 0)
+            {
+                MD5Update(&Md5Ctx, s_abBuffer, (unsigned)cbRead);
+                //SHA256Update(&Sha256Ctx, s_abBuffer, (unsigned)cbRead);
+            }
+            else if (cbRead == 0)
+            {
+                MD5Final(pFileNode->mKey.abMd5, &Md5Ctx);
+                //Sha256Final(pFileNode->mKey.abSha2, &Sha256Ctx);
+                close(fd);
+                return;
+            }
+            else
+            {
+                fprintf(stderr, "kDeDup: warning: Error reading '%s': %s (%d)\n", pFileNode->szPath, strerror(errno), errno);
+                break;
+            }
+#endif /* K_OS != K_OS_WINDOWS */
         }
 
+#if K_OS == K_OS_WINDOWS
         birdCloseFile(hFile);
+#else
+        close(fd);
+#endif
     }
     else
-        fprintf(stderr, "kDeDup: warning: Failed to open '%ls': %s (%d)\n", pFileNode->wszPath, strerror(errno), errno);
+        fprintf(stderr, "kDeDup: warning: Failed to open '%" PATH_PRI "': %s (%d)\n",
+                pFileNode->PATH_MEMB, strerror(errno), errno);
 
     /*
      * Hashing failed.  We fake the digests by repeating the node pointer value
@@ -323,14 +408,19 @@ static void kDupHashFile(PKDUPFILENODE pFileNode, FTSENT *pFtsEnt)
 static int kDupDoFile(FTSENT *pFtsEnt)
 {
     KU64 cbFile;
+#if K_OS == K_OS_WINDOWS
+    struct stat const *pStat = &pFtsEnt->fts_stat;
+#else
+    struct stat const *pStat = pFtsEnt->fts_statp;
+#endif
 
     if (g_cVerbosity >= 2)
-        printf("debug: kDupDoFile(%ls)\n", pFtsEnt->fts_wcsaccpath);
+        printf("debug: kDupDoFile(%" PATH_PRI ")\n", pFtsEnt->FTS_ACCPATH);
 
     /*
      * Check that it's within the size range.
      */
-    cbFile = pFtsEnt->fts_stat.st_size;
+    cbFile = pStat->st_size;
     if (   cbFile >= g_cbMinFileSize
         && cbFile <= g_cbMaxFileSize)
     {
@@ -338,7 +428,11 @@ static int kDupDoFile(FTSENT *pFtsEnt)
          * Start out treating this like a unique file with a unique size, i.e.
          * allocate all the structures we might possibly need.
          */
+#if K_OS == K_OS_WINDOWS
         size_t        cbAccessPath = (wcslen(pFtsEnt->fts_wcsaccpath) + 1) * sizeof(wchar_t);
+#else
+        size_t        cbAccessPath = strlen(pFtsEnt->fts_accpath) + 1;
+#endif
         PKDUPFILENODE pFileNode = (PKDUPFILENODE)kDupAlloc(sizeof(*pFileNode) + cbAccessPath);
         PKDUPSIZENODE pSizeNode = (PKDUPSIZENODE)kDupAlloc(sizeof(*pSizeNode));
         if (!pFileNode || !pSizeNode)
@@ -349,9 +443,9 @@ static int kDupDoFile(FTSENT *pFtsEnt)
         pFileNode->pNextHardLink    = NULL;
         pFileNode->pNextDup         = NULL;
         pFileNode->pNextGlobalDup   = NULL;
-        pFileNode->uDev             = pFtsEnt->fts_stat.st_dev;
-        pFileNode->uInode           = pFtsEnt->fts_stat.st_ino;
-        memcpy(pFileNode->wszPath, pFtsEnt->fts_wcsaccpath, cbAccessPath);
+        pFileNode->uDev             = pStat->st_dev;
+        pFileNode->uInode           = pStat->st_ino;
+        memcpy(pFileNode->PATH_MEMB, pFtsEnt->FTS_ACCPATH, cbAccessPath);
 
         pSizeNode->mKey = cbFile;
         pSizeNode->cFiles = 1;
@@ -383,8 +477,8 @@ static int kDupDoFile(FTSENT *pFtsEnt)
                     pFileNode->pNextHardLink      = pFirstFileNode->pNextHardLink;
                     pFirstFileNode->pNextHardLink = pFileNode;
                     if (g_cVerbosity >= 1)
-                        printf("Found hardlinked: '%ls' -> '%ls' (ino:%#" KX64_PRI " dev:%#" KX64_PRI ")\n",
-                               pFileNode->wszPath, pFirstFileNode->wszPath, pFileNode->uInode, pFileNode->uDev);
+                        printf("Found hardlinked: '%" PATH_PRI "' -> '%" PATH_PRI "' (ino:%#" KX64_PRI " dev:%#" KX64_PRI ")\n",
+                               pFileNode->PATH_MEMB, pFirstFileNode->PATH_MEMB, pFileNode->uInode, pFileNode->uDev);
                     g_cHardlinked += 1;
                     return 0;
                 }
@@ -408,8 +502,8 @@ static int kDupDoFile(FTSENT *pFtsEnt)
                     pFileNode->pNextHardLink = pDupFileNode->pNextHardLink;
                     pDupFileNode->pNextHardLink = pFileNode;
                     if (g_cVerbosity >= 1)
-                        printf("Found hardlinked: '%ls' -> '%ls' (ino:%#" KX64_PRI " dev:%#" KX64_PRI ")\n",
-                               pFileNode->wszPath, pDupFileNode->wszPath, pFileNode->uInode, pFileNode->uDev);
+                        printf("Found hardlinked: '%" PATH_PRI "' -> '%" PATH_PRI "' (ino:%#" KX64_PRI " dev:%#" KX64_PRI ")\n",
+                               pFileNode->PATH_MEMB, pDupFileNode->PATH_MEMB, pFileNode->uInode, pFileNode->uDev);
                     g_cHardlinked += 1;
                 }
                 else
@@ -435,19 +529,24 @@ static int kDupDoFile(FTSENT *pFtsEnt)
                     if (!fDifferentDev)
                     {
                         g_cDuplicatesSaved += 1;
-                        g_cbDuplicatesSaved += pFtsEnt->fts_stat.st_blocks * BIRD_STAT_BLOCK_SIZE;
+#if K_OS == K_OS_WINDOWS
+                        g_cbDuplicatesSaved += pStat->st_blocks * BIRD_STAT_BLOCK_SIZE;
+#else
+                        g_cbDuplicatesSaved += pStat->st_size;
+#endif
                         if (g_cVerbosity >= 1)
-                            printf("Found duplicate: '%ls' <-> '%ls'\n", pFileNode->wszPath, pDupFileNode->wszPath);
+                            printf("Found duplicate: '%" PATH_PRI "' <-> '%" PATH_PRI "'\n",
+                                   pFileNode->PATH_MEMB, pDupFileNode->PATH_MEMB);
                     }
                     else if (g_cVerbosity >= 1)
-                        printf("Found duplicate: '%ls' <-> '%ls' (devices differ).\n", pFileNode->wszPath, pDupFileNode->wszPath);
+                        printf("Found duplicate: '%" PATH_PRI "' <-> '%" PATH_PRI "' (devices differ).\n",
+                               pFileNode->PATH_MEMB, pDupFileNode->PATH_MEMB);
                 }
             }
         }
     }
     else if (g_cVerbosity >= 1)
-        printf("Skipping '%ls' because %" KU64_PRI " bytes is outside the size range.\n",
-               pFtsEnt->fts_wcsaccpath, cbFile);
+        printf("Skipping '%" PATH_PRI "' because %" KU64_PRI " bytes is outside the size range.\n", pFtsEnt->FTS_ACCPATH, cbFile);
     return 0;
 }
 
@@ -459,15 +558,27 @@ static int kDupDoFile(FTSENT *pFtsEnt)
  * @param   papwszFtsArgs   The input in argv style.
  * @param   fFtsOptions     The FTS options.
  */
+#if K_OS == K_OS_WINDOWS
 static int kDupReadAll(wchar_t **papwszFtsArgs, unsigned fFtsOptions)
+#else
+static int kDupReadAll(char **papszFtsArgs, unsigned fFtsOptions)
+#endif
 {
     int  rcExit = 0;
+#if K_OS == K_OS_WINDOWS
     FTS *pFts = nt_fts_openw(papwszFtsArgs, fFtsOptions, NULL /*pfnCompare*/);
+#else
+    FTS *pFts = fts_open(papszFtsArgs, fFtsOptions, NULL /*pfnCompare*/);
+#endif
     if (pFts != NULL)
     {
         for (;;)
         {
+#if K_OS == K_OS_WINDOWS
             FTSENT *pFtsEnt = nt_fts_read(pFts);
+#else
+            FTSENT *pFtsEnt = fts_read(pFts);
+#endif
             if (pFtsEnt)
             {
                 switch (pFtsEnt->fts_info)
@@ -482,7 +593,11 @@ static int kDupReadAll(wchar_t **papwszFtsArgs, unsigned fFtsOptions)
                         if (   g_fRecursive
                             || pFtsEnt->fts_level == FTS_ROOTLEVEL) /* enumerate dirs on the command line */
                             continue;
+#if K_OS == K_OS_WINDOWS
                         rcExit = nt_fts_set(pFts, pFtsEnt, FTS_SKIP);
+#else
+                        rcExit = fts_set(pFts, pFtsEnt, FTS_SKIP);
+#endif
                         if (rcExit == 0)
                             continue;
                         fprintf(stderr, "kDeDup: internal error: nt_fts_set failed!\n");
@@ -494,38 +609,52 @@ static int kDupReadAll(wchar_t **papwszFtsArgs, unsigned fFtsOptions)
                         break;
 
                     case FTS_SL:
+                    {
+#if K_OS == K_OS_WINDOWS
                         /* The nice thing on windows is that we already know whether it's a
                            directory or file when encountering the symbolic link. */
                         if (   (pFtsEnt->fts_stat.st_isdirsymlink ? g_fRecursiveViaSymlinks : g_fFollowSymlinkedFiles)
-                            &&  pFtsEnt->fts_number == 0)
+                            && pFtsEnt->fts_number == 0)
+#else
+                        struct stat St;
+                        if (   pFtsEnt->fts_number == 0
+                            && (   (g_fRecursiveViaSymlinks && g_fFollowSymlinkedFiles)
+                                || (   stat(pFtsEnt->fts_accpath, &St) == 0
+                                    && (S_ISDIR(St.st_mode) ? g_fRecursiveViaSymlinks : g_fFollowSymlinkedFiles))))
+#endif
                         {
                             pFtsEnt->fts_number++;
+#if K_OS == K_OS_WINDOWS
                             rcExit = nt_fts_set(pFts, pFtsEnt, FTS_FOLLOW);
+#else
+                            rcExit = fts_set(pFts, pFtsEnt, FTS_FOLLOW);
+#endif
                             if (rcExit == 0)
                                 continue;
                             fprintf(stderr, "kDeDup: internal error: nt_fts_set failed!\n");
                             rcExit = 1;
                         }
                         break;
+                    }
 
                     case FTS_DC:
-                        fprintf(stderr, "kDeDup: warning: Ignoring cycle '%ls'!\n", pFtsEnt->fts_wcsaccpath);
+                        fprintf(stderr, "kDeDup: warning: Ignoring cycle '%" PATH_PRI "'!\n", pFtsEnt->FTS_ACCPATH);
                         continue;
 
                     case FTS_NS:
-                        fprintf(stderr, "kDeDup: warning: Failed to stat '%ls': %s (%d)\n",
-                                pFtsEnt->fts_wcsaccpath, strerror(pFtsEnt->fts_errno), pFtsEnt->fts_errno);
+                        fprintf(stderr, "kDeDup: warning: Failed to stat '%" PATH_PRI "': %s (%d)\n",
+                                pFtsEnt->FTS_ACCPATH, strerror(pFtsEnt->fts_errno), pFtsEnt->fts_errno);
                         continue;
 
                     case FTS_DNR:
-                        fprintf(stderr, "kDeDup: error: Error reading directory '%ls': %s (%d)\n",
-                                pFtsEnt->fts_wcsaccpath, strerror(pFtsEnt->fts_errno), pFtsEnt->fts_errno);
+                        fprintf(stderr, "kDeDup: error: Error reading directory '%" PATH_PRI "': %s (%d)\n",
+                                pFtsEnt->FTS_ACCPATH, strerror(pFtsEnt->fts_errno), pFtsEnt->fts_errno);
                         rcExit = 1;
                         break;
 
                     case FTS_ERR:
-                        fprintf(stderr, "kDeDup: error: Error on '%ls': %s (%d)\n",
-                                pFtsEnt->fts_wcsaccpath, strerror(pFtsEnt->fts_errno), pFtsEnt->fts_errno);
+                        fprintf(stderr, "kDeDup: error: Error on '%" PATH_PRI "': %s (%d)\n",
+                                pFtsEnt->FTS_ACCPATH, strerror(pFtsEnt->fts_errno), pFtsEnt->fts_errno);
                         rcExit = 1;
                         break;
 
@@ -537,8 +666,8 @@ static int kDupReadAll(wchar_t **papwszFtsArgs, unsigned fFtsOptions)
 
                     /* Not supposed to get here. */
                     default:
-                        fprintf(stderr, "kDeDup: internal error: fts_info=%d - '%ls'\n",
-                                pFtsEnt->fts_info, pFtsEnt->fts_wcsaccpath);
+                        fprintf(stderr, "kDeDup: internal error: fts_info=%d - '%" PATH_PRI "'\n",
+                                pFtsEnt->fts_info, pFtsEnt->FTS_ACCPATH);
                         rcExit = 1;
                         break;
                 }
@@ -553,7 +682,11 @@ static int kDupReadAll(wchar_t **papwszFtsArgs, unsigned fFtsOptions)
             }
         }
 
+#if K_OS == K_OS_WINDOWS
         if (nt_fts_close(pFts) != 0)
+#else
+        if (fts_close(pFts) != 0)
+#endif
         {
             fprintf(stderr, "kDeDup: error: nt_fts_close failed: %s (%d)\n", strerror(errno), errno);
             rcExit = 1;
@@ -566,6 +699,84 @@ static int kDupReadAll(wchar_t **papwszFtsArgs, unsigned fFtsOptions)
     }
 
     return rcExit;
+}
+
+
+/**
+ * Compares the content of the two files.
+ *
+ * @returns 0 if equal, 1 if not equal, -1 on open/read error.
+ * @param   pFile1              The first file.
+ * @param   pFile2              The second file.
+ */
+static int kDupCompareFiles(PKDUPFILENODE pFile1, PKDUPFILENODE pFile2)
+{
+#if K_OS == K_OS_WINDOWS
+    int rcRet = 0;
+    K_NOREF(pFile1);
+    K_NOREF(pFile2);
+    /** @todo compare files. */
+#else
+    int rcRet = -1;
+# ifdef O_BINARY
+    int fOpen = O_RDONLY | O_BINARY;
+# else
+    int fOpen = O_RDONLY;
+# endif
+    /*
+     * Open the two files.
+     */
+    int fd1 = open(pFile1->szPath, fOpen);
+    if (fd1 >= 0)
+    {
+        int fd2 = open(pFile2->szPath, fOpen);
+        if (fd1 >= 0)
+        {
+            /*
+             * Read and compare all the data.
+             */
+            static KU8 s_abBuf1[2*1024*1024];
+            static KU8 s_abBuf2[2*1024*1024];
+            KU64 off = 0;
+            for (;;)
+            {
+                ssize_t cb1 = kDupReadFile(fd1, s_abBuf1, sizeof(s_abBuf1));
+                ssize_t cb2 = kDupReadFile(fd2, s_abBuf2, sizeof(s_abBuf2));
+                if (cb1 < 0 || cb2 < 0)
+                {
+                    if (cb1 < 0)
+                        fprintf(stderr, "kDeDup: error: reading from '%s': %s (%d)\n", pFile1->szPath, strerror(errno), errno);
+                    if (cb2 < 0)
+                        fprintf(stderr, "kDeDup: error: reading from '%s': %s (%d)\n", pFile2->szPath, strerror(errno), errno);
+                    break;
+                }
+                if (cb1 != cb2)
+                {
+                    fprintf(stderr, "kDeDup: warning: '%s' now differs from '%s' in size...\n", pFile1->szPath, pFile2->szPath);
+                    rcRet = 1;
+                    break;
+                }
+                if (cb1 == 0)
+                {
+                    rcRet = 0;
+                    break;
+                }
+                if (memcmp(s_abBuf1, s_abBuf2, cb1) != 0)
+                {
+                    fprintf(stderr, "kDeDup: warning: hash collision: '%s' differs from '%s' (" KX64_PRI " LB %#x)\n",
+                            pFile1->szPath, pFile2->szPath, off, (unsigned)cb1);
+                    rcRet = 1;
+                    break;
+                }
+                off += cb1;
+            }
+
+            close(fd2);
+        }
+        close(fd1);
+    }
+#endif
+    return rcRet;
 }
 
 
@@ -587,12 +798,12 @@ static int kDupHardlinkDuplicates(void)
              */
             if (pDupFile->uDev == pTargetFile->uDev)
             {
-                /** @todo compare the files?   */
-                if (1)
+                if (kDupCompareFiles(pDupFile, pTargetFile) == 0)
                 {
                     /*
                      * Start by renaming the orinal file before we try create the hard link.
                      */
+#if K_OS == K_OS_WINDOWS
                     static const wchar_t s_wszBackupSuffix[] = L".kDepBackup";
                     wchar_t wszBackup[0x4000];
                     size_t  cwcPath = wcslen(pDupFile->wszPath);
@@ -622,7 +833,7 @@ static int kDupHardlinkDuplicates(void)
                                         pDupFile->wszPath, wszBackup, GetLastError());
                                 if (!MoveFileW(wszBackup, pDupFile->wszPath))
                                 {
-                                    fprintf(stderr, "kDeDup: fatal: Restore back '%ls' to '%ls' after hardlinking faild: %u\n",
+                                    fprintf(stderr, "kDeDup: fatal: Restore '%ls' to '%ls' after hardlinking failed: %u\n",
                                             wszBackup, pDupFile->wszPath, GetLastError());
                                     return 8;
                                 }
@@ -641,6 +852,66 @@ static int kDupHardlinkDuplicates(void)
                         fprintf(stderr, "kDeDup: error: too long backup path: '%ls'\n", pDupFile->wszPath);
                         rcExit = 1;
                     }
+#else  /* K_OS != K_OS_WINDOWS */
+                    static const char s_szBackupSuffix[] = ".kDepBackup";
+                    char szBackup[0x4000];
+                    size_t cchPath = strlen(pDupFile->szPath);
+                    if (cchPath + sizeof(s_szBackupSuffix) < sizeof(szBackup))
+                    {
+                        struct stat StTmp;
+                        memcpy(szBackup, pDupFile->szPath, cchPath);
+                        memcpy(&szBackup[cchPath], s_szBackupSuffix, sizeof(s_szBackupSuffix));
+                        if (stat(szBackup, &StTmp) != 0)
+                        {
+                            if (rename(pDupFile->szPath, szBackup) == 0)
+                            {
+                                if (link(pTargetFile->szPath, pDupFile->szPath) == 0)
+                                {
+                                    if (unlink(szBackup) == 0)
+                                    {
+                                        if (g_cVerbosity >= 1)
+                                            printf("Hardlinked '%s' to '%s'.\n", pDupFile->szPath, pTargetFile->szPath);
+                                    }
+                                    else
+                                    {
+                                        fprintf(stderr, "kDeDup: fatal: failed to delete '%s' after hardlinking: %s (%d)\n",
+                                                szBackup, strerror(errno), errno);
+                                        return 8;
+                                    }
+                                }
+                                else
+                                {
+                                    fprintf(stderr, "kDeDup: error: failed to hard link '%s' to '%s': %s (%d)\n",
+                                            pDupFile->szPath, szBackup, strerror(errno), errno);
+                                    if (rename(szBackup, pDupFile->szPath) != 0)
+                                    {
+                                        fprintf(stderr, "kDeDup: fatal: Restore '%s' to '%s' after hardlinking failed: %s (%d)\n",
+                                                szBackup, pDupFile->szPath, strerror(errno), errno);
+                                        return 8;
+                                    }
+                                    rcExit = 1;
+                                }
+                            }
+                            else
+                            {
+                                fprintf(stderr, "kDeDup: error: failed to rename '%s' to '%s': %s (%d)\n",
+                                        pDupFile->szPath, szBackup, strerror(errno), errno);
+                                rcExit = 1;
+                            }
+                        }
+                        else
+                        {
+                            fprintf(stderr, "kDeDup: error: failed to rename '%s' to '%s': file already exist (st_mode=%#x)\n",
+                                    pDupFile->szPath, szBackup, StTmp.st_mode);
+                            rcExit = 1;
+                        }
+                    }
+                    else
+                    {
+                        fprintf(stderr, "kDeDup: error: too long backup path: '%s'\n", pDupFile->szPath);
+                        rcExit = 1;
+                    }
+#endif /* K_OS != K_OS_WINDOWS */
                 }
             }
             /*
@@ -689,25 +960,45 @@ static int usage(const char *pszName, FILE *pOut)
 }
 
 
+#if K_OS == K_OS_WINDOWS
 int wmain(int argc, wchar_t **argv)
+#else
+int main(int argc, char **argv)
+#endif
 {
     int             rcExit;
 
     /*
      * Process parameters.  Position.
      */
-    wchar_t   **papwszFtsArgs = (wchar_t **)calloc(argc + 1, sizeof(wchar_t *));
     unsigned    cFtsArgs      = 0;
+#if K_OS == K_OS_WINDOWS
+    wchar_t   **papwszFtsArgs = (wchar_t **)calloc(argc + 1, sizeof(wchar_t *));
     unsigned    fFtsOptions   = FTS_NOCHDIR | FTS_NO_ANSI;
+#else
+    char      **papszFtsArgs  = (char **)calloc(argc + 1, sizeof(char *));
+    unsigned    fFtsOptions   = FTS_NOCHDIR;
+#endif
     KBOOL       fEndOfOptions = K_FALSE;
     KBOOL       fHardlinkDups = K_FALSE;
     int         i;
     for (i = 1; i < argc; i++)
     {
+#if K_OS == K_OS_WINDOWS
         wchar_t *pwszArg = argv[i];
         if (   *pwszArg == '-'
             && !fEndOfOptions)
+#else
+        char *pszArg = argv[i];
+        if (   *pszArg == '-'
+            && !fEndOfOptions)
+#endif
         {
+#if K_OS != K_OS_WINDOWS
+            wchar_t  wszOpt[1024] = { 0 };
+            wchar_t *pwszArg = wszOpt;
+            mbsrtowcs(wszOpt, (const char **)&pszArg, 1024 - 1, NULL);
+#endif
             wchar_t wcOpt = *++pwszArg;
             pwszArg++;
             if (wcOpt == '-')
@@ -804,7 +1095,11 @@ int wmain(int argc, wchar_t **argv)
                         return 0;
 
                     default:
+#if K_OS == K_OS_WINDOWS
                         fprintf(stderr, "kDeDup: syntax error: Unknown option '-%lc'\n", wcOpt);
+#else
+                        fprintf(stderr, "kDeDup: syntax error: Unknown option '-%c'\n", (int)wcOpt);
+#endif
                         return 2;
                 }
 
@@ -816,7 +1111,11 @@ int wmain(int argc, wchar_t **argv)
             /*
              * Append non-option arguments to the FTS argument vector.
              */
+#if K_OS == K_OS_WINDOWS
             papwszFtsArgs[cFtsArgs] = pwszArg;
+#else
+            papszFtsArgs[cFtsArgs] = pszArg;
+#endif
             cFtsArgs++;
         }
     }
@@ -825,7 +1124,11 @@ int wmain(int argc, wchar_t **argv)
      * Do the FTS processing.
      */
     kDupSizeTree_Init(&g_SizeRoot);
+#if K_OS == K_OS_WINDOWS
     rcExit = kDupReadAll(papwszFtsArgs, fFtsOptions);
+#else
+    rcExit = kDupReadAll(papszFtsArgs, fFtsOptions);
+#endif
     if (rcExit == 0)
     {
         /*
@@ -838,6 +1141,8 @@ int wmain(int argc, wchar_t **argv)
             rcExit = kDupHardlinkDuplicates();
     }
 
+    K_NOREF(kDupFileTree_Remove);
+    K_NOREF(kDupSizeTree_Remove);
     return rcExit;
 }
 
