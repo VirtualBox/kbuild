@@ -40,6 +40,7 @@ static HANDLE jobserver_semaphore = NULL;
 unsigned int
 jobserver_setup (int slots)
 {
+#ifndef CONFIG_NEW_WIN_CHILDREN
   /* sub_proc.c cannot wait for more than MAXIMUM_WAIT_OBJECTS objects
    * and one of them is the job-server semaphore object.  Limit the
    * number of available job slots to (MAXIMUM_WAIT_OBJECTS - 1). */
@@ -49,6 +50,7 @@ jobserver_setup (int slots)
       slots = MAXIMUM_WAIT_OBJECTS - 1;
       DB (DB_JOBS, (_("Jobserver slots limited to %d\n"), slots));
     }
+#endif
 
   sprintf (jobserver_semaphore_name, "gmake_semaphore_%d", _getpid ());
 
@@ -193,7 +195,7 @@ jobserver_acquire (int timeout)
         INFINITE);      /* wait until object is signalled */
 #else
     /* Add the completed children event as the 2nd one. */
-    handles[1] = (HANDLE)MkWinChildGetCompleteEventHandle();
+    handles[1] = (HANDLE)MkWinChildGetCompleteEventHandle ();
     if (handles[1] == NULL)
       return 0;
     dwHandleCount = 2;

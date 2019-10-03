@@ -1515,7 +1515,7 @@ get_online_cpu_count(void)
       }
     if (!cpus)
       cpus = 1;
-#  ifdef CONFIG_NEW_WIN_CHILDREN
+#  ifndef CONFIG_NEW_WIN_CHILDREN
     if (cpus > 64)
       cpus = 64; /* (wait for multiple objects limit) */
 #  endif
