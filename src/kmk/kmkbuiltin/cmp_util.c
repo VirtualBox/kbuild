@@ -285,7 +285,7 @@ c_regular(PKMKBUILTINCTX pCtx, int fd1, const char *file1, off_t skip1, off_t le
                 {
                     munmap(b1, blk_sz);
                     munmap(b2, blk_sz);
-                    return diffmsg(file1, file2, byte, line, sflag);
+                    return diffmsg(pCtx, file1, file2, byte, line, sflag);
                 }
                 dfound = 1;
 #ifdef _MSC_VER
