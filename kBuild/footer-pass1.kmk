@@ -1,4 +1,4 @@
-# $Id: footer-pass1.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: footer-pass1.kmk 3300 2019-10-25 14:54:11Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 1.
 #
@@ -239,8 +239,12 @@ $(eval-opt-var def_pass1_link_common)
 #
 define def_pass1_bldprog
 # set NOINST if not forced installation before doing the usual stuff.
-ifndef $(target)_INST
+ifndef $(target)_INSTTYPE
+ ifndef $(target)_INST
+  ifndef $(target)_STAGE
 $(target)_INSTTYPE := none
+  endif
+ endif
 endif
 $(evalvalctx def_pass1_link_common)
 endef
