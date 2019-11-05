@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 3284 2019-01-05 01:40:31Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 3301 2019-11-05 11:07:00Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -806,7 +806,7 @@ $(out) +| $(realout) $(more_output) $(maybe_output): \
 		$(deps) \
 		$(value _UNIT_QT5_MOC_HPP_CMDS_DEP) \
 		| \
-		$(orderdeps)
+		$(orderdeps) $(my_target_intermediate_vars)
 	%$$(call MSG_TOOL,moc,$(target),$(source),$$@)
 	$(QUIET2)$(RM) -f $(out) $(more_output) $(maybe_output) $(dep)
 
@@ -906,7 +906,7 @@ $(out) +| $(realout) $(more_output) $(maybe_output): \
 		$(deps) \
 		$(value _UNIT_QT5_MOC_CPP_CMDS_DEP) \
 		| \
-		$(orderdeps)
+		$(orderdeps) $(my_target_intermediate_vars)
 	%$$(call MSG_TOOL,moc,$(target),$(source),$$@)
 	$(QUIET2)$(RM) -f $(out) $(more_output) $(maybe_output) $(dep)
 
@@ -1088,6 +1088,10 @@ local qtrccdir := $($(target)_0_OUTDIR)/qtrcc
 local qtnlsdir := $($(target)_0_OUTDIR)/qtnls
 $(eval $(target)_BLDDIRS += $(qtmocdir) $(qtuicdir) $(qtrccdir) $(qtnlsdir))
 $(eval $(target)_INCS    += $(qtmocdir) $(qtuicdir))
+
+# Since we add a lot of stuff to 2_INTERMEDIATES, we must exclude it from the intermediates
+# used by the rules we generate to avoid circular dependencies.
+local my_target_intermediate_vars := $(filter-out %_2_INTERMEDIATES$(CLOSEPAR),$(target_intermediate_vars))
 
 # Deal with QT_MOCSRCS.
 $(foreach source, \
