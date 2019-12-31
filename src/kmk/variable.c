@@ -624,7 +624,11 @@ undefine_variable_in_set (const char *name, unsigned int length,
             strcache2_set_user_val (&variable_strcache, v->name, NULL);
 #endif
           free_variable_name_and_value (v);
+#ifndef CONFIG_WITH_ALLOC_CACHES
           free (v);
+#else
+          alloccache_free (&variable_cache, v);
+#endif
           if (set == &global_variable_set)
             ++variable_changenum;
         }
