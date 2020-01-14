@@ -1,4 +1,4 @@
-# $Id: OPENWATCOM-WL.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: OPENWATCOM-WL.kmk 3303 2020-01-14 15:09:44Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Open Watcom v1.4 and later, using wlink.
 #
@@ -42,7 +42,7 @@ TOOL_OPENWATCOM-WL_LDFLAGS.os2   ?= $(NO_SUCH_VARIABLE)
 TOOL_OPENWATCOM-WL_LDFLAGS.win   ?= $(NO_SUCH_VARIABLE)
 
 
-TOOL_OPENWATCOM-WL_LINK_PROGRAM_OUTPUT = $(outbase).map $(outbase).rsp
+TOOL_OPENWATCOM-WL_LINK_PROGRAM_OUTPUT_MAYBE_PRECIOUS = $(outbase).map $(outbase).rsp
 TOOL_OPENWATCOM-WL_LINK_PROGRAM_OUTPUT_MAYBE = $(outbase).sym
 TOOL_OPENWATCOM-WL_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_OPENWATCOM-WL_LINK_PROGRAM_DEPORD =
