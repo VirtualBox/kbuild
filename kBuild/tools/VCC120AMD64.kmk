@@ -1,4 +1,4 @@
-# $Id: VCC120AMD64.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: VCC120AMD64.kmk 3303 2020-01-14 15:09:44Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 12.0 (aka Visual 2013 and MSC v18), targeting AMD64.
 #
@@ -351,7 +351,7 @@ endef
 #
 TOOL_VCC120AMD64_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC120AMD64_LINK_PROGRAM_DEPORD =
-TOOL_VCC120AMD64_LINK_PROGRAM_OUTPUT = $(outbase).map $(outbase).rsp
+TOOL_VCC120AMD64_LINK_PROGRAM_OUTPUT_MAYBE_PRECIOUS = $(outbase).map $(outbase).rsp
 TOOL_VCC120AMD64_LINK_PROGRAM_OUTPUT_MAYBE = $(outbase).lib $(outbase).exp $(outbase).ilk $(out).manifest
 TOOL_VCC120AMD64_LINK_PROGRAM_OUTPUT_DEBUG = $(outbase).pdb
 TOOL_VCC120AMD64_LINK_PROGRAM_DEBUG_INSTALL_FN = $(2).pdb=>$(basename $(3)).pdb
@@ -392,9 +392,9 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_VCC120AMD64_LINK_DLL_DEPEND = $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC120AMD64_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_STAGE_LIB))
-TOOL_VCC120AMD64_LINK_DLL_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp $(outbase).rsp
+TOOL_VCC120AMD64_LINK_DLL_OUTPUT = $(outbase).lib $(outbase).exp
 TOOL_VCC120AMD64_LINK_DLL_OUTPUT_MAYBE = $(outbase).ilk $(out).manifest $(PATH_STAGE_LIB)/$(notdir $(outbase)).exp
-TOOL_VCC120AMD64_LINK_DLL_OUTPUT_MAYBE_PRECIOUS = $(PATH_STAGE_LIB)/$(notdir $(outbase)).lib
+TOOL_VCC120AMD64_LINK_DLL_OUTPUT_MAYBE_PRECIOUS = $(PATH_STAGE_LIB)/$(notdir $(outbase)).lib $(outbase).map $(outbase).rsp
 TOOL_VCC120AMD64_LINK_DLL_OUTPUT_DEBUG = $(outbase).pdb
 TOOL_VCC120AMD64_LINK_DLL_DEBUG_INSTALL_FN = $(2).pdb=>$(basename $(3)).pdb
 define TOOL_VCC120AMD64_LINK_DLL_CMDS
@@ -439,8 +439,8 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_VCC120AMD64_LINK_SYSMOD_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC120AMD64_LINK_SYSMOD_DEPORD =
-TOOL_VCC120AMD64_LINK_SYSMOD_OUTPUT = $(outbase).map $(outbase).rsp
 TOOL_VCC120AMD64_LINK_SYSMOD_OUTPUT_MAYBE = $(outbase).lib $(outbase).exp $(outbase).ilk $(out).manifest
+TOOL_VCC120AMD64_LINK_SYSMOD_OUTPUT_MAYBE_PRECIOUS = $(outbase).map $(outbase).rsp
 TOOL_VCC120AMD64_LINK_SYSMOD_OUTPUT_DEBUG = $(outbase).pdb
 TOOL_VCC120AMD64_LINK_SYSMOD_DEBUG_INSTALL_FN = $(2).pdb=>$(basename $(3)).pdb
 define TOOL_VCC120AMD64_LINK_SYSMOD_CMDS
