@@ -1,4 +1,4 @@
-# $Id: header.kmk 3253 2019-01-02 00:23:15Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3305 2020-01-14 15:11:48Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3253 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3305 $  )
 
 
 #
@@ -970,6 +970,9 @@ endif
 # Somewhat simple solution for automatic command dependencies.
 #
 
+## Included dependency files (used to be in footer.kmk).
+_DEPFILES_INCLUDED :=
+
 ## Temporary for the compile rule below.
 if "$(KBUILD_KMK_REVISION)" >= 3134
  KBUILD_HAVE_OPTIMIZED_APPEND := 1
@@ -1003,7 +1006,7 @@ endif
 #
 # @param 1     recipe name
 # @param 2     dep file.
-KB_FN_AUTO_CMD_DEPS_EX = $(eval includedep $2)$(eval _DEPFILES_INCLUDED += $2)$1: .MUST_MAKE = $$(comp-cmds-ex $$(AUTO_CMD_DEP_$(translate $1,:,_)_PREV_CMDS),$$(commands $1),FORCE)
+KB_FN_AUTO_CMD_DEPS_EX = $(eval includedep $2$(NL)_DEPFILES_INCLUDED += $2)$1: .MUST_MAKE = $$(comp-cmds-ex $$(AUTO_CMD_DEP_$(translate $1,:,_)_PREV_CMDS),$$(commands $1),FORCE)
 
 ##
 # $(call KB_FN_AUTO_CMD_DEPS_COMMANDS) as the first command in a recipe to

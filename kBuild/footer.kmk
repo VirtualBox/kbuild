@@ -1,4 +1,4 @@
-# $Id: footer.kmk 3128 2017-12-25 13:33:14Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 3305 2020-01-14 15:11:48Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at bottom of a makefile.
 #
@@ -94,9 +94,6 @@ _ALL_SRCNAME_TARGETS = \
 
 # Dependency files. (currently not on target level, only this global stuff)
 _DEPFILES        := $(DEPFILES)    $(DEPFILES.$(KBUILD_TARGET))      $(DEPFILES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))        $(DEPFILES.$(KBUILD_TARGET_ARCH))    $(DEPFILES.$(KBUILD_TARGET_CPU))     $(DEPFILES.$(KBUILD_TYPE))
-
-# included dependency files.
-_DEPFILES_INCLUDED :=
 
 
 # All kind of output files except for _OBJS and _DEPFILES.
