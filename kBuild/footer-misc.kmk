@@ -1,4 +1,4 @@
-# $Id: footer-misc.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: footer-misc.kmk 3307 2020-01-15 02:26:07Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Misc.
 #
@@ -119,13 +119,16 @@ do-clean:
 		$(_DEPFILES_INCLUDED) \
 		$(_CLEAN_FILES) \
 		$(OTHER_CLEAN) \
-		$(_STAGE_FILES)
+		$(_STAGE_FILES) \
+		$(_DEBUG_STAGE_FILES)
 	$(QUIET)$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist -- \
 		$(rsort $(dir   $(_OUT_FILES) \
 				$(_OBJS) \
 				$(_DEPFILES) \
 				$(_DEPFILES_INCLUDED) \
 				$(_CLEAN_FILES) \
-				$(OTHER_CLEAN))\
+				$(OTHER_CLEAN) \
+				$(_STAGE_FILES) \
+				$(_DEBUG_STAGE_FILES) )\
 			$(_STAGE_DIRS) )
 
