@@ -889,7 +889,7 @@ snap_deps (void)
       for (; f != 0; f = f->prev)
         expand_deps (f);
 
-#ifdef KMK
+#if 0 /* def KMK - not-parallel is a performance kill, but since double-colon is werid anyway, skip this hack. */
       /* This is a HACK to work around the still broken test #9 in
          features/double_colon.  It produces the wrong result if the build is
          parallel because of changed evaluation order.  Just make these
