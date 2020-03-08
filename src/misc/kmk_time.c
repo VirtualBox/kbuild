@@ -1,4 +1,4 @@
-/* $Id: kmk_time.c 3208 2018-03-29 03:54:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_time.c 3310 2020-03-08 19:10:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
@@ -180,11 +180,21 @@ static const char *name(const char *pszName)
 static int usage(FILE *pOut,  const char *argv0)
 {
     fprintf(pOut,
-            "usage: %s <program> [args]\n"
+            "usage: %s [options] [--] <program> [args]\n"
             "   or: %s --help\n"
             "   or: %s --version\n"
+            "\n"
+            "Options:\n"
+            "  -i <count>, --iteration <count>\n"
+            "      Run the program <count> times and display minium, maximum and average\n"
+            "      run times at the end.\n"
             ,
             argv0, argv0, argv0);
+#ifdef _MSC_VER
+    fprintf(pOut,
+            "  --unquoted\n"
+            "      Windows only: No argument quoting, use them as-is.\n");
+#endif
     return 1;
 }
 
