@@ -1,0 +1,147 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Options SYSTEM "http://www.slickedit.com/dtd/vse/14.0/options.dtd">
+<options>
+	<profile n="colorcoding_profiles.kmk" version="2">
+		<p n="idchars" v="a-zA-Z 0-9_"/>
+		<p n="case_sensitive" v="1"/>
+		<p n="styles" v=""/>
+		<p n="pu,("/>
+		<p n="pu,)"/>
+		<p n="pu,:"/>
+		<p n="pu,;"/>
+		<p n="pu,["/>
+		<p n="pu,]"/>
+		<p n="pu,{"/>
+		<p n="pu,}"/>
+		<p n="op,!"/>
+		<p n="op,#"/>
+		<p n="op,$"/>
+		<p n="op,%"/>
+		<p n="op,&amp;"/>
+		<p n="op,*"/>
+		<p n="op,+"/>
+		<p n="op,,"/>
+		<p n="op,-"/>
+		<p n="op,."/>
+		<p n="op,/"/>
+		<p n="op,&lt;"/>
+		<p n="op,="/>
+		<p n="op,&gt;"/>
+		<p n="op,?"/>
+		<p n="op,^"/>
+		<p n="op,`"/>
+		<p n="op,|"/>
+		<p n="op,~"/>
+		<p n="op,:="/>
+		<p n="op,+="/>
+		<p n="op,&gt;="/>
+		<p n="op,|+"/>
+		<p n="op,:"/>
+		<p n="op,::"/>
+		<p n="k,export"/>
+		<p n="k,override"/>
+		<p n="lib,abspath"/>
+		<p n="lib,abspathex"/>
+		<p n="lib,addprefix"/>
+		<p n="lib,addsuffix"/>
+		<p n="lib,and"/>
+		<p n="lib,basename"/>
+		<p n="lib,call"/>
+		<p n="lib,comp-cmds"/>
+		<p n="lib,comp-vars"/>
+		<p n="lib,date"/>
+		<p n="lib,date-utc"/>
+		<p n="lib,dir"/>
+		<p n="lib,eq"/>
+		<p n="lib,error"/>
+		<p n="lib,eval"/>
+		<p n="lib,expr"/>
+		<p n="lib,file-size"/>
+		<p n="lib,filter"/>
+		<p n="lib,filter-out"/>
+		<p n="lib,findstring"/>
+		<p n="lib,firstword"/>
+		<p n="lib,flavor"/>
+		<p n="lib,foreach"/>
+		<p n="lib,if-expr"/>
+		<p n="lib,info"/>
+		<p n="lib,int-add"/>
+		<p n="lib,int-and"/>
+		<p n="lib,int-div"/>
+		<p n="lib,int-eq"/>
+		<p n="lib,int-ge"/>
+		<p n="lib,int-gt"/>
+		<p n="lib,int-le"/>
+		<p n="lib,int-lt"/>
+		<p n="lib,int-mod"/>
+		<p n="lib,int-mul"/>
+		<p n="lib,int-ne"/>
+		<p n="lib,int-not"/>
+		<p n="lib,int-or"/>
+		<p n="lib,int-sub"/>
+		<p n="lib,int-xor"/>
+		<p n="lib,join"/>
+		<p n="lib,kb-obj-base"/>
+		<p n="lib,kb-obj-suff"/>
+		<p n="lib,kb-src-one"/>
+		<p n="lib,kb-src-prop"/>
+		<p n="lib,kb-src-tool"/>
+		<p n="lib,lastword"/>
+		<p n="lib,nanots"/>
+		<p n="lib,not"/>
+		<p n="lib,notdir"/>
+		<p n="lib,or"/>
+		<p n="lib,origin"/>
+		<p n="lib,patsubst"/>
+		<p n="lib,realpath"/>
+		<p n="lib,rsort"/>
+		<p n="lib,shell"/>
+		<p n="lib,sort"/>
+		<p n="lib,stack-pop"/>
+		<p n="lib,stack-popv"/>
+		<p n="lib,stack-push"/>
+		<p n="lib,stack-top"/>
+		<p n="lib,strip"/>
+		<p n="lib,subst"/>
+		<p n="lib,suffix"/>
+		<p n="lib,tolower"/>
+		<p n="lib,toupper"/>
+		<p n="lib,value"/>
+		<p n="lib,warning"/>
+		<p n="lib,which"/>
+		<p n="lib,wildcard"/>
+		<p n="lib,word"/>
+		<p n="lib,wordlist"/>
+		<p n="lib,words"/>
+		<p n="lib,xargs"/>
+		<p n="pp,bool"/>
+		<p n="pp,define"/>
+		<p n="pp,defined"/>
+		<p n="pp,else"/>
+		<p n="pp,endif"/>
+		<p n="pp,endef"/>
+		<p n="pp,if"/>
+		<p n="pp,if1of"/>
+		<p n="pp,ifn1of"/>
+		<p n="pp,ifdef"/>
+		<p n="pp,ifndef"/>
+		<p n="pp,ifeq"/>
+		<p n="pp,ifneq"/>
+		<p n="pp,include"/>
+		<p n="pp,includedep"/>
+		<p n="pp,num"/>
+		<p n="pp,string"/>
+		<p n="pp,target"/>
+		<p n="comment,#">
+			<attrs color_to_eol="comment"/>
+		</p>
+		<p n="string,'">
+			<attrs end="'" escape_char="\"/>
+		</p>
+		<p n='string,"'>
+			<attrs end='"' escape_char="\"/>
+		</p>
+		<p n="mn_flags" v="digit_int digit_float dot_float"/>
+	</profile>
+</options>
+

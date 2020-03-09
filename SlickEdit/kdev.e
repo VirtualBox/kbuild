@@ -1,4 +1,4 @@
-/* $Id: kdev.e 3146 2018-03-15 17:01:15Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 3311 2020-03-09 22:20:32Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3544,11 +3544,64 @@ int def_auto_unsurround_block;
 int def_gui_find_default;
 #endif
 
+static void kdev_ext_to_lang(_str sExt, _str idLang)
+{
+#if __VERSION__ >= 21.0 // dunno when exactly.
+    _SetExtensionReferTo(sExt, idLang);
+#else
+    replace_def_data("def-lang-for-ext-" :+ sExt, idLand);
+#endif
+}
+
+#if __VERSION__ >= 21.0
+
+static _str kdev_load_lexer(_str sFilename)
+{
+    int rc = cload(sFilename);
+    if (rc == 0)
+        return "";
+    return ' Failed to load "' sFilename "': " rc ";";
+}
+
+/** Doesn't seems like there is an API to just load a bunch of profiles, only I
+ * could find would load one named profile for a specific language, making it
+ * the new profile for that language.  So, a little extra work here.  */
+static _str kdev_load_beautifier_profiles(_str sFilename)
+{
+    _str sRet = '';
+    int iStatus = 0;
+    auto hXml = _xmlcfg_open(sFilename, iStatus);
+    if (hXml >= 0)
+    {
+        _str asProfiles[];
+        iStatus = _xmlcfg_find_simple_array(hXml, "//profile/@n", asProfiles, TREE_ROOT_INDEX, VSXMLCFG_FIND_VALUES, -1);
+        _xmlcfg_close(hXml);
+
+        _str sProfile;
+        foreach (sProfile in asProfiles)
+        {
+            _str asElements[] = split2array(sProfile, '.');
+            _str sLangId      = asElements[1];
+            _str sProfileName = substr(sProfile, 1 + length(asElements[0])
+                                               + 1 + length(asElements[1])
+                                               + 1 + length(asElements[2]) + 1);
+            //say("sLangId='" sLangId "' sProfileName='" sProfileName "'; ");
+            _str sErr = _new_beautifier_config_import_settings(sFilename, sProfileName, sLangId);
+            if (sErr != "")
+                sRet = ' Failed to load "' sProfileName "' for '" sLangId "' from '" sFilename "': " sRet ";";
+        }
+    }
+    else
+        sRet = " Failed to open '" sFilename "': " hXml ";";
+    return sRet;
+}
+
+#endif
 
 /**
  * Loads the standard bird settings.
  */
-_command void kdev_load_settings()
+_command void kdev_load_settings(_str sScriptDir = "")
 {
     typeless nt1;
     typeless nt2;
@@ -3559,14 +3612,48 @@ _command void kdev_load_settings()
     typeless i7;
     _str sRest;
     _str sTmp;
+    _str sMsg = 'Please restart SlickEdit.';
+
+    /*
+     * Validate script dir argument.
+     */
+    sScriptDir = _maybe_unquote_filename(sScriptDir);
+    if (sScriptDir == "")
+    {
+        message("Need script dir argument!");
+        return;
+    }
+    if (!file_exists(sScriptDir :+ "/lexer-kmk.cfg.xml"))
+    {
+        message("Invalid script dir '" sScriptDir "' no lexer-kmk.cfg.xml file found!");
+        return;
+    }
 
 #if __VERSION__ >= 21.0
     /*
-     * Load the color profile (was lexer).
+     * Load the color profiles (was lexer).
      */
-    int rc = cload(_strip_filename(__FILE__, 'N') '/user.vlx');
+    sMsg = sMsg :+ kdev_load_lexer(sScriptDir :+  "/lexer-kmk-v2.cfg.xml");
+
+    /*
+     * Load project templates for kBuild.
+     */
+    int rc = importProjectPacks(sScriptDir :+ "/usrprjtemplates.vpt");
     if (rc != 0)
-        messageNwait('cload of user.vlx failed: ' rc);
+        sMsg = sMsg :+ " importProjectPacks(usrprjtemplates.vpt)->" :+ rc :+ ";";
+
+    /*
+     * Load the beautifier profiles.
+     */
+    sMsg = sMsg :+ kdev_load_beautifier_profiles(sScriptDir :+ "/beautifier-profiles.cfg.xml");
+
+    /*
+     * Load color and select scheme.
+     */
+    _str sErr = _color_form_import_settings(sScriptDir :+ "/color_profiles.cfg.xml", 'Solarized Dark');
+    if (sErr != "")
+        sMsg = sMsg :+ " _color_form_import_settings(color_profiles.cfg.xml)->" :+ sErr :+ ";";
+    _app_theme('Dark', true);
 #endif
 
     /*
@@ -3687,10 +3774,12 @@ _command void kdev_load_settings()
         LanguageSettings.setTabs(sLangId, "8+");
         LanguageSettings.setSyntaxIndent(sLangId, 4);
 
-        /* C/C++ setup, wrap at column 80 not 64. */
+        /* C/C++ setup, fixed comment width of 80 not 64, no max column. */
 # if __VERSION__ >= 21.0
-        if (_LangGetPropertyInt32(sLangId, VSLANGPROPNAME_CW_FIXED_RIGHT_COLUMN) < 80)
-            _LangSetPropertyInt32(sLangId, VSLANGPROPNAME_CW_FIXED_RIGHT_COLUMN, 80);
+        _SetCommentWrapFlags(CW_MAX_RIGHT, false, sLangId);
+        _SetCommentWrapFlags(CW_USE_FIXED_WIDTH, true, sLangId);
+        if (_LangGetPropertyInt32(sLangId, VSLANGPROPNAME_CW_FIXED_WIDTH_SIZE) < 80)
+            _LangSetPropertyInt32(sLangId, VSLANGPROPNAME_CW_FIXED_WIDTH_SIZE, 80);
 # else
         sTmp = LanguageSettings.getCommentWrapOptions(sLangId);
         if (length(sTmp) > 10)
@@ -3735,11 +3824,11 @@ _command void kdev_load_settings()
     LanguageSettings.setBeautifierProfileName('m', "bird's Objective-C Style");
 
     /* Fix .asm and add .mac, .kmk, .cmd, and .pgsql. */
-    replace_def_data("def-lang-for-ext-asm",   'masm');
-    replace_def_data("def-lang-for-ext-mac",   'masm');
-    replace_def_data("def-lang-for-ext-kmk",   'mak');
-    replace_def_data("def-lang-for-ext-cmd",   'bat');
-    replace_def_data("def-lang-for-ext-pgsql", 'plsql');
+    kdev_ext_to_lang("asm",   'masm');
+    kdev_ext_to_lang("mac",   'masm');
+    kdev_ext_to_lang("kmk",   'mak');
+    kdev_ext_to_lang("cmd",   'bat');
+    kdev_ext_to_lang("pgsql", 'plsql');
 
     /*
      * Change the codehelp default.
@@ -3799,7 +3888,7 @@ _command void kdev_load_settings()
      *  - Auto restore clipboards
      *   */
 
-    message("Please restart SlickEdit.")
+    message(sMsg)
 }
 
 
