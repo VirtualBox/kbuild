@@ -1,0 +1,551 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Options SYSTEM "http://www.slickedit.com/dtd/vse/14.0/options.dtd">
+<options>
+	<profile n="language.m.beautifier_profiles.bird's Objective-C Style" version="1">
+		<p n="align_lbrace_with_case" v="1"/>
+		<p n="align_on_assignment_op" v="1"/>
+		<p n="align_trinary_branches" v="0"/>
+		<p n="bl_after_end_block_catch" v="0" apply="0"/>
+		<p n="bl_after_end_block_do" v="0" apply="0"/>
+		<p n="bl_after_end_block_for" v="0" apply="0"/>
+		<p n="bl_after_end_block_if" v="0" apply="0"/>
+		<p n="bl_after_end_block_switch" v="0" apply="0"/>
+		<p n="bl_after_end_block_while" v="0" apply="0"/>
+		<p n="bl_after_locals" v="1" apply="0"/>
+		<p n="bl_after_member_access" v="1" apply="0"/>
+		<p n="bl_after_start_block_catch" v="0" apply="0"/>
+		<p n="bl_after_start_block_do" v="0" apply="0"/>
+		<p n="bl_after_start_block_for" v="0" apply="0"/>
+		<p n="bl_after_start_block_fun" v="0" apply="0"/>
+		<p n="bl_after_start_block_if" v="0" apply="0"/>
+		<p n="bl_after_start_block_switch" v="0" apply="0"/>
+		<p n="bl_after_start_block_try" v="0" apply="0"/>
+		<p n="bl_after_start_block_while" v="0" apply="0"/>
+		<p n="bl_before_case" v="1" apply="0"/>
+		<p n="bl_before_first_decl" v="0" apply="0"/>
+		<p n="bl_before_locals" v="1" apply="0"/>
+		<p n="bl_before_member_access" v="0" apply="0"/>
+		<p n="bl_between_classes" v="0" apply="0"/>
+		<p n="bl_between_commented_member_var_decls" v="1" apply="0"/>
+		<p n="bl_between_different_decls" v="0" apply="0"/>
+		<p n="bl_between_fun_prototypes" v="1" apply="0"/>
+		<p n="bl_between_funs" v="0" apply="0"/>
+		<p n="bl_between_member_classes" v="0" apply="0"/>
+		<p n="bl_between_member_var_decls" v="0" apply="0"/>
+		<p n="braceloc_asm" v="1"/>
+		<p n="braceloc_catch" v="1"/>
+		<p n="braceloc_class" v="1"/>
+		<p n="braceloc_do" v="1"/>
+		<p n="braceloc_enum" v="1"/>
+		<p n="braceloc_for" v="1"/>
+		<p n="braceloc_fun" v="1"/>
+		<p n="braceloc_if" v="1"/>
+		<p n="braceloc_multiline_cond" v="10"/>
+		<p n="braceloc_namespace" v="1"/>
+		<p n="braceloc_struct" v="1"/>
+		<p n="braceloc_switch" v="1"/>
+		<p n="braceloc_try" v="1"/>
+		<p n="braceloc_union" v="1"/>
+		<p n="braceloc_while" v="1"/>
+		<p n="dox_bl_after_brief" v="1" apply="0"/>
+		<p n="dox_bl_between_different_tags" v="1" apply="0"/>
+		<p n="dox_bl_between_same_tags" v="0" apply="0"/>
+		<p n="dox_format_pre" v="1" apply="0"/>
+		<p n="dox_indent_param_desc" v="1" apply="0"/>
+		<p n="dox_indent_past_param_name" v="0" apply="0"/>
+		<p n="dox_nl_at_start_and_end" v="1" apply="0"/>
+		<p n="dox_rm_blank_lines" v="0" apply="0"/>
+		<p n="indent_case" v="1"/>
+		<p n="indent_class_body" v="1"/>
+		<p n="indent_col1_comments" v="0"/>
+		<p n="indent_comments" v="1"/>
+		<p n="indent_extern_body" v="0"/>
+		<p n="indent_first_level" v="1"/>
+		<p n="indent_from_brace" v="0"/>
+		<p n="indent_if_of_else_if" v="1" apply="1"/>
+		<p n="indent_label" v="0"/>
+		<p n="indent_member_access" v="0"/>
+		<p n="indent_member_access_relative" v="0"/>
+		<p n="indent_namespace_body" v="0"/>
+		<p n="indent_on_return_type_continuation" v="0"/>
+		<p n="indent_width_case" v="4"/>
+		<p n="indent_width_continuation" v="4"/>
+		<p n="indent_width_label" v="1"/>
+		<p n="indent_width_member_access" v="1"/>
+		<p n="indent_with_tabs" v="0"/>
+		<p n="jd_bl_before_tags" v="1" apply="0"/>
+		<p n="jd_bl_between_different_tags" v="1" apply="0"/>
+		<p n="jd_bl_between_same_tags" v="0" apply="0"/>
+		<p n="jd_format_html" v="1" apply="0"/>
+		<p n="jd_format_pre" v="1" apply="0"/>
+		<p n="jd_indent_param_desc" v="1" apply="0"/>
+		<p n="jd_indent_past_param_name" v="1" apply="0"/>
+		<p n="jd_nl_at_start_and_end" v="1" apply="0"/>
+		<p n="jd_rm_blank_lines" v="0" apply="0"/>
+		<p n="justify_member_var_decls" v="0" apply="0"/>
+		<p n="justify_var_decls" v="0" apply="0"/>
+		<p n="leave_class_one_line_block" v="1"/>
+		<p n="leave_multiple_decl" v="1"/>
+		<p n="leave_multiple_stmt" v="1"/>
+		<p n="leave_one_line_code_blocks" v="1"/>
+		<p n="listalign2_expr_parens" v="0"/>
+		<p n="listalign_fun_call_params" v="2"/>
+		<p n="max_line_len" v="80" apply="0"/>
+		<p n="nl_after_case" v="1" apply="0"/>
+		<p n="nl_after_extern" v="1" apply="1"/>
+		<p n="nl_before_else" v="1" apply="1"/>
+		<p n="nl_empty_block" v="0" apply="1"/>
+		<p n="nl_empty_class_body" v="0" apply="0"/>
+		<p n="nl_empty_fun_body" v="1" apply="0"/>
+		<p n="objc_align_meth_call_on_colon" v="1"/>
+		<p n="objc_align_meth_call_selectors_right" v="1"/>
+		<p n="objc_align_meth_decl_on_colon" v="1"/>
+		<p n="objc_indent_width_lambda_body" v="4"/>
+		<p n="objc_listalign2_meth_call_brackets" v="0"/>
+		<p n="objc_sp_category_before_lparen" v="1" apply="1"/>
+		<p n="objc_sp_category_before_rparen" v="1" apply="1"/>
+		<p n="objc_sp_meth_param_after_rparen" v="0" apply="1"/>
+		<p n="objc_sp_meth_param_before_lparen" v="0" apply="1"/>
+		<p n="objc_sp_meth_return_type_after_rparen" v="0" apply="1"/>
+		<p n="objc_sp_meth_return_type_before_lparen" v="1" apply="1"/>
+		<p n="objc_sp_property_after_rparen" v="1" apply="1"/>
+		<p n="objc_sp_property_before_lparen" v="1" apply="1"/>
+		<p n="objc_sp_protocol_before_lparen" v="1" apply="1"/>
+		<p n="objc_sp_protocol_before_rparen" v="1" apply="1"/>
+		<p n="objc_sp_synchronized_after_rparen" v="0" apply="1"/>
+		<p n="objc_sp_synchronized_before_lparen" v="0" apply="1"/>
+		<p n="objc_sppad_category_parens" v="0" apply="1"/>
+		<p n="objc_sppad_meth_param_parens" v="0" apply="1"/>
+		<p n="objc_sppad_meth_return_type_parens" v="0" apply="1"/>
+		<p n="objc_sppad_property_parens" v="0" apply="1"/>
+		<p n="objc_sppad_protocol_parens" v="0" apply="1"/>
+		<p n="objc_sppad_synchronized_parens" v="0" apply="1"/>
+		<p n="objc_spstyle_call_selector_colon" v="2" apply="1"/>
+		<p n="objc_spstyle_decl_selector_colon" v="2" apply="1"/>
+		<p n="objc_spstyle_dynamic_comma" v="2" apply="1"/>
+		<p n="objc_spstyle_finally_lbrace" v="3" apply="1"/>
+		<p n="objc_spstyle_property_comma" v="2" apply="1"/>
+		<p n="objc_spstyle_property_eq" v="0" apply="1"/>
+		<p n="objc_spstyle_protocol_comma" v="2" apply="1"/>
+		<p n="objc_spstyle_synchronized_lbrace" v="3" apply="1"/>
+		<p n="objc_spstyle_synthesize_comma" v="2" apply="1"/>
+		<p n="objc_spstyle_synthesize_eq" v="0" apply="1"/>
+		<p n="oneline_catch" v="0" apply="1"/>
+		<p n="oneline_dowhile" v="1" apply="1"/>
+		<p n="oneline_elseif" v="1" apply="1"/>
+		<p n="oneline_unblocked_else" v="0" apply="1"/>
+		<p n="oneline_unblocked_statement" v="0" apply="1"/>
+		<p n="oneline_unblocked_then" v="0" apply="1"/>
+		<p n="original_tab_size" v="4" apply="0"/>
+		<p n="pp_indent" v="0"/>
+		<p n="pp_indent_in_code_block" v="0"/>
+		<p n="pp_indent_in_header_guard" v="0"/>
+		<p n="pp_indent_with_code" v="0"/>
+		<p n="pp_keep_pound_in_col1" v="0"/>
+		<p n="ra_fun_void_in_empty_param_list" v="1" apply="0"/>
+		<p n="ra_throw_parens" v="1" apply="0"/>
+		<p n="rai_return_parens" v="1" apply="0"/>
+		<p n="require_new_line_after_member_access" v="1"/>
+		<p n="require_new_line_at_eof" v="1"/>
+		<p n="rm_dup_spaces" v="0"/>
+		<p n="rm_return_type_new_lines" v="0"/>
+		<p n="rm_trailing_spaces" v="1"/>
+		<p n="sp_array_decl_after_rbracket" v="0" apply="1"/>
+		<p n="sp_array_decl_before_lbracket" v="0" apply="1"/>
+		<p n="sp_array_del_before_lbracket" v="0" apply="1"/>
+		<p n="sp_array_del_rbracket" v="1" apply="1"/>
+		<p n="sp_array_expr_after_rbracket" v="0" apply="1"/>
+		<p n="sp_array_expr_before_lbracket" v="0" apply="1"/>
+		<p n="sp_cast_after_rparen" v="0" apply="1"/>
+		<p n="sp_cast_before_lparen" v="0" apply="1"/>
+		<p n="sp_catch_after_rparen" v="1" apply="1"/>
+		<p n="sp_catch_before_lparen" v="1" apply="1"/>
+		<p n="sp_cppcast_after_gt" v="0" apply="1"/>
+		<p n="sp_cppcast_before_lt" v="0" apply="1"/>
+		<p n="sp_expr_after_rparen" v="0" apply="1"/>
+		<p n="sp_expr_before_lparen" v="0" apply="1"/>
+		<p n="sp_for_after_rparen" v="1" apply="1"/>
+		<p n="sp_for_before_lparen" v="1" apply="1"/>
+		<p n="sp_fptr_after_rparen" v="0" apply="1"/>
+		<p n="sp_fptr_before_lparen" v="1" apply="1"/>
+		<p n="sp_fptr_between_star_and_id" v="1" apply="1"/>
+		<p n="sp_fun_after_operator" v="0" apply="1"/>
+		<p n="sp_fun_after_rparen" v="0" apply="1"/>
+		<p n="sp_fun_before_lparen" v="0" apply="1"/>
+		<p n="sp_fun_call_after_operator" v="0" apply="1"/>
+		<p n="sp_fun_call_after_rparen" v="0" apply="1"/>
+		<p n="sp_fun_call_before_lparen" v="0" apply="1"/>
+		<p n="sp_fun_call_empty_parens" v="0" apply="1"/>
+		<p n="sp_fun_empty_parens" v="0" apply="1"/>
+		<p n="sp_if_after_rparen" v="1" apply="1"/>
+		<p n="sp_if_before_lparen" v="1" apply="1"/>
+		<p n="sp_lambda_after_rbracket" v="0" apply="1"/>
+		<p n="sp_lambda_before_lbracket" v="0" apply="1"/>
+		<p n="sp_mptr_between_coloncolon_and_star" v="0" apply="1"/>
+		<p n="sp_new_after_rparen" v="1" apply="1"/>
+		<p n="sp_new_before_lparen" v="0" apply="1"/>
+		<p n="sp_ptr_between_star_and_amp" v="0" apply="1"/>
+		<p n="sp_ptr_between_star_and_id" v="0" apply="1"/>
+		<p n="sp_ptr_between_star_and_lparen" v="0" apply="1"/>
+		<p n="sp_ptr_between_star_and_qualifier" v="1" apply="1"/>
+		<p n="sp_ptr_between_star_and_rparen" v="0" apply="1"/>
+		<p n="sp_ptr_between_star_and_star" v="0" apply="1"/>
+		<p n="sp_ptr_between_type_and_star" v="1" apply="1"/>
+		<p n="sp_ptr_cast_proto_between_type_and_star" v="1" apply="1"/>
+		<p n="sp_ptr_return_type_between_type_and_star" v="1" apply="1"/>
+		<p n="sp_ref_between_amp_and_id" v="0" apply="1"/>
+		<p n="sp_ref_between_amp_and_lparen" v="0" apply="1"/>
+		<p n="sp_ref_between_amp_and_rparen" v="0" apply="1"/>
+		<p n="sp_ref_between_type_and_amp" v="1" apply="1"/>
+		<p n="sp_ref_cast_proto_between_type_and_amp" v="1" apply="1"/>
+		<p n="sp_ref_return_type_between_type_and_amp" v="1" apply="1"/>
+		<p n="sp_return_after_rparen" v="0" apply="1"/>
+		<p n="sp_return_before_lparen" v="1" apply="1"/>
+		<p n="sp_stmt_after_semicolon" v="1" apply="1"/>
+		<p n="sp_stmt_before_semicolon" v="0" apply="1"/>
+		<p n="sp_switch_after_rparen" v="1" apply="1"/>
+		<p n="sp_switch_before_lparen" v="1" apply="1"/>
+		<p n="sp_throw_after_rparen" v="0" apply="1"/>
+		<p n="sp_throw_before_lparen" v="1" apply="1"/>
+		<p n="sp_tmpl_decl_before_lt" v="0" apply="1"/>
+		<p n="sp_tmpl_parm_before_lt" v="0" apply="1"/>
+		<p n="sp_while_after_rparen" v="1" apply="1"/>
+		<p n="sp_while_before_lparen" v="1" apply="1"/>
+		<p n="sppad_array_decl_brackets" v="0" apply="1"/>
+		<p n="sppad_array_del_brackets" v="0" apply="1"/>
+		<p n="sppad_array_expr_brackets" v="0" apply="1"/>
+		<p n="sppad_cast_parens" v="0" apply="1"/>
+		<p n="sppad_catch_parens" v="0" apply="1"/>
+		<p n="sppad_cppcast_angle_brackets" v="0" apply="1"/>
+		<p n="sppad_expr_parens" v="0" apply="1"/>
+		<p n="sppad_for_parens" v="0" apply="1"/>
+		<p n="sppad_fptr_parens" v="0" apply="1"/>
+		<p n="sppad_fun_call_parens" v="0" apply="1"/>
+		<p n="sppad_fun_parens" v="0" apply="1"/>
+		<p n="sppad_if_parens" v="0" apply="1"/>
+		<p n="sppad_lambda_braces" v="0" apply="1"/>
+		<p n="sppad_lambda_brackets" v="0" apply="1"/>
+		<p n="sppad_new_parens" v="0" apply="1"/>
+		<p n="sppad_return_parens" v="0" apply="1"/>
+		<p n="sppad_switch_parens" v="0" apply="1"/>
+		<p n="sppad_throw_parens" v="0" apply="1"/>
+		<p n="sppad_tmpl_decl_angle_brackets" v="0" apply="1"/>
+		<p n="sppad_tmpl_parm_angle_brackets" v="0" apply="1"/>
+		<p n="sppad_while_parens" v="0" apply="1"/>
+		<p n="spstyle_catch_lbrace" v="1" apply="1"/>
+		<p n="spstyle_class_colon" v="3" apply="1"/>
+		<p n="spstyle_class_comma" v="2" apply="1"/>
+		<p n="spstyle_class_lbrace" v="1" apply="1"/>
+		<p n="spstyle_constr_init_list_comma" v="2" apply="1"/>
+		<p n="spstyle_enum_colon" v="3" apply="1"/>
+		<p n="spstyle_enum_const_comma" v="2" apply="1"/>
+		<p n="spstyle_enum_const_eq" v="3" apply="1"/>
+		<p n="spstyle_enum_lbrace" v="1" apply="1"/>
+		<p n="spstyle_for_comma" v="2" apply="1"/>
+		<p n="spstyle_for_lbrace" v="1" apply="0"/>
+		<p n="spstyle_for_semicolon" v="2" apply="1"/>
+		<p n="spstyle_fun_call_comma" v="2" apply="1"/>
+		<p n="spstyle_fun_colon" v="3" apply="1"/>
+		<p n="spstyle_fun_comma" v="2" apply="1"/>
+		<p n="spstyle_fun_eq" v="3" apply="1"/>
+		<p n="spstyle_fun_lbrace" v="3" apply="1"/>
+		<p n="spstyle_if_lbrace" v="1" apply="1"/>
+		<p n="spstyle_init_comma" v="2" apply="1"/>
+		<p n="spstyle_init_list_comma" v="2" apply="1"/>
+		<p n="spstyle_init_rbrace" v="1" apply="1"/>
+		<p n="spstyle_member_dot" v="0" apply="1"/>
+		<p n="spstyle_namespace_lbrace" v="3" apply="1"/>
+		<p n="spstyle_op_addressof" v="0" apply="1"/>
+		<p n="spstyle_op_assignment" v="3" apply="1"/>
+		<p n="spstyle_op_binary" v="3" apply="1"/>
+		<p n="spstyle_op_bitwise" v="3" apply="1"/>
+		<p n="spstyle_op_comparison" v="3" apply="1"/>
+		<p n="spstyle_op_dashgt" v="0" apply="1"/>
+		<p n="spstyle_op_dashgtstar" v="0" apply="1"/>
+		<p n="spstyle_op_dereference" v="0" apply="1"/>
+		<p n="spstyle_op_dotstar" v="0" apply="1"/>
+		<p n="spstyle_op_logical" v="3" apply="1"/>
+		<p n="spstyle_op_mult" v="3" apply="1"/>
+		<p n="spstyle_op_postfix" v="0" apply="1"/>
+		<p n="spstyle_op_prefix" v="0" apply="1"/>
+		<p n="spstyle_op_unary" v="0" apply="1"/>
+		<p n="spstyle_struct_colon" v="3" apply="1"/>
+		<p n="spstyle_struct_comma" v="2" apply="1"/>
+		<p n="spstyle_struct_lbrace" v="1" apply="1"/>
+		<p n="spstyle_switch_lbrace" v="1" apply="1"/>
+		<p n="spstyle_tmpl_decl_comma" v="2" apply="1"/>
+		<p n="spstyle_tmpl_decl_eq" v="3" apply="1"/>
+		<p n="spstyle_tmplparm_comma" v="2" apply="1"/>
+		<p n="spstyle_try_lbrace" v="3" apply="1"/>
+		<p n="spstyle_union_before_lbrace" v="1" apply="1"/>
+		<p n="spstyle_while_lbrace" v="1" apply="1"/>
+		<p n="syntax_indent" v="4"/>
+		<p n="tab_size" v="+8"/>
+		<p n="trailing_comment_col" v="70"/>
+		<p n="trailing_comment_style" v="2"/>
+		<p n="xdoc_bl_between_different_tags" v="1" apply="0"/>
+		<p n="xdoc_bl_between_same_tags" v="0" apply="0"/>
+		<p n="xdoc_format_pre" v="1" apply="0"/>
+		<p n="xdoc_nl_after_open_tag" v="1" apply="0"/>
+		<p n="xdoc_nl_before_close_tag" v="1" apply="0"/>
+		<p n="xdoc_rm_blank_lines" v="1" apply="0"/>
+	</profile>
+	<profile n="language.c.beautifier_profiles.bird's Style" version="1">
+		<p n="align_lbrace_with_case" v="1"/>
+		<p n="align_on_assignment_op" v="1"/>
+		<p n="align_trinary_branches" v="0"/>
+		<p n="bl_after_end_block_catch" v="0" apply="0"/>
+		<p n="bl_after_end_block_do" v="0" apply="0"/>
+		<p n="bl_after_end_block_for" v="0" apply="0"/>
+		<p n="bl_after_end_block_if" v="0" apply="0"/>
+		<p n="bl_after_end_block_switch" v="0" apply="0"/>
+		<p n="bl_after_end_block_while" v="0" apply="0"/>
+		<p n="bl_after_locals" v="1" apply="0"/>
+		<p n="bl_after_member_access" v="1" apply="0"/>
+		<p n="bl_after_start_block_catch" v="0" apply="0"/>
+		<p n="bl_after_start_block_do" v="0" apply="0"/>
+		<p n="bl_after_start_block_for" v="0" apply="0"/>
+		<p n="bl_after_start_block_fun" v="0" apply="0"/>
+		<p n="bl_after_start_block_if" v="0" apply="0"/>
+		<p n="bl_after_start_block_switch" v="0" apply="0"/>
+		<p n="bl_after_start_block_try" v="0" apply="0"/>
+		<p n="bl_after_start_block_while" v="0" apply="0"/>
+		<p n="bl_before_case" v="1" apply="0"/>
+		<p n="bl_before_first_decl" v="0" apply="0"/>
+		<p n="bl_before_locals" v="1" apply="0"/>
+		<p n="bl_before_member_access" v="0" apply="0"/>
+		<p n="bl_between_classes" v="0" apply="0"/>
+		<p n="bl_between_commented_member_var_decls" v="1" apply="0"/>
+		<p n="bl_between_different_decls" v="0" apply="0"/>
+		<p n="bl_between_fun_prototypes" v="1" apply="0"/>
+		<p n="bl_between_funs" v="0" apply="0"/>
+		<p n="bl_between_member_classes" v="0" apply="0"/>
+		<p n="bl_between_member_var_decls" v="0" apply="0"/>
+		<p n="braceloc_anon_class" v="1"/>
+		<p n="braceloc_asm" v="1"/>
+		<p n="braceloc_catch" v="1"/>
+		<p n="braceloc_class" v="1"/>
+		<p n="braceloc_do" v="1"/>
+		<p n="braceloc_enum" v="1"/>
+		<p n="braceloc_for" v="1"/>
+		<p n="braceloc_fun" v="1"/>
+		<p n="braceloc_if" v="1"/>
+		<p n="braceloc_multiline_cond" v="10"/>
+		<p n="braceloc_namespace" v="1"/>
+		<p n="braceloc_struct" v="1"/>
+		<p n="braceloc_switch" v="1"/>
+		<p n="braceloc_try" v="1"/>
+		<p n="braceloc_union" v="1"/>
+		<p n="braceloc_while" v="1"/>
+		<p n="dox_bl_after_brief" v="1" apply="0"/>
+		<p n="dox_bl_between_different_tags" v="1" apply="0"/>
+		<p n="dox_bl_between_same_tags" v="0" apply="0"/>
+		<p n="dox_format_pre" v="1" apply="0"/>
+		<p n="dox_indent_param_desc" v="1" apply="0"/>
+		<p n="dox_indent_past_param_name" v="0" apply="0"/>
+		<p n="dox_nl_at_start_and_end" v="1" apply="0"/>
+		<p n="dox_rm_blank_lines" v="0" apply="0"/>
+		<p n="indent_case" v="1"/>
+		<p n="indent_class_body" v="1"/>
+		<p n="indent_col1_comments" v="0"/>
+		<p n="indent_comments" v="1"/>
+		<p n="indent_extern_body" v="0"/>
+		<p n="indent_first_level" v="1"/>
+		<p n="indent_from_brace" v="0"/>
+		<p n="indent_if_of_else_if" v="1" apply="1"/>
+		<p n="indent_label" v="0"/>
+		<p n="indent_member_access" v="0"/>
+		<p n="indent_member_access_relative" v="0"/>
+		<p n="indent_namespace_body" v="0"/>
+		<p n="indent_on_return_type_continuation" v="0"/>
+		<p n="indent_width_case" v="4"/>
+		<p n="indent_width_continuation" v="4"/>
+		<p n="indent_width_label" v="1"/>
+		<p n="indent_width_member_access" v="1"/>
+		<p n="indent_with_tabs" v="0"/>
+		<p n="jd_bl_before_tags" v="1" apply="0"/>
+		<p n="jd_bl_between_different_tags" v="1" apply="0"/>
+		<p n="jd_bl_between_same_tags" v="0" apply="0"/>
+		<p n="jd_format_html" v="1" apply="0"/>
+		<p n="jd_format_pre" v="1" apply="0"/>
+		<p n="jd_indent_param_desc" v="1" apply="0"/>
+		<p n="jd_indent_past_param_name" v="1" apply="0"/>
+		<p n="jd_nl_at_start_and_end" v="1" apply="0"/>
+		<p n="jd_rm_blank_lines" v="0" apply="0"/>
+		<p n="justify_member_var_decls" v="0" apply="0"/>
+		<p n="justify_var_decls" v="0" apply="0"/>
+		<p n="leave_class_one_line_block" v="1"/>
+		<p n="leave_multiple_decl" v="1"/>
+		<p n="leave_multiple_stmt" v="1"/>
+		<p n="leave_one_line_code_blocks" v="1"/>
+		<p n="listalign2_expr_parens" v="0"/>
+		<p n="listalign_fun_call_params" v="2"/>
+		<p n="max_line_len" v="80" apply="0"/>
+		<p n="nl_after_case" v="1" apply="0"/>
+		<p n="nl_after_extern" v="1" apply="1"/>
+		<p n="nl_before_else" v="1" apply="1"/>
+		<p n="nl_empty_block" v="0" apply="1"/>
+		<p n="nl_empty_class_body" v="0" apply="0"/>
+		<p n="nl_empty_fun_body" v="1" apply="0"/>
+		<p n="oneline_catch" v="0" apply="1"/>
+		<p n="oneline_dowhile" v="1" apply="1"/>
+		<p n="oneline_elseif" v="1" apply="1"/>
+		<p n="oneline_unblocked_else" v="0" apply="1"/>
+		<p n="oneline_unblocked_statement" v="0" apply="1"/>
+		<p n="oneline_unblocked_then" v="0" apply="1"/>
+		<p n="original_tab_size" v="4" apply="0"/>
+		<p n="pp_indent" v="0"/>
+		<p n="pp_indent_in_code_block" v="0"/>
+		<p n="pp_indent_in_header_guard" v="0"/>
+		<p n="pp_indent_with_code" v="0"/>
+		<p n="pp_keep_pound_in_col1" v="0"/>
+		<p n="ra_fun_void_in_empty_param_list" v="1" apply="0"/>
+		<p n="ra_throw_parens" v="1" apply="0"/>
+		<p n="rai_return_parens" v="1" apply="0"/>
+		<p n="require_new_line_after_member_access" v="1"/>
+		<p n="require_new_line_at_eof" v="1"/>
+		<p n="rm_dup_spaces" v="0"/>
+		<p n="rm_return_type_new_lines" v="0"/>
+		<p n="rm_trailing_spaces" v="1"/>
+		<p n="sp_array_decl_after_rbracket" v="0" apply="1"/>
+		<p n="sp_array_decl_before_lbracket" v="0" apply="1"/>
+		<p n="sp_array_del_before_lbracket" v="0" apply="1"/>
+		<p n="sp_array_del_rbracket" v="1" apply="1"/>
+		<p n="sp_array_expr_after_rbracket" v="0" apply="1"/>
+		<p n="sp_array_expr_before_lbracket" v="0" apply="1"/>
+		<p n="sp_cast_after_rparen" v="0" apply="1"/>
+		<p n="sp_cast_before_lparen" v="0" apply="1"/>
+		<p n="sp_catch_after_rparen" v="1" apply="1"/>
+		<p n="sp_catch_before_lparen" v="1" apply="1"/>
+		<p n="sp_cppcast_after_gt" v="0" apply="1"/>
+		<p n="sp_cppcast_before_lt" v="0" apply="1"/>
+		<p n="sp_expr_after_rparen" v="0" apply="1"/>
+		<p n="sp_expr_before_lparen" v="0" apply="1"/>
+		<p n="sp_for_after_rparen" v="1" apply="1"/>
+		<p n="sp_for_before_lparen" v="1" apply="1"/>
+		<p n="sp_fptr_after_rparen" v="0" apply="1"/>
+		<p n="sp_fptr_before_lparen" v="1" apply="1"/>
+		<p n="sp_fptr_between_star_and_id" v="1" apply="1"/>
+		<p n="sp_fun_after_operator" v="0" apply="1"/>
+		<p n="sp_fun_after_rparen" v="0" apply="1"/>
+		<p n="sp_fun_before_lparen" v="0" apply="1"/>
+		<p n="sp_fun_call_after_operator" v="0" apply="1"/>
+		<p n="sp_fun_call_after_rparen" v="0" apply="1"/>
+		<p n="sp_fun_call_before_lparen" v="0" apply="1"/>
+		<p n="sp_fun_call_empty_parens" v="0" apply="1"/>
+		<p n="sp_fun_empty_parens" v="0" apply="1"/>
+		<p n="sp_if_after_rparen" v="1" apply="1"/>
+		<p n="sp_if_before_lparen" v="1" apply="1"/>
+		<p n="sp_lambda_after_rbracket" v="0" apply="1"/>
+		<p n="sp_lambda_before_lbracket" v="0" apply="1"/>
+		<p n="sp_mptr_between_coloncolon_and_star" v="0" apply="1"/>
+		<p n="sp_new_after_rparen" v="1" apply="1"/>
+		<p n="sp_new_before_lparen" v="0" apply="1"/>
+		<p n="sp_ptr_between_star_and_amp" v="0" apply="1"/>
+		<p n="sp_ptr_between_star_and_id" v="0" apply="1"/>
+		<p n="sp_ptr_between_star_and_lparen" v="0" apply="1"/>
+		<p n="sp_ptr_between_star_and_qualifier" v="1" apply="1"/>
+		<p n="sp_ptr_between_star_and_rparen" v="0" apply="1"/>
+		<p n="sp_ptr_between_star_and_star" v="0" apply="1"/>
+		<p n="sp_ptr_between_type_and_star" v="1" apply="1"/>
+		<p n="sp_ptr_cast_proto_between_type_and_star" v="1" apply="1"/>
+		<p n="sp_ptr_return_type_between_type_and_star" v="1" apply="1"/>
+		<p n="sp_ref_between_amp_and_id" v="0" apply="1"/>
+		<p n="sp_ref_between_amp_and_lparen" v="0" apply="1"/>
+		<p n="sp_ref_between_amp_and_rparen" v="0" apply="1"/>
+		<p n="sp_ref_between_type_and_amp" v="1" apply="1"/>
+		<p n="sp_ref_cast_proto_between_type_and_amp" v="1" apply="1"/>
+		<p n="sp_ref_return_type_between_type_and_amp" v="1" apply="1"/>
+		<p n="sp_return_after_rparen" v="0" apply="1"/>
+		<p n="sp_return_before_lparen" v="1" apply="1"/>
+		<p n="sp_stmt_after_semicolon" v="1" apply="1"/>
+		<p n="sp_stmt_before_semicolon" v="0" apply="1"/>
+		<p n="sp_switch_after_rparen" v="1" apply="1"/>
+		<p n="sp_switch_before_lparen" v="1" apply="1"/>
+		<p n="sp_throw_after_rparen" v="0" apply="1"/>
+		<p n="sp_throw_before_lparen" v="1" apply="1"/>
+		<p n="sp_tmpl_decl_before_lt" v="0" apply="1"/>
+		<p n="sp_tmpl_parm_before_lt" v="0" apply="1"/>
+		<p n="sp_while_after_rparen" v="1" apply="1"/>
+		<p n="sp_while_before_lparen" v="1" apply="1"/>
+		<p n="sppad_array_decl_brackets" v="0" apply="1"/>
+		<p n="sppad_array_del_brackets" v="0" apply="1"/>
+		<p n="sppad_array_expr_brackets" v="0" apply="1"/>
+		<p n="sppad_cast_parens" v="0" apply="1"/>
+		<p n="sppad_catch_parens" v="0" apply="1"/>
+		<p n="sppad_cppcast_angle_brackets" v="0" apply="1"/>
+		<p n="sppad_expr_parens" v="0" apply="1"/>
+		<p n="sppad_for_parens" v="0" apply="1"/>
+		<p n="sppad_fptr_parens" v="0" apply="1"/>
+		<p n="sppad_fun_call_parens" v="0" apply="1"/>
+		<p n="sppad_fun_parens" v="0" apply="1"/>
+		<p n="sppad_if_parens" v="0" apply="1"/>
+		<p n="sppad_lambda_braces" v="0" apply="1"/>
+		<p n="sppad_lambda_brackets" v="0" apply="1"/>
+		<p n="sppad_new_parens" v="0" apply="1"/>
+		<p n="sppad_return_parens" v="0" apply="1"/>
+		<p n="sppad_switch_parens" v="0" apply="1"/>
+		<p n="sppad_throw_parens" v="0" apply="1"/>
+		<p n="sppad_tmpl_decl_angle_brackets" v="0" apply="1"/>
+		<p n="sppad_tmpl_parm_angle_brackets" v="0" apply="1"/>
+		<p n="sppad_while_parens" v="0" apply="1"/>
+		<p n="spstyle_catch_lbrace" v="1" apply="1"/>
+		<p n="spstyle_class_colon" v="3" apply="1"/>
+		<p n="spstyle_class_comma" v="2" apply="1"/>
+		<p n="spstyle_class_lbrace" v="1" apply="1"/>
+		<p n="spstyle_constr_init_list_comma" v="2" apply="1"/>
+		<p n="spstyle_enum_colon" v="3" apply="1"/>
+		<p n="spstyle_enum_const_comma" v="2" apply="1"/>
+		<p n="spstyle_enum_const_eq" v="3" apply="1"/>
+		<p n="spstyle_enum_lbrace" v="1" apply="1"/>
+		<p n="spstyle_for_comma" v="2" apply="1"/>
+		<p n="spstyle_for_lbrace" v="1" apply="0"/>
+		<p n="spstyle_for_semicolon" v="2" apply="1"/>
+		<p n="spstyle_fun_call_comma" v="2" apply="1"/>
+		<p n="spstyle_fun_colon" v="3" apply="1"/>
+		<p n="spstyle_fun_comma" v="2" apply="1"/>
+		<p n="spstyle_fun_eq" v="3" apply="1"/>
+		<p n="spstyle_fun_lbrace" v="3" apply="1"/>
+		<p n="spstyle_if_lbrace" v="1" apply="1"/>
+		<p n="spstyle_init_comma" v="2" apply="1"/>
+		<p n="spstyle_init_list_comma" v="2" apply="1"/>
+		<p n="spstyle_init_rbrace" v="1" apply="1"/>
+		<p n="spstyle_member_dot" v="0" apply="1"/>
+		<p n="spstyle_namespace_lbrace" v="3" apply="1"/>
+		<p n="spstyle_op_addressof" v="0" apply="1"/>
+		<p n="spstyle_op_assignment" v="3" apply="1"/>
+		<p n="spstyle_op_binary" v="3" apply="1"/>
+		<p n="spstyle_op_bitwise" v="3" apply="1"/>
+		<p n="spstyle_op_comparison" v="3" apply="1"/>
+		<p n="spstyle_op_dashgt" v="0" apply="1"/>
+		<p n="spstyle_op_dashgtstar" v="0" apply="1"/>
+		<p n="spstyle_op_dereference" v="0" apply="1"/>
+		<p n="spstyle_op_dotstar" v="0" apply="1"/>
+		<p n="spstyle_op_logical" v="3" apply="1"/>
+		<p n="spstyle_op_mult" v="3" apply="1"/>
+		<p n="spstyle_op_postfix" v="0" apply="1"/>
+		<p n="spstyle_op_prefix" v="0" apply="1"/>
+		<p n="spstyle_op_unary" v="0" apply="1"/>
+		<p n="spstyle_struct_colon" v="3" apply="1"/>
+		<p n="spstyle_struct_comma" v="2" apply="1"/>
+		<p n="spstyle_struct_lbrace" v="1" apply="1"/>
+		<p n="spstyle_switch_lbrace" v="1" apply="1"/>
+		<p n="spstyle_tmpl_decl_comma" v="2" apply="1"/>
+		<p n="spstyle_tmpl_decl_eq" v="3" apply="1"/>
+		<p n="spstyle_tmplparm_comma" v="2" apply="1"/>
+		<p n="spstyle_try_lbrace" v="3" apply="1"/>
+		<p n="spstyle_union_before_lbrace" v="1" apply="1"/>
+		<p n="spstyle_while_lbrace" v="1" apply="1"/>
+		<p n="syntax_indent" v="4"/>
+		<p n="tab_size" v="+8"/>
+		<p n="trailing_comment_col" v="70"/>
+		<p n="trailing_comment_style" v="2"/>
+		<p n="xdoc_bl_between_different_tags" v="1" apply="0"/>
+		<p n="xdoc_bl_between_same_tags" v="0" apply="0"/>
+		<p n="xdoc_format_pre" v="1" apply="0"/>
+		<p n="xdoc_nl_after_open_tag" v="1" apply="0"/>
+		<p n="xdoc_nl_before_close_tag" v="1" apply="0"/>
+		<p n="xdoc_rm_blank_lines" v="1" apply="0"/>
+	</profile>
+</options>
+
