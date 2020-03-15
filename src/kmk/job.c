@@ -1759,7 +1759,7 @@ start_job_command (struct child *child)
         fprintf (stderr, "\n", argv[i]);
         goto error;
       }
-#endif  /* CONFIG_NEW_WIN_CHILDREN */
+#  endif  /* CONFIG_NEW_WIN_CHILDREN */
   }
 #endif /* WINDOWS32 */
 #endif  /* __MSDOS__ or Amiga or WINDOWS32 */
