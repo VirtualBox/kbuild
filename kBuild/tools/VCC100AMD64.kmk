@@ -1,4 +1,4 @@
-# $Id: VCC100AMD64.kmk 3303 2020-01-14 15:09:44Z knut.osmundsen@oracle.com $
+# $Id: VCC100AMD64.kmk 3313 2020-03-16 02:31:38Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting AMD64.
 #
@@ -79,7 +79,10 @@ ifdef TOOL_VCC100AMD64_USE_KSUBMIT
  ifeq ($(KBUILD_HOST),win)
   ifneq ($(substr $(PATH_TOOL_VCC100AMD64_BIN),-9),x86_amd64)
    TOOL_VCC100AMD64_KSUBMIT ?= kmk_builtin_kSubmit --64-bit
-   TOOL_VCC100AMD64_KSUBMIT_DD = $(TOOL_VCC100AMD64_KSUBMIT) --
+   if $(KBUILD_KMK_REVISION) > 3311
+    TOOL_VCC100AMD64_KSUBMIT_SPECIAL_ENV = -s "_MSPDBSRV_ENDPOINT_=kBuild_vcc10_amd64_@@AUTHENTICATION_ID@@_$(if-expr defined($(target)_1_VCC_COMMON_OBJ_PDB),common,@@PROCESS_GROUP@@)"
+   endif
+   TOOL_VCC100AMD64_KSUBMIT_DD = $(TOOL_VCC100AMD64_KSUBMIT) $(TOOL_VCC100AMD64_KSUBMIT_SPECIAL_ENV) --
   else
    # "fatal error C1902: Program database manager mismatch; please check your installation" when mixing with the 32-bit compiler.
    #TOOL_VCC100AMD64_KSUBMIT ?= kmk_builtin_kSubmit --32-bit
@@ -161,7 +164,8 @@ TOOL_VCC100AMD64_COMPILE_C_OUTPUT_MAYBE = $(call TOOL_VCC100AMD64_PDB, $(outbase
 ifdef TOOL_VCC100AMD64_KSUBMIT
  TOOL_VCC100AMD64_COMPILE_C_DONT_PURGE_OUTPUT := 1 # speed
  define TOOL_VCC100AMD64_COMPILE_C_CMDS
-	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
+	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT) $(TOOL_VCC100AMD64_KSUBMIT_SPECIAL_ENV) \
+		-P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
 		-- $(TOOL_VCC100AMD64_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
@@ -201,8 +205,8 @@ TOOL_VCC100AMD64_COMPILE_CXX_OUTPUT_MAYBE = $(if-expr defined($(target)_1_VCC_CO
 ifdef TOOL_VCC100AMD64_KSUBMIT
  TOOL_VCC100AMD64_COMPILE_CXX_DONT_PURGE_OUTPUT := 1 # speed
  define TOOL_VCC100AMD64_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
-		-- $(TOOL_VCC100AMD64_CXX) -c\
+	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT) $(TOOL_VCC100AMD64_KSUBMIT_SPECIAL_ENV) \
+		-P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj) -- $(TOOL_VCC100AMD64_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		$(if-expr defined($(target)_PCH_HDR)\
 		,-FI$($(target)_PCH_HDR) -Yu$($(target)_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE),)\
@@ -245,7 +249,8 @@ TOOL_VCC100AMD64-PCH_COMPILE_CXX_OUTPUT_MAYBE = $(NO_SUCH_VARIABLE)
 ifdef TOOL_VCC100AMD64_KSUBMIT
  define TOOL_VCC100AMD64-PCH_COMPILE_CXX_CMDS
 	$(QUIET)$(RM) -f -- $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
-	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT) --no-pch-caching -P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
+	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT) --no-pch-caching $(TOOL_VCC100AMD64_KSUBMIT_SPECIAL_ENV) \
+		-P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
 		-- $(TOOL_VCC100AMD64_CXX) -c -Yc\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
                -Fp$($(target)_1_VCC_PCH_FILE) \

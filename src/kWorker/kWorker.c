@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3200 2018-03-28 20:32:11Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3313 2020-03-16 02:31:38Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -194,6 +194,79 @@
 #define TUPLE(a_sz)                     a_sz, sizeof(a_sz) - 1
 
 
+/**
+ * Generate CRT slot wrapper functions.
+ */
+#define CRT_SLOT_FUNCTION_WRAPPER(a_RetTypeAndCallConv, a_FnName, a_aArgsDecl, a_aArgCall) \
+    static a_RetTypeAndCallConv a_FnName##00 a_aArgsDecl { const unsigned iCrtSlot =  0; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##01 a_aArgsDecl { const unsigned iCrtSlot =  1; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##02 a_aArgsDecl { const unsigned iCrtSlot =  2; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##03 a_aArgsDecl { const unsigned iCrtSlot =  3; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##04 a_aArgsDecl { const unsigned iCrtSlot =  4; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##05 a_aArgsDecl { const unsigned iCrtSlot =  5; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##06 a_aArgsDecl { const unsigned iCrtSlot =  6; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##07 a_aArgsDecl { const unsigned iCrtSlot =  7; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##08 a_aArgsDecl { const unsigned iCrtSlot =  8; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##09 a_aArgsDecl { const unsigned iCrtSlot =  9; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##10 a_aArgsDecl { const unsigned iCrtSlot = 10; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##11 a_aArgsDecl { const unsigned iCrtSlot = 11; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##12 a_aArgsDecl { const unsigned iCrtSlot = 12; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##13 a_aArgsDecl { const unsigned iCrtSlot = 13; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##14 a_aArgsDecl { const unsigned iCrtSlot = 14; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##15 a_aArgsDecl { const unsigned iCrtSlot = 15; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##16 a_aArgsDecl { const unsigned iCrtSlot = 16; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##17 a_aArgsDecl { const unsigned iCrtSlot = 17; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##18 a_aArgsDecl { const unsigned iCrtSlot = 18; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##19 a_aArgsDecl { const unsigned iCrtSlot = 19; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##20 a_aArgsDecl { const unsigned iCrtSlot = 20; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##21 a_aArgsDecl { const unsigned iCrtSlot = 21; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##22 a_aArgsDecl { const unsigned iCrtSlot = 22; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##23 a_aArgsDecl { const unsigned iCrtSlot = 23; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##24 a_aArgsDecl { const unsigned iCrtSlot = 24; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##25 a_aArgsDecl { const unsigned iCrtSlot = 25; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##26 a_aArgsDecl { const unsigned iCrtSlot = 26; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##27 a_aArgsDecl { const unsigned iCrtSlot = 27; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##28 a_aArgsDecl { const unsigned iCrtSlot = 28; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##29 a_aArgsDecl { const unsigned iCrtSlot = 29; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##30 a_aArgsDecl { const unsigned iCrtSlot = 30; return a_FnName##_wrapped a_aArgCall; } \
+    static a_RetTypeAndCallConv a_FnName##31 a_aArgsDecl { const unsigned iCrtSlot = 31; return a_FnName##_wrapped a_aArgCall; } \
+    static const KUPTR a_FnName[] = \
+    { \
+        (KUPTR)a_FnName##00, \
+        (KUPTR)a_FnName##01, \
+        (KUPTR)a_FnName##02, \
+        (KUPTR)a_FnName##03, \
+        (KUPTR)a_FnName##04, \
+        (KUPTR)a_FnName##05, \
+        (KUPTR)a_FnName##06, \
+        (KUPTR)a_FnName##07, \
+        (KUPTR)a_FnName##08, \
+        (KUPTR)a_FnName##09, \
+        (KUPTR)a_FnName##10, \
+        (KUPTR)a_FnName##11, \
+        (KUPTR)a_FnName##12, \
+        (KUPTR)a_FnName##13, \
+        (KUPTR)a_FnName##14, \
+        (KUPTR)a_FnName##15, \
+        (KUPTR)a_FnName##16, \
+        (KUPTR)a_FnName##17, \
+        (KUPTR)a_FnName##18, \
+        (KUPTR)a_FnName##19, \
+        (KUPTR)a_FnName##20, \
+        (KUPTR)a_FnName##21, \
+        (KUPTR)a_FnName##22, \
+        (KUPTR)a_FnName##23, \
+        (KUPTR)a_FnName##24, \
+        (KUPTR)a_FnName##25, \
+        (KUPTR)a_FnName##26, \
+        (KUPTR)a_FnName##27, \
+        (KUPTR)a_FnName##28, \
+        (KUPTR)a_FnName##29, \
+        (KUPTR)a_FnName##30, \
+        (KUPTR)a_FnName##31, \
+    }
+
+
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
 *********************************************************************************************************************************/
@@ -220,8 +293,10 @@ typedef enum KWMODSTATE
 typedef struct KWMODULE *PKWMODULE;
 typedef struct KWMODULE
 {
-    /** Pointer to the next image. */
-    PKWMODULE           pNext;
+    /** Pointer to the next image withe the same hash. */
+    PKWMODULE           pNextHash;
+    /** Pointer to the next image in the global list. */
+    PKWMODULE           pNextList;
     /** The normalized path to the image. */
     const char         *pszPath;
     /** The hash of the program path. */
@@ -242,6 +317,17 @@ typedef struct KWMODULE
     HMODULE             hOurMod;
     /** The of the loaded image bits. */
     KSIZE               cbImage;
+    /** The CRT slot for this module, if applicable (KU8_MAX when not). */
+    KU8                 iCrtSlot;
+    /** Loop prevention when working the tree. */
+    KBOOL               fVisited;
+    /** HACK: Set if re-init is needed (fReInitOnMsPdbSrvEndpointChange). */
+    KBOOL               fNeedReInit;
+    /** HACK: Reinit when _MSPDBSRV_ENDPOINT_ changes, K_FALSE if not applicable.
+     * 1 if applicable but not yet used, 2 if used and have pszMsPdbSrvEndpoint. */
+    KU8                 fReInitOnMsPdbSrvEndpointChange;
+    /** HACK: The old _MSPDBSRV_ENDPOINT_ value. */
+    char               *pszMsPdbSrvEndpoint;
 
     union
     {
@@ -850,6 +936,21 @@ typedef struct KWSANDBOX
 #endif
 } KWSANDBOX;
 
+
+/** A CRT slot.  */
+typedef struct KWCRTSLOT
+{
+    KU32        iSlot;
+
+    /** The CRT module data.    */
+    PKWMODULE   pModule;
+    /** Pointer to the malloc function.   */
+    void * (__cdecl *pfnMalloc)(size_t);
+
+} KWCRTSLOT;
+typedef KWCRTSLOT *PKWCRTSLOT;
+
+
 /** Replacement function entry. */
 typedef struct KWREPLACEMENTFUNCTION
 {
@@ -859,11 +960,13 @@ typedef struct KWREPLACEMENTFUNCTION
     KSIZE       cchFunction;
     /** The module name (optional). */
     const char *pszModule;
-    /** The replacement function or data address. */
+    /** The replacement function, data address or CRT slot function array. */
     KUPTR       pfnReplacement;
     /** Only replace in the executable.
      * @todo fix the reinitialization of non-native DLLs!  */
     KBOOL       fOnlyExe;
+    /** Set if pfnReplacement points to a CRT slot function array. */
+    KBOOL       fCrtSlotArray;
 } KWREPLACEMENTFUNCTION;
 typedef KWREPLACEMENTFUNCTION const *PCKWREPLACEMENTFUNCTION;
 
@@ -883,6 +986,42 @@ typedef struct KWREPLACEMENTDATA
 typedef KWREPLACEMENTDATA const *PCKWREPLACEMENTDATA;
 #endif
 
+/**
+ * One test job (--full-test).
+ */
+typedef struct KWONETEST
+{
+    /** Where this job originated. */
+    const char     *pszJobSrc;
+    /** The argument number it started with. */
+    unsigned        iJobSrc;
+    /** Set if virgin, clear if modified. */
+    KBOOL           fVirgin;
+
+    /** Number of runs to give it. */
+    unsigned        cRuns;
+
+    /** @name kSubmitHandleJobUnpacked arguments
+     * @{ */
+    const char     *pszExecutable;
+    const char     *pszCwd;
+    KU32            cArgs;
+    const char    **papszArgs;
+    KU32            cEnvVars;
+    const char    **papszEnvVars;
+    const char     *pszSpecialEnv;
+    KBOOL           fWatcomBrainDamange;
+    KBOOL           fNoPchCaching;
+    KU32            cPostCmdArgs;
+    const char    **papszPostCmdArgs;
+    /** @} */
+
+    /** Pointer to the next one. */
+    struct KWONETEST *pNext;
+} KWONETEST;
+/** Pointer to one test job. */
+typedef KWONETEST *PKWONETEST;
+
 
 /*********************************************************************************************************************************
 *   Global Variables                                                                                                             *
@@ -895,6 +1034,11 @@ static PKWMODULE    g_pModInLdBuf = NULL;
 
 /** The module that previuosly occupied g_abDefLdBuf. */
 static PKWMODULE    g_pModPrevInLdBuf = NULL;
+
+/** Module list head. */
+static PKWMODULE    g_pModuleHead = NULL;
+/** Where to insert the next module. */
+static PKWMODULE   *g_ppModuleNext = &g_pModuleHead;
 
 /** Module hash table. */
 static PKWMODULE    g_apModules[127];
@@ -910,6 +1054,9 @@ static KWGETMODULEHANDLECACHE g_aGetModuleHandleCache[] =
 /** Module pending TLS allocation. See kwLdrModuleCreateNonNativeSetupTls. */
 static PKWMODULE    g_pModPendingTlsAlloc = NULL;
 
+/** CRT slots.
+ * @note The number of entires here must match CRT_SLOT_FUNCTION_WRAPPER. */
+static KWCRTSLOT    g_aCrtSlots[32];
 
 /** The file system cache. */
 static PKFSCACHE    g_pFsCache;
@@ -925,6 +1072,9 @@ static int          g_cVerbose = 2;
 
 /** Whether we should restart the worker. */
 static KBOOL        g_fRestart = K_FALSE;
+
+/** The process group this worker is tied to (--group option), -1 if none. */
+static KI32         g_iProcessGroup = -1;
 
 /** Whether control-C/SIGINT or Control-Break/SIGBREAK have been seen. */
 static int volatile g_rcCtrlC = 0;
@@ -1045,6 +1195,8 @@ static KSIZE    g_cbWriteFileToInMemTemp;
 static FNKLDRMODGETIMPORT kwLdrModuleGetImportCallback;
 static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWMODULE pImporter,
                                        const char *pszSearchPath, PKWMODULE *ppMod);
+static PKWMODULE kwLdrModuleForLoadedNative(const char *pszName, KBOOL fEnsureCrtSlot);
+static char *kwSandboxDoGetEnvA(PKWSANDBOX pSandbox, const char *pchVar, KSIZE cchVar);
 static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle, HANDLE hHandle);
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
 static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLineBuf, const char *pchBuffer, KU32 cchToWrite);
@@ -1159,6 +1311,7 @@ static void kwErrPrintfV(const char *pszFormat, va_list va)
 
     fprintf(stderr, "kWorker: error: ");
     vfprintf(stderr, pszFormat, va);
+    fflush(stderr); /* In case it's a pipe. */
 
     SetLastError(dwSavedErr);
 }
@@ -1623,24 +1776,48 @@ static void kwLdrModuleRelease(PKWMODULE pMod)
 {
     if (--pMod->cRefs == 0)
     {
-        /* Unlink it. */
+        /* Unlink it from the hash table. */
         if (!pMod->fExe)
         {
             PKWMODULE pPrev = NULL;
             unsigned  idx   = pMod->uHashPath % K_ELEMENTS(g_apModules);
             if (g_apModules[idx] == pMod)
-                g_apModules[idx] = pMod->pNext;
+                g_apModules[idx] = pMod->pNextHash;
             else
             {
                 PKWMODULE pPrev = g_apModules[idx];
                 kHlpAssert(pPrev != NULL);
-                while (pPrev->pNext != pMod)
+                while (pPrev->pNextHash != pMod)
                 {
-                    pPrev = pPrev->pNext;
+                    pPrev = pPrev->pNextHash;
                     kHlpAssert(pPrev != NULL);
                 }
-                pPrev->pNext = pMod->pNext;
+                pPrev->pNextHash = pMod->pNextHash;
             }
+        }
+
+        /* Unlink it from the list. */
+        if (pMod != g_pModuleHead)
+        {
+            PKWMODULE pPrev = g_pModuleHead;
+            while (pPrev)
+            {
+                if (pPrev->pNextList == pMod)
+                {
+                    pPrev->pNextList = pMod->pNextList;
+                    if (!pMod->pNextList)
+                        g_ppModuleNext = &pPrev->pNextList;
+                    break;
+                }
+                pPrev = pPrev->pNextList;
+            }
+            kHlpAssert(pPrev != NULL);
+        }
+        else
+        {
+            g_pModuleHead = pMod->pNextList;
+            if (!pMod->pNextList)
+                g_ppModuleNext = &g_pModuleHead;
         }
 
         /* Release import modules. */
@@ -1665,6 +1842,15 @@ static void kwLdrModuleRelease(PKWMODULE pMod)
             kHlpPageFree(pMod->u.Manual.pbLoad, pMod->cbImage);
         }
 
+        if (pMod->iCrtSlot != KU8_MAX)
+            g_aCrtSlots[pMod->iCrtSlot].pModule = NULL;
+
+        if (pMod->pszMsPdbSrvEndpoint)
+        {
+            kHlpFree(pMod->pszMsPdbSrvEndpoint);
+            pMod->pszMsPdbSrvEndpoint = NULL;
+        }
+
         kHlpFree(pMod);
     }
     else
@@ -1680,9 +1866,17 @@ static void kwLdrModuleRelease(PKWMODULE pMod)
  */
 static PKWMODULE kwLdrModuleLink(PKWMODULE pMod)
 {
-    unsigned idx = pMod->uHashPath % K_ELEMENTS(g_apModules);
-    pMod->pNext = g_apModules[idx];
-    g_apModules[idx] = pMod;
+    if (!pMod->fExe)
+    {
+        unsigned idx = pMod->uHashPath % K_ELEMENTS(g_apModules);
+        pMod->pNextHash = g_apModules[idx];
+        g_apModules[idx] = pMod;
+    }
+
+    pMod->pNextList = NULL;
+    *g_ppModuleNext = pMod;
+    g_ppModuleNext = &pMod->pNextList;
+
     return pMod;
 }
 
@@ -1747,6 +1941,7 @@ static void kwLdrModuleDoNativeImportReplacements(PKWMODULE pMod)
         {
             KU32                iThunk;
             const char * const  pszImport   = (const char *)&pbImage[pImpDesc->Name];
+            PKWMODULE           pImportMod  = NULL;
             PIMAGE_THUNK_DATA   paThunks    = (PIMAGE_THUNK_DATA)&pbImage[pImpDesc->FirstThunk];
             PIMAGE_THUNK_DATA   paOrgThunks = (PIMAGE_THUNK_DATA)&pbImage[pImpDesc->OriginalFirstThunk];
             kHlpAssertReturnVoid(pImpDesc->Name < cbImage);
@@ -1817,7 +2012,29 @@ static void kwLdrModuleDoNativeImportReplacements(PKWMODULE pMod)
                                     }
                                 }
 
-                                paThunks[iThunk].u1.AddressOfData = g_aSandboxNativeReplacements[i].pfnReplacement;
+                                /*
+                                 * Unslotted replacements are simple.
+                                 */
+                                if (!g_aSandboxNativeReplacements[i].fCrtSlotArray)
+                                    paThunks[iThunk].u1.AddressOfData = g_aSandboxNativeReplacements[i].pfnReplacement;
+                                else
+                                {
+                                    /*
+                                     * Must find our module entry for this module, possibly creating one.
+                                     */
+                                    if (!pImportMod)
+                                    {
+                                        pImportMod = kwLdrModuleForLoadedNative(pszImport, K_TRUE /*fEnsureCrtSlot*/);
+                                        if (!pImportMod)
+                                        {
+                                            kwErrPrintf("Failed to get module '%s' when performing replacements on module '%s'!\n",
+                                                        pszImport, pMod->pszPath);
+                                            break;
+                                        }
+                                    }
+                                    paThunks[iThunk].u1.AddressOfData
+                                        = ((KUPTR *)g_aSandboxNativeReplacements[i].pfnReplacement)[pImportMod->iCrtSlot];
+                                }
                                 break;
                             }
                         }
@@ -1858,7 +2075,7 @@ static PKWMODULE kwLdrModuleCreateForNativekLdrModule(PKLDRMOD pLdrMod, const ch
     /*
      * Create the entry.
      */
-    PKWMODULE pMod   = (PKWMODULE)kHlpAllocZ(sizeof(*pMod) + cbPath + cbPath * 2 * sizeof(wchar_t));
+    PKWMODULE pMod = (PKWMODULE)kHlpAllocZ(sizeof(*pMod) + cbPath + cbPath * 2 * sizeof(wchar_t));
     if (pMod)
     {
         pMod->pwszPath      = (wchar_t *)(pMod + 1);
@@ -1872,6 +2089,10 @@ static PKWMODULE kwLdrModuleCreateForNativekLdrModule(PKLDRMOD pLdrMod, const ch
         pMod->pLdrMod       = pLdrMod;
         pMod->hOurMod       = (HMODULE)(KUPTR)pLdrMod->aSegments[0].MapAddress;
         pMod->cbImage       = (KSIZE)kLdrModSize(pLdrMod);
+        pMod->iCrtSlot      = KU8_MAX;
+        pMod->fNeedReInit   = K_FALSE;
+        pMod->pszMsPdbSrvEndpoint = NULL;
+        pMod->fReInitOnMsPdbSrvEndpointChange = kHlpStrNICompAscii(&pMod->pszPath[pMod->offFilename], TUPLE("mspdb")) == 0;
 
         if (fDoReplacements)
         {
@@ -1905,7 +2126,7 @@ static PKWMODULE kwLdrModuleCreateNative(const char *pszPath, KU32 uHashPath, KB
      * Open the module and check the type.
      */
     PKLDRMOD pLdrMod;
-    int rc = kLdrModOpenNative(pszPath, &pLdrMod);
+    int rc = kLdrModOpenNative(pszPath, KLDRMOD_OPEN_FLAGS_NATIVE_ALLOW_INIT_TERM, &pLdrMod);
     if (rc == 0)
     {
         PKWMODULE pMod = kwLdrModuleCreateForNativekLdrModule(pLdrMod, pszPath, kHlpStrLen(pszPath) + 1,
@@ -2266,7 +2487,11 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                     pMod->fExe          = fExe;
                     pMod->fNative       = K_FALSE;
                     pMod->pLdrMod       = pLdrMod;
-                    pMod->u.Manual.cImpMods = (KU32)cImports;
+                    pMod->iCrtSlot      = KU8_MAX;
+                    pMod->fNeedReInit   = K_FALSE;
+                    pMod->fReInitOnMsPdbSrvEndpointChange = K_FALSE;
+                    pMod->pszMsPdbSrvEndpoint       = NULL;
+                    pMod->u.Manual.cImpMods         = (KU32)cImports;
 #if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_AMD64)
                     pMod->u.Manual.fRegisteredFunctionTable = K_FALSE;
 #endif
@@ -2309,8 +2534,7 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                              * Link the module (unless it's an executable image) and process the imports.
                              */
                             pMod->hOurMod = (HMODULE)pMod->u.Manual.pbLoad;
-                            if (!fExe)
-                                kwLdrModuleLink(pMod);
+                            kwLdrModuleLink(pMod);
                             KW_LOG(("New module: %p LB %#010x %s (kLdr)\n",
                                     pMod->u.Manual.pbLoad, pMod->cbImage, pMod->pszPath));
                             KW_LOG(("TODO: .reload /f %s=%p\n", pMod->pszPath, pMod->u.Manual.pbLoad));
@@ -2645,7 +2869,7 @@ static PKWMODULE kwLdrModuleTryLoadDll(const char *pszPath, KWLOCATION enmLocati
                     if (   pMod->uHashPath == uHashPath
                         && kHlpStrComp(pMod->pszPath, szNormPath) == 0)
                         return kwLdrModuleRetain(pMod);
-                    pMod = pMod->pNext;
+                    pMod = pMod->pNextHash;
                 } while (pMod);
             }
 
@@ -2775,6 +2999,131 @@ static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWM
     }
     *ppMod = NULL;
     return KERR_GENERAL_FAILURE;
+}
+
+
+/**
+ * Creates a CRT slot for the given module.
+ *
+ * @returns 0 on success, non-zero on failure.
+ * @param   pModule             The module.
+ */
+static int kwLdrModuleCreateCrtSlot(PKWMODULE pModule)
+{
+    KSIZE iSlot;
+    kHlpAssert(pModule->iCrtSlot == KU8_MAX);
+    for (iSlot = 0; iSlot < K_ELEMENTS(g_aCrtSlots); iSlot++)
+        if (g_aCrtSlots[iSlot].pModule == NULL)
+        {
+            KLDRADDR uAddr;
+            int rc;
+
+            /* Do the linking: */
+            g_aCrtSlots[iSlot].pModule = pModule;
+            g_aCrtSlots[iSlot].iSlot   = (KU32)iSlot;
+            pModule->iCrtSlot          = (KU8)iSlot;
+
+            /* resolve symbols: */
+            rc = kLdrModQuerySymbol(pModule->pLdrMod, NULL /*pvBits*/, KLDRMOD_BASEADDRESS_MAP, KU32_MAX, "malloc", 6,
+                                    NULL /*pvszVersion*/, NULL /*pfnGetForwarder*/, NULL /*pvUser*/, &uAddr, NULL);
+            *(KUPTR *)&g_aCrtSlots[iSlot].pfnMalloc = rc == 0 ? (KUPTR)uAddr : 0;
+            if (rc != 0)
+                kwErrPrintf("Failed to resolved 'malloc' in '%s': %d\n", pModule->pszPath, rc);
+
+            return 0;
+        }
+    kwErrPrintf("Out of CRT slots!\n");
+    return KERR_NO_MEMORY;
+}
+
+
+/**
+ * Locates the module structure for an already loaded native module.
+ *
+ * This will create a module structure if needed.
+ *
+ * @returns Pointer to the module structure on success, NULL on failure.
+ * @param   pszName         The name of the module.
+ * @param   fEnsureCrtSlot  Whether to ensure that it has a valid CRT slot.
+ */
+static PKWMODULE kwLdrModuleForLoadedNative(const char *pszName, KBOOL fEnsureCrtSlot)
+{
+    /*
+     * Locate the module and get a normalized path for it.
+     */
+    HANDLE hModule = GetModuleHandleA(pszName);
+    if (hModule)
+    {
+        char szModPath[1024];
+        if (GetModuleFileNameA(hModule, szModPath, sizeof(szModPath)) > 0)
+        {
+            char szNormPath[1024];
+            int rc = kwPathNormalize(szModPath, szNormPath, sizeof(szNormPath));
+            if (rc == 0)
+            {
+                /*
+                 * Hash the path and look it up.
+                 */
+                KU32        uHashPath;
+                KSIZE const cchPath   = kwStrHashEx(szNormPath, &uHashPath);
+                unsigned    idxHash   = uHashPath % K_ELEMENTS(g_apModules);
+                PKWMODULE   pMod      = g_apModules[idxHash];
+                if (pMod)
+                {
+                    do
+                    {
+                        if (   pMod->uHashPath == uHashPath
+                            && kHlpStrComp(pMod->pszPath, szNormPath) == 0)
+                        {
+                            kwLdrModuleRetain(pMod);
+                            break;
+                        }
+                        pMod = pMod->pNextHash;
+                    } while (pMod);
+                }
+
+                /*
+                 * If not in the hash table, so create a module entry.
+                 */
+                if (!pMod)
+                {
+                    PKLDRMOD pLdrMod;
+                    rc = kLdrModOpenNativeByHandle((KUPTR)hModule, KLDRMOD_OPEN_FLAGS_NATIVE_ALLOW_INIT_TERM, &pLdrMod);
+                    if (rc == 0)
+                    {
+                        pMod = kwLdrModuleCreateForNativekLdrModule(pLdrMod, szNormPath, cchPath + 1, uHashPath,
+                                                                    K_FALSE /*fDoReplacements*/);
+                        if (!pMod)
+                        {
+                            kLdrModClose(pLdrMod);
+                            kwErrPrintf("out of memory\n");
+                        }
+                    }
+                    else
+                        kwErrPrintf("kLdrModOpenNativeByHandle failed for %p / '%s': %d\n", hModule, pszName, rc);
+                }
+                if (pMod)
+                {
+                    /*
+                     * Create a CRT slot for the module if necessary.
+                     */
+                    if (!fEnsureCrtSlot || pMod->iCrtSlot != KU8_MAX)
+                        return pMod;
+                    rc = kwLdrModuleCreateCrtSlot(pMod);
+                    if (rc == 0)
+                        return pMod;
+                    kwLdrModuleRelease(pMod);
+                }
+            }
+            else
+                kwErrPrintf("kwPathNormalize failed for '%s' (%s): %u!\n", szModPath, pszName, GetLastError());
+        }
+        else
+            kwErrPrintf("GetModuleFileNameA failed for '%s': %u!\n", pszName, GetLastError());
+    }
+    else
+        kwErrPrintf("Module '%s' was not found by GetModuleHandleA!\n", pszName);
+    return NULL;
 }
 
 
@@ -2941,6 +3290,27 @@ static int kwLdrModuleInitTree(PKWMODULE pMod)
             else
                 pMod->u.Manual.enmState = KWMODSTATE_INIT_FAILED;
         }
+    }
+    /*
+     * Special hack to disconnect mspdbXXX.dll from mspdbsrv.exe when
+     * _MSPDBSRV_ENDPOINT_ changes value.
+     */
+    else if (pMod->fNeedReInit)
+    {
+        int rc2;
+        KWLDR_LOG(("kwLdrModuleInitTree: mspdb re-init hack: %s\n", pMod->pszPath));
+        //fprintf(stderr, "%d: kwLdrModuleInitTree: mspdb re-init hack: %s\n", getpid(), kwSandboxDoGetEnvA(&g_Sandbox, TUPLE("_MSPDBSRV_ENDPOINT_"))); fflush(stderr);
+        rc = kLdrModCallTerm(pMod->pLdrMod, pMod->u.Manual.pbLoad, (KUPTR)pMod->hOurMod);
+        rc2 = kLdrModCallInit(pMod->pLdrMod, pMod->u.Manual.pbLoad, (KUPTR)pMod->hOurMod);
+        if (!rc && !rc2)
+        { /* likely */ }
+        else
+        {
+            kwErrPrintf("Re-init of '%s' failed: rc=%d rc2=%d\n", pMod->pszPath, rc, rc2);
+            if (rc2 && !rc)
+                rc = rc2;
+        }
+        pMod->fNeedReInit = K_FALSE;
     }
     return rc;
 }
@@ -4585,6 +4955,68 @@ static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_wenviron(wchar_t ***ppapwszE
 }
 
 
+/** CRT - _wdupenv_s() (see _tdupenv_s(). */
+static errno_t __cdecl kwSandbox_msvcrt__wdupenv_s_wrapped(wchar_t **ppwszValue, size_t *pcwcValue, const wchar_t *pwszVarName,
+                                                           PKWCRTSLOT pSlot)
+{
+    errno_t rc;
+    wchar_t *pwszValue;
+    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+
+    if (ppwszValue)
+    {
+        pwszValue = kwSandboxDoGetEnvW(&g_Sandbox, pwszVarName, wcslen(pwszVarName));
+        if (pwszValue)
+        {
+            size_t cwcValue = wcslen(pwszValue);
+            wchar_t *pwszDst = pSlot->pfnMalloc ? (wchar_t *)pSlot->pfnMalloc((cwcValue + 1) * sizeof(wchar_t)) : NULL;
+            if (pwszDst)
+            {
+                memcpy(pwszDst, pwszValue, cwcValue * sizeof(wchar_t));
+                pwszDst[cwcValue] = '\0';
+                *ppwszValue = pwszDst;
+                if (pcwcValue)
+                    *pcwcValue = cwcValue;
+                rc = 0;
+            }
+            else
+            {
+                *ppwszValue = NULL;
+                if (pcwcValue)
+                    *pcwcValue  = 0;
+                rc = ENOMEM;
+            }
+        }
+        else
+        {
+            *ppwszValue = NULL;
+            if (pcwcValue)
+                *pcwcValue = 0;
+            rc = 0;
+        }
+        KW_LOG(("_wdupenv_s(,,%ls) -> %d '%ls'\n", pwszVarName, rc, *ppwszValue ? *ppwszValue : L"<null>"));
+        //fprintf(stderr, "%d: _wdupenv_s(,,%ls) -> %d '%ls'\n", getpid(), pwszVarName, rc, *ppwszValue ? *ppwszValue : L"<null>"); fflush(stderr); // HACKING
+    }
+    else
+    {
+        /*
+         * Warning! If mspdb100.dll ends up here, it won't reinitialize the event name
+         *          and continue to use the one it constructed when _MSPDBSRV_ENDPOINT_
+         *          was set to a value.
+         */
+        if (pcwcValue)
+            *pcwcValue = 0;
+        rc = EINVAL;
+        KW_LOG(("_wdupenv_s(,,%ls) -> EINVAL\n", pwszVarName));
+        //fprintf(stderr, "%d: _wdupenv_s(,,%ls) -> EINVAL\n", getpid(), pwszVarName); fflush(stderr); // HACKING
+    }
+    return rc;
+}
+CRT_SLOT_FUNCTION_WRAPPER(errno_t __cdecl, kwSandbox_msvcrt__wdupenv_s,
+                          (wchar_t **ppwszValue, size_t *pcwcValue, const wchar_t *pwszVarName),
+                          (ppwszValue, pcwcValue, pwszVarName, &g_aCrtSlots[iCrtSlot]));
+
+
 
 /*
  *
@@ -4664,7 +5096,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_VirtualApiModule(PKWDYNL
                 KW_LOG(("LoadLibraryExA(%s,,) -> %p [already loaded]\n", pDynLoad->szRequest, pDynLoad->hmod));
                 return pDynLoad->hmod;
             }
-            pMod = pMod->pNext;
+            pMod = pMod->pNextHash;
         } while (pMod);
     }
 
@@ -4676,7 +5108,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_VirtualApiModule(PKWDYNL
     if (hmod)
     {
         PKLDRMOD pLdrMod;
-        int rc = kLdrModOpenNativeByHandle((KUPTR)hmod, &pLdrMod);
+        int rc = kLdrModOpenNativeByHandle((KUPTR)hmod, KLDRMOD_OPEN_FLAGS_NATIVE_ALLOW_INIT_TERM, &pLdrMod);
         if (rc == 0)
         {
             PKWMODULE pMod = kwLdrModuleCreateForNativekLdrModule(pLdrMod, szNormPath, cbFilename, uHashPath,
@@ -7789,7 +8221,7 @@ static void kwSandboxConsoleFlushAll(PKWSANDBOX pSandbox)
     }
 
     /*
-     * Flush the two line buffer, the the combined buffer.
+     * Flush the two line buffer, then the combined buffer.
      */
     kwSandboxConsoleFinalFlushLineBuf(pSandbox, &pSandbox->StdErr, "StdErr");
     kwSandboxConsoleFinalFlushLineBuf(pSandbox, &pSandbox->StdOut, "StdOut");
@@ -9507,6 +9939,7 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
     { TUPLE("_c_exit"),                     NULL,       (KUPTR)kwSandbox_msvcrt__c_exit },
     { TUPLE("_amsg_exit"),                  NULL,       (KUPTR)kwSandbox_msvcrt__amsg_exit },
     { TUPLE("terminate"),                   NULL,       (KUPTR)kwSandbox_msvcrt_terminate },
+    { TUPLE("_wdupenv_s"),                  NULL,       (KUPTR)kwSandbox_msvcrt__wdupenv_s, K_FALSE /*fOnlyExe*/, K_TRUE /*fCrtSlotArray*/ },
 
 #if 0 /* used by mspdbXXX.dll */
     { TUPLE("_beginthread"),                NULL,       (KUPTR)kwSandbox_msvcrt__beginthread },
@@ -9603,6 +10036,20 @@ static BOOL WINAPI kwSandboxCtrlHandler(DWORD dwCtrlType)
 
 
 /**
+ * Resets the KWMODULE::fVisited flag for _all_ known modules.
+ */
+static void kwSandboxResetModuleVisited(void)
+{
+    PKWMODULE pMod = g_pModuleHead;
+    while (pMod)
+    {
+        pMod->fVisited = K_FALSE;
+        pMod = pMod->pNextList;
+    }
+}
+
+
+/**
  * Used by kwSandboxExec to reset the state of the module tree.
  *
  * This is done recursively.
@@ -9611,14 +10058,45 @@ static BOOL WINAPI kwSandboxCtrlHandler(DWORD dwCtrlType)
  */
 static void kwSandboxResetModuleState(PKWMODULE pMod)
 {
-    if (   !pMod->fNative
-        && pMod->u.Manual.enmState != KWMODSTATE_NEEDS_BITS)
+    KWLDR_LOG(("kwSandboxResetModuleState: %d %d %s\n", pMod->fNative, pMod->fVisited, pMod->pszPath));
+    if (!pMod->fNative)
     {
-        KSIZE iImp;
         pMod->u.Manual.enmState = KWMODSTATE_NEEDS_BITS;
-        iImp = pMod->u.Manual.cImpMods;
-        while (iImp-- > 0)
-            kwSandboxResetModuleState(pMod->u.Manual.apImpMods[iImp]);
+        if (!pMod->fVisited) /* Avoid loops. */
+        {
+            KSIZE iImp;
+            pMod->fVisited = K_TRUE;
+            iImp = pMod->u.Manual.cImpMods;
+            while (iImp-- > 0)
+                kwSandboxResetModuleState(pMod->u.Manual.apImpMods[iImp]);
+        }
+    }
+    /* Hack: Re-init mspdbXXX.dll when we want to use a different mspdbsrv.exe instance. */
+    else if (pMod->fReInitOnMsPdbSrvEndpointChange)
+    {
+        const char *pszValue = kwSandboxDoGetEnvA(&g_Sandbox, TUPLE("_MSPDBSRV_ENDPOINT_"));
+        if (pMod->fReInitOnMsPdbSrvEndpointChange == 1)
+        {
+            pMod->fReInitOnMsPdbSrvEndpointChange = 2;
+            pMod->pszMsPdbSrvEndpoint = pszValue ? kHlpStrDup(pszValue) : NULL;
+            KWLDR_LOG(("Not re-initing '%s': first time used (_MSPDBSRV_ENDPOINT_ is '%s')\n",
+                       pMod->pszPath, pszValue ? pszValue : "<null>"));
+        }
+        else if (   (pszValue == NULL && pMod->pszMsPdbSrvEndpoint == NULL)
+                 || (pszValue != NULL && pMod->pszMsPdbSrvEndpoint != NULL && kHlpStrComp(pszValue, pMod->pszMsPdbSrvEndpoint) == 0))
+            KWLDR_LOG(("Not re-initing '%s': _MSPDBSRV_ENDPOINT_ unchanged ('%s')\n",
+                       pMod->pszPath, pszValue ? pszValue : "<null>"));
+        else
+        {
+            KWLDR_LOG(("Re-initing '%s': _MSPDBSRV_ENDPOINT_ changed from '%s' to '%s'\n", pMod->pszPath,
+                       pMod->pszMsPdbSrvEndpoint ? pMod->pszMsPdbSrvEndpoint : "<null>", pszValue ? pszValue : "<null>"));
+            kHlpFree(pMod->pszMsPdbSrvEndpoint);
+            if (pszValue != NULL)
+                pMod->pszMsPdbSrvEndpoint = kHlpStrDup(pszValue);
+            else
+                pMod->pszMsPdbSrvEndpoint = NULL;
+            pMod->fNeedReInit = K_TRUE;
+        }
     }
 }
 
@@ -10206,6 +10684,7 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
         /*
          * Do module initialization.
          */
+        kwSandboxResetModuleVisited();
         kwSandboxResetModuleState(pTool->u.Sandboxed.pExe);
         rc = kwLdrModuleInitTree(pTool->u.Sandboxed.pExe);
         if (rc == 0)
@@ -10291,6 +10770,7 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
         kwSandboxConsoleFlushAll(&g_Sandbox);
 #endif
         kwSandboxCleanup(&g_Sandbox);
+        /** @todo Flush sandboxed native CRTs too. */
     }
     else
         rcExit = 42 + 3;
@@ -10322,7 +10802,161 @@ static int kSubmitHandleJobPostCmd(KU32 cPostCmdArgs, const char **papszPostCmdA
         return kmk_builtin_kDepObj(cPostCmdArgs, (char **)papszPostCmdArgs, NULL, &Ctx);
     }
 
-    return kwErrPrintfRc(42 + 5 , "Unknown post command: '%s'\n", pszCmd);
+    return kwErrPrintfRc(42 + 5, "Unknown post command: '%s'\n", pszCmd);
+}
+
+
+/**
+ * Helper for kSubmitHandleSpecialEnvVar that gets the current process group.
+ */
+static unsigned kwGetCurrentProcessorGroup(void)
+{
+    typedef BOOL (WINAPI *PFNGETTHREADGROUPAFFINITY)(HANDLE, GROUP_AFFINITY *);
+    HMODULE                   hmodKernel32 = GetModuleHandleW(L"KERNEL32.DLL");
+    PFNGETTHREADGROUPAFFINITY pfnGetter    = (PFNGETTHREADGROUPAFFINITY)GetProcAddress(hmodKernel32, "GetThreadGroupAffinity");
+    if (pfnGetter)
+    {
+        GROUP_AFFINITY GroupAffinity;
+        memset(&GroupAffinity, 0, sizeof(GroupAffinity));
+        if (pfnGetter(GetCurrentThread(), &GroupAffinity))
+            return GroupAffinity.Group;
+    }
+    return 0;
+}
+
+
+/**
+ * Helper for kSubmitHandleSpecialEnvVar that gets the current process group.
+ */
+static KSIZE kwGetCurrentAuthenticationIdAsString(char *pszValue)
+{
+    KSIZE  cchRet = 0;
+    HANDLE hToken;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
+    {
+        DWORD cbRet;
+        TOKEN_STATISTICS TokenStats;
+        memset(&TokenStats, 0, sizeof(TokenStats));
+        if (GetTokenInformation(hToken, TokenStatistics, &TokenStats, sizeof(TokenStats), &cbRet))
+            cchRet = sprintf(pszValue, "%" KX64_PRI,
+                             ((KU64)TokenStats.AuthenticationId.HighPart << 32) | TokenStats.AuthenticationId.LowPart);
+        else
+            kwErrPrintf("GetTokenInformation/TokenStatistics failed: %u\n", GetLastError());
+        CloseHandle(hToken);
+    }
+    else
+        kwErrPrintf("OpenProcessToken failed: %u\n", GetLastError());
+    return cchRet;
+}
+
+
+/** 
+ * Look for and expand the special environment variable. 
+ *  
+ * We the special variable contains elements like "@@VAR_NAME@@" that kmk 
+ * couldn't accuratly determine.  Currently the following variables are 
+ * implemented: 
+ *     - "@@PROCESSOR_GROUP@@"   - The processor group number.
+ *     - "@@AUTHENTICATION_ID@@" - The authentication ID from the process token.
+ *     - "@@PID@@"               - The kWorker process ID.
+ *     - "@@@@"                  - Escaped "@@".
+ *     - "@@DEBUG_COUNTER@@"     - An ever increasing counter (starts at zero).
+ */  
+static int kSubmitHandleSpecialEnvVar(KU32 cEnvVars, const char **papszEnvVars, const char *pszSpecialEnv, char **ppszToFree)
+{
+    KSIZE const cchSpecialEnv = kHlpStrLen(pszSpecialEnv);
+    KU32 i = cEnvVars;
+    while (i-- > 0)
+        if (   kHlpStrNComp(papszEnvVars[i], pszSpecialEnv, cchSpecialEnv) == 0
+            && papszEnvVars[i][cchSpecialEnv] == '=')
+        {
+            /* We will expand stuff like @@NAME@@ */
+            const char *pszValue = papszEnvVars[i];
+            KSIZE       offDst   = 0;
+            char        szTmp[1024];
+            for (;;)
+            {
+                const char *pszAt = kHlpStrChr(pszValue, '@');
+                while (pszAt && pszAt[1] != '@')
+                    pszAt = kHlpStrChr(pszAt + 1, '@');
+                if (pszAt)
+                {
+                    KSIZE cchSrc = pszAt - pszValue;
+                    if (offDst + cchSrc < sizeof(szTmp))
+                    {
+                        char szSrc[64];
+
+                        kHlpMemCopy(&szTmp[offDst], pszValue, cchSrc);
+                        offDst += cchSrc;
+                        pszValue = pszAt + 2;
+
+                        if (kHlpStrNComp(pszValue, "PROCESS_GROUP@@", 15) == 0)
+                        {
+                            pszValue += 15;
+                            if (g_iProcessGroup == -1)
+                                g_iProcessGroup = kwGetCurrentProcessorGroup();
+                            cchSrc = sprintf(szSrc, "%u", g_iProcessGroup);
+                        }
+                        else if (kHlpStrNComp(pszValue, "AUTHENTICATION_ID@@", 19) == 0)
+                        {
+                            pszValue += 19;
+                            cchSrc = kwGetCurrentAuthenticationIdAsString(szSrc);
+                        }
+                        else if (kHlpStrNComp(pszValue, "PID@@", 5) == 0)
+                        {
+                            pszValue += 5;
+                            cchSrc = sprintf(szSrc, "%d", getpid());
+                        }
+                        else if (kHlpStrNComp(pszValue, "@@", 2) == 0)
+                        {
+                            pszValue += 2;
+                            szSrc[0] = '@';
+                            szSrc[1] = '@';
+                            szSrc[2] = '\0';
+                            cchSrc = 2;
+                        }
+                        else if (kHlpStrNComp(pszValue, "DEBUG_COUNTER@@", 15) == 0)
+                        {
+                            static unsigned int s_iCounter = 0;
+                            pszValue += 15;
+                            cchSrc = sprintf(szSrc, "%u", s_iCounter++);
+                        }
+                        else
+                            return kwErrPrintfRc(42 + 6, "Special environment variable contains unknown reference: '%s'!\n",
+                                                 pszValue - 2);
+                        if (offDst + cchSrc < sizeof(szTmp))
+                        {
+                            kHlpMemCopy(&szTmp[offDst], szSrc, cchSrc);
+                            offDst += cchSrc;
+                            continue;
+                        }
+                    }
+                }
+                else
+                {
+                    KSIZE cchSrc = kHlpStrLen(pszValue);
+                    if (offDst + cchSrc < sizeof(szTmp))
+                    {
+                        kHlpMemCopy(&szTmp[offDst], pszValue, cchSrc);
+                        offDst += cchSrc;
+                        break;
+                    }
+                }
+                return kwErrPrintfRc(42 + 6, "Special environment variable value too long!\n");
+            }
+            szTmp[offDst] = '\0';
+
+            /* Return a copy of it: */
+            papszEnvVars[i] = *ppszToFree = kHlpDup(szTmp, offDst + 1);
+            if (papszEnvVars[i])
+            {
+                SetEnvironmentVariableA(pszSpecialEnv, kHlpStrChr(papszEnvVars[i], '=') + 1); /* hack */
+                return 0;
+            }
+            return kwErrPrintfRc(42 + 6, "Special environment variable: out of memory\n");
+        }
+
+    return kwErrPrintfRc(42 + 6, "Special environment variable not found: '%s'\n", pszSpecialEnv);
 }
 
 
@@ -10337,6 +10971,8 @@ static int kSubmitHandleJobPostCmd(KU32 cPostCmdArgs, const char **papszPostCmdA
  * @param   fWatcomBrainDamange Whether to apply watcom rules while quoting.
  * @param   cEnvVars            The number of environment variables.
  * @param   papszEnvVars        The environment vector.
+ * @param   pszSpecialEnv       Name of special environment variable that
+ *                              requires selective expansion here.
  * @param   fNoPchCaching       Whether to disable precompiled header file
  *                              caching.  Avoid trouble when creating them.
  * @param   cPostCmdArgs        Number of post command arguments (includes cmd).
@@ -10344,11 +10980,12 @@ static int kSubmitHandleJobPostCmd(KU32 cPostCmdArgs, const char **papszPostCmdA
  */
 static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCwd,
                                     KU32 cArgs, const char **papszArgs, KBOOL fWatcomBrainDamange,
-                                    KU32 cEnvVars, const char **papszEnvVars, KBOOL fNoPchCaching,
-                                    KU32 cPostCmdArgs, const char **papszPostCmdArgs)
+                                    KU32 cEnvVars, const char **papszEnvVars, const char *pszSpecialEnv,
+                                    KBOOL fNoPchCaching, KU32 cPostCmdArgs, const char **papszPostCmdArgs)
 {
     int rcExit;
     PKWTOOL pTool;
+    char *pszSpecialEnvFree = NULL;
 
     KW_LOG(("\n\nkSubmitHandleJobUnpacked: '%s' in '%s' cArgs=%u cEnvVars=%u cPostCmdArgs=%u\n",
             pszExecutable, pszCwd, cArgs, cEnvVars, cPostCmdArgs));
@@ -10362,6 +10999,18 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
     }
 #endif
     g_cJobs++;
+
+    /*
+     * Expand pszSpecialEnv if present.
+     */
+    if (*pszSpecialEnv)
+    {
+        rcExit = kSubmitHandleSpecialEnvVar(cEnvVars, papszEnvVars, pszSpecialEnv, &pszSpecialEnvFree);
+        if (!rcExit)
+        { /* likely */ }
+        else
+            return rcExit;
+    }
 
     /*
      * Lookup the tool.
@@ -10433,6 +11082,11 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
     }
     else
         rcExit = 42 + 1;
+    if (pszSpecialEnvFree)
+    {
+        SetEnvironmentVariableA(pszSpecialEnv, NULL); /* hack */
+        kHlpFree(pszSpecialEnvFree);
+    }
     return rcExit;
 }
 
@@ -10543,56 +11197,68 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
                                     KBOOL fNoPchCaching = *pszMsg++;
                                     cbMsg -= 2;
 
-                                    /* Post command argument count (can be zero). */
-                                    if (cbMsg >= sizeof(KU32))
+                                    /* Name of special enviornment variable requiring selective expansion. */
+                                    if (cbMsg >= 1)
                                     {
-                                        KU32 cPostCmdArgs;
-                                        kHlpMemCopy(&cPostCmdArgs, pszMsg, sizeof(cPostCmdArgs));
-                                        pszMsg += sizeof(cPostCmdArgs);
-                                        cbMsg  -= sizeof(cPostCmdArgs);
+                                        const char *pszSpecialEnv = pszMsg;
+                                        cbTmp = kHlpStrLen(pszMsg);
+                                        pszMsg += cbTmp + 1;
+                                        cbMsg  -= K_MIN(cbMsg, cbTmp + 1);
 
-                                        if (cPostCmdArgs >= 0 && cPostCmdArgs < 32)
+                                        /* Post command argument count (can be zero). */
+                                        if (cbMsg >= sizeof(KU32))
                                         {
-                                            char const *apszPostCmdArgs[32+1];
-                                            for (i = 0; i < cPostCmdArgs; i++)
-                                            {
-                                                apszPostCmdArgs[i] = pszMsg;
-                                                cbTmp = kHlpStrLen(pszMsg) + 1;
-                                                pszMsg += cbTmp;
-                                                if (   cbTmp < cbMsg
-                                                    || (cbTmp == cbMsg && i + 1 == cPostCmdArgs))
-                                                    cbMsg -= cbTmp;
-                                                else
-                                                {
-                                                    cbMsg = KSIZE_MAX;
-                                                    break;
-                                                }
-                                            }
-                                            if (cbMsg == 0)
-                                            {
-                                                apszPostCmdArgs[cPostCmdArgs] = NULL;
+                                            KU32 cPostCmdArgs;
+                                            kHlpMemCopy(&cPostCmdArgs, pszMsg, sizeof(cPostCmdArgs));
+                                            pszMsg += sizeof(cPostCmdArgs);
+                                            cbMsg  -= sizeof(cPostCmdArgs);
 
-                                                /*
-                                                 * The next step.
-                                                 */
-                                                rcExit = kSubmitHandleJobUnpacked(pszExecutable, pszCwd,
-                                                                                  cArgs, papszArgs, fWatcomBrainDamange,
-                                                                                  cEnvVars, papszEnvVars, fNoPchCaching,
-                                                                                  cPostCmdArgs, apszPostCmdArgs);
+                                            if (cPostCmdArgs >= 0 && cPostCmdArgs < 32)
+                                            {
+                                                char const *apszPostCmdArgs[32+1];
+                                                for (i = 0; i < cPostCmdArgs; i++)
+                                                {
+                                                    apszPostCmdArgs[i] = pszMsg;
+                                                    cbTmp = kHlpStrLen(pszMsg) + 1;
+                                                    pszMsg += cbTmp;
+                                                    if (   cbTmp < cbMsg
+                                                        || (cbTmp == cbMsg && i + 1 == cPostCmdArgs))
+                                                        cbMsg -= cbTmp;
+                                                    else
+                                                    {
+                                                        cbMsg = KSIZE_MAX;
+                                                        break;
+                                                    }
+                                                }
+                                                if (cbMsg == 0)
+                                                {
+                                                    apszPostCmdArgs[cPostCmdArgs] = NULL;
+
+                                                    /*
+                                                     * The next step.
+                                                     */
+                                                    rcExit = kSubmitHandleJobUnpacked(pszExecutable, pszCwd,
+                                                                                      cArgs, papszArgs, fWatcomBrainDamange,
+                                                                                      cEnvVars, papszEnvVars, pszSpecialEnv,
+                                                                                      fNoPchCaching,
+                                                                                      cPostCmdArgs, apszPostCmdArgs);
+                                                }
+                                                else if (cbMsg == KSIZE_MAX)
+                                                    kwErrPrintf("Detected bogus message unpacking post command and its arguments!\n");
+                                                else
+                                                    kwErrPrintf("Message has %u bytes unknown trailing bytes\n", cbMsg);
                                             }
-                                            else if (cbMsg == KSIZE_MAX)
-                                                kwErrPrintf("Detected bogus message unpacking post command and its arguments!\n");
                                             else
-                                                kwErrPrintf("Message has %u bytes unknown trailing bytes\n", cbMsg);
+                                                kwErrPrintf("Bogus post command argument count: %u %#x\n", cPostCmdArgs, cPostCmdArgs);
                                         }
                                         else
-                                            kwErrPrintf("Bogus post command argument count: %u %#x\n", cPostCmdArgs, cPostCmdArgs);
+                                            kwErrPrintf("Detected bogus message looking for the post command argument count!\n");
                                     }
                                     else
-                                        kwErrPrintf("Detected bogus message looking for the post command argument count!\n");
+                                        kwErrPrintf("Detected bogus message unpacking special environment variable!\n");
                                 }
                                 else
-                                    kwErrPrintf("Detected bogus message unpacking environment variables!\n");
+                                    kwErrPrintf("Detected bogus message unpacking flags!\n");
                                 kHlpFree((void *)papszEnvVars);
                             }
                             else
@@ -10888,6 +11554,9 @@ static int kwTestRun(int argc, char **argv)
     char        szCwd[MAX_PATH];
     const char *pszCwd = getcwd(szCwd, sizeof(szCwd));
     KU32        cEnvVars;
+    char      **papszEnvVars;
+    const char *pszSpecialEnv = "";
+    const char *pszSpecialEnvFull = NULL;
     KBOOL       fWatcomBrainDamange = K_FALSE;
     KBOOL       fNoPchCaching = K_FALSE;
 
@@ -10933,6 +11602,20 @@ static int kwTestRun(int argc, char **argv)
             i++;
         }
 
+        /* Optional directory change. */
+        if (   i < argc
+            && (   strcmp(argv[i], "--set-special") == 0
+                || strcmp(argv[i], "-s")      == 0 ) )
+        {
+            i++;
+            if (i >= argc)
+                return kwErrPrintfRc(2, "--set-special takes an argument!\n");
+            pszSpecialEnvFull = argv[i++];
+            putenv(pszSpecialEnvFull);
+            pszSpecialEnv = strdup(pszSpecialEnvFull);
+            *strchr(pszSpecialEnv, '=') = '\0';
+        }
+
         /* Trigger breakpoint */
         if (   i < argc
             && strcmp(argv[i], "--breakpoint") == 0)
@@ -10957,20 +11640,411 @@ static int kwTestRun(int argc, char **argv)
         return kwErrPrintfRc(2, "Nothing to execute after '--'!\n");
 
     /*
-     * Do the job.
+     * Duplicate the environment.
      */
     cEnvVars = 0;
     while (environ[cEnvVars] != NULL)
         cEnvVars++;
+    papszEnvVars = (char **)kHlpAllocZ(sizeof(papszEnvVars[0]) * (cEnvVars + 2));
 
+    /*
+     * Do the job.
+     */
     for (j = 0; j < cRepeats; j++)
     {
+        memcpy(papszEnvVars, environ, sizeof(papszEnvVars[0]) * cEnvVars);
         rcExit = kSubmitHandleJobUnpacked(argv[i], pszCwd,
                                           argc - i, &argv[i], fWatcomBrainDamange,
-                                          cEnvVars, environ, fNoPchCaching,
+                                          cEnvVars, papszEnvVars, pszSpecialEnv, fNoPchCaching,
                                           0, NULL);
         KW_LOG(("rcExit=%d\n", rcExit));
         kwSandboxCleanupLate(&g_Sandbox);
+    }
+
+    if (getenv("KWORKER_STATS") != NULL)
+        kwPrintStats();
+
+# ifdef WITH_LOG_FILE
+    if (g_hLogFile != INVALID_HANDLE_VALUE && g_hLogFile != NULL)
+        CloseHandle(g_hLogFile);
+# endif
+    return rcExit;
+}
+
+
+/**
+ * Reads @a pszFile into memory and chops it up into an argument vector.
+ *
+ * @returns Pointer to the argument vector on success, NULL on failure.
+ * @param   pszFile         The file to load.
+ * @param   pcArgs          Where to return the number of arguments.
+ * @param   ppszFileContent Where to return the allocation.
+ */
+static char **kwFullTestLoadArgvFile(const char *pszFile, int *pcArgs, char **ppszFileContent)
+{
+    char **papszArgs = NULL;
+    FILE  *pFile     = fopen(pszFile, "r");
+    if (pFile)
+    {
+        long cbFile;
+        if (   fseek(pFile, 0, SEEK_END) == 0
+            && (cbFile = ftell(pFile)) >= 0
+            && fseek(pFile, 0, SEEK_SET) == 0)
+        {
+            char *pszFile = kHlpAllocZ(cbFile + 3);
+            if (pszFile)
+            {
+                size_t cbRead = fread(pszFile, 1, cbFile + 1, pFile);
+                if (   feof(pFile)
+                    && !ferror(pFile))
+                {
+                    size_t off        = 0;
+                    int    cArgs      = 0;
+                    int    cAllocated = 0;
+                    char   ch;
+
+                    pszFile[cbRead]     = '\0';
+                    pszFile[cbRead + 1] = '\0';
+                    pszFile[cbRead + 2] = '\0';
+
+                    while ((ch = pszFile[off]) != '\0')
+                    {
+                        char *pszArg;
+                        switch (ch)
+                        {
+                            case ' ':
+                            case '\t':
+                            case '\n':
+                            case '\r':
+                                off++;
+                                continue;
+
+                            case '\\':
+                                if (pszFile[off + 1] == '\n' || pszFile[off + 1] == '\r')
+                                {
+                                    off += 2;
+                                    continue;
+                                }
+                                /* fall thru */
+                            default:
+                                pszArg = &pszFile[off];
+                                do
+                                    ch = pszFile[++off];
+                                while (ch != '\0' && ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r');
+                                pszFile[off++] = '\0';
+                                break;
+
+                            case '\'':
+                                pszArg = &pszFile[++off];
+                                while ((ch = pszFile[off]) != '\0' && ch != '\'')
+                                    off++;
+                                pszFile[off++] = '\0';
+                                break;
+
+                            case '\"': /** @todo escape sequences */
+                                pszArg = &pszFile[++off];
+                                while ((ch = pszFile[off]) != '\0' && ch != '"')
+                                    off++;
+                                pszFile[off++] = '\0';
+                                break;
+                        }
+                        if (cArgs + 1 >= cAllocated)
+                        {
+                            void *pvNew;
+                            cAllocated = cAllocated ? cAllocated * 2 : 16;
+                            pvNew = kHlpRealloc(papszArgs, cAllocated * sizeof(papszArgs[0]));
+                            if (pvNew)
+                                papszArgs = (char **)pvNew;
+                            else
+                            {
+                                kHlpFree(papszArgs);
+                                papszArgs = NULL;
+                                break;
+                            }
+                        }
+                        papszArgs[cArgs] = pszArg;
+                        papszArgs[++cArgs] = NULL;
+                    }
+                    *pcArgs = cArgs;
+                }
+                else
+                    kwErrPrintf("Error reading '%s'!\n", pszFile);
+            }
+            else
+                kwErrPrintf("Error allocating %lu bytes!\n", cbFile + 2);
+        }
+        else
+            kwErrPrintf("Error seeking '%s'!\n", pszFile);
+        fclose(pFile);
+    }
+    else
+        kwErrPrintf("Error opening '%s'!\n", pszFile);
+    return papszArgs;
+}
+
+/**
+ * Appends a string to an string vector (arguments or enviornment).
+ *
+ * @returns 0 on success, non-zero on failure (exit code).
+ * @param   ppapszVector    Pointer to the string pointer array.
+ * @param   pcEntries       Pointer to the array size.
+ * @param   pszAppend       The string to append.
+ */
+static int kwFullTestVectorAppend(const char ***ppapszVector, int *pcEntries, char const *pszAppend)
+{
+    unsigned cEntries = *pcEntries;
+    if (!(cEntries & 15))
+    {
+        void *pvNew = kHlpRealloc((void *)*ppapszVector, sizeof(char *) * (cEntries + 16 + 1));
+        if (pvNew)
+            *ppapszVector = (const char **)pvNew;
+        else
+            return kwErrPrintfRc(2, "Out of memory!\n");
+    }
+    (*ppapszVector)[cEntries] = pszAppend;
+    (*ppapszVector)[++cEntries] = NULL;
+    *pcEntries = cEntries;
+    return 0;
+}
+
+
+/**
+ * Parses arguments for --full-test.
+ *
+ * @returns 0 on success, non-zero on failure (exit code).
+ */
+static int kwFullTestRunParseArgs(PKWONETEST *ppHead, int *piState, int argc, char **argv,
+                                  const char *pszDefaultCwd, int cRecursions, const char *pszJobSrc)
+{
+    PKWONETEST pCur = *ppHead;
+    int i;
+    for (i = 0; i < argc; i++)
+    {
+        int         rc     = 0;
+        const char *pszArg = argv[i];
+        if (*pszArg == 'k' && kHlpStrComp(pszArg, "kSubmit") == 0)
+        {
+            if (*piState != 0)
+            {
+                pCur = (PKWONETEST)kHlpAllocZ(sizeof(*pCur));
+                if (!pCur)
+                    return kwErrPrintfRc(2, "Out of memory!\n");
+                pCur->fVirgin   = K_TRUE;
+                pCur->pszCwd    = pszDefaultCwd;
+                pCur->cRuns     = 1;
+                pCur->pNext     = *ppHead;
+                *ppHead = pCur;
+                *piState = 0;
+            }
+            else if (!pCur->fVirgin)
+                return kwErrPrintfRc(2, "Unexpected 'kSubmit' as argument #%u\n", i);
+            pCur->pszJobSrc = pszJobSrc;
+            pCur->iJobSrc   = i;
+            continue; /* (to stay virgin) */
+        }
+        else if (*pszArg == '-' && *piState == 0)
+        {
+            const char *pszValue = NULL;
+            char        ch       = *++pszArg;
+            pszArg++;
+            if (ch == '-')
+            {
+                ch = '\0';
+                if (*pszArg == '\0') /* -- */
+                    *piState = 2;
+                /* Translate or handle long options: */
+                else if (kHlpStrComp(pszArg, "putenv") == 0 || kHlpStrComp(pszArg, "set") == 0)
+                    ch = 'E';
+                else if (kHlpStrComp(pszArg, "special-env") == 0)
+                    ch = 's';
+                else if (kHlpStrComp(pszArg, "default-env") == 0)
+                {
+                    unsigned i;
+                    pCur->cEnvVars = 0;
+                    for (i = 0; environ[i] && rc == 0; i++)
+                        rc = kwFullTestVectorAppend(&pCur->papszEnvVars, &pCur->cEnvVars, kHlpStrDup(environ[i])); /* leaks; unchecked */
+                }
+                else if (kHlpStrComp(pszArg, "chdir") == 0)
+                    ch = 'C';
+                else if (kHlpStrComp(pszArg, "post-cmd") == 0)
+                    ch = 'P';
+                else if (kHlpStrComp(pszArg, "response-file") == 0)
+                    ch = '@';
+                else if (kHlpStrComp(pszArg, "runs") == 0)
+                    ch = 'R';
+                else if (kHlpStrComp(pszArg, "watcom-brain-damage") == 0)
+                    pCur->fWatcomBrainDamange = K_TRUE;
+                else if (kHlpStrComp(pszArg, "no-pch-caching") == 0)
+                    pCur->fNoPchCaching = K_TRUE;
+                else if (kHlpStrComp(pszArg, "executable") == 0)
+                    ch = 'e';
+                else if (kHlpStrComp(pszArg, "breakpoint") == 0)
+                {
+                    __debugbreak();
+                    continue; /* (to stay virgin) */
+                }
+                else
+                    return kwErrPrintfRc(2, "Unknown option: --%s\n", pszArg);
+                pszArg = "";
+            }
+
+            while (ch != '\0' && rc == 0)
+            {
+                /* Fetch value if needed: */
+                switch (ch)
+                {
+                    case '@':
+                    case 'e':
+                    case 'E':
+                    case 's':
+                    case 'C':
+                    case 'R':
+                        if (*pszArg == ':' || *pszArg == '=')
+                            pszValue = &pszArg[1];
+                        else if (*pszArg)
+                            pszValue = pszArg;
+                        else if (i + 1 < argc)
+                            pszValue = argv[++i];
+                        else
+                            return kwErrPrintfRc(2, "Option -%c takes a value\n", ch);
+                        pszArg = "";
+                        break;
+                }
+
+                /* Handle the option: */
+                switch (ch)
+                {
+                    case 'E':
+                        rc = kwFullTestVectorAppend(&pCur->papszEnvVars, &pCur->cEnvVars, pszValue);
+                        break;
+                    case 'C':
+                        pCur->pszCwd = pszValue;
+                        break;
+                    case 's':
+                        pCur->pszSpecialEnv = pszValue;
+                        break;
+                    case 'e':
+                        pCur->pszExecutable = pszValue;
+                        break;
+                    case 'P':
+                        *piState = 1;
+                        if (*pszArg)
+                            return kwErrPrintfRc(2, "Option -P cannot be followed by other options!\n");
+                        break;
+                    case 'R':
+                        pCur->cRuns = atoi(pszValue);
+                        if ((int)pCur->cRuns < 0)
+                            return kwErrPrintfRc(2, "Option -R takes a positive (or zero) integer as value: %s\n", pszValue);
+                        break;
+                    case '@':
+                        if (cRecursions < 5)
+                        {
+                            char    *pszLeaked = NULL;
+                            int      cArgs     = 0;
+                            char   **papszArgsLeaked = kwFullTestLoadArgvFile(pszValue, &cArgs, &pszLeaked);
+                            if (papszArgsLeaked)
+                            {
+                                rc = kwFullTestRunParseArgs(ppHead, piState, cArgs, papszArgsLeaked, pszDefaultCwd,
+                                                            cRecursions + 1, pszValue);
+                                pCur = *ppHead;
+                            }
+                            else
+                                return 2;
+                        }
+                        else
+                            return kwErrPrintfRc(2, "Too deep response file nesting!\n");
+                        break;
+                }
+
+                /* next */
+                ch = *pszArg++;
+            }
+        }
+        else if (*piState == 2)
+            rc = kwFullTestVectorAppend(&pCur->papszArgs, &pCur->cArgs, pszArg);
+        else if (*piState == 1)
+        {
+            if (pszArg[0] != '-' || pszArg[1] != '-' || pszArg[2] != '\0')
+                rc = kwFullTestVectorAppend(&pCur->papszPostCmdArgs, &pCur->cPostCmdArgs, pszArg);
+            else
+                *piState = 2;
+        }
+        else
+            return kwErrPrintfRc(2, "Unexpected argument: %s\n", pszArg);
+        if (rc)
+            return rc;
+        pCur->fVirgin = K_FALSE;
+    }
+    return 0;
+}
+
+
+/**
+ * Handles what comes after --full-test.
+ *
+ * @returns Exit code.
+ * @param   argc                Number of arguments after --full-test.
+ * @param   argv                Arguments after --full-test.
+ */
+static int kwFullTestRun(int argc, char **argv)
+{
+    char        szDefaultCwd[MAX_PATH];
+    const char *pszDefaultCwd = getcwd(szDefaultCwd, sizeof(szDefaultCwd));
+    KWONETEST   FirstTest;
+    PKWONETEST  pHead = &FirstTest;
+    PKWONETEST  pCur;
+    int         iState = 0;
+    int         rcExit;
+
+    /*
+     * Parse arguments.
+     */
+    kHlpMemSet(&FirstTest, 0, sizeof(FirstTest));
+    FirstTest.pszJobSrc = "command-line";
+    FirstTest.iJobSrc   = 1;
+    FirstTest.fVirgin   = K_TRUE;
+    FirstTest.pszCwd    = pszDefaultCwd;
+    FirstTest.cRuns     = 1;
+
+    rcExit = kwFullTestRunParseArgs(&pHead, &iState, argc, argv, pszDefaultCwd, 0, "command-line");
+    if (rcExit)
+        return rcExit;
+
+    /*
+     * Do the job.  LIFO ordering (see kSubmit).
+     */
+    for (pCur = pHead; pCur; pCur = pCur->pNext)
+    {
+        if (!pCur->pszExecutable && pCur->papszArgs)
+            pCur->pszExecutable = pCur->papszArgs[0];
+        if (   pCur->pszExecutable
+            && pCur->cArgs > 0
+            && pCur->cEnvVars > 0)
+        {
+            size_t const    cbEnvVarCopy     = sizeof(pCur->papszEnvVars[0]) * (pCur->cEnvVars + 1);
+            char ** const   papszEnvVarsCopy = (char **)kHlpDup(pCur->papszEnvVars, cbEnvVarCopy);
+            unsigned        iRun;
+
+            for (iRun = 0; iRun < pCur->cRuns; iRun++)
+            {
+                rcExit = kSubmitHandleJobUnpacked(pCur->pszExecutable, pCur->pszCwd,
+                                                  pCur->cArgs, pCur->papszArgs, pCur->fWatcomBrainDamange,
+                                                  pCur->cEnvVars, pCur->papszEnvVars, pCur->pszSpecialEnv,
+                                                  pCur->fNoPchCaching, pCur->cPostCmdArgs, pCur->papszPostCmdArgs);
+
+                KW_LOG(("rcExit=%d\n", rcExit));
+                kwSandboxCleanupLate(&g_Sandbox);
+
+                memcpy((void *)pCur->papszEnvVars, papszEnvVarsCopy, cbEnvVarCopy);
+            }
+            kHlpFree(papszEnvVarsCopy);
+        }
+        else
+            rcExit = kwErrPrintfRc(2, "Job is underspecified! %s%s%s (Job started with argument #%u, %s)\n",
+                                   pCur->pszExecutable ? "" : " No executable!",
+                                   pCur->cArgs < 1 ? " No arguments!" : "",
+                                   pCur->cEnvVars < 1 ? " No environment!" : "",
+                                   pCur->iJobSrc, pCur->pszJobSrc);
     }
 
     if (getenv("KWORKER_STATS") != NULL)
@@ -11166,6 +12240,8 @@ int main(int argc, char **argv)
         }
         else if (strcmp(argv[i], "--test") == 0)
             return kwTestRun(argc - i - 1, &argv[i + 1]);
+        else if (strcmp(argv[i], "--full-test") == 0)
+            return kwFullTestRun(argc - i - 1, &argv[i + 1]);
         else if (strcmp(argv[i], "--priority") == 0)
         {
             i++;

@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3224 2018-04-08 15:49:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3313 2020-03-16 02:31:38Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -121,6 +121,17 @@ typedef struct WORKERINSTANCE
     int                     fdSocket;
 #endif
 
+    /** Current history index (must mod with aHistory element count). */
+    unsigned                iHistory;
+    /** History.   */
+    struct
+    {
+        /** Pointer to the message, NULL if none. */
+        void               *pvMsg;
+        /** The message size, zero if not present. */
+        size_t              cbMsg;
+    } aHistory[4];
+
     /** What it's busy with.  NULL if idle. */
     struct child           *pBusyWith;
 } WORKERINSTANCE;
@@ -177,6 +188,15 @@ static unsigned             g_cAltArchBits = 64;
 static char const           g_szAltArch[]  = "amd64";
 #else
 # error "Port me!"
+#endif
+
+#ifdef KBUILD_OS_WINDOWS
+/** The processor group allocator state. */
+static MKWINCHILDCPUGROUPALLOCSTATE g_SubmitProcessorGroupAllocator;
+# if K_ARCH_BITS == 64
+/** The processor group allocator state for 32-bit processes. */
+static MKWINCHILDCPUGROUPALLOCSTATE g_SubmitProcessorGroupAllocator32;
+# endif
 #endif
 
 #ifdef KBUILD_OS_WINDOWS
@@ -427,10 +447,20 @@ static int kSubmitSpawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, int 
     if (rc == 0)
     {
 #ifdef KBUILD_OS_WINDOWS
-        static DWORD        s_fDenyRemoteClients = ~(DWORD)0;
-        wchar_t             wszPipeName[128];
-        HANDLE              hWorkerPipe;
-        int                 iProcessorGroup = -1; /** @todo determine process group. */
+        static DWORD    s_fDenyRemoteClients = ~(DWORD)0;
+        wchar_t         wszPipeName[128];
+        HANDLE          hWorkerPipe;
+        int             iProcessorGroup;
+
+# if K_ARCH_BITS == 64
+        /** @todo make it return -1 if not applicable (e.g only one group).  */
+        if (pWorker->cBits != 32)
+            iProcessorGroup = MkWinChildAllocateCpuGroup(&g_SubmitProcessorGroupAllocator);
+        else
+            iProcessorGroup = MkWinChildAllocateCpuGroup(&g_SubmitProcessorGroupAllocator32);
+# else
+        iProcessorGroup = MkWinChildAllocateCpuGroup(&g_SubmitProcessorGroupAllocator);
+# endif
 
         /*
          * Create the bi-directional pipe with overlapping I/O enabled.
@@ -463,7 +493,7 @@ static int kSubmitSpawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, int 
                 if (pWorker->OverlappedRead.hEvent != NULL)
                 {
                     extern int          process_priority; /* main.c */
-                    wchar_t             wszCommandLine[MAX_PATH * 3];
+                    wchar_t             wszCommandLine[MAX_PATH * 3 + 32];
                     wchar_t            *pwszDst = wszCommandLine;
                     size_t              cwcDst = K_ELEMENTS(wszCommandLine);
                     int                 cwc;
@@ -485,6 +515,13 @@ static int kSubmitSpawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, int 
                             cwc = _snwprintf(pwszDst, cwcDst, L" --volatile \"%S.\"", pVarVolatile->value);
                         else
                             cwc = _snwprintf(pwszDst, cwcDst, L" --volatile \"%S\"", pVarVolatile->value);
+                        assert(cwc > 0 && cwc < cwcDst);
+                        pwszDst += cwc;
+                        cwcDst  -= cwc;
+                    }
+                    if (iProcessorGroup >= 0)
+                    {
+                        cwc = _snwprintf(pwszDst, cwcDst, L" --group %d", iProcessorGroup);
                         assert(cwc > 0 && cwc < cwcDst);
                         pwszDst += cwc;
                         cwcDst  -= cwc;
@@ -548,7 +585,7 @@ static int kSubmitSpawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, int 
                             if (!fRet)
                                 warnx(pCtx, "warning: failed to set kWorker thread priority: %u\n", GetLastError());
 
-                            if (iProcessorGroup >= 0)
+                            if (iProcessorGroup >= 0 && g_pfnSetThreadGroupAffinity)
                             {
                                 GROUP_AFFINITY NewAff = { ~(uintptr_t)0, (WORD)iProcessorGroup, 0, 0, 0 };
                                 GROUP_AFFINITY OldAff = {             0,                     0, 0, 0, 0 };
@@ -788,16 +825,19 @@ static PWORKERINSTANCE kSubmitSelectWorkSpawnNewIfNecessary(PKMKBUILTINCTX pCtx,
  * @param   pszCwd              The current directory.
  * @param   fWatcomBrainDamage  The wcc/wcc386 workaround.
  * @param   fNoPchCaching       Whether to disable precompiled header caching.
+ * @param   pszSpecialEnv       Environment variable (name=value) subject to
+ *                              special expansion in kWorker.  NULL if none.
  * @param   papszPostCmdArgs    The post command and it's arguments.
  * @param   cPostCmdArgs        Number of post command argument, including the
  *                              command.  Zero if no post command scheduled.
  * @param   pcbMsg              Where to return the message length.
  */
 static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArgs, char **papszEnvVars,
-                                      const char *pszCwd, int fWatcomBrainDamage, int fNoPchCaching,
+                                      const char *pszCwd, int fWatcomBrainDamage, int fNoPchCaching, const char *pszSpecialEnv,
                                       char **papszPostCmdArgs, uint32_t cPostCmdArgs, uint32_t *pcbMsg)
 {
     size_t   cbTmp;
+    size_t   cbSpecialEnv;
     uint32_t i;
     uint32_t cbMsg;
     uint32_t cArgs;
@@ -832,6 +872,9 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
     cbMsg += 1; /* fWatcomBrainDamage */
     cbMsg += 1; /* fNoPchCaching */
 
+    cbSpecialEnv = pszSpecialEnv ? strchr(pszSpecialEnv, '=') - pszSpecialEnv : 0;
+    cbMsg += cbSpecialEnv + 1;
+
     cbMsg += sizeof(cPostCmdArgs);
     for (i = 0; i < cPostCmdArgs; i++)
         cbMsg += strlen(papszPostCmdArgs[i]) + 1;
@@ -857,7 +900,7 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
     memcpy(pbCursor, pszCwd, cbTmp);
     pbCursor += cbTmp;
 
-    /* argument */
+    /* arguments */
     memcpy(pbCursor, &cArgs, sizeof(cArgs));
     pbCursor += sizeof(cArgs);
     for (i = 0; papszArgs[i] != NULL; i++)
@@ -883,6 +926,11 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
     /* flags */
     *pbCursor++ = fWatcomBrainDamage != 0;
     *pbCursor++ = fNoPchCaching != 0;
+
+    /* Special environment variable name. */
+    memcpy(pbCursor, pszSpecialEnv, cbSpecialEnv);
+    pbCursor += cbSpecialEnv;
+    *pbCursor++ = '\0';
 
     /* post command */
     memcpy(pbCursor, &cPostCmdArgs, sizeof(cPostCmdArgs));
@@ -1107,6 +1155,260 @@ static int kSubmitReadMoreResultWin(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker
 
 #endif /* KBUILD_OS_WINDOWS */
 
+
+/**
+ * Adds the given message to the history.
+ *
+ * @returns Pointer to old message, or NULL if no old msg to free.
+ * @param   pWorker             The worker instance.
+ * @param   pvMsg               The message.
+ * @param   cbMsg               The message size.
+ */
+static void *kSubmitUpdateHistory(PWORKERINSTANCE pWorker, void *pvMsg, size_t cbMsg)
+{
+    unsigned iHistory = pWorker->iHistory % K_ELEMENTS(pWorker->aHistory);
+    void    *pvRet;
+    pWorker->iHistory++;
+    pvRet = pWorker->aHistory[iHistory].pvMsg;
+    pWorker->aHistory[iHistory].pvMsg = pvMsg;
+    pWorker->aHistory[iHistory].cbMsg = cbMsg;
+    return pvRet;
+}
+
+typedef struct HISTORYDUMPBUF
+{
+    char           *pszBuf;
+    size_t          cbBuf;
+    size_t          off;
+    PKMKBUILTINCTX  pCtx;
+} HISTORYDUMPBUF;
+
+
+static void kSubmitDumpHistoryWrite(HISTORYDUMPBUF *pBuf, const char *pch, size_t cch)
+{
+    if (pBuf->off + cch >= pBuf->cbBuf)
+    {
+        size_t cbNew = pBuf->cbBuf ? pBuf->cbBuf * 2 : 65536;
+        while (pBuf->off + cch >= cbNew)
+            cbNew *= 2;
+        pBuf->pszBuf = (char *)xrealloc(pBuf->pszBuf, cbNew);
+        pBuf->cbBuf = cbNew;
+    }
+
+    memcpy(&pBuf->pszBuf[pBuf->off], pch, cch);
+    pBuf->off += cch;
+    pBuf->pszBuf[pBuf->off] = '\0';
+}
+
+static void kSubmitDumpHistoryPrintf(HISTORYDUMPBUF *pBuf, const char *pszFormat, ...)
+{
+    char szTmp[32];
+    va_list va;
+    va_start(va, pszFormat);
+    for (;;)
+    {
+        const char *pszPct = strchr(pszFormat, '%');
+        if (!pszPct)
+        {
+            kSubmitDumpHistoryWrite(pBuf, pszFormat, strlen(pszFormat));
+            return;
+        }
+        if (pszPct != pszFormat)
+        {
+            kSubmitDumpHistoryWrite(pBuf, pszFormat, pszPct - pszFormat);
+            pszFormat = pszPct;
+        }
+        pszFormat++;
+        switch (*pszFormat++)
+        {
+            case 's':
+            {
+                const char * const psz = va_arg(va, const char *);
+                size_t const       cch = strlen(psz);
+                if (memchr(psz, '\'', cch))
+                {
+                    kSubmitDumpHistoryWrite(pBuf, TUPLE("\"")); /** @todo what if there are '"' in the string? */
+                    kSubmitDumpHistoryWrite(pBuf, psz, cch);
+                    kSubmitDumpHistoryWrite(pBuf, TUPLE("\""));
+                }
+                else if (   !memchr(psz, ' ', cch)
+                         && !memchr(psz, '\t', cch)
+                         && !memchr(psz, '\n', cch)
+                         && !memchr(psz, '\r', cch)
+                         && !memchr(psz, '&', cch)
+                         && !memchr(psz, ';', cch)
+                         && !memchr(psz, '|', cch))
+                    kSubmitDumpHistoryWrite(pBuf, psz, cch);
+                else
+                {
+                    kSubmitDumpHistoryWrite(pBuf, TUPLE("'"));
+                    kSubmitDumpHistoryWrite(pBuf, psz, strlen(psz));
+                    kSubmitDumpHistoryWrite(pBuf, TUPLE("'"));
+                }
+                break;
+            }
+
+            case 'd':
+            {
+                int iValue = va_arg(va, int);
+                kSubmitDumpHistoryWrite(pBuf, szTmp, snprintf(szTmp, sizeof(szTmp), "%d", iValue));
+                break;
+            }
+
+            case 'u':
+            {
+                unsigned uValue = va_arg(va, unsigned);
+                kSubmitDumpHistoryWrite(pBuf, szTmp, snprintf(szTmp, sizeof(szTmp), "%u", uValue));
+                break;
+            }
+
+            case '%':
+                kSubmitDumpHistoryWrite(pBuf, "%s", 1);
+                break;
+
+            default:
+                assert(0);
+        }
+    }
+    va_end(va);
+}
+
+static void kSubmitDumpHistoryFlush(HISTORYDUMPBUF *pBuf)
+{
+    if (pBuf->off > 0)
+        output_write_text(pBuf->pCtx->pOut, 1, pBuf->pszBuf, pBuf->off);
+    pBuf->off = 0;
+}
+
+/**
+ * Dumps the history for this worker to stderr in the given context.
+ *
+ * @param   pCtx                The command execution context. (Typically not a
+ *                              real context.)
+ * @param   pWorker             The worker instance.
+ */
+static void kSubmitDumpHistory(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker)
+{
+    HISTORYDUMPBUF  Buf      = { NULL, 0, 0, pCtx };
+    int             iHistory = pWorker->iHistory;
+    unsigned        cDumped  = 0;
+
+    while (cDumped < K_ELEMENTS(pWorker->aHistory) && iHistory > 0)
+    {
+        unsigned const  idx    = (unsigned)--iHistory % K_ELEMENTS(pWorker->aHistory);
+        const char     *pszMsg = (const char *)pWorker->aHistory[idx].pvMsg;
+        ssize_t         cbMsg  = pWorker->aHistory[idx].cbMsg;
+        const char     *pszExe;
+        const char     *pszCwd;
+        uint32_t        i;
+        uint32_t        cArgs;
+        const char     *pszArgs;
+        size_t          cbArgs;
+        uint32_t        cEnvVars;
+        const char     *pszEnvVars;
+        size_t          cbEnvVars;
+        const char     *pszSpecialEnv;
+        char            fNoPchCaching;
+        char            fWatcomBrainDamage;
+        uint32_t        cPostArgs;
+        const char     *pszPostArgs;
+        size_t          cbPostArgs;
+
+        cDumped++;
+        if (!pszMsg || !cbMsg)
+            break;
+
+#define SKIP_BYTES(a_cbSkip)    do { pszMsg += (a_cbSkip); cbMsg -= (a_cbSkip); } while (0)
+#define SKIP_STR()              do { size_t const cbToSkip = strlen(pszMsg) + 1; SKIP_BYTES(cbToSkip); } while (0)
+#define SKIP_STRING_ARRAY(a_cStrings, a_cbPreable) do { \
+        for (i = 0; i < (a_cStrings) && cbMsg > 0; i++) { \
+            size_t const cbToSkip = (a_cbPreable) + strlen(pszMsg + (a_cbPreable)) + 1; \
+            SKIP_BYTES(cbToSkip); \
+        } } while (0)
+
+        /* Decode it: */
+        SKIP_BYTES(sizeof(uint32_t) + sizeof("JOB"));
+        pszExe = pszMsg;
+        SKIP_STR();
+        pszCwd = pszMsg;
+        SKIP_STR();
+
+        cArgs  = *(uint32_t *)pszMsg;
+        SKIP_BYTES(sizeof(uint32_t));
+        pszArgs = pszMsg;
+        SKIP_STRING_ARRAY(cArgs, 1 /*fbFlags*/);
+        cbArgs = pszMsg - pszArgs;
+
+        cEnvVars = *(uint32_t *)pszMsg;
+        SKIP_BYTES(sizeof(uint32_t));
+        pszEnvVars = pszMsg;
+        SKIP_STRING_ARRAY(cEnvVars, 0);
+        cbEnvVars = pszMsg - pszEnvVars;
+
+        fWatcomBrainDamage = pszMsg[0] != '\0';
+        fNoPchCaching = pszMsg[1] != '\0';
+        SKIP_BYTES(2);
+
+        pszSpecialEnv = pszMsg;
+        SKIP_STR();
+
+        cPostArgs = *(uint32_t *)pszMsg;
+        SKIP_BYTES(sizeof(uint32_t));
+        pszPostArgs = pszMsg;
+        SKIP_STRING_ARRAY(cPostArgs, 0);
+        cbPostArgs = pszMsg - pszPostArgs;
+
+        /* Produce parseable output: */
+        kSubmitDumpHistoryPrintf(&Buf, "kWorker %u/%u:\n\tkSubmit", (long)pWorker->pid, iHistory, pszExe);
+        if (fNoPchCaching)
+            kSubmitDumpHistoryWrite(&Buf, TUPLE(" --no-pch-caching"));
+        if (fWatcomBrainDamage)
+            kSubmitDumpHistoryWrite(&Buf, TUPLE(" --watcom-brain-damage"));
+        if (pszSpecialEnv)
+            kSubmitDumpHistoryPrintf(&Buf, " --special-env %s", pszSpecialEnv);
+        kSubmitDumpHistoryPrintf(&Buf, " --chdir %s \\\n", pszCwd);
+
+        pszMsg = pszEnvVars;
+        cbMsg  = cbEnvVars;
+        for (i = 0; i < cEnvVars && cbMsg > 0; i++)
+        {
+            kSubmitDumpHistoryPrintf(&Buf, "\t--putenv %s \\\n", pszMsg);
+            SKIP_STR();
+        }
+
+        if (cPostArgs > 0)
+        {
+            kSubmitDumpHistoryWrite(&Buf, TUPLE("\t--post-cmd "));
+            pszMsg = pszPostArgs;
+            cbMsg  = cbPostArgs;
+            for (i = 0; i < cPostArgs && cbMsg > 0; i++)
+            {
+                kSubmitDumpHistoryPrintf(&Buf, " %s", pszMsg);
+                SKIP_STR();
+            }
+            kSubmitDumpHistoryWrite(&Buf, TUPLE(" \\\n"));
+        }
+        kSubmitDumpHistoryWrite(&Buf, TUPLE("\t-- \\\n"));
+
+        pszMsg = pszArgs;
+        cbMsg  = cbArgs;
+        for (i = 0; i < cArgs && cbMsg > 0; i++)
+        {
+            SKIP_BYTES(1);
+            kSubmitDumpHistoryPrintf(&Buf, i + 1 < cArgs ? "\t%s \\\n" : "\t%s\n", pszMsg);
+            SKIP_STR();
+        }
+
+#undef SKIP_BYTES
+#undef SKIP_STR
+#undef SKIP_STRING_ARRAY
+    }
+
+    kSubmitDumpHistoryFlush(&Buf);
+    free(Buf.pszBuf);
+}
+
+
 /**
  * Marks the worker active.
  *
@@ -1167,6 +1469,8 @@ l_again:
         assert(rc == 0 || pWorker->Result.s.rcExit != 0);
         if (pWorker->Result.s.bWorkerExiting)
             kSubmitCloseConnectOnExitingWorker(pCtx, pWorker);
+        if (pWorker->Result.s.rcExit && 1)
+            kSubmitDumpHistory(pCtx, pWorker);
         *pPidSpawned = 0;
         return pWorker->Result.s.rcExit;
     }
@@ -1246,6 +1550,8 @@ int kSubmitSubProcGetResult(intptr_t pvUser, int fBlock, int *prcExit, int *piSi
         case STATUS_PRIVILEGED_INSTRUCTION:
         case STATUS_ILLEGAL_INSTRUCTION:        *piSigNo = SIGILL; break;
     }
+    if (pWorker->Result.s.rcExit && 1)
+        kSubmitDumpHistory(pCtx, pWorker);
     if (pWorker->Result.s.bWorkerExiting)
         kSubmitCloseConnectOnExitingWorker(pCtx, pWorker);
 
@@ -1409,8 +1715,9 @@ static int kmk_builtin_kSubmit_usage(PKMKBUILTINCTX pCtx, int fIsErr)
     kmk_builtin_ctx_printf(pCtx, fIsErr,
                            "usage: %s [-Z|--zap-env] [-E|--set <var=val>] [-U|--unset <var=val>]\n"
                            "           [-A|--append <var=val>] [-D|--prepend <var=val>]\n"
-                           "           [-C|--chdir <dir>] [--wcc-brain-damage] [--no-pch-caching]\n"
-                           "           [-3|--32-bit] [-6|--64-bit] [-v]\n"
+                           "           [-s|--special-env <var=val>] [-C|--chdir <dir>]\n"
+                           "           [--wcc-brain-damage] [--no-pch-caching]\n"
+                           "           [-3|--32-bit] [-6|--64-bit] [-v] [--debug-dump-history]\n"
                            "           [-P|--post-cmd <cmd> [args]] -- <program> [args]\n"
                            "   or: %s --help\n"
                            "   or: %s --version\n"
@@ -1419,13 +1726,21 @@ static int kmk_builtin_kSubmit_usage(PKMKBUILTINCTX pCtx, int fIsErr)
                            "  -Z, --zap-env, -i, --ignore-environment\n"
                            "    Zaps the environment. Position dependent.\n"
                            "  -E, --set <var>=[value]\n"
-                           "    Sets an enviornment variable putenv fashion. Position dependent.\n"
+                           "    Sets an environment variable putenv fashion. Position dependent.\n"
                            "  -U, --unset <var>\n"
                            "    Removes an environment variable. Position dependent.\n"
                            "  -A, --append <var>=<value>\n"
                            "    Appends the given value to the environment variable.\n"
                            "  -D,--prepend <var>=<value>\n"
                            "    Prepends the given value to the environment variable.\n"
+                           "  -s,--special-env <var>=<value>\n"
+                           "    Same as --set, but flags the variable for further expansion\n"
+                           "    within kWorker. Replacements:\n"
+                           "      @@PROCESSOR_GROUP@@   - The processor group number.\n"
+                           "      @@AUTHENTICATION_ID@@ - The authentication ID from the process token.\n"
+                           "      @@PID@@               - The kWorker process ID.\n"
+                           "      @@@@                  - Escaped \"@@\".\n"
+                           "      @@DEBUG_COUNTER@@     - An ever increasing counter (starts at zero).\n"
                            "  -C, --chdir <dir>\n"
                            "    Specifies the current directory for the program.  Relative paths\n"
                            "    are relative to the previous -C option.  Default is getcwd value.\n"
@@ -1440,6 +1755,9 @@ static int kmk_builtin_kSubmit_usage(PKMKBUILTINCTX pCtx, int fIsErr)
                            "    Do not cache precompiled header files because they're being created.\n"
                            "  -v,--verbose\n"
                            "    More verbose execution.\n"
+                           "  --debug-dump-history\n"
+                           "    Dump the history as of the submitted command.  Handy for debuging\n"
+                           "    trouble caused by a previous job.\n"
                            "  -P|--post-cmd <cmd> ...\n"
                            "    For running a built-in command on the output, specifying the command\n"
                            "    and all it's parameters.  Currently supported commands:\n"
@@ -1457,20 +1775,42 @@ static int kmk_builtin_kSubmit_usage(PKMKBUILTINCTX pCtx, int fIsErr)
 
 int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx, struct child *pChild, pid_t *pPidSpawned)
 {
+#ifdef KBUILD_OS_WINDOWS
+    static int      s_fInitialized      = 0;
+#endif
     int             rcExit = 0;
     int             iArg;
     unsigned        cAllocatedEnvVars;
     unsigned        cEnvVars;
     char          **papszEnvVars;
     const char     *pszExecutable       = NULL;
+    const char     *pszSpecialEnv       = NULL;
     int             iPostCmd            = argc;
     int             cPostCmdArgs        = 0;
     unsigned        cBitsWorker         = g_cArchBits;
     int             fWatcomBrainDamage  = 0;
     int             fNoPchCaching       = 0;
+    int             fDebugDumpHistory   = 0;
     int             cVerbosity          = 0;
     size_t const    cbCwdBuf            = GET_PATH_MAX;
     PATH_VAR(szCwd);
+
+#ifdef KBUILD_OS_WINDOWS
+    /*
+     * First time thru we must perform some initializations.
+     */
+    if (s_fInitialized)
+    { }
+    else
+    {
+        MkWinChildInitCpuGroupAllocator(&g_SubmitProcessorGroupAllocator);
+# if K_ARCH_BITS == 64
+        MkWinChildInitCpuGroupAllocator(&g_SubmitProcessorGroupAllocator32);
+# endif
+        *(FARPROC *)&g_pfnSetThreadGroupAffinity = GetProcAddress(GetModuleHandleW(L"KERNEL32.DLL"), "SetThreadGroupAffinity");
+        s_fInitialized = 1;
+    }
+#endif
 
     /*
      * Create default program environment.
@@ -1532,6 +1872,13 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
                     continue;
                 }
 
+                if (strcmp(pszArg, "debug-dump-history") == 0)
+                {
+                    fDebugDumpHistory = 1;
+                    continue;
+                }
+
+
                 /* convert to short. */
                 if (strcmp(pszArg, "help") == 0)
                     chOpt = 'h';
@@ -1550,6 +1897,8 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
                     chOpt = 'Z';
                 else if (strcmp(pszArg, "chdir") == 0)
                     chOpt = 'C';
+                else if (strcmp(pszArg, "set-special") == 0)
+                    chOpt = 's';
                 else if (strcmp(pszArg, "post-cmd") == 0)
                     chOpt = 'P';
                 else if (strcmp(pszArg, "32-bit") == 0)
@@ -1580,6 +1929,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
                     case 'U':
                     case 'D':
                     case 'e':
+                    case 's':
                         if (*pszArg != '\0')
                             pszValue = pszArg + (*pszArg == ':' || *pszArg == '=');
                         else if (++iArg < argc)
@@ -1627,6 +1977,15 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
 
                     case 'C':
                         rcExit = kBuiltinOptChDir(pCtx, szCwd, cbCwdBuf, pszValue);
+                        if (rcExit == 0)
+                            break;
+                        return rcExit;
+
+                    case 's':
+                        if (pszSpecialEnv)
+                            return errx(pCtx, 1, "The -s option can only be used once!");
+                        pszSpecialEnv = pszValue;
+                        rcExit = kBuiltinOptEnvSet(pCtx, &papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
                         if (rcExit == 0)
                             break;
                         return rcExit;
@@ -1686,7 +2045,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
     {
         uint32_t        cbMsg;
         void           *pvMsg   = kSubmitComposeJobMessage(pszExecutable, &argv[iArg], papszEnvVars, szCwd,
-                                                           fWatcomBrainDamage, fNoPchCaching,
+                                                           fWatcomBrainDamage, fNoPchCaching, pszSpecialEnv,
                                                            &argv[iPostCmd], cPostCmdArgs, &cbMsg);
         PWORKERINSTANCE pWorker = kSubmitSelectWorkSpawnNewIfNecessary(pCtx, cBitsWorker, cVerbosity);
         if (pWorker)
@@ -1702,7 +2061,12 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
                 output_dump(pCtx->pOut);
             rcExit = kSubmitSendJobMessage(pCtx, pWorker, pvMsg, cbMsg, 0 /*fNoRespawning*/, cVerbosity);
             if (rcExit == 0)
+            {
+                pvMsg = kSubmitUpdateHistory(pWorker, pvMsg, cbMsg);
+                if (fDebugDumpHistory)
+                    kSubmitDumpHistory(pCtx, pWorker);
                 rcExit = kSubmitMarkActive(pCtx, pWorker, cVerbosity, pChild, pPidSpawned);
+            }
 
             if (!g_fAtExitRegistered)
                 if (atexit(kSubmitAtExitCallback) == 0)
@@ -1721,6 +2085,4 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
     kBuiltinOptEnvCleanup(&papszEnvVars, cEnvVars, &cAllocatedEnvVars);
     return rcExit;
 }
-
-
 
