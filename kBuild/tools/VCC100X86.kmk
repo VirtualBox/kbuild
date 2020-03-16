@@ -1,4 +1,4 @@
-# $Id: VCC100X86.kmk 3303 2020-01-14 15:09:44Z knut.osmundsen@oracle.com $
+# $Id: VCC100X86.kmk 3313 2020-03-16 02:31:38Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting x86.
 #
@@ -77,7 +77,10 @@ TOOL_VCC100X86_MT  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,mt.e
 ifdef TOOL_VCC100X86_USE_KSUBMIT
  ifeq ($(KBUILD_HOST),win)
   TOOL_VCC100X86_KSUBMIT ?= kmk_builtin_kSubmit --32-bit
-  TOOL_VCC100X86_KSUBMIT_DD = $(TOOL_VCC100X86_KSUBMIT) --
+  if $(KBUILD_KMK_REVISION) > 3311
+   TOOL_VCC100X86_KSUBMIT_SPECIAL_ENV = -s "_MSPDBSRV_ENDPOINT_=kBuild_vcc10_x86_@@AUTHENTICATION_ID@@_$(if-expr defined($(target)_1_VCC_COMMON_OBJ_PDB),common,@@PROCESS_GROUP@@)"
+  endif
+  TOOL_VCC100X86_KSUBMIT_DD = $(TOOL_VCC100X86_KSUBMIT) $(TOOL_VCC100X86_KSUBMIT_SPECIAL_ENV) --
  endif
 endif
 
@@ -154,7 +157,8 @@ TOOL_VCC100X86_COMPILE_C_OUTPUT_MAYBE = $(call TOOL_VCC100X86_PDB, $(outbase)-ob
 ifdef TOOL_VCC100X86_KSUBMIT
  TOOL_VCC100X86_COMPILE_C_DONT_PURGE_OUTPUT = 1 # speed
  define TOOL_VCC100X86_COMPILE_C_CMDS
-	$(QUIET)$(TOOL_VCC100X86_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
+	$(QUIET)$(TOOL_VCC100X86_KSUBMIT) $(TOOL_VCC100X86_KSUBMIT_SPECIAL_ENV) \
+		-P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
 		-- $(TOOL_VCC100X86_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
@@ -194,7 +198,8 @@ TOOL_VCC100X86_COMPILE_CXX_OUTPUT_MAYBE = $(if-expr defined($(target)_1_VCC_COMM
 ifdef TOOL_VCC100X86_KSUBMIT
  TOOL_VCC100X86_COMPILE_CXX_DONT_PURGE_OUTPUT = 1 # speed
  define TOOL_VCC100X86_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC100X86_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
+	$(QUIET)$(TOOL_VCC100X86_KSUBMIT) $(TOOL_VCC100X86_KSUBMIT_SPECIAL_ENV) \
+	 	-P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
 		-- $(TOOL_VCC100X86_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		$(if-expr defined($(target)_PCH_HDR)\
@@ -237,7 +242,9 @@ TOOL_VCC100X86-PCH_COMPILE_CXX_OUTPUT       = $($(target)_1_VCC_PCH_FILE) $($(ta
 TOOL_VCC100X86-PCH_COMPILE_CXX_OUTPUT_MAYBE = $(NO_SUCH_VARIABLE)
 ifdef TOOL_VCC100X86_KSUBMIT
  define TOOL_VCC100X86-PCH_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC100X86_KSUBMIT) --no-pch-caching -P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
+	$(RM) -f -- "$($(target)_1_VCC_COMMON_OBJ_PDB)"
+	$(QUIET)$(TOOL_VCC100X86_KSUBMIT) --no-pch-caching $(TOOL_VCC100X86_KSUBMIT_SPECIAL_ENV) \
+		-P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
 		-- $(TOOL_VCC100X86_CXX) -c -Yc\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
                -Fp$($(target)_1_VCC_PCH_FILE) \
@@ -256,7 +263,6 @@ else
                -TP \
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_OBJ) -f -s -q  -e .pch -o $(dep) -t $(obj) $(obj)
-
  endef
 endif # !TOOL_VCC100X86_KSUBMIT
 

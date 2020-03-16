@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3224 2018-04-08 15:49:07Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3313 2020-03-16 02:31:38Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -333,11 +333,8 @@ static unsigned             g_cChildCareworkers = 0;
 static unsigned             g_cChildCareworkersMax = 0;
 /** Pointer to childcare workers. */
 static PWINCHILDCAREWORKER *g_papChildCareworkers = NULL;
-/** The group index for the worker allocator.
- * This is ever increasing and must be modded by g_cProcessorGroups. */
-static unsigned             g_idxProcessorGroupAllocator = 0;
-/** The processor in group index for the worker allocator. */
-static unsigned             g_idxProcessorInGroupAllocator = 0;
+/** The processor group allocator state. */
+static MKWINCHILDCPUGROUPALLOCSTATE g_ProcessorGroupAllocator;
 /** Number of processor groups in the system.   */
 static unsigned             g_cProcessorGroups = 1;
 /** Array detailing how many active processors there are in each group. */
@@ -467,9 +464,7 @@ void MkWinChildInit(unsigned int cJobSlots)
             for (iGroup = 0; iGroup < g_cProcessorGroups; iGroup++)
                 pacProcessorsInGroup[iGroup] = g_pfnGetActiveProcessorCount(iGroup);
 
-            /* We shift the starting group with the make nesting level as part of
-               our very simple distribution strategy. */
-            g_idxProcessorGroupAllocator = makelevel;
+            MkWinChildInitCpuGroupAllocator(&g_ProcessorGroupAllocator);
         }
         else
         {
@@ -2634,6 +2629,57 @@ void MkWinChildcareDeleteWorkerPipe(PWINCCWPIPE pPipe)
 }
 
 /**
+ * Initializes the processor group allocator.
+ *
+ * @param   pState              The allocator to initialize.
+ */
+void MkWinChildInitCpuGroupAllocator(PMKWINCHILDCPUGROUPALLOCSTATE pState)
+{
+    /* We shift the starting group with the make nesting level as part of
+       our very simple distribution strategy. */
+    pState->idxGroup = makelevel;
+    pState->idxProcessorInGroup = 0;
+}
+
+/**
+ * Allocate CPU group for the next child process.
+ *
+ * @returns CPU group.
+ * @param   pState              The allocator state.  Must be initialized by
+ *                              MkWinChildInitCpuGroupAllocator().
+ */
+unsigned int MkWinChildAllocateCpuGroup(PMKWINCHILDCPUGROUPALLOCSTATE pState)
+{
+    unsigned int iGroup = 0;
+    if (g_cProcessorGroups > 1)
+    {
+        unsigned int cMaxInGroup;
+        unsigned int cInGroup;
+
+        iGroup = pState->idxGroup % g_cProcessorGroups;
+
+        /* Advance.  We employ a very simple strategy that does 50% in
+           each group for each group cycle.  Odd processor counts are
+           caught in odd group cycles.  The init function selects the
+           starting group based on make nesting level to avoid stressing
+           out the first group. */
+        cInGroup = ++pState->idxProcessorInGroup;
+        cMaxInGroup = g_pacProcessorsInGroup[iGroup];
+        if (   !(cMaxInGroup & 1)
+            || !((pState->idxGroup / g_cProcessorGroups) & 1))
+            cMaxInGroup /= 2;
+        else
+            cMaxInGroup = cMaxInGroup / 2 + 1;
+        if (cInGroup >= cMaxInGroup)
+        {
+            pState->idxProcessorInGroup = 0;
+            pState->idxGroup++;
+        }
+    }
+    return iGroup;
+}
+
+/**
  * Creates another childcare worker.
  *
  * @returns The new worker, if we succeeded.
@@ -2653,31 +2699,7 @@ static PWINCHILDCAREWORKER mkWinChildcareCreateWorker(void)
             if (pWorker->pStdErr)
             {
                 /* Before we start the thread, assign it to a processor group. */
-                if (g_cProcessorGroups > 1)
-                {
-                    unsigned int cMaxInGroup;
-                    unsigned int cInGroup;
-                    unsigned int iGroup = g_idxProcessorGroupAllocator % g_cProcessorGroups;
-                    pWorker->iProcessorGroup = iGroup;
-
-                    /* Advance.  We employ a very simple strategy that does 50% in
-                       each group for each group cycle.  Odd processor counts are
-                       caught in odd group cycles.  The init function selects the
-                       starting group based on make nesting level to avoid stressing
-                       out the first group. */
-                    cInGroup = ++g_idxProcessorInGroupAllocator;
-                    cMaxInGroup = g_pacProcessorsInGroup[iGroup];
-                    if (   !(cMaxInGroup & 1)
-                        || !((g_idxProcessorGroupAllocator / g_cProcessorGroups) & 1))
-                        cMaxInGroup /= 2;
-                    else
-                        cMaxInGroup = cMaxInGroup / 2 + 1;
-                    if (cInGroup >= cMaxInGroup)
-                    {
-                        g_idxProcessorInGroupAllocator = 0;
-                        g_idxProcessorGroupAllocator++;
-                    }
-                }
+                pWorker->iProcessorGroup = MkWinChildAllocateCpuGroup(&g_ProcessorGroupAllocator);
 
                 /* Try start the thread. */
                 pWorker->hThread = (HANDLE)_beginthreadex(NULL, 0 /*cbStack*/, mkWinChildcareWorkerThread, pWorker,
@@ -3413,7 +3435,7 @@ int MkWinChildWait(int fBlock, pid_t *pPid, int *piExitCode, int *piSignal, int 
  * Needed when w32os.c is waiting for a job token to become available, given
  * that completed children is the typical source of these tokens (esp. for kmk).
  *
- * @returns Zero if completed children, event handle if waiting is required.
+ * @returns Zero if no active children, event handle if waiting is required.
  */
 intptr_t MkWinChildGetCompleteEventHandle(void)
 {
