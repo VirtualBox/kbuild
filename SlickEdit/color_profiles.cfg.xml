@@ -4,33 +4,33 @@
 	<profile n="color_profiles.Solarized Dark" version="4">
 		<p n="associated_symbol_profile" v="(None)"/>
 		<p n="selection" fg="0x969483" bg="0x423607" flags="0x0" embg="0x63510A"/>
-		<p n="window_text" fg="0x969483" bg="0x362B00" flags="0x0" embg="0x1A1400"/>
+		<p n="window_text" fg="0x969483" bg="0x2A2000" flags="0x0" embg="0x1A1400"/>
 		<p n="cline" fg="0xFFFFFF" bg="0x605030" flags="0x0" embg="0x908060"/>
 		<p n="selected_cline" fg="0xFFFF" bg="0x80C400" flags="0x0" embg="0x509400"/>
 		<p n="message" fg="0x80000008" bg="0x80000005" flags="0x0"/>
 		<p n="status" fg="0x80000008" bg="0xFFFFFF" flags="0x0"/>
 		<p n="cursor" fg="0x0" bg="0xE8E8C0" flags="0x0" embg="0xB8B890"/>
-		<p n="error" fg="0x8236D3" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
+		<p n="error" fg="0x8236D3" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
 		<p n="modified_line" fg="0xFFFFFF" bg="0xFF" flags="0x0" embg="0xCF"/>
 		<p n="inserted_line" fg="0xFFFFFF" bg="0x80" flags="0x0" embg="0x3030B0"/>
-		<p n="keyword" fg="0x1689B5" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
+		<p n="keyword" fg="0x1689B5" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
 		<p n="linenum" fg="0x969483" bg="0x423607" flags="0x0" embg="0x303030"/>
-		<p n="number" fg="0x98A12A" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="string" fg="0x9985" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="comment" fg="0xA100" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="ppkeyword" fg="0x164BCB" bg="0x362B00" flags="0x2001" embg="0x1A1400"/>
-		<p n="punctuation" fg="0x98A12A" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="library_symbol" fg="0xC0C000" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="operator" fg="0x2F32DC" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="user_defined" fg="0xFF" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
+		<p n="number" fg="0x98A12A" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="string" fg="0x9985" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="comment" fg="0xA100" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="ppkeyword" fg="0x164BCB" bg="0x2A2000" flags="0x2001" embg="0x1A1400"/>
+		<p n="punctuation" fg="0x98A12A" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="library_symbol" fg="0xC0C000" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="operator" fg="0x2F32DC" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="user_defined" fg="0xFF" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
 		<p n="imaginary_line" fg="0xFFFFFF" bg="0xFF0000" flags="0x0" embg="0xCF0000"/>
-		<p n="function" fg="0xDB8B26" bg="0x362B00" flags="0x2001" embg="0x1A1400"/>
+		<p n="function" fg="0xDB8B26" bg="0x2A2000" flags="0x2001" embg="0x1A1400"/>
 		<p n="lineprefixarea" fg="0xA1A193" bg="0x423600" flags="0x1"/>
 		<p n="filename" fg="0x0" bg="0xFFFF00" flags="0x0" embg="0xCFCF00"/>
 		<p n="hilight" fg="0xFFFFFF" bg="0x808000" flags="0x0" embg="0x505000"/>
-		<p n="attribute" fg="0x9985" bg="0x362B00" flags="0x2001" embg="0x1A1400"/>
-		<p n="unknown_tag" fg="0x2F32DC" bg="0x362B00" flags="0x2001" embg="0x1A1400"/>
-		<p n="xhtmlelementinxsl" fg="0x80FF" bg="0x362B00" flags="0x2001" embg="0x1A1400"/>
+		<p n="attribute" fg="0x9985" bg="0x2A2000" flags="0x2001" embg="0x1A1400"/>
+		<p n="unknown_tag" fg="0x2F32DC" bg="0x2A2000" flags="0x2001" embg="0x1A1400"/>
+		<p n="xhtmlelementinxsl" fg="0x80FF" bg="0x2A2000" flags="0x2001" embg="0x1A1400"/>
 		<p n="specialchars" fg="0xC0C0C0" bg="0xFFFFFF" flags="0x0" embg="0xCFCFCF"/>
 		<p n="current_line_box" fg="0xFF8080" bg="0xFF8080" flags="0x0"/>
 		<p n="vertical_col_line" fg="0x164BCB" bg="0x164BCB" flags="0x0"/>
@@ -41,56 +41,56 @@
 		<p n="inc_search_current" fg="0x0" bg="0xFFFF80" flags="0x0" embg="0xCFCF50"/>
 		<p n="inc_search_match" fg="0x0" bg="0x80FFFF" flags="0x0" embg="0x50CFCF"/>
 		<p n="hex_mode_color" fg="0x2F32DC" bg="0xF0F0F0" flags="0x1" embg="0xC0C0C0"/>
-		<p n="symbol_highlight" fg="0x98A12A" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
+		<p n="symbol_highlight" fg="0x98A12A" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
 		<p n="document_tab_modified" fg="0xFF" bg="0xFFFFFF" flags="0x0"/>
-		<p n="line_comment" fg="0xA100" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="documentation" fg="0xA100" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="doc_keyword" fg="0xA197" bg="0x362B00" flags="0x2001" embg="0x1A1400"/>
-		<p n="doc_punctuation" fg="0xA100" bg="0x362B00" flags="0x2001" embg="0x1A1400"/>
-		<p n="doc_attribute" fg="0x97A100" bg="0x362B00" flags="0x2001" embg="0x1A1400"/>
-		<p n="doc_attr_value" fg="0x97A100" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="identifier" fg="0x969483" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="floating_number" fg="0x98A12A" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="hex_number" fg="0x98A12A" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="singlequoted_string" fg="0x9985" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="backquoted_string" fg="0x9985" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="unterminated_string" fg="0x9985" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="inactive_code" fg="0xA100" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="inactive_keyword" fg="0xA100" bg="0x362B00" flags="0x2001" embg="0x1A1400"/>
+		<p n="line_comment" fg="0xA100" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="documentation" fg="0xA100" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="doc_keyword" fg="0xA197" bg="0x2A2000" flags="0x2001" embg="0x1A1400"/>
+		<p n="doc_punctuation" fg="0xA100" bg="0x2A2000" flags="0x2001" embg="0x1A1400"/>
+		<p n="doc_attribute" fg="0x97A100" bg="0x2A2000" flags="0x2001" embg="0x1A1400"/>
+		<p n="doc_attr_value" fg="0x97A100" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="identifier" fg="0x969483" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="floating_number" fg="0x98A12A" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="hex_number" fg="0x98A12A" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="singlequoted_string" fg="0x9985" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="backquoted_string" fg="0x9985" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="unterminated_string" fg="0x9985" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="inactive_code" fg="0xA100" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="inactive_keyword" fg="0xA100" bg="0x2A2000" flags="0x2001" embg="0x1A1400"/>
 		<p n="imaginary_space" fg="0xFFFFFF" bg="0xFF0000" flags="0x0" embg="0xCF0000"/>
-		<p n="inactive_comment" fg="0xA100" bg="0x362B00" flags="0x2002" embg="0x1A1400"/>
+		<p n="inactive_comment" fg="0xA100" bg="0x2A2000" flags="0x2002" embg="0x1A1400"/>
 		<p n="modified_item" fg="0xFF" bg="0xFFFFFF" flags="0x0"/>
 		<p n="navhint" fg="0x80FF" bg="0x403010" flags="0x0"/>
-		<p n="xml_character_ref" fg="0x98A12A" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="search_result_truncated" fg="0x969483" bg="0x362B00" flags="0x0"/>
-		<p n="markdown_header" fg="0x969483" bg="0x362B00" flags="0x0" embg="0x1A1400"/>
-		<p n="markdown_code" fg="0x969483" bg="0x362B00" flags="0x0" embg="0x1A1400"/>
-		<p n="markdown_blockquote" fg="0x969483" bg="0x362B00" flags="0x0" embg="0x1A1400"/>
-		<p n="markdown_link" fg="0x969483" bg="0x362B00" flags="0x0" embg="0x1A1400"/>
-		<p n="document_tab_active" fg="0x362B00" bg="0xA1A193" flags="0x0"/>
-		<p n="document_tab_selected" fg="0x362B00" bg="0x969483" flags="0x0"/>
-		<p n="document_tab_unselected" fg="0x969483" bg="0x362B00" flags="0x0"/>
-		<p n="selective_display_line" fg="0xB0C0B0" bg="0x362B00" flags="0x0"/>
-		<p n="identifier2" fg="0x969483" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="css_class" fg="0x969483" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="css_selector" fg="0x969483" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="css_element" fg="0xDB8B26" bg="0x362B00" flags="0x2001" embg="0x1A1400"/>
-		<p n="css_property" fg="0x1689B5" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="markdown_link2" fg="0x969483" bg="0x362B00" flags="0x0" embg="0x1A1400"/>
-		<p n="markdown_bullet" fg="0x98A12A" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="markdown_emphasis" fg="0xC0C000" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="markdown_emphasis2" fg="0xC0C000" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="tag" fg="0x1689B5" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="unknown_attribute" fg="0x969483" bg="0x362B00" flags="0x0" embg="0x1A1400"/>
-		<p n="yaml_anchor_def" fg="0x969483" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="yaml_anchor_ref" fg="0x969483" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="yaml_operator" fg="0x969483" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="yaml_punctuation" fg="0x969483" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="yaml_text" fg="0x9985" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="yaml_directive" fg="0x164BCB" bg="0x362B00" flags="0x2001" embg="0x1A1400"/>
-		<p n="yaml_text_colon" fg="0x1689B5" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="yaml_tag" fg="0xC0C000" bg="0x362B00" flags="0x2000" embg="0x1A1400"/>
-		<p n="markdown_emphasis3" fg="0xC0C000" bg="0x362B00" flags="0x2003" embg="0x1A1400"/>
+		<p n="xml_character_ref" fg="0x98A12A" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="search_result_truncated" fg="0x969483" bg="0x2A2000" flags="0x0"/>
+		<p n="markdown_header" fg="0x969483" bg="0x2A2000" flags="0x0" embg="0x1A1400"/>
+		<p n="markdown_code" fg="0x969483" bg="0x2A2000" flags="0x0" embg="0x1A1400"/>
+		<p n="markdown_blockquote" fg="0x969483" bg="0x2A2000" flags="0x0" embg="0x1A1400"/>
+		<p n="markdown_link" fg="0x969483" bg="0x2A2000" flags="0x0" embg="0x1A1400"/>
+		<p n="document_tab_active" fg="0x2A2000" bg="0xA1A193" flags="0x0"/>
+		<p n="document_tab_selected" fg="0x2A2000" bg="0x969483" flags="0x0"/>
+		<p n="document_tab_unselected" fg="0x969483" bg="0x2A2000" flags="0x0"/>
+		<p n="selective_display_line" fg="0xB0C0B0" bg="0x2A2000" flags="0x0"/>
+		<p n="identifier2" fg="0x969483" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="css_class" fg="0x969483" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="css_selector" fg="0x969483" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="css_element" fg="0xDB8B26" bg="0x2A2000" flags="0x2001" embg="0x1A1400"/>
+		<p n="css_property" fg="0x1689B5" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="markdown_link2" fg="0x969483" bg="0x2A2000" flags="0x0" embg="0x1A1400"/>
+		<p n="markdown_bullet" fg="0x98A12A" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="markdown_emphasis" fg="0xC0C000" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="markdown_emphasis2" fg="0xC0C000" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="tag" fg="0x1689B5" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="unknown_attribute" fg="0x969483" bg="0x2A2000" flags="0x0" embg="0x1A1400"/>
+		<p n="yaml_anchor_def" fg="0x969483" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="yaml_anchor_ref" fg="0x969483" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="yaml_operator" fg="0x969483" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="yaml_punctuation" fg="0x969483" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="yaml_text" fg="0x9985" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="yaml_directive" fg="0x164BCB" bg="0x2A2000" flags="0x2001" embg="0x1A1400"/>
+		<p n="yaml_text_colon" fg="0x1689B5" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="yaml_tag" fg="0xC0C000" bg="0x2A2000" flags="0x2000" embg="0x1A1400"/>
+		<p n="markdown_emphasis3" fg="0xC0C000" bg="0x2A2000" flags="0x2003" embg="0x1A1400"/>
 	</profile>
 </options>
 
