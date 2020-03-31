@@ -1,4 +1,4 @@
-/* $Id: kDep.h 3167 2018-03-20 21:47:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.h 3315 2020-03-31 01:12:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -39,6 +39,10 @@ typedef struct DEP
     struct DEP *pNext;
     /** The filename hash. */
     unsigned    uHash;
+    /** Set if needs escaping. */
+    char        fNeedsEscaping;
+    /** Set if filename ends with a slash and may require special processing. */
+    char        fTrailingSlash;
     /** The length of the filename. */
     size_t      cchFilename;
     /** The filename. */
@@ -57,7 +61,10 @@ extern void depInit(PDEPGLOBALS pThis);
 extern void depCleanup(PDEPGLOBALS pThis);
 extern PDEP depAdd(PDEPGLOBALS pThis, const char *pszFilename, size_t cchFilename);
 extern void depOptimize(PDEPGLOBALS pThis, int fFixCase, int fQuiet, const char *pszIgnoredExt);
-extern void depPrint(PDEPGLOBALS pThis, FILE *pOutput);
+extern int  depNeedsEscaping(const char *pszFile, size_t cchFile, int fDependency);
+extern void depEscapedWrite(FILE *pOutput, const char *pszFile, size_t cchFile, int fDepenency);
+extern void depPrintChain(PDEPGLOBALS pThis, FILE *pOutput);
+extern void depPrintTargetWithDeps(PDEPGLOBALS pThis, FILE *pOutput, const char *pszTarget, int fEscapeTarget);
 extern void depPrintStubs(PDEPGLOBALS pThis, FILE *pOutput);
 
 extern void *depReadFileIntoMemory(FILE *pInput, size_t *pcbFile, void **ppvOpaque);

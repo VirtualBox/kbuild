@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 3192 2018-03-26 20:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 3315 2020-03-31 01:12:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
  */
@@ -829,8 +829,7 @@ int kmk_builtin_kDepIDB(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
     if (!i)
     {
         depOptimize(&This.Core, fFixCase, fQuiet, NULL /*pszIgnoredExt*/);
-        fprintf(pOutput, "%s:", pszTarget);
-        depPrint(&This.Core, pOutput);
+        depPrintTargetWithDeps(&This.Core, pOutput, pszTarget, 1 /*fEscapeTarget*/);
         if (fStubs)
             depPrintStubs(&This.Core, pOutput);
     }
