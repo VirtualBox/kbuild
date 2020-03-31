@@ -1,4 +1,4 @@
-/* $Id: kDep.c 3174 2018-03-21 21:37:52Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 3315 2020-03-31 01:12:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -325,17 +325,169 @@ void depOptimize(PDEPGLOBALS pThis, int fFixCase, int fQuiet, const char *pszIgn
 
 
 /**
+ * Write a filename that contains characters that needs escaping.
+ *
+ * @param   pOutput The output stream.
+ * @param   pszFile The filename.
+ * @param   cchFile The length of the filename.
+ * @param   fDep    Whether this is for a dependency file or a target file.
+ */
+int depNeedsEscaping(const char *pszFile, size_t cchFile, int fDependency)
+{
+    return memchr(pszFile, ' ',  cchFile) != NULL
+        || memchr(pszFile, '\t', cchFile) != NULL
+        || memchr(pszFile, '#',  cchFile) != NULL
+        || memchr(pszFile, '=',  cchFile) != NULL
+        || memchr(pszFile, ';',  cchFile) != NULL
+        || memchr(pszFile, '$',  cchFile) != NULL
+        || memchr(pszFile, fDependency ? '|' : '%',  cchFile) != NULL;
+}
+
+
+/**
+ * Write a filename that contains characters that needs escaping.
+ *
+ * @param   pOutput The output stream.
+ * @param   pszFile The filename.
+ * @param   cchFile The length of the filename.
+ * @param   fDep    Whether this is for a dependency file or a target file.
+ */
+void depEscapedWrite(FILE *pOutput, const char *pszFile, size_t cchFile, int fDepenency)
+{
+    size_t cchWritten = 0;
+    size_t off        = 0;
+    while (off < cchFile)
+    {
+        char const ch = pszFile[off];
+        switch (ch)
+        {
+            default:
+                off++;
+                break;
+
+            /*
+             * Escaped by slash, but any preceeding slashes must be escaped too.
+             * A couple of characters are only escaped on one side of the ':'.
+             */
+            case '%': /* target side only */
+            case '|': /* dependency side only */
+                if (ch != (fDepenency ? '|' : '%'))
+                {
+                    off++;
+                    break;
+                }
+                /* fall thru */
+            case ' ':
+            case '\t':
+            case '#':
+            case '=': /** @todo buggy GNU make handling */
+            case ';': /** @todo buggy GNU make handling */
+                if (cchWritten < off)
+                    fwrite(&pszFile[cchWritten], off - cchWritten, 1, pOutput);
+                if (off == 0 || pszFile[off - 1] != '\\')
+                {
+                    fputc('\\', pOutput);
+                    cchWritten = off; /* We write the escaped character with the next bunch. */
+                }
+                else
+                {
+                    size_t cchSlashes = 1;
+                    while (cchSlashes < off && pszFile[off - cchSlashes - 1] == '\\')
+                        cchSlashes++;
+                    fwrite(&pszFile[off - cchSlashes], cchSlashes, 1, pOutput);
+                    cchWritten = off - 1; /* Write a preceeding slash and the escaped character with the next bunch. */
+                }
+                off += 1;
+                break;
+
+            /*
+             * Escaped by doubling it.
+             * Implemented by including in the pending writeout job as well as in the next one.
+             */
+            case '$':
+                fwrite(&pszFile[cchWritten], off - cchWritten + 1, 1, pOutput);
+                cchWritten = off++; /* write it again the next time */
+                break;
+        }
+    }
+
+    /* Remainder: */
+    if (cchWritten < cchFile)
+        fwrite(&pszFile[cchWritten], cchFile - cchWritten, 1, pOutput);
+}
+
+
+/**
+ * Escapes all trailing trailing slashes in a filename that ends with such.
+ */
+static void depPrintTrailngSlashEscape(FILE *pOutput, const char *pszFilename, size_t cchFilename)
+{
+    size_t cchSlashes = 1;
+    while (cchSlashes < cchFilename && pszFilename[cchFilename - cchSlashes - 1] == '\\')
+        cchSlashes++;
+    fwrite(&pszFilename[cchFilename - cchSlashes], cchSlashes, 1, pOutput);
+}
+
+
+/**
  * Prints the dependency chain.
  *
  * @param   pThis       The 'dep' instance.
  * @param   pOutput     Output stream.
  */
-void depPrint(PDEPGLOBALS pThis, FILE *pOutput)
+void depPrintChain(PDEPGLOBALS pThis, FILE *pOutput)
 {
-    PDEP pDep;
+    static char const g_szEntryText[]     = " \\\n\t";
+    static char const g_szTailText[]      = "\n\n";
+    static char const g_szTailSlashText[] = " \\\n\n";
+    PDEP              pDep;
     for (pDep = pThis->pDeps; pDep; pDep = pDep->pNext)
-        fprintf(pOutput, " \\\n\t%s", pDep->szFilename);
-    fprintf(pOutput, "\n\n");
+    {
+        fwrite(g_szEntryText, sizeof(g_szEntryText) - 1, 1, pOutput);
+        if (!pDep->fNeedsEscaping)
+            fwrite(pDep->szFilename, pDep->cchFilename, 1, pOutput);
+        else
+            depEscapedWrite(pOutput, pDep->szFilename, pDep->cchFilename, 1 /*fDependency*/);
+        if (pDep->fTrailingSlash)
+        {   /* Escape only if more dependencies.  If last, we must add a line continuation or it won't work. */
+            if (pDep->pNext)
+                depPrintTrailngSlashEscape(pOutput, pDep->szFilename, pDep->cchFilename);
+            else
+            {
+                fwrite(g_szTailSlashText, sizeof(g_szTailSlashText), 1, pOutput);
+                return;
+            }
+        }
+    }
+
+    fwrite(g_szTailText, sizeof(g_szTailText) - 1, 1, pOutput);
+}
+
+
+/**
+ * Prints the dependency chain with a preceeding target.
+ *
+ * @param   pThis           The 'dep' instance.
+ * @param   pOutput         Output stream.
+ * @param   pszTarget       The target filename.
+ * @param   fEscapeTarget   Whether to consider escaping the target.
+ */
+void depPrintTargetWithDeps(PDEPGLOBALS pThis, FILE *pOutput, const char *pszTarget, int fEscapeTarget)
+{
+    static char const g_szSeparator[] = ":";
+    size_t const cchTarget = strlen(pszTarget);
+    if (!fEscapeTarget || !depNeedsEscaping(pszTarget, cchTarget, 0 /*fDependency*/))
+        fwrite(pszTarget, cchTarget, 1, pOutput);
+    else
+        depEscapedWrite(pOutput, pszTarget, cchTarget, 0 /*fDependency*/);
+
+    if (cchTarget == 0 || pszTarget[cchTarget - 1] != '\\')
+    { /* likely */ }
+    else
+        depPrintTrailngSlashEscape(pOutput, pszTarget, cchTarget);
+    fwrite(g_szSeparator, sizeof(g_szSeparator) - 1, 1, pOutput);
+
+    depPrintChain(pThis, pOutput);
 }
 
 
@@ -347,9 +499,21 @@ void depPrint(PDEPGLOBALS pThis, FILE *pOutput)
  */
 void depPrintStubs(PDEPGLOBALS pThis, FILE *pOutput)
 {
+    static char g_szTailText[] = ":\n\n";
     PDEP pDep;
     for (pDep = pThis->pDeps; pDep; pDep = pDep->pNext)
-        fprintf(pOutput, "%s:\n\n", pDep->szFilename);
+    {
+        if (!pDep->fNeedsEscaping && memchr(pDep->szFilename, '%', pDep->cchFilename) == 0)
+            fwrite(pDep->szFilename, pDep->cchFilename, 1, pOutput);
+        else
+            depEscapedWrite(pOutput, pDep->szFilename, pDep->cchFilename, 0 /*fDependency*/);
+
+        if (pDep->cchFilename == 0 || !pDep->fTrailingSlash)
+        { /* likely */ }
+        else
+            depPrintTrailngSlashEscape(pOutput, pDep->szFilename, pDep->cchFilename);
+        fwrite(g_szTailText, sizeof(g_szTailText) - 1, 1, pOutput);
+    }
 }
 
 
@@ -414,6 +578,8 @@ PDEP depAdd(PDEPGLOBALS pThis, const char *pszFilename, size_t cchFilename)
     pDep->cchFilename = cchFilename;
     memcpy(pDep->szFilename, pszFilename, cchFilename);
     pDep->szFilename[cchFilename] = '\0';
+    pDep->fNeedsEscaping = depNeedsEscaping(pszFilename, cchFilename, 1 /*fDependency*/);
+    pDep->fTrailingSlash = cchFilename > 0 && pszFilename[cchFilename - 1] == '\\';
     pDep->uHash = uHash;
 
     if (pDepPrev)

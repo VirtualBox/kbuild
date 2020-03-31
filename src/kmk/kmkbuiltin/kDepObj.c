@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 3238 2018-12-25 18:07:55Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 3315 2020-03-31 01:12:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -1187,8 +1187,7 @@ int kmk_builtin_kDepObj(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
     if (!i)
     {
         depOptimize(&This.Core, fFixCase, fQuiet, pszIgnoreExt);
-        fprintf(pOutput, "%s:", pszTarget);
-        depPrint(&This.Core, pOutput);
+        depPrintTargetWithDeps(&This.Core, pOutput, pszTarget, 1 /*fEscapeTarget*/);
         if (fStubs)
             depPrintStubs(&This.Core, pOutput);
     }
