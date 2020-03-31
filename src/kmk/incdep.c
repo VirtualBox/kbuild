@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 3230 2018-05-29 09:05:38Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 3316 2020-03-31 01:13:22Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -1232,6 +1232,290 @@ incdep_record_file (struct incdep *cur,
 #endif
 }
 
+/* Counts slashes backwards from SLASH, stopping at START. */
+static size_t incdep_count_slashes_backwards(const char *slash, const char *start)
+{
+  size_t slashes = 1;
+  assert (*slash == '\\');
+  while ((uintptr_t)slash > (uintptr_t)start && slash[0 - slashes] == '\\')
+    slashes++;
+  return slashes;
+}
+
+/* Whitespace cannot be escaped at the end of a line, there has to be
+   some stuff following it other than a line continuation slash.
+
+   So, we look ahead and makes sure that there is something non-whitespaced
+   following this allegedly escaped whitespace.
+
+   This code ASSUMES the file content is zero terminated! */
+static int incdep_verify_escaped_whitespace(const char *ws)
+{
+  char ch;
+
+  assert(ws[-1] == '\\');
+  assert(ISBLANK((unsigned int)ws[0]));
+
+  /* If the character following the '\ ' sequence is not a whitespace,
+     another escape character or null terminator, we're good. */
+  ws += 2;
+  ch = *ws;
+  if (ch != '\\' && !ISSPACE((unsigned int)ch) && ch != '\0')
+    return 1;
+
+  /* Otherwise we'll have to parse forward till we hit the end of the
+     line/file or something. */
+  while ((ch = *ws++) != '\0')
+    {
+      if (ch == '\\')
+        {
+           /* escaped newline? */
+           ch = *ws;
+           if (ch == '\n')
+             ws++;
+           else  if (ch == '\r' && ws[1] == '\n')
+             ws += 2;
+           else
+             return 1;
+        }
+      else if (ISBLANK((unsigned int)ch))
+      { /* contine */ }
+      else if (!ISSPACE((unsigned int)ch))
+        return 1;
+      else
+        return 0; /* newline; all trailing whitespace will be ignored. */
+    }
+
+  return 0;
+}
+
+/* Unescapes the next filename and returns cached copy.
+
+   Modifies the input string that START points to.
+
+   When NEXTP is not NULL, ASSUME target filename and that END isn't entirely
+   accurate in case the filename ends with a trailing backslash.  There can be
+   more than one filename in a this case.  NEXTP will be set to the first
+   character after then filename.
+
+   When NEXTP is NULL, ASSUME exactly one dependency filename and that END is
+   accurately deliminating the string.
+   */
+static const char *
+incdep_unescape_and_cache_filename(struct incdep *curdep,
+                                   char *start, const char *end, const char **nextp)
+{
+  int const is_dep = nextp == NULL;
+  unsigned const esc_mask = MAP_BLANK        /*  ' ' + '\t' */
+                          | MAP_COLON        /* ':' */
+                          | MAP_COMMENT      /* '#' */
+                          | MAP_EQUALS       /* '=' */
+                          | MAP_SEMI         /* ';' */
+                          | (  is_dep
+                             ? MAP_PIPE      /* '|' */
+                             : MAP_PERCENT); /* '%' */
+  unsigned const all_esc_mask = esc_mask | MAP_BLANK | MAP_NEWLINE;
+  unsigned const stop_mask = nextp ? MAP_BLANK | MAP_NEWLINE | MAP_COLON : 0;
+  char volatile *src;
+  char volatile *dst;
+
+  /*
+   * Skip forward to the first escaped character so we can avoid unnecessary shifting.
+   */
+#if 1
+  src = start;
+  dst = start;
+#elif 1
+  static const char s_szStop[] = "\n\r\t ";
+
+  src = memchr(start, '$', end - start);
+  dst = memchr(start, '\\', end - start);
+  if (src && ((uintptr_t)src < (uintptr_t)dst || dst == NULL))
+    dst = src;
+  else if (dst && ((uintptr_t)dst < (uintptr_t)src || src == NULL))
+    src = dst;
+  else
+    {
+      assert(src == NULL && dst == NULL);
+      if (nextp)
+        {
+           int i = sizeof(s_szStop);
+           while (i-- > 0)
+             {
+               char *stop = memchr(start, s_szStop[i], end - start);
+               if (stop)
+                 end = stop;
+             }
+            *nextp = end;
+        }
+      return incdep_dep_strcache (curdep, start, end - start);
+    }
+  if (nextp)
+    {
+      char *stop = src;
+      int i = sizeof(s_szStop);
+      while (i-- > 0)
+        {
+          char *stop2 = memchr(start, s_szStop[i], stop - start);
+          if (stop2)
+            stop = stop2;
+        }
+      if (stop != src)
+        {
+          *nextp = stop;
+          return incdep_dep_strcache (curdep, start, stop - start);
+        }
+    }
+#endif
+
+  /*
+   * Copy char-by-char, undoing escaping as we go along.
+   */
+  while ((uintptr_t)src < (uintptr_t)end)
+    {
+      const char ch = *src++;
+      if (ch != '\\' && ch != '$')
+        {
+          if (!STOP_SET (ch, stop_mask))
+            *dst++ = ch;
+          else
+            {
+              src--;
+              break;
+            }
+        }
+      else
+        {
+          const char ch2 = *src++;  /* No bounds checking to handle "/dir/file\ : ..."  when end points at " :". */
+          if (ch == '$')
+            {
+              if (ch2 != '$') /* $$ -> $ - Ignores secondary expansion! */
+                  src--;
+              *dst++ = ch;
+            }
+          else
+            {
+              unsigned int const ch2_map = stopchar_map[(unsigned char)ch2];
+              if (ch2_map & all_esc_mask)
+                {
+                  /* Count preceeding slashes, unwind half of them regardless of odd/even count. */
+                  size_t const max_slashes = src - start - 1;
+                  size_t slashes = 1;
+                  while (slashes < max_slashes && src[-2 - slashes] == '\\')
+                    slashes++;
+
+                  /* Non-whitespace is simple: Slash slashes, output or stop. */
+                  if (!(ch2_map & (MAP_BLANK | MAP_NEWLINE)))
+                    {
+                      assert(ch2_map & esc_mask);
+                      dst -= slashes / 2;
+                      if ((slashes & 1) || !(stop_mask & ch2_map))
+                        *dst++ = ch2;
+                      else
+                        {
+                          src--;
+                          break;
+                        }
+                    }
+                  /* Escaped blanks or newlines.
+
+                     We have to pretent that we've already replaced any escaped newlines
+                     and associated whitespace with a single space here.  We also have to
+                     pretend trailing whitespace doesn't exist when IS_DEP is non-zero.
+                     This makes for pretty interesting times... */
+                  else
+                    {
+                      char ch3;
+
+                      /* An Escaped blank is interesting because it is striped unconditionally
+                         at the end of a line, regardless of how many escaped newlines may
+                         following it.  We join the escaped newline handling if we fine one
+                         following us. */
+                      if (ch2_map & MAP_BLANK)
+                        {
+                          /* skip whitespace and check for escaped newline. */
+                          volatile char * const src_saved = src;
+                          while ((ch3 = *src) != '\0' && ISBLANK(ch3))
+                            src++;
+                          if (ch3 == '\\' && src[1] == '\n')
+                            src += 2; /* Escaped blank & newline joins into single space. */
+                          else if (ch3 == '\\' && src[1] == '\r' && src[1] == '\n')
+                            src += 3; /* -> Join the escaped newline code below on the next line. */
+                          else
+                            {
+                              src = src_saved;
+                              dst -= slashes / 2;
+                              if (slashes & 1)
+                                {
+                                  *dst++ = ch2;
+                                  continue;
+                                }
+                              assert(nextp);
+                              break;
+                            }
+                        }
+                      /* Escaped newlines get special treatment as they an any adjacent whitespace
+                         gets reduced to a single space, including subsequent escaped newlines.
+                         In addition, if this is the final dependency/file and there is no
+                         significant new characters following this escaped newline, the replacement
+                         space will also be stripped and we won't have anything to escape, meaning
+                         that the slashes will remain as is.  Finally, none of this space stuff can
+                         be stop characters, unless of course a newline isn't escaped. */
+                      else
+                        {
+                          assert(ch2_map & MAP_NEWLINE);
+                          if (ch2 == '\r' && *src == '\n')
+                            src++;
+                        }
+
+                      /* common space/newline code */
+                      for (;;)
+                        {
+                          while ((uintptr_t)src < (uintptr_t)end && ISBLANK(*src))
+                            src++;
+                          if ((uintptr_t)src >= (uintptr_t)end)
+                            {
+                              ch3 = '\0';
+                              break;
+                            }
+                          ch3 = *src;
+                          if (ch3 != '\\')
+                            break;
+                          ch3 = src[1];
+                          if (ch3 == '\n')
+                            src += 2;
+                          else if (ch3 == '\r' && src[1] == '\n')
+                            src += 3;
+                          else
+                              break;
+                        }
+
+                      if (!ch3 && is_dep)
+                        break; /* last thing on the line. */
+                      dst -= slashes / 2;
+                      if (slashes & 1)
+                        *dst++ = ' ';
+                      else
+                        {
+                          assert(nextp);
+                          break;
+                        }
+                    }
+                }
+              /* Just output the slash if non-escapable character: */
+              else
+                {
+                  src--;
+                  *dst++ = ch;
+                }
+            }
+        }
+    }
+
+  if (nextp)
+    *nextp = (const char *)src;
+  return incdep_dep_strcache(curdep, start, dst - start);
+}
 
 /* no nonsense dependency file including.
 
@@ -1265,12 +1549,12 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
     return;
 
   /* now parse the file. */
-  while (cur < file_end)
+  while ((uintptr_t)cur < (uintptr_t)file_end)
     {
       /* skip empty lines */
-      while (cur < file_end && ISSPACE (*cur) && *cur != '\n')
+      while ((uintptr_t)cur < (uintptr_t)file_end && ISSPACE (*cur) && *cur != '\n')
         ++cur;
-      if (cur >= file_end)
+      if ((uintptr_t)cur >= (uintptr_t)file_end)
         break;
       if (*cur == '#')
         {
@@ -1330,19 +1614,19 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
           /* find the end of the variable. */
           cur = value_end = value_start = value_start + 1;
           ++line_no;
-          while (cur < file_end)
+          while ((uintptr_t)cur < (uintptr_t)file_end)
             {
               /* check for endef, don't bother with skipping leading spaces. */
               if (   file_end - cur >= 5
                   && strneq (cur, "endef", 5))
                 {
                   endp = cur + 5;
-                  while (endp < file_end && ISSPACE (*endp) && *endp != '\n')
+                  while ((uintptr_t)endp < (uintptr_t)file_end && ISSPACE (*endp) && *endp != '\n')
                     endp++;
-                  if (endp >= file_end || *endp == '\n')
+                  if ((uintptr_t)endp >= (uintptr_t)file_end || *endp == '\n')
                     {
                       found_endef = 1;
-                      cur = endp >= file_end ? file_end : endp + 1;
+                      cur = (uintptr_t)endp >= (uintptr_t)file_end ? file_end : endp + 1;
                       break;
                     }
                 }
@@ -1381,7 +1665,7 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                   memcpy (dst, src, len);
                   dst += len;
                   src = endp;
-                  if (src + 1 < file_end && src[1] == '\n')
+                  if ((uintptr_t)src + 1 < (uintptr_t)file_end && src[1] == '\n')
                       src++; /* skip the '\r' */
                   if (src >= value_end)
                     break;
@@ -1410,7 +1694,7 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
           const char *equalp;
           const char *eol;
 
-          /* Look for a colon or and equal sign.  In the assignment case, we
+          /* Look for a colon or an equal sign.  In the assignment case, we
              require it to be on the same line as the variable name to simplify
              the code.  Because of clang, we cannot make the same assumptions
              with file dependencies.  So, start with the equal. */
@@ -1420,7 +1704,7 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
           if (!eol)
             eol = file_end;
           equalp = memchr (cur, '=', eol - cur);
-          if (equalp)
+          if (equalp && equalp != cur && (ISSPACE(equalp[-1]) || equalp[-1] != '\\'))
             {
               /* An assignment of some sort. */
               const char *var;
@@ -1467,13 +1751,13 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
 
               /* find the start of the value. */
               cur = equalp + 1;
-              while (cur < file_end && ISBLANK (*cur))
+              while ((uintptr_t)cur < (uintptr_t)file_end && ISBLANK (*cur))
                 cur++;
               value_start = cur;
 
               /* find the end of the value / line (this isn't 101% correct). */
               value_end = cur;
-              while (cur < file_end)
+              while ((uintptr_t)cur < (uintptr_t)file_end)
                 {
                   endp = value_end = memchr (cur, '\n', file_end - cur);
                   if (!value_end)
@@ -1558,6 +1842,7 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
             {
               /* Expecting: file: dependencies */
 
+              int unescape_filename = 0;
               const char *filename;
               const char *fnnext;
               const char *fnend;
@@ -1572,16 +1857,21 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                  and simplify them while we're at it. */
 
               colonp = memchr (cur, ':', file_end - cur);
-#ifdef HAVE_DOS_PATHS
               while (   colonp
-                     && colonp + 1 < file_end
-                     && (colonp[1] == '/' || colonp[1] == '\\')
-                     && colonp > cur
-                     && isalpha ((unsigned char)colonp[-1])
-                     && (   colonp == cur + 1
-                         || strchr (" \t(", colonp[-2]) != 0))
-                  colonp = memchr (colonp + 1, ':', file_end - (colonp + 1));
+                     && (   (   colonp != cur
+                             && colonp[-1] == '\\'
+                             && incdep_count_slashes_backwards (&colonp[-1], cur) & 1)
+#ifdef HAVE_DOS_PATHS
+                         || (   colonp + 1 < file_end
+                             && (colonp[1] == '/' || colonp[1] == '\\')
+                             && colonp > cur
+                             && isalpha ((unsigned char)colonp[-1])
+                             && (   colonp == cur + 1
+                                 || ISBLANK ((unsigned char)colonp[-2])))
 #endif
+                        )
+                    )
+                  colonp = memchr (colonp + 1, ':', file_end - (colonp + 1));
               if (!colonp)
                 {
                   incdep_warn (curdep, line_no, "no colon.");
@@ -1636,25 +1926,28 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                   incdep_warn (curdep, line_no, "empty filename.");
                   break;
                 }
-              if (memchr (cur, '$', fnend - cur))
-                {
-                  incdep_warn (curdep, line_no, "fancy file name. (includedep)");
-                  break;
-                }
-
               fnnext = cur;
-              while (fnnext != fnend && !ISBLANK (*fnnext))
-                fnnext++;
-              filename = incdep_dep_strcache (curdep, cur, fnnext - cur);
+              if (   !memchr (cur, '\\', fnend - cur)
+                  && !memchr (cur, '$', fnend - cur))
+                {
+                  while (fnnext != fnend && !ISBLANK (*fnnext))
+                    fnnext++;
+                  filename = incdep_dep_strcache (curdep, cur, fnnext - cur);
+                }
+              else
+                {
+                  filename = incdep_unescape_and_cache_filename (curdep, (char *)fnnext, fnend, &fnnext);
+                  unescape_filename = 1;
+                }
 
               /* parse any dependencies. */
               cur = colonp + 1;
-              while (cur < file_end)
+              while ((uintptr_t)cur < (uintptr_t)file_end)
                 {
                   /* skip blanks and count lines. */
-                  while (cur < file_end && ISSPACE (*cur) && *cur != '\n')
+                  while ((uintptr_t)cur < (uintptr_t)file_end && ISSPACE (*cur) && *cur != '\n')
                     ++cur;
-                  if (cur >= file_end)
+                  if ((uintptr_t)cur >= (uintptr_t)file_end)
                     break;
                   if (*cur == '\n')
                     {
@@ -1679,13 +1972,19 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
 
                   /* find the end of the filename */
                   endp = cur;
-                  while (endp < file_end && !ISSPACE (*endp))
+                  while (   (uintptr_t)endp < (uintptr_t)file_end
+                         && (   !ISSPACE (*endp)
+                             || (endp[-1] == '\\' && incdep_count_slashes_backwards(&endp[-1], cur) & 1)))
                     ++endp;
 
                   /* add it to the list. */
                   *nextdep = dep = incdep_alloc_dep (curdep);
-                  dep->name = incdep_dep_strcache (curdep, cur, endp - cur);
                   dep->includedep = 1;
+                  if (   !memchr (cur, '\\', endp - cur)
+                      && !memchr (cur, '$', endp - cur))
+                    dep->name = incdep_dep_strcache(curdep, cur, endp - cur);
+                  else
+                    dep->name = incdep_unescape_and_cache_filename (curdep, (char *)cur, endp, NULL);
                   nextdep = &dep->next;
 
                   cur = endp;
@@ -1695,21 +1994,24 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
               incdep_record_file (curdep, filename, deps, f);
 
               /* More files? Record them with the same dependency list. */
-              if (fnnext != fnend)
+              if ((uintptr_t)fnnext < (uintptr_t)fnend)
                 for (;;)
                   {
                     const char *filename_prev = filename;
-                    const char *fnstart;
                     while (fnnext != fnend && ISBLANK (*fnnext))
                       fnnext++;
                     if (fnnext == fnend)
                       break;
 
-                    fnstart = fnnext;
-                    while (fnnext != fnend && !ISBLANK (*fnnext))
-                      fnnext++;
-
-                    filename = incdep_dep_strcache (curdep, fnstart, fnnext - fnstart);
+                    if (!unescape_filename)
+                      {
+                        const char *fnstart = fnnext;
+                        while (fnnext != fnend && !ISBLANK (*fnnext))
+                          fnnext++;
+                        filename = incdep_dep_strcache (curdep, fnstart, fnnext - fnstart);
+                      }
+                    else
+                      filename = incdep_unescape_and_cache_filename (curdep, (char *)fnnext, fnend, &fnnext);
                     if (filename != filename_prev) /* clang optimization. */
                       incdep_record_file (curdep, filename, incdep_dup_dep_list (curdep, deps), f);
                   }

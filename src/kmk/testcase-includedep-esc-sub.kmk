@@ -1,0 +1,32 @@
+# $Id: testcase-includedep-esc-sub.kmk 3316 2020-03-31 01:13:22Z knut.osmundsen@oracle.com $
+## @file
+# kBuild - testcase for the includdep directive with filename escaping, helper
+#          file that gets included.
+#
+
+#
+# Copyright (c) 2007-2020 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+testcase-includedep-esc-sub.kmk=included
+
+# spaces
+/phoney/file-with-two-spaces\ \ .c: \
+		/phoney/header-file-with-two-spaces\ \ .h
+
