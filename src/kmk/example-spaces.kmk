@@ -1,0 +1,175 @@
+# $Id: example-spaces.kmk 3316 2020-03-31 01:13:22Z knut.osmundsen@oracle.com $
+## @file
+# kBuild - examples of GNU make filename quoting (escaping).
+#
+
+#
+# Copyright (c) 2020 knut st. osmundsen <bird-kBuild-spamxx@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+
+all: \
+	phoney\ space\ \ 1 \
+	phoney\ colon\:\ 2 \
+	phoney\ hash\#\ 3 \
+	phoney\ dollar$$\ 4 \
+	phoney\ slash-space\\\ 5 \
+	phoney\ slash-hash\\\#\ 6 \
+	phoney\ slash-slash-hash\\\\\#\ 7 \
+ 	phoney\ percent%\ 10 \
+	phoney\ pipe\|\ 11 \
+	phoney\ plus+\ 12 \
+	all-trailing-slashes1 \
+       all-trailing-slashes2 \
+       all-trailing-slashes3 \
+       all-trailing-spaces1 \
+       all-trailing-spaces2 \
+       all-trailing-spaces3 \
+       all-trailing-spaces4 \
+	phoney\ 19-target-trailing-space-with-padding\  ignore \
+	phoney\ 20-target-trailing-space-with-newline-padding\  ignore \
+	phoney\ 21-target-trailing-space-with-newline-padding-and-tail\ my-tail-21
+
+
+ignore:
+
+#
+# Trailing slashes are complicated in dependency lists:
+#
+
+# Variant #1: Must have a line-continutation to work if last in the list, but no extra escaping.
+# This doesn't work: all-trailing-slashes1: phoney\ trailing-slash13\
+# This doesn't work: all-trailing-slashes1: phoney\ trailing-slash13\\
+all-trailing-slashes1: phoney\ trailing-slash13\ \
+
+all-trailing-slashes2: phoney\ trailing-slash13b\ \
+	\
+	\
+	\
+
+# Variant #2: If there are more dependencies following it, we must escape the trailing slash
+all-trailing-slashes3: \
+	phoney\ trailing-slash14\\ \
+	phoney\ space\ \ 1 # whatever
+
+#
+# Trailing spaces only works if there is a target following on the same line.
+#
+all-trailing-spaces1: phoney\ 15-trailing-space\  phoney_simple
+
+# Note! No stripping spaces! Trailing space here that gets stripped instead of escaped.
+all-trailing-spaces2: phoney\ 16-no-trailing-space\ 
+
+all-trailing-spaces3: phoney\ 17-3x-escaped-newlines\ \
+\
+\
+	becomes-single-space
+
+# Note! Must have a trailing space or comment.
+all-trailing-spaces4: phoney\ 18-3x-escaped-trailing-spaces-no-newline\ \ \ #
+
+
+#
+# TODO
+#
+
+#busted:	phoney\ equal\=\ 8 \
+#impossible:	phoney\ semi\;\ 9 \
+
+
+#
+# The rules.
+#
+
+phoney_simple:
+
+phoney\ space\ \ 1:
+	echo "#1: '$@'"
+
+phoney\ colon\:\ 2:
+	echo "#2: '$@'"
+
+phoney\ hash\#\ 3 :
+	echo "#3: '$@'"
+
+phoney\ dollar$$\ 4 :
+	echo "#4: '$@'"
+
+phoney\ slash-space\\\ 5:
+	echo "#5: '$@'"
+
+phoney\ slash-hash\\\#\ 6:
+	echo "#6: '$@'"
+
+phoney\ slash-slash-hash\\\\\#\ 7:
+	echo "#7: '$@'"
+
+## This is busted:
+#phoney\ equal=\ 8:
+#	echo "#8: '$@'"
+
+## This seems impossible:
+#phoney\ semi\;:
+#	echo "#9: '$@'"
+
+phoney\ percent\%\ 10: # Note! The percent is only escaped on the target side!
+	echo "#10: '$@'"
+
+phoney\ pipe|\ 11:     # Note! The pipe is only escaped on the dependency list side!
+	echo "#11: '$@'"
+
+phoney\ plus+\ 12:
+	echo "#12: '$@'"
+
+phoney\ trailing-slash13\\:
+	echo "#13: '$@'"
+
+phoney\ trailing-slash13b\\:
+	echo "#13b: '$@'"
+
+phoney\ trailing-slash14\\:
+	echo "#14: '$@'"
+
+phoney\ 15-trailing-space\ :
+	echo "#15: '$@'"
+
+phoney\ 16-no-trailing-space\\:
+	echo "#16: '$@'"
+
+phoney\ 17-3x-escaped-newlines\ becomes-single-space:
+	echo "#17: '$@'"
+
+phoney\ 18-3x-escaped-trailing-spaces-no-newline\ \ \\:
+	echo "#18: '$@'"
+
+phoney\ 19-target-trailing-space-with-padding\   :
+	echo "#19: '$@'"
+
+phoney\ 20-target-trailing-space-with-newline-padding\   \
+\
+:
+	echo "#20: '$@'"
+
+phoney\ 21-target-trailing-space-with-newline-padding-and-tail\ \
+\
+ \
+		\
+my-tail-21:
+	echo "#21: '$@'"
+
