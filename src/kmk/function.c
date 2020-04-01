@@ -3833,11 +3833,13 @@ func_deps (char *o, char **argv, const char *funcname)
                     total_len += strlen (c);
                   }
                 else
-#elif defined (CONFIG_WITH_STRCACHE2)
-                  total_len += strcache2_get_len (&file_strcache, c) + 1;
-#else
-                  total_len += strlen (c) + 1;
 #endif
+#ifdef CONFIG_WITH_STRCACHE2
+                if (!d->need_2nd_expansion)
+                  total_len += strcache2_get_len (&file_strcache, c) + 1;
+                else
+#endif
+                  total_len += strlen (c) + 1;
               }
 
           if (total_len)
@@ -3860,11 +3862,13 @@ func_deps (char *o, char **argv, const char *funcname)
                         len = strlen (c);
                       }
                     else
-#elif defined (CONFIG_WITH_STRCACHE2)
-                      len = strcache2_get_len (&file_strcache, c) + 1;
-#else
-                      len = strlen (c) + 1;
 #endif
+#ifdef CONFIG_WITH_STRCACHE2
+                    if (!d->need_2nd_expansion)
+                      len = strcache2_get_len (&file_strcache, c) + 1;
+                    else
+#endif
+                      len = strlen (c) + 1;
                     o = variable_buffer_output (o, c, len);
                     o[-1] = FILE_LIST_SEPARATOR;
                   }
@@ -3892,11 +3896,13 @@ func_deps (char *o, char **argv, const char *funcname)
                         len = strlen (c) - 1;
                       }
                     else
-#elif defined (CONFIG_WITH_STRCACHE2)
-                      len = strcache2_get_len (&file_strcache, c);
-#else
-                      len = strlen (c);
 #endif
+#ifdef CONFIG_WITH_STRCACHE2
+                    if (!d->need_2nd_expansion)
+                      len = strcache2_get_len (&file_strcache, c);
+                    else
+#endif
+                      len = strlen (c);
                     o = variable_buffer_output (o, c, len);
                     break;
                   }
@@ -3970,11 +3976,13 @@ func_deps_newer (char *o, char **argv, const char *funcname)
                     total_len += strlen (c);
                   }
                 else
-#elif defined (CONFIG_WITH_STRCACHE2)
-                  total_len += strcache2_get_len (&file_strcache, c) + 1;
-#else
-                  total_len += strlen (c) + 1;
 #endif
+#ifdef CONFIG_WITH_STRCACHE2
+                if (!d->need_2nd_expansion)
+                  total_len += strcache2_get_len (&file_strcache, c) + 1;
+                else
+#endif
+                  total_len += strlen (c) + 1;
               }
 
           if (total_len)
@@ -3997,11 +4005,13 @@ func_deps_newer (char *o, char **argv, const char *funcname)
                         len = strlen (c);
                       }
                     else
-#elif defined (CONFIG_WITH_STRCACHE2)
-                      len = strcache2_get_len (&file_strcache, c) + 1;
-#else
-                      len = strlen (c) + 1;
 #endif
+#ifdef CONFIG_WITH_STRCACHE2
+                    if (!d->need_2nd_expansion)
+                      len = strcache2_get_len (&file_strcache, c) + 1;
+                    else
+#endif
+                      len = strlen (c) + 1;
                     o = variable_buffer_output (o, c, len);
                     o[-1] = FILE_LIST_SEPARATOR;
                   }
@@ -4029,11 +4039,13 @@ func_deps_newer (char *o, char **argv, const char *funcname)
                         len = strlen (c) - 1;
                       }
                     else
-#elif defined (CONFIG_WITH_STRCACHE2)
-                      len = strcache2_get_len (&file_strcache, c);
-#else
-                      len = strlen (c);
 #endif
+#ifdef CONFIG_WITH_STRCACHE2
+                    if (!d->need_2nd_expansion)
+                      len = strcache2_get_len (&file_strcache, c);
+                    else
+#endif
+                      len = strlen (c);
                     o = variable_buffer_output (o, c, len);
                     break;
                   }
@@ -4107,11 +4119,13 @@ func_deps_order_only (char *o, char **argv, const char *funcname)
                     total_len += strlen (c);
                   }
                 else
-#elif defined (CONFIG_WITH_STRCACHE2)
-                  total_len += strcache2_get_len (&file_strcache, c) + 1;
-#else
-                  total_len += strlen (c) + 1;
 #endif
+#ifdef CONFIG_WITH_STRCACHE2
+                if (!d->need_2nd_expansion)
+                  total_len += strcache2_get_len (&file_strcache, c) + 1;
+                else
+#endif
+                  total_len += strlen (c) + 1;
               }
 
           if (total_len)
@@ -4134,11 +4148,13 @@ func_deps_order_only (char *o, char **argv, const char *funcname)
                         len = strlen (c);
                       }
                     else
-#elif defined (CONFIG_WITH_STRCACHE2)
-                      len = strcache2_get_len (&file_strcache, c) + 1;
-#else
-                      len = strlen (c) + 1;
 #endif
+#ifdef CONFIG_WITH_STRCACHE2
+                    if (!d->need_2nd_expansion)
+                      len = strcache2_get_len (&file_strcache, c) + 1;
+                    else
+#endif
+                      len = strlen (c) + 1;
                     o = variable_buffer_output (o, c, len);
                     o[-1] = FILE_LIST_SEPARATOR;
                   }
@@ -4166,11 +4182,13 @@ func_deps_order_only (char *o, char **argv, const char *funcname)
                         len = strlen (c) - 1;
                       }
                     else
-#elif defined (CONFIG_WITH_STRCACHE2)
-                      len = strcache2_get_len (&file_strcache, c);
-#else
-                      len = strlen (c);
 #endif
+#ifdef CONFIG_WITH_STRCACHE2
+                    if (!d->need_2nd_expansion)
+                      len = strcache2_get_len (&file_strcache, c);
+                    else
+#endif
+                      len = strlen (c);
                     o = variable_buffer_output (o, c, len);
                     break;
                   }
