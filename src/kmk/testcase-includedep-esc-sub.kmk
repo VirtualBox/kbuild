@@ -1,4 +1,4 @@
-# $Id: testcase-includedep-esc-sub.kmk 3316 2020-03-31 01:13:22Z knut.osmundsen@oracle.com $
+# $Id: testcase-includedep-esc-sub.kmk 3318 2020-04-01 07:05:32Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the includdep directive with filename escaping, helper
 #          file that gets included.
@@ -29,4 +29,85 @@ testcase-includedep-esc-sub.kmk=included
 # spaces
 /phoney/file-with-two-spaces\ \ .c: \
 		/phoney/header-file-with-two-spaces\ \ .h
+
+
+#
+# From example-spaces.kmk
+#
+/phoney-dep-ignore:
+
+phoney\ space\ \ 1: /phoney-dep\ space\ \ 1
+
+phoney\ colon\:\ 2: /phoney-dep\ colon\:\ 2 \
+
+phoney\ hash\#\ 3 : /phoney-dep\ hash\#\ 3 
+
+phoney\ dollar$$\ 4 : /phoney-dep\ dollar$$\ 4 \
+
+phoney\ slash-space\\\ 5: /phoney-dep\ slash-space\\\ 5
+
+phoney\ slash-hash\\\#\ 6: /phoney-dep\ slash-hash\\\#\ 6 \
+
+phoney\ slash-slash-hash\\\\\#\ 7:  /phoney-dep\ slash-slash-hash\\\\\#\ 7
+
+phoney\ equal\=\ 8: /phoney-dep\ equal\=\ 8
+
+phoney\ semI\;\ 9: /phoney-dep\ semi\;\ 9
+
+# Note! The percent is only escaped on the target side!
+phoney\ percent\%\ 10:	/phoney-dep\ percent%\ 10 \
+
+# Note! The pipe is only escaped on the dependency list side!
+phoney\ pipe|\ 11: /phoney-dep\ pipe\|\ 11    
+
+phoney\ plus+\ 12: \
+	/phoney-dep\ plus+\ 12
+
+phoney\ trailing-slash13\\: /phoney-dep\ trailing-slash13\ \
+
+phoney\ trailing-slash13b\\: /phoney-dep\ trailing-slash13b\ \
+	\
+	\
+	\
+
+phoney\ trailing-slash14\\: \
+	/phoney-dep\ trailing-slash14\\ \
+	/phoney-dep-ignore
+
+phoney\ 15-trailing-space\ : /phoney-dep\ 15-trailing-space\  /phoney-dep-ignore
+
+# Note! No stripping spaces! Trailing space here that gets stripped instead of escaped.
+phoney\ 16-no-trailing-space\\: /phoney-dep\ 16-no-trailing-space\ 
+
+phoney\ 17-3x-escaped-newlines\ becomes-single-space: /phoney-dep\ 17-3x-escaped-newlines\ \
+\
+\
+	becomes-single-space
+
+# Note! Must have a trailing space or comment.
+phoney\ 18-3x-escaped-trailing-spaces-no-newline\ \ \\: \
+	/phoney-dep\ 18-3x-escaped-trailing-spaces-no-newline\ \ \ 
+
+phoney\ 19-target-trailing-space-with-padding\   : /phoney-dep\ 19-target-trailing-space-with-padding\  /phoney-dep-ignore
+
+phoney\ 20-target-trailing-space-with-newline-padding\   \
+\
+: /phoney-dep\ 20-target-trailing-space-with-newline-padding\  /phoney-dep-ignore
+
+phoney\ 21-target-trailing-space-with-newline-padding-and-tail\ \
+\
+ \
+		\
+my-tail-21: /phoney-dep\ 21-target-trailing-space-with-newline-padding-and-tail\ \
+\
+\
+my-tail-21
+
+
+all-trailing-slashes1: /phoney-dep\ trailing-slash13\ \
+
+all-trailing-slashes2: /phoney-dep\ trailing-slash13b\ \
+	\
+	\
+	\
 

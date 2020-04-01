@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 3316 2020-03-31 01:13:22Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 3318 2020-04-01 07:05:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -1302,10 +1302,9 @@ static int incdep_verify_escaped_whitespace(const char *ws)
    accurately deliminating the string.
    */
 static const char *
-incdep_unescape_and_cache_filename(struct incdep *curdep,
-                                   char *start, const char *end, const char **nextp)
+incdep_unescape_and_cache_filename(struct incdep *curdep, char *start, const char *end,
+                                   int const is_dep, const char **nextp, unsigned int *linenop)
 {
-  int const is_dep = nextp == NULL;
   unsigned const esc_mask = MAP_BLANK        /*  ' ' + '\t' */
                           | MAP_COLON        /* ':' */
                           | MAP_COMMENT      /* '#' */
@@ -1315,7 +1314,7 @@ incdep_unescape_and_cache_filename(struct incdep *curdep,
                              ? MAP_PIPE      /* '|' */
                              : MAP_PERCENT); /* '%' */
   unsigned const all_esc_mask = esc_mask | MAP_BLANK | MAP_NEWLINE;
-  unsigned const stop_mask = nextp ? MAP_BLANK | MAP_NEWLINE | MAP_COLON : 0;
+  unsigned const stop_mask = nextp ? MAP_BLANK | MAP_NEWLINE | (!is_dep ? MAP_COLON : 0) : 0;
   char volatile *src;
   char volatile *dst;
 
@@ -1386,7 +1385,7 @@ incdep_unescape_and_cache_filename(struct incdep *curdep,
         }
       else
         {
-          const char ch2 = *src++;  /* No bounds checking to handle "/dir/file\ : ..."  when end points at " :". */
+          char ch2 = *src++;  /* No bounds checking to handle "/dir/file\ : ..."  when end points at " :". */
           if (ch == '$')
             {
               if (ch2 != '$') /* $$ -> $ - Ignores secondary expansion! */
@@ -1395,21 +1394,33 @@ incdep_unescape_and_cache_filename(struct incdep *curdep,
             }
           else
             {
-              unsigned int const ch2_map = stopchar_map[(unsigned char)ch2];
+              unsigned int ch2_map;
+
+              /* Eat all the slashes and see what's at the end of them as that's all
+                 that's relevant.  If there is an escapable char, we'll emit half of
+                 the slashes. */
+              size_t const max_slashes = src - start - 1;
+              size_t slashes = 1;
+              while (ch2 == '\\')
+                {
+                  ch2 = *src++;
+                  slashes++;
+                }
+
+              /* Is it escapable? */
+              ch2_map = stopchar_map[(unsigned char)ch2];
               if (ch2_map & all_esc_mask)
                 {
-                  /* Count preceeding slashes, unwind half of them regardless of odd/even count. */
-                  size_t const max_slashes = src - start - 1;
-                  size_t slashes = 1;
-                  while (slashes < max_slashes && src[-2 - slashes] == '\\')
-                    slashes++;
-
                   /* Non-whitespace is simple: Slash slashes, output or stop. */
                   if (!(ch2_map & (MAP_BLANK | MAP_NEWLINE)))
                     {
                       assert(ch2_map & esc_mask);
-                      dst -= slashes / 2;
-                      if ((slashes & 1) || !(stop_mask & ch2_map))
+                      while (slashes >= 2)
+                        {
+                          *dst++ = '\\';
+                          slashes -= 2;
+                        }
+                      if (slashes || !(stop_mask & ch2_map))
                         *dst++ = ch2;
                       else
                         {
@@ -1439,18 +1450,28 @@ incdep_unescape_and_cache_filename(struct incdep *curdep,
                             src++;
                           if (ch3 == '\\' && src[1] == '\n')
                             src += 2; /* Escaped blank & newline joins into single space. */
-                          else if (ch3 == '\\' && src[1] == '\r' && src[1] == '\n')
+                          else if (ch3 == '\\' && src[1] == '\r' && src[2] == '\n')
                             src += 3; /* -> Join the escaped newline code below on the next line. */
+                          else if (STOP_SET(ch3, stop_mask & MAP_NEWLINE))
+                            { /* last thing on the line, no blanks to escape. */
+                              while (slashes-- > 0)
+                                *dst++ = '\\';
+                              break;
+                            }
                           else
                             {
                               src = src_saved;
-                              dst -= slashes / 2;
-                              if (slashes & 1)
+                              while (slashes >= 2)
+                                {
+                                  *dst++ = '\\';
+                                  slashes -= 2;
+                                }
+                              if (slashes)
                                 {
                                   *dst++ = ch2;
                                   continue;
                                 }
-                              assert(nextp);
+                              assert (nextp || (uintptr_t)src >= (uintptr_t)end);
                               break;
                             }
                         }
@@ -1463,7 +1484,7 @@ incdep_unescape_and_cache_filename(struct incdep *curdep,
                          be stop characters, unless of course a newline isn't escaped. */
                       else
                         {
-                          assert(ch2_map & MAP_NEWLINE);
+                          assert (ch2_map & MAP_NEWLINE);
                           if (ch2 == '\r' && *src == '\n')
                             src++;
                         }
@@ -1471,6 +1492,8 @@ incdep_unescape_and_cache_filename(struct incdep *curdep,
                       /* common space/newline code */
                       for (;;)
                         {
+                          if (linenop)
+                            *linenop += 1;
                           while ((uintptr_t)src < (uintptr_t)end && ISBLANK(*src))
                             src++;
                           if ((uintptr_t)src >= (uintptr_t)end)
@@ -1484,20 +1507,28 @@ incdep_unescape_and_cache_filename(struct incdep *curdep,
                           ch3 = src[1];
                           if (ch3 == '\n')
                             src += 2;
-                          else if (ch3 == '\r' && src[1] == '\n')
+                          else if (ch3 == '\r' && src[2] == '\n')
                             src += 3;
                           else
                               break;
                         }
 
-                      if (!ch3 && is_dep)
-                        break; /* last thing on the line. */
-                      dst -= slashes / 2;
-                      if (slashes & 1)
+                      if (is_dep && STOP_SET(ch3, stop_mask | MAP_NUL))
+                        { /* last thing on the line, no blanks to escape. */
+                          while (slashes-- > 0)
+                            *dst++ = '\\';
+                          break;
+                        }
+                      while (slashes >= 2)
+                        {
+                          *dst++ = '\\';
+                          slashes -= 2;
+                        }
+                      if (slashes)
                         *dst++ = ' ';
                       else
                         {
-                          assert(nextp);
+                          assert (nextp || (uintptr_t)src >= (uintptr_t)end);
                           break;
                         }
                     }
@@ -1506,6 +1537,8 @@ incdep_unescape_and_cache_filename(struct incdep *curdep,
               else
                 {
                   src--;
+                  while (slashes-- > 0)
+                    *dst++ = '\\';
                   *dst++ = ch;
                 }
             }
@@ -1853,8 +1886,7 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
 
 
               /* Locate the next file colon.  If it's not within the bounds of
-                 the current line, check that all new line chars are escaped,
-                 and simplify them while we're at it. */
+                 the current line, check that all new line chars are escaped. */
 
               colonp = memchr (cur, ':', file_end - cur);
               while (   colonp
@@ -1877,17 +1909,18 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                   incdep_warn (curdep, line_no, "no colon.");
                   break;
                 }
-              if ((uintptr_t)colonp >= (uintptr_t)eol)
+
+              if ((uintptr_t)colonp < (uintptr_t)eol)
+                  unescape_filename = memchr (cur, '\\', colonp - cur) != NULL
+                                   || memchr (cur, '$', colonp - cur) != NULL;
+              else if (memchr (eol, '=', colonp - eol))
                 {
-                  const char *sol;
-
-                  if (memchr (eol, '=', colonp - eol))
-                    {
-                      incdep_warn (curdep, line_no, "multi line assignment / dependency confusion.");
-                      break;
-                    }
-
-                  sol = cur;
+                  incdep_warn (curdep, line_no, "multi line assignment / dependency confusion.");
+                  break;
+                }
+              else
+                {
+                  const char *sol = cur;
                   do
                     {
                       char *eol2 = (char *)eol - 1;
@@ -1899,12 +1932,7 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                           incdep_warn (curdep, line_no, "fancy EOL escape. (includedep)");
                       else
                         {
-                          eol2[0] = ' ';
-                          eol2[1] = ' ';
-                          if (eol2 != eol - 1)
-                            eol2[2] = ' ';
                           line_no++;
-
                           sol = eol + 1;
                           eol = memchr (sol, '\n', colonp - sol);
                           continue;
@@ -1915,6 +1943,7 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                   while (eol != NULL);
                   if (!sol)
                     break;
+                  unescape_filename = 1;
                 }
 
               /* Extract the first filename after trimming and basic checks. */
@@ -1927,29 +1956,28 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                   break;
                 }
               fnnext = cur;
-              if (   !memchr (cur, '\\', fnend - cur)
-                  && !memchr (cur, '$', fnend - cur))
+              if (!unescape_filename)
                 {
                   while (fnnext != fnend && !ISBLANK (*fnnext))
                     fnnext++;
                   filename = incdep_dep_strcache (curdep, cur, fnnext - cur);
                 }
               else
-                {
-                  filename = incdep_unescape_and_cache_filename (curdep, (char *)fnnext, fnend, &fnnext);
-                  unescape_filename = 1;
-                }
+                filename = incdep_unescape_and_cache_filename (curdep, (char *)fnnext, fnend, 0, &fnnext, NULL);
 
               /* parse any dependencies. */
               cur = colonp + 1;
               while ((uintptr_t)cur < (uintptr_t)file_end)
                 {
+                  const char *dep_file;
+
                   /* skip blanks and count lines. */
-                  while ((uintptr_t)cur < (uintptr_t)file_end && ISSPACE (*cur) && *cur != '\n')
+                  char ch = 0;
+                  while ((uintptr_t)cur < (uintptr_t)file_end && ISSPACE ((ch = *cur)) && ch != '\n')
                     ++cur;
                   if ((uintptr_t)cur >= (uintptr_t)file_end)
                     break;
-                  if (*cur == '\n')
+                  if (ch == '\n')
                     {
                       cur++;
                       line_no++;
@@ -1957,7 +1985,7 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                     }
 
                   /* continuation + eol? */
-                  if (*cur == '\\')
+                  if (ch == '\\')
                     {
                       unsigned eol_len = (file_end - cur > 1 && cur[1] == '\n') ? 2
                                        : (file_end - cur > 2 && cur[1] == '\r' && cur[2] == '\n') ? 3
@@ -1970,21 +1998,40 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                         }
                     }
 
-                  /* find the end of the filename */
+                  /* find the end of the filename and cache it */
+                  dep_file = NULL;
                   endp = cur;
-                  while (   (uintptr_t)endp < (uintptr_t)file_end
-                         && (   !ISSPACE (*endp)
-                             || (endp[-1] == '\\' && incdep_count_slashes_backwards(&endp[-1], cur) & 1)))
-                    ++endp;
+                  for (;;)
+                    if ((uintptr_t)endp < (uintptr_t)file_end)
+                      {
+                         ch = *endp;
+                         if (ch != '\\' && ch != '$' )
+                           {
+                             if (!ISSPACE (ch))
+                               endp++;
+                             else
+                               {
+                                 dep_file = incdep_dep_strcache(curdep, cur, endp - cur);
+                                 break;
+                               }
+                           }
+                         else
+                           {
+                             /* potential escape sequence, let the unescaper do the rest. */
+                             dep_file = incdep_unescape_and_cache_filename (curdep, (char *)cur, file_end, 1, &endp, &line_no);
+                             break;
+                           }
+                      }
+                    else
+                      {
+                        dep_file = incdep_dep_strcache(curdep, cur, endp - cur);
+                        break;
+                      }
 
                   /* add it to the list. */
                   *nextdep = dep = incdep_alloc_dep (curdep);
                   dep->includedep = 1;
-                  if (   !memchr (cur, '\\', endp - cur)
-                      && !memchr (cur, '$', endp - cur))
-                    dep->name = incdep_dep_strcache(curdep, cur, endp - cur);
-                  else
-                    dep->name = incdep_unescape_and_cache_filename (curdep, (char *)cur, endp, NULL);
+                  dep->name = dep_file;
                   nextdep = &dep->next;
 
                   cur = endp;
@@ -2002,6 +2049,21 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                       fnnext++;
                     if (fnnext == fnend)
                       break;
+                    if (*fnnext == '\\')
+                      {
+                        if (fnnext[1] == '\n')
+                          {
+                            line_no++;
+                            fnnext += 2;
+                            continue;
+                          }
+                        if (fnnext[1] == '\r' && fnnext[2] == '\n')
+                          {
+                            line_no++;
+                            fnnext += 3;
+                            continue;
+                          }
+                      }
 
                     if (!unescape_filename)
                       {
@@ -2011,7 +2073,7 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                         filename = incdep_dep_strcache (curdep, fnstart, fnnext - fnstart);
                       }
                     else
-                      filename = incdep_unescape_and_cache_filename (curdep, (char *)fnnext, fnend, &fnnext);
+                      filename = incdep_unescape_and_cache_filename (curdep, (char *)fnnext, fnend, 0, &fnnext, NULL);
                     if (filename != filename_prev) /* clang optimization. */
                       incdep_record_file (curdep, filename, incdep_dup_dep_list (curdep, deps), f);
                   }
