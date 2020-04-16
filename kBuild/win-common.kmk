@@ -1,4 +1,4 @@
-# $Id: win-common.kmk 3320 2020-04-16 22:19:22Z knut.osmundsen@oracle.com $
+# $Id: win-common.kmk 3323 2020-04-16 23:10:45Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Common Windows Definitions - Used by tools and SDKs.
 #
@@ -50,3 +50,12 @@ WINCMN_PROGRAM_FILES_LIST_EXTRA ?=
 ## The 'Program Files'-like locations to search for stuff.  GNU make quoting.
 WINCMN_PROGRAM_FILES_LIST := $(WINCMN_PROGRAM_FILES_LIST_EXTRA) $(WINCMN_PROGRAM_FILES) $(WINCMN_PROGRAM_FILES_ALT)
 
+## @def WINCMN_MAP_ARCH.*
+## Maps kBuild architecture names to one used by newer windows tools and kits.
+## @{
+WINCMN_MAP_ARCH.amd64 := x64
+WINCMN_MAP_ARCH.arm32 := arm
+WINCMN_MAP_ARCH.arm64 := arm64
+WINCMN_MAP_ARCH.ia64  := ia64
+WINCMN_MAP_ARCH.x86   := x86
+## @}
