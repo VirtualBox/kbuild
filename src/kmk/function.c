@@ -3623,7 +3623,7 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
         return o;
     }
 
-  /* Note that negative start is and length are used for referencing from the
+  /* Note that negative start and length are used for referencing from the
      end of the string. */
   if (pad == NULL)
     {
@@ -5783,11 +5783,12 @@ func_dircache_ctl (char *o, char **argv UNUSED, const char *funcname UNUSED)
 
 /* Helper for performer GNU make style quoting of one filename. */
 
-static char *helper_quote_make (char *o, const char *name, int is_dep, int is_tgt,
-                                int quote_trailing_slashes, const char *funcname)
+static char *
+helper_quote_make (char *o, const char *name, size_t len, int is_dep,
+                   int is_tgt, int quote_trailing_slashes,
+                   const char *funcname)
 {
-  unsigned const map_flags = MAP_NUL
-                           | MAP_BLANK
+  unsigned const map_flags = MAP_BLANK
                            | MAP_NEWLINE
                            | MAP_COMMENT
                            | MAP_VARIABLE
@@ -5796,11 +5797,13 @@ static char *helper_quote_make (char *o, const char *name, int is_dep, int is_tg
                            | (is_dep ? MAP_PIPE :
                               is_tgt ? MAP_COLON : 0);
   const char *cur = name;
-  if (*cur)
+  assert (memchr (name, '\0', len) == NULL);
+  if (len > 0)
     {
+      const char * const end = &name[len];
       unsigned long len_out = 0;
       const char *prev = cur;
-      for (;;)
+      do
         {
           char ch = *cur;
           unsigned int flags = stopchar_map[(unsigned int)ch] & map_flags;
@@ -5815,14 +5818,11 @@ static char *helper_quote_make (char *o, const char *name, int is_dep, int is_tg
                   len_out += cur  - prev;
                 }
 
-              if (flags & MAP_NUL)
-                break;
-
               /* Dollar is quoted by duplicating the dollar: */
               if (flags & MAP_VARIABLE)
                 {
-                  prev = cur++;
                   o = variable_buffer_output (o, "$", 1);
+                  prev = cur++;
                 }
               /* The rest is quoted by '\': */
               else
@@ -5840,6 +5840,14 @@ static char *helper_quote_make (char *o, const char *name, int is_dep, int is_tg
                   prev = cur++;
                 }
             }
+        }
+      while ((uintptr_t)cur < (uintptr_t)end);
+
+      /* Flush pending output. */
+      if (prev != cur)
+        {
+          o = variable_buffer_output (o, prev, cur - prev);
+          len_out += cur  - prev;
         }
 
       /* Escape trailing slashes when needed. */
@@ -5923,14 +5931,15 @@ static char *func_quote_make (char *o, char **argv, const char *funcname)
 
           /* Output the quoted argument: */
           if (quote_trailing_slashes)
-            o = helper_quote_make (o, arg, is_dep, is_tgt,
+            o = helper_quote_make (o, arg, strlen (arg), is_dep, is_tgt,
                                    quote_trailing_slashes, funcname);
           else
             {
               char *end = strchr (arg, '\0');
               int qts = end != arg && end[-1] == '\\'
                      && func_quote_make_has_more_non_empty_args (&argv[i + 1]);
-              o = helper_quote_make (o, arg, is_dep, is_tgt, qts, funcname);
+              o = helper_quote_make (o, arg, strlen (arg), is_dep, is_tgt,
+                                     qts, funcname);
             }
         }
       else
@@ -6104,14 +6113,14 @@ static void free_ns_chain_no_strcache (struct nameseq *ns)
     }
 }
 
-
+/* Decoded style options for the $(q* ) and $(*file* ) functions. */
 #define Q_RET_MASK              0x000f
-#define Q_RET_UNQUOTED          0x0000
-#define Q_RET_QUOTED            0x0001
-#define Q_RET_QUOTED_DEP        0x0002
-#define Q_RET_QUOTED_DEP_END    0x0003
-#define Q_RET_QUOTED_TGT        0x0004
-#define Q_RET_QUOTED_TGT_END    0x0005
+#define Q_RET_QUOTED            0x0000
+#define Q_RET_QUOTED_DEP        0x0001
+#define Q_RET_QUOTED_DEP_END    0x0002
+#define Q_RET_QUOTED_TGT        0x0003
+#define Q_RET_QUOTED_TGT_END    0x0004
+#define Q_RET_UNQUOTED          0x0005
 #define Q_RET_SHELL             0x0006
 #define Q_RET_SHELL_IN_DQ       0x0007
 #define Q_RET_SHELL_IN_SQ       0x0008
@@ -6131,7 +6140,7 @@ static void free_ns_chain_no_strcache (struct nameseq *ns)
 #define Q_SEP_NL_TAB            0x0300
 #define Q_SEP_COMMA             0x0400  /* for VMS, output only */
 
-#define Q_QDEFAULT              0x0000
+#define Q_QDEFAULT              (Q_IN_QUOTED | Q_RET_QUOTED | Q_SEP_SPACE)
 #ifndef VMS
 # define Q_QDEFAULT_VMS_TRICKS  Q_QDEFAULT
 #else /* VMS: Treat ',' as file separators in input, maybe output too. */
@@ -6144,7 +6153,7 @@ static void free_ns_chain_no_strcache (struct nameseq *ns)
 /* Decodes the optional style argument.  This is chiefly for the return
    style, but can also pick the input and space styles (just because we can).  */
 
-static unsigned int helper_file_return_style (char *style, unsigned int intstyle)
+static unsigned int helper_file_quoting_style (char *style, unsigned int intstyle)
 {
   if (style != NULL)
     {
@@ -6254,30 +6263,30 @@ static char *helper_return_sep (char *o, unsigned int style)
 static char *helper_return_file_len (char *o, const char *file, size_t len,
                                      unsigned int style, int is_last)
 {
-  assert (file[len] == '\0');
+  assert (memchr (file, '\0', len) == NULL);
   switch (style & Q_RET_MASK)
     {
       case Q_RET_UNQUOTED:
         o = variable_buffer_output (o, file, len);
         break;
       case Q_RET_QUOTED:
-        o = helper_quote_make (o, file, 0 /*is_dep*/, 0 /*is_tgt*/,
+        o = helper_quote_make (o, file, len, 0 /*is_dep*/, 0 /*is_tgt*/,
                                !is_last /*quote_trailing_slashes*/, NULL);
         break;
       case Q_RET_QUOTED_DEP:
-        o = helper_quote_make (o, file, 1 /*is_dep*/, 0 /*is_tgt*/,
+        o = helper_quote_make (o, file, len, 1 /*is_dep*/, 0 /*is_tgt*/,
                                !is_last /*quote_trailing_slashes*/, NULL);
         break;
       case Q_RET_QUOTED_DEP_END:
-        o = helper_quote_make (o, file, 1 /*is_dep*/, 0 /*is_tgt*/,
+        o = helper_quote_make (o, file, len, 1 /*is_dep*/, 0 /*is_tgt*/,
                                0 /*quote_trailing_slashes*/, NULL);
         break;
       case Q_RET_QUOTED_TGT:
-        o = helper_quote_make (o, file, 0 /*is_dep*/, 1 /*is_tgt*/,
+        o = helper_quote_make (o, file, len, 0 /*is_dep*/, 1 /*is_tgt*/,
                                !is_last /*quote_trailing_slashes*/, NULL);
         break;
       case Q_RET_QUOTED_TGT_END:
-        o = helper_quote_make (o, file, 0 /*is_dep*/, 1 /*is_tgt*/,
+        o = helper_quote_make (o, file, len, 0 /*is_dep*/, 1 /*is_tgt*/,
                                0 /*quote_trailing_slashes*/, NULL);
         break;
       case Q_RET_SHELL:
@@ -6383,139 +6392,162 @@ helper_glob_chain (struct nameseq *chain)
   return chain;
 }
 
-/* Parses a file/word list according to STYLE and returns a name list. */
+/* Parses a file/word list according to STYLE and returns a name list.
+
+   Note! The FILELIST parameter may be modified.
+
+   TODO/XXX: Unquote and split up the FILELIST directly.  All function
+             arguments are heap copies already, so we are free to modify
+             them.  Would be nice to ditch the nameseq in favor of something
+             which also includes the length. */
 
 static struct nameseq *
 helper_parse_file_list (char *filelist, unsigned int style, int glob)
 {
   if (filelist && *filelist != '\0')
-    switch (style & (Q_IN_MASK | Q_IN_SEP_COMMA))
-      {
-        case Q_IN_QUOTED:
-        case Q_IN_QUOTED_DEP: /** @todo ?? */
-        case Q_IN_QUOTED_TGT: /** @todo ?? */
-          return PARSE_FILE_SEQ(&filelist, struct nameseq, MAP_NUL, NULL,
-                                !glob
-                                ? PARSEFS_NOGLOB | PARSEFS_NOSTRIP | PARSEFS_NOCACHE
-                                : PARSEFS_NOSTRIP | PARSEFS_NOCACHE | PARSEFS_EXISTS);
+    {
+      /* Q_IN_SEP_COMMA: VMS tricks for qbasename, qdir, qnotdir and qsuffix
+         where commas are treated as separtors in FILELIST.  We simply
+         replace commas in the FILELIST before doing the regular parsing. */
+      if (!(style & Q_IN_SEP_COMMA))
+        { /* typical */ }
+      else
+        {
+          size_t len = strlen (filelist);
+          char *start = filelist;
+          char *comma = (char *)memchr (filelist, ',', len);
+          while (comma)
+            {
+              *comma = ' ';
+              len -= comma - start - 1;
+              if (len)
+                {
+                  start = comma + 1;
+                  comma = (char *)memchr (start, ',', len);
+                }
+              else
+                break;
+            }
+        }
 
-        case Q_IN_UNQUOTED:
-         {
-           struct nameseq *chain = NULL;
-           struct nameseq **ppnext = &chain;
-           const char *it = filelist;
-           const char *cur;
-           unsigned int curlen;
-           while ((cur = find_next_token (&it, &curlen)) != NULL)
-             {
+      switch (style & Q_IN_MASK)
+        {
+          case Q_IN_QUOTED:
+          case Q_IN_QUOTED_DEP: /** @todo ?? */
+          case Q_IN_QUOTED_TGT: /** @todo ?? */
+            return PARSE_FILE_SEQ(&filelist, struct nameseq, MAP_NUL, NULL,
+                                  !glob
+                                  ? PARSEFS_NOGLOB | PARSEFS_NOSTRIP | PARSEFS_NOCACHE
+                                  : PARSEFS_NOSTRIP | PARSEFS_NOCACHE | PARSEFS_EXISTS);
+
+          case Q_IN_UNQUOTED:
+           {
+             struct nameseq *chain = NULL;
+             struct nameseq **ppnext = &chain;
+             const char *it = filelist;
+             const char *cur;
+             unsigned int curlen;
+             while ((cur = find_next_token (&it, &curlen)) != NULL)
+               {
 #ifndef CONFIG_WITH_ALLOC_CACHES
-                struct nameseq *newp = xcalloc (sizeof (*newp));
+                  struct nameseq *newp = xcalloc (sizeof (*newp));
 #else
-                struct nameseq *newp = alloccache_calloc (&nameseq_cache);
+                  struct nameseq *newp = alloccache_calloc (&nameseq_cache);
 #endif
-                newp->name = xstrndup (cur, curlen);
-                newp->next = NULL;
-                *ppnext = newp;
-                ppnext = &newp->next;
-             }
-           if (!glob)
-             return chain;
-           return helper_glob_chain (chain);
-         }
+                  newp->name = xstrndup (cur, curlen);
+                  newp->next = NULL;
+                  *ppnext = newp;
+                  ppnext = &newp->next;
+               }
+             if (!glob)
+               return chain;
+             return helper_glob_chain (chain);
+           }
 
-        /* Following works recursively. Mainly for VMS. */
-        case Q_IN_SEP_COMMA | Q_IN_UNQUOTED:
-        case Q_IN_SEP_COMMA | Q_IN_QUOTED:
-        case Q_IN_SEP_COMMA | Q_IN_QUOTED_DEP: /** @todo ?? */
-        case Q_IN_SEP_COMMA | Q_IN_QUOTED_TGT: /** @todo ?? */
-          {
-            size_t len = strlen (filelist);
-            char *comma = (char *)memchr (filelist, ',', len);
-            struct nameseq *chain;
-            if (!comma)
-              chain = helper_parse_file_list (filelist, style & ~Q_IN_SEP_COMMA, 0);
-            else
-              {
-                char *copy;
-                char *start;
-                start = copy = xmalloc (len + 1);
-                memcpy (copy, filelist, len + 1);
-                comma = copy + (comma - filelist);
-                do
-                  {
-                    *comma = ' ';
-                    len -= comma - start - 1;
-                    if (len)
-                      {
-                        start = comma + 1;
-                        comma = (char *)memchr (start, ',', len);
-                      }
-                    else
-                      break;
-                  }
-                while (comma != NULL);
-
-                chain = helper_parse_file_list (filelist, style & ~Q_IN_SEP_COMMA, 0);
-
-                free (copy);
-              }
-            return chain;
-          }
-
-        default:
-          assert (0);
-          return NULL;
-      }
+          default:
+            assert (0);
+            return NULL;
+        }
+    }
   return NULL;
 }
 
-/* $(firstfile file1 file2 ... fileN) - same as $(firstfile ), except for files
-   rather than word tokens.  See func_firstword().  */
+/* $(requote style, file1 file2 ... fileN). */
+
+static char *func_requote (char *o, char **argv, const char *funcname UNUSED)
+{
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  struct nameseq *chain = helper_parse_file_list (argv[1], style, 0);
+  return helper_return_and_free_chain (o, chain, style);
+}
+
+/* Common worker for func_firstfile() and func_qfirstfile(). */
+
+static char *common_firstfile (char *o, char **argv, unsigned int style)
+{
+  struct nameseq *chain = helper_parse_file_list (argv[0], style, 0);
+  if (chain)
+    {
+      o = helper_return_file (o, chain->name, style, 1);
+      free_ns_chain_no_strcache (chain);
+    }
+  return o;
+}
+
+/* $(firstfile file1 file2 ... fileN) - same as $(firstfile ), except
+   for files rather than word tokens.  See func_firstword().  */
 
 static char *func_firstfile (char *o, char **argv, const char *funcname UNUSED)
 {
-  unsigned int const style = helper_file_return_style (argv[1], Q_QDEFAULT);
-  char *line = argv[0];
-  if (line && *line != '\0')
+  return common_firstfile(o, argv, Q_IN_QUOTED | Q_RET_QUOTED | Q_SEP_SPACE);
+}
+
+/* $(qfirstfile style, file1 file2 ... fileN) - same as $(firstfile ), except
+   for files rather than word tokens.  See func_firstword().  */
+
+static char *func_q_firstfile (char *o, char **argv, const char *funcname UNUSED)
+{
+  unsigned int style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  return common_firstfile(o, &argv[1], style);
+}
+
+/* Common worker for func_lastfile() and func_q_lastfile(). */
+
+static char *common_lastfile (char *o, char **argv, unsigned int style)
+{
+  struct nameseq *chain = helper_parse_file_list (argv[0], style, 0);
+  if (chain)
     {
-      struct nameseq *chain = helper_parse_file_list (line, style, 0);
-      if (chain)
-        {
-          o = helper_return_file (o, chain->name, style, 1);
-          free_ns_chain_no_strcache (chain);
-        }
+      struct nameseq *last = chain;
+      while (last->next)
+        last = last->next;
+      o = helper_return_file (o, last->name, style, 1);
+      free_ns_chain_no_strcache (chain);
     }
   return o;
 }
 
-/* $(lastfile file1 file2 ... fileN) - same as $(lastfile ), except for files
-   rather than word tokens.  See func_lastword(). */
+/* $(lastfile file1 file2 ... fileN) - same as $(lastfile ), except
+   for files rather than word tokens.  See func_lastword(). */
 
 static char *func_lastfile (char *o, char **argv, const char *funcname UNUSED)
 {
-  unsigned int const style = helper_file_return_style (argv[1], Q_QDEFAULT);
-  char *line = argv[0];
-  if (line && *line != '\0')
-    {
-      struct nameseq *chain = helper_parse_file_list (line, style, 0);
-      if (chain)
-        {
-          struct nameseq *last = chain;
-          while (last->next)
-            last = last->next;
-          o = helper_return_file (o, last->name, style, 1);
-          free_ns_chain_no_strcache (chain);
-        }
-    }
-  return o;
+  return common_lastfile (o, argv, Q_IN_QUOTED | Q_RET_QUOTED | Q_SEP_SPACE);
 }
 
-/* $(filelist start, end, file1..fileN [, style]) - same as $(wordlist),
-   except for files rather than word tokens.  See func_wordlist(). */
+/* $(qlastfile style, file1 file2 ... fileN) - same as $(lastfile ), except
+   for files rather than word tokens.  See func_lastword(). */
 
-static char *func_filelist (char *o, char **argv, const char *funcname UNUSED)
+static char *func_q_lastfile (char *o, char **argv, const char *funcname UNUSED)
 {
-  unsigned int const style = helper_file_return_style (argv[3], Q_QDEFAULT);
+  unsigned int style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  return common_lastfile (o, &argv[1], style);
+}
+
+/* Common worker for func_filelist() and func_q_filelist(). */
+
+static char *common_filelist (char *o, char **argv, unsigned int style)
+{
   int start;
   int count;
 
@@ -6554,27 +6586,56 @@ static char *func_filelist (char *o, char **argv, const char *funcname UNUSED)
   return o;
 }
 
-/* $(countfiles file1 file2 ... fileN[,style]) - same as $(words ), except for
-   files rather than word tokens.  See func_words(). */
+/* $(filelist start, end, file1..fileN) - same as $(wordlist),
+   except for files rather than word tokens.  See func_wordlist(). */
 
-static char *func_countfiles (char *o, char **argv, const char *funcname UNUSED)
+static char *func_filelist (char *o, char **argv, const char *funcname UNUSED)
 {
-  unsigned int const style = helper_file_return_style (argv[1], Q_QDEFAULT); /* simpler */
-  char retval[32];
+  return common_filelist (o, argv, Q_IN_QUOTED | Q_RET_QUOTED | Q_SEP_SPACE);
+}
+
+/* $(qfilelist style, start, end, file1..fileN) - same as $(wordlist),
+   except for files rather than word tokens.  See func_wordlist(). */
+
+static char *func_q_filelist (char *o, char **argv, const char *funcname UNUSED)
+{
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  return common_filelist (o, &argv[1], style);
+}
+
+/* Common worker for func_countfiles() and func_q_countfiles(). */
+
+static char *common_countfiles (char *o, char **argv, unsigned int style)
+{
+  struct nameseq *chain = helper_parse_file_list (argv[0], style, 0);
+  struct nameseq *cur;
   unsigned int files = 0;
-  char *line = argv[0];
-  if (line && *line != '\0')
-    {
-      struct nameseq *cur;
-      struct nameseq *chain = helper_parse_file_list (line, style, 0);
-      for (cur = chain; cur; cur = cur->next)
-        files++;
-      free_ns_chain_no_strcache (chain);
-    }
+  char retval[32];
+
+  for (cur = chain; cur; cur = cur->next)
+    files++;
+  free_ns_chain_no_strcache (chain);
 
   return variable_buffer_output (o, retval, sprintf (retval, "%u", files));
 }
 
+/* $(countfiles file1 file2 ... fileN) - same as $(words ), except for
+   files rather than word tokens.  See func_words(). */
+
+static char *func_countfiles (char *o, char **argv, const char *funcname UNUSED)
+{
+  return common_countfiles (o, argv, Q_IN_QUOTED | Q_RET_QUOTED | Q_SEP_SPACE);
+}
+
+/* $(qcountfiles style, file1 file2 ... fileN) - same as $(words ), except for
+   files rather than word tokens and the STYLE argument.  See func_words(). */
+
+static char *func_q_countfiles (char *o, char **argv, const char *funcname UNUSED)
+{
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  return common_countfiles (o, &argv[1], style);
+}
+
 /* Helper that sets the variable value. */
 
 static void
@@ -6602,12 +6663,10 @@ helper_set_var_value (struct variable *var, const char *value, size_t len)
 #endif
 }
 
-/* $(foreachfile var, filelist, body [, style]) - same as $(foreach ), except
-   for file rather than word tokens and flexible variable value encoding.
-   See also func_foreach(). */
+/* Common worker for func_foreachfile and func_qforeachfile. */
 
 static char *
-func_foreachfile (char *o, char **argv, const char *funcname UNUSED)
+common_foreachfile (char *o, char **argv, unsigned int style)
 {
   /* expand only the first two.  */
   char *varname = expand_argument (argv[0], NULL);
@@ -6617,7 +6676,6 @@ func_foreachfile (char *o, char **argv, const char *funcname UNUSED)
   long body_len = strlen (body);
 #endif
 
-  unsigned int const style = helper_file_return_style (argv[3], Q_QDEFAULT);
   struct nameseq *chain = helper_parse_file_list (list, style, 0);
   struct nameseq *cur;
 
@@ -6680,58 +6738,102 @@ func_foreachfile (char *o, char **argv, const char *funcname UNUSED)
   return o;
 }
 
-/* $(sortfiles file1 ... fileN [,style]) and
-   $(rsortfiles file1 ... fileN [,style]) - same to $(sort ) and $(rsort ),
-   except for files rather than word tokens.  See func_sort(). */
+/* $(foreachfile var, filelist, body) - same as $(foreach ), except
+   for file rather than word tokens.
+   See also func_foreach(). */
 
-static char *func_sortfiles (char *o, char **argv, const char *funcname UNUSED)
+static char *
+func_foreachfile (char *o, char **argv, const char *funcname UNUSED)
 {
-  unsigned int const style = helper_file_return_style (argv[1], Q_QDEFAULT);
-  char *line = argv[0];
-  if (line && *line != '\0')
+  return common_foreachfile (o, argv, Q_IN_QUOTED | Q_RET_QUOTED | Q_SEP_SPACE);
+}
+
+/* $(qforeachfile style, var, filelist, body) - same as $(foreach ), except
+   for file rather than word tokens and flexible variable value encoding.
+   See also func_foreach(). */
+
+static char *
+func_q_foreachfile (char *o, char **argv, const char *funcname UNUSED)
+{
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  return common_foreachfile (o, &argv[1], style);
+}
+
+/* Common worker for func_sortfiles() and func_q_sortfiles(). */
+
+static char *common_sortfiles (char *o, char **argv, unsigned int style,
+                               int ascending)
+{
+  struct nameseq *chain = helper_parse_file_list (argv[0], style, 0);
+
+  /* Count the number of files to determin the array size and whether we've
+     got anything to sort. */
+  struct nameseq *cur;
+  unsigned int num_files = 0;
+  for (cur = chain; cur; cur = cur->next)
+    num_files++;
+
+  if (num_files <= 1)
+    o = helper_return_and_free_chain (o, chain, style);
+  else
     {
-      unsigned int num_files = 0;
-      struct nameseq *cur;
-      struct nameseq *chain = helper_parse_file_list (line, style, 0);
+      /* Create array of string pointers from the chain. */
+      char **files = (char **)xmalloc (num_files * sizeof (char *));
+      unsigned int idx = 0;
       for (cur = chain; cur; cur = cur->next)
-        num_files++;
-      if (num_files > 0)
+        files[idx++] = (char *)cur->name;
+
+      /* Sort it. */
+      qsort (files, num_files, sizeof (files[0]), alpha_compare);
+
+      /* Output. We skip equal files. */
+      if (ascending)
+        for (idx = 0; idx < num_files; idx++)
+          {
+            const char *curfile = files[idx];
+            while (idx + 1 < num_files && strcmp(files[idx + 1], curfile) == 0)
+              idx++;
+            o = helper_return_file(o, files[idx], style, idx + 1 >= num_files);
+          }
+      else
         {
-          char *prev_file;
-          char **files = (char **)xmalloc (num_files * sizeof (char *));
-          unsigned int idx = 0;
-          for (cur = chain; cur; cur = cur->next)
-            files[idx++] = (char *)cur->name;
-
-          qsort (files, num_files, sizeof (char *), alpha_compare);
-
-          prev_file = NULL;
-          if (funcname[0] == 'r')
+          idx = num_files;
+          while (idx-- > 0)
             {
-              idx = num_files;
-              while (idx-- > 0)
-                if (prev_file == NULL || strcmp (files[idx], prev_file) != 0)
-                  {
-                    prev_file = files[idx];
-                    o = helper_return_file (o, files[idx], style, idx == 0);
-                  }
+              const char *curfile = files[idx];
+              while (idx > 0 && strcmp(files[idx - 1], curfile) == 0)
+                idx--;
+              o = helper_return_file (o, curfile, style, idx == 0);
             }
-          else
-            for (idx = 0; idx < num_files; idx++)
-              if (prev_file == NULL || strcmp (files[idx], prev_file) != 0)
-                {
-                  prev_file = files[idx];
-                  o = helper_return_file(o, files[idx], style,
-                                         idx + 1 == num_files);
-                }
-
-          free (files);
         }
+
+      free (files);
       free_ns_chain_no_strcache (chain);
     }
-
   return o;
 }
+
+/* $(sortfiles file1 ... fileN) and
+   $(rsortfiles file1 ... fileN) - same as $(sort ) and $(rsort ),
+   except for files rather than word tokens.  See func_sort(). */
+
+static char *func_sortfiles (char *o, char **argv, const char *funcname)
+{
+  return common_sortfiles (o, argv, Q_IN_QUOTED | Q_RET_QUOTED | Q_SEP_SPACE,
+                           funcname[0] != 'r');
+}
+
+/* $(qsortfiles style, file1 ... fileN) and
+   $(qrsortfiles style, file1 ... fileN) - same as $(sort ) and $(rsort ),
+   except for files rather than word tokens and the flexible style.
+   See func_sort(). */
+
+static char *func_q_sortfiles (char *o, char **argv, const char *funcname)
+{
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  return common_sortfiles (o, &argv[1], style, funcname[1] != 'r');
+}
+
 
 /* Helper for determining whether the given path is absolute or not. */
 
@@ -6801,27 +6903,25 @@ static char *worker_abspath (char *o, char *line, const char *cwd,
   return o;
 }
 
-/* $(qabspath file1 file2 ... fileN [, style]) - same to $(abspath ), except
+/* $(qabspath style, file1 file2 ... fileN) - same as $(abspath ), except
    for files rather than word tokens.  See func_abspath(). */
 
 static char *func_q_abspath (char *o, char **argv, const char *funcname UNUSED)
 {
-  return worker_abspath (o, argv[0], NULL, 0,
-                         helper_file_return_style (argv[1], Q_QDEFAULT));
+  return worker_abspath (o, argv[1], NULL, 0,
+                         helper_file_quoting_style (argv[0], Q_QDEFAULT));
 }
 
 # ifdef CONFIG_WITH_ABSPATHEX
-/* $(qabspathex file1 file2 ... fileN [,cwd [, style]]) - same to $(abspathex ),
+/* $(qabspathex style, file1 file2 ... fileN [,cwd]) - same as $(abspathex ),
    except for files rather than word tokens.  See func_abspath_ex(). */
 
 static char *
 func_q_abspathex (char *o, char **argv, const char *funcname UNUSED)
 {
-  char *cwd = argv[1];
-  char *style = cwd ? argv[2] : NULL;
-
   /* cwd needs leading spaces chopped and may be optional,
      in which case we're exactly like $(abspath ). */
+  char *cwd = argv[2];
   if (cwd)
     {
       while (ISBLANK (*cwd))
@@ -6830,13 +6930,13 @@ func_q_abspathex (char *o, char **argv, const char *funcname UNUSED)
         cwd = NULL;
     }
 
-  return worker_abspath (o, argv[0], cwd, cwd ? strlen (cwd) : 0,
-                         helper_file_return_style (style, Q_QDEFAULT));
+  return worker_abspath (o, argv[1], cwd, cwd ? strlen (cwd) : 0,
+                         helper_file_quoting_style (argv[0], Q_QDEFAULT));
 }
 # endif
 
-/* $(qaddprefix prefix, file1 ... fileN [, style]) and
-   $(qaddsuffix prefix, file1 ... fileN [, style]) - same to $(addprefix )
+/* $(qaddprefix style, prefix, file1 ... fileN) and
+   $(qaddsuffix style, prefix, file1 ... fileN) - same as $(addprefix )
    and $(addsuffix ) except for files rather than word tokens.
    The suffix/prefix is unquoted on input and subjected to the same quoting
    styling as the file names.
@@ -6844,16 +6944,15 @@ func_q_abspathex (char *o, char **argv, const char *funcname UNUSED)
 
 static char *func_q_addsuffix_addprefix (char *o, char **argv, const char *funcname UNUSED)
 {
-  unsigned int const style = helper_file_return_style (argv[1], Q_QDEFAULT);
-  const char * const fix = argv[0];
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  const char * const fix = argv[1];
   size_t const fixlen = strlen (fix);
-  char *line = argv[0];
-  if (line && *line != '\0')
+  struct nameseq *chain = helper_parse_file_list (argv[2], style, 0);
+  if (chain)
     {
       size_t tmpsize = (fixlen + 512) & ~(size_t)63;
       char *tmp = (char *)xmalloc (tmpsize);
       struct nameseq *cur;
-      struct nameseq *chain = helper_parse_file_list (line, style, 0);
 
       if (funcname[4] == 'p')
         {
@@ -6895,15 +6994,15 @@ static char *func_q_addsuffix_addprefix (char *o, char **argv, const char *funcn
   return o;
 }
 
-/* $(qbasename path1 .. pathN[, style]) and $(qdir path1 .. pathN[, style])
-   - same to $(basename ) and $(dir ), except for files rather than word tokens.
+/* $(qbasename style, path1 .. pathN) and $(qdir style, path1 .. pathN)
+   - same as $(basename ) and $(dir ), except for files rather than word tokens.
    See func_basename_dir(). */
 
 static char *
 func_q_basename_dir (char *o, char **argv, const char *funcname)
 {
-  unsigned int const style = helper_file_return_style (argv[1], Q_QDEFAULT_VMS_TRICKS);
-  struct nameseq *chain = helper_parse_file_list (argv[0], style, 0);
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT_VMS_TRICKS);
+  struct nameseq *chain = helper_parse_file_list (argv[1], style, 0);
   struct nameseq *cur;
 
   int const is_basename = funcname[1] == 'b';
@@ -6954,14 +7053,14 @@ func_q_basename_dir (char *o, char **argv, const char *funcname)
   return o;
 }
 
-/* $(qnotdir path1 ... pathN[, style]) - same as $(notdir ), except for
+/* $(qnotdir style, path1 ... pathN) - same as $(notdir ), except for
    files rather than word tokens.  See func_notdir_suffix(). */
 
 static char *
 func_q_notdir (char *o, char **argv, const char *funcname)
 {
-  unsigned int const style = helper_file_return_style (argv[1], Q_QDEFAULT_VMS_TRICKS);
-  struct nameseq *chain = helper_parse_file_list (argv[0], style, 0);
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT_VMS_TRICKS);
+  struct nameseq *chain = helper_parse_file_list (argv[1], style, 0);
   struct nameseq *cur;
   int const stop = MAP_DIRSEP;
 
@@ -6990,14 +7089,14 @@ func_q_notdir (char *o, char **argv, const char *funcname)
   return o;
 }
 
-/* $(qsuffix path1 ... pathN[, style]) - same as $(suffix ), except for
+/* $(qsuffix style, path1 ... pathN) - same as $(suffix ), except for
    files rather than word tokens.  See func_notdir_suffix(). */
 
 static char *
 func_q_suffix (char *o, char **argv, const char *funcname)
 {
-  unsigned int const style = helper_file_return_style (argv[1], Q_QDEFAULT_VMS_TRICKS);
-  struct nameseq *chain = helper_parse_file_list (argv[0], style, 0);
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT_VMS_TRICKS);
+  struct nameseq *chain = helper_parse_file_list (argv[1], style, 0);
   struct nameseq *prev;
   struct nameseq *cur;
   int const stop = MAP_DIRSEP | MAP_DOT;
@@ -7035,7 +7134,7 @@ func_q_suffix (char *o, char **argv, const char *funcname)
 
 # ifdef CONFIG_WITH_ROOT_FUNC
 /*
- $(qroot path...pathN [,style]) - same as $(root ), except files rather
+ $(qroot style, path...pathN) - same as $(root ), except files rather
  than space delimited word tokens.  See func_root().
 
  This is mainly for dealing with drive letters and UNC paths on Windows
@@ -7044,8 +7143,8 @@ func_q_suffix (char *o, char **argv, const char *funcname)
 static char *
 func_q_root (char *o, char **argv, const char *funcname UNUSED)
 {
-  unsigned int const style = helper_file_return_style (argv[0] ? argv[1] : NULL, Q_QDEFAULT);
-  struct nameseq *chain = helper_parse_file_list (argv[0], style, 0);
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  struct nameseq *chain = helper_parse_file_list (argv[1], style, 0);
   struct nameseq *prev;
   struct nameseq *cur;
 
@@ -7114,7 +7213,7 @@ func_q_root (char *o, char **argv, const char *funcname UNUSED)
 }
 
 /*
- $(qnotroot path1 .. pathN [, style]) - same as $(notroot ), except files
+ $(qnotroot style, path1 .. pathN) - same as $(notroot ), except files
  rather than space delimited word tokens.  See func_notroot().
 
  This is mainly for dealing with drive letters and UNC paths on Windows
@@ -7123,8 +7222,8 @@ func_q_root (char *o, char **argv, const char *funcname UNUSED)
 static char *
 func_q_notroot (char *o, char **argv, const char *funcname UNUSED)
 {
-  unsigned int const style = helper_file_return_style (argv[0] ? argv[1] : NULL, Q_QDEFAULT);
-  struct nameseq *chain = helper_parse_file_list (argv[0], style, 0);
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  struct nameseq *chain = helper_parse_file_list (argv[1], style, 0);
   struct nameseq *cur;
 
   for (cur = chain; cur; cur = cur->next)
@@ -7178,15 +7277,15 @@ func_q_notroot (char *o, char **argv, const char *funcname UNUSED)
 
 # endif
 
-/* $(qrealpath path1 .. pathN [, style]) - same as $(realpath ), except files
+/* $(qrealpath style, path1 .. pathN) - same as $(realpath ), except files
  rather than space delimited word tokens.  See func_realpath(). */
 
 static char *
 func_q_realpath (char *o, char **argv, const char *funcname UNUSED)
 {
   PATH_VAR (outbuf);
-  unsigned int const style = helper_file_return_style (argv[1], Q_QDEFAULT);
-  struct nameseq *chain = helper_parse_file_list (argv[0], style, 0);
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  struct nameseq *chain = helper_parse_file_list (argv[1], style, 0);
 
   /* Pass one: Do the realpath/abspath thing and remove anything that fails
                or doesn't exists. */
@@ -7229,8 +7328,8 @@ func_q_realpath (char *o, char **argv, const char *funcname UNUSED)
 static char *
 func_q_wildcard (char *o, char **argv, const char *funcname UNUSED)
 {
-  unsigned int const style = helper_file_return_style (argv[1], Q_QDEFAULT);
-  struct nameseq *chain = helper_parse_file_list (argv[0], style, 1 /*glob*/);
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  struct nameseq *chain = helper_parse_file_list (argv[1], style, 1 /*glob*/);
 #ifdef _AMIGA
   OS (fatal, NILF, _("$(%s ) is not implemented on this platform"), funcname);
 #endif
@@ -7442,33 +7541,45 @@ static struct function_table_entry function_table_init[] =
   FT_ENTRY ("quote-sh",      1,  0,  1,  func_quote_shell),
   FT_ENTRY ("quote-sh-dq",   1,  1,  1,  func_quote_shell_dq),
   FT_ENTRY ("quote-sh-sq",   1,  1,  1,  func_quote_shell_sq),
+  FT_ENTRY ("requote",       1,  0,  1,  func_requote),
   /* Quoted input and maybe output variants of functions typically
      working with files: */
-  FT_ENTRY ("firstfile",     0, 1+1, 1,  func_firstfile),
-  FT_ENTRY ("lastfile",      0, 1+1, 1,  func_lastfile),
-  FT_ENTRY ("filelist",      3, 3+1, 1,  func_filelist),
-  FT_ENTRY ("countfiles",    0, 1+1, 1,  func_countfiles),
-  FT_ENTRY ("foreachfile",   3, 3+1, 0,  func_foreachfile),
-  FT_ENTRY ("sortfiles",     0, 1+1, 1,  func_sortfiles),
+  FT_ENTRY ("firstfile",     0,  1, 1, func_firstfile),
+  FT_ENTRY ("lastfile",      0,  1, 1, func_lastfile),
+  FT_ENTRY ("filelist",      3,  3, 1, func_filelist),
+  FT_ENTRY ("countfiles",    0,  1, 1, func_countfiles),
+  FT_ENTRY ("foreachfile",   3,  3, 0, func_foreachfile),
+  FT_ENTRY ("sortfiles",     0,  1, 1, func_sortfiles),
 # ifdef CONFIG_WITH_RSORT
-  FT_ENTRY ("rsortfiles",    0, 1+1, 1,  func_sortfiles),
+  FT_ENTRY ("rsortfiles",    0,  1, 1, func_sortfiles),
 # endif
-  FT_ENTRY ("qabspath",      0, 1+1, 1,  func_q_abspath),
-  FT_ENTRY ("qaddprefix",    2, 2+1, 1,  func_q_addsuffix_addprefix),
-  FT_ENTRY ("qaddsuffix",    2, 2+1, 1,  func_q_addsuffix_addprefix),
-  FT_ENTRY ("qbasename",     0, 1+1, 1,  func_q_basename_dir),
-  FT_ENTRY ("qdir",          0, 1+1, 1,  func_q_basename_dir),
-  FT_ENTRY ("qnotdir",       0, 1+1, 1,  func_q_notdir),
-///@todo # ifdef CONFIG_WITH_ROOT_FUNC
-///@todo   FT_ENTRY ("qroot",         0, 1+1, 1,  func_q_root),
-///@todo   FT_ENTRY ("qnotroot",      0, 1+1, 1,  func_q_notroot),
-///@todo # endif
-  FT_ENTRY ("qsuffix",       0, 1+1, 1,  func_q_suffix),
-  FT_ENTRY ("qrealpath",     0, 1+1, 1,  func_q_realpath),
+  /* Function variants with preceding style argument and quoting by default. */
+  FT_ENTRY ("qfirstfile",   1+0, 1+1, 1, func_q_firstfile),
+  FT_ENTRY ("qlastfile",    1+0, 1+1, 1, func_q_lastfile),
+  FT_ENTRY ("qfilelist",    1+3, 1+3, 1, func_q_filelist),
+  FT_ENTRY ("qcountfiles",  1+0, 1+1, 1, func_q_countfiles),
+  FT_ENTRY ("qforeachfile", 1+3, 1+3, 0, func_q_foreachfile),
+  FT_ENTRY ("qsortfiles",   1+0, 1+1, 1, func_q_sortfiles),
+# ifdef CONFIG_WITH_RSORT
+  FT_ENTRY ("qrsortfiles",  1+0, 1+1, 1, func_q_sortfiles),
+# endif
+  FT_ENTRY ("qabspath",     1+0, 1+1, 1, func_q_abspath),
+  FT_ENTRY ("qaddprefix",   1+2, 1+2, 1, func_q_addsuffix_addprefix),
+  FT_ENTRY ("qaddsuffix",   1+2, 1+2, 1, func_q_addsuffix_addprefix),
+  FT_ENTRY ("qbasename",    1+0, 1+1, 1, func_q_basename_dir),
+  FT_ENTRY ("qdir",         1+0, 1+1, 1, func_q_basename_dir),
+  FT_ENTRY ("qnotdir",      1+0, 1+1, 1, func_q_notdir),
+# ifdef CONFIG_WITH_ROOT_FUNC
+  FT_ENTRY ("qroot",        1+0, 1+1, 1, func_q_root),
+  FT_ENTRY ("qnotroot",     1+0, 1+1, 1, func_q_notroot),
+# endif
+  FT_ENTRY ("qsuffix",      1+0, 1+1, 1, func_q_suffix),
+  FT_ENTRY ("qrealpath",    1+0, 1+1, 1, func_q_realpath),
 # ifdef CONFIG_WITH_ABSPATHEX
-  FT_ENTRY ("qabspathex",    0, 2+1, 1,  func_q_abspathex),
+  FT_ENTRY ("qabspathex",   1+0, 1+2, 1, func_q_abspathex),
 # endif
-  FT_ENTRY ("qwildcard",     0, 1+1, 1,  func_q_wildcard),
+  FT_ENTRY ("qwildcard",    1+0, 1+1, 1, func_q_wildcard),
+/** @todo XXX: Add more qxxxx variants. */
 #endif
 };
 
