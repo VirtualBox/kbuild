@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 3278 2019-01-04 17:08:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 3322 2020-04-16 22:23:49Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -381,18 +381,18 @@ const char *get_default_kbuild_shell(void)
 static void
 kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, unsigned int *pcch, unsigned int *pcchAlloc, int fCanFree)
 {
-    const char *pszIterator;
-    const char *pszInCur;
     unsigned int cchInCur;
     unsigned int cchMaxRelative = 0;
-    unsigned int cRelativePaths;
+    const char *pszInCur;
 
     /*
      * The first pass, count the relative paths.
      */
-    cRelativePaths = 0;
-    pszIterator = *ppsz;
-    while ((pszInCur = find_next_token(&pszIterator, &cchInCur)) != NULL)
+    const char *pszIterator = *ppsz;
+    const char * const pszEos = pszIterator + *pcch;
+    unsigned int cRelativePaths = 0;
+    assert(*pszEos == '\0');
+    while ((pszInCur = find_next_file_token(&pszIterator, pszEos, &cchInCur)) != NULL)
     {
         /* is relative? */
 #ifdef HAVE_DOS_PATHS
@@ -437,7 +437,7 @@ kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, unsigned int *pcch,
 
         cRelativePaths = 0;
         pszIterator = *ppsz;
-        while ((pszInCur = find_next_token(&pszIterator, &cchInCur)))
+        while ((pszInCur = find_next_file_token(&pszIterator, pszEos, &cchInCur)))
         {
             /* is relative? */
 #ifdef HAVE_DOS_PATHS

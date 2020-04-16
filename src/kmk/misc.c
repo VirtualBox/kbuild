@@ -592,7 +592,44 @@ find_next_token (const char **ptr, unsigned int *lengthptr)
   return (char *)p;
 #endif
 }
+
 #ifdef KMK
+/* Finds the ends of the variable expansion starting at S, stopping at EOS if
+   not found before. */
+static char *find_end_of_variable_expansion (const char *s, char const *eos)
+{
+  char const openparen  = s[1];
+  char const closeparen = openparen == '(' ? ')' : '}';
+  int levels = 0;
+
+  assert (s[0] == '$');
+  assert (s[1] == '(' || s[1] == '{');
+
+  s += 2;
+  while (s != eos)
+    {
+      unsigned char ch = *s;
+      if (ch != '\0')
+        {
+          if (ch != closeparen)
+            {
+              if (ch != openparen)
+                { /* likely */ }
+              else
+                levels++;
+            }
+          else if (levels <= 1)
+            break;
+          else
+            levels--;
+        }
+      else
+        break;
+      s++;
+    }
+
+  return (char *)s;
+}
 
 /* Same as find_next_token with two exception:
       - The string ends at EOS or '\0'.
@@ -603,41 +640,120 @@ find_next_token_eos (const char **ptr, const char *eos, unsigned int *lengthptr)
 {
   const char *p = *ptr;
   const char *e;
-  int level = 0;
 
   /* skip blanks */
-  for (; p != eos; p++)
+  while (p != eos)
     {
-      unsigned char ch = *p;
-      if (!MY_IS_BLANK(ch))
-        {
-          if (!ch)
-            return NULL;
-          break;
-        }
+      unsigned char const ch = *p;
+      unsigned int const map = stopchar_map[ch] & (MAP_NUL | MAP_BLANK);
+      if (map & MAP_BLANK)
+        p++;
+      else if (!(map & MAP_NUL))
+        break;
+      else
+        return NULL;
     }
   if (p == eos)
     return NULL;
 
   /* skip ahead until EOS or blanks. */
-  for (e = p; e != eos; e++)
+  e = p;
+  while (e != eos)
     {
-      unsigned char ch = *e;
-      if (MY_IS_BLANK_OR_EOS(ch))
+      unsigned char const ch = *e;
+      unsigned int const map = stopchar_map[ch] & (MAP_NUL | MAP_BLANK | MAP_VARIABLE);
+      if (!map)
+        e++; /* likely */
+      /* Dollar can be escaped by duplication ($$) and when not, they need to
+         be skipped over. */
+      else if (map & MAP_VARIABLE)
         {
-          if (!ch || level == 0)
+          e++;
+          if (&e[1] != eos)
+            {
+              unsigned ch2 = *e;
+              if (ch2 == ch)
+                e++; /* escaped */
+              else if (ch == '(' || ch == '}')
+                e = find_end_of_variable_expansion (e - 1, eos);
+            }
+          else
             break;
         }
-      else if (ch == '$')
+      else
+        break; /* MAP_NUL or MAP_BLANK */
+    }
+
+  *ptr = e;
+  if (lengthptr != 0)
+    *lengthptr = e - p;
+
+  return (char *)p;
+}
+
+/* Same as find_next_token_eos but takes GNU make quoting into account,
+   but without doing any unquoting like find_char_unquote & parse_file_seq. */
+
+char *
+find_next_file_token (const char **ptr, const char *eos, unsigned int *lengthptr)
+{
+  const char *p = *ptr;
+  const char *e;
+
+  /* skip blanks */
+  while (p != eos)
+    {
+      unsigned char const ch = *p;
+      unsigned int const map = stopchar_map[ch] & (MAP_NUL | MAP_BLANK);
+      if (map & MAP_BLANK)
+        p++;
+      else if (!(map & MAP_NUL))
+        break;
+      else
+        return NULL;
+    }
+  if (p == eos)
+    return NULL;
+
+  /* skip ahead until EOS or blanks. */
+  e = p;
+  while (e != eos)
+    {
+      unsigned char const ch = *e;
+      unsigned int const map = stopchar_map[ch] & (MAP_NUL | MAP_BLANK | MAP_VARIABLE);
+      if (!map)
+        e++; /* likely */
+      /* Dollar can be escaped by duplication ($$) and when not, they need to
+         be skipped over. */
+      else if (map & MAP_VARIABLE)
         {
-          if (&e[1] != eos && (e[1] == '(' || e[1] == '{'))
+          e++;
+          if (&e[1] != eos)
             {
-              level++;
-              e++;
+              unsigned ch2 = *e;
+              if (ch2 == ch)
+                e++; /* escaped */
+              else if (ch == '(' || ch == '}')
+                e = find_end_of_variable_expansion (e - 1, eos);
             }
+          else
+            break;
         }
-      else if ((ch == ')' || ch == '}') &&  level > 0)
-        level--;
+      else if (map & MAP_NUL)
+        break;
+      /* A blank can be escaped using a backslash. */
+      else if (e[-1] != '\\')
+        break;
+      else
+        {
+          int slashes = 1;
+          while (&e[-slashes] != p && e[-slashes - 1] == '\\')
+            slashes++;
+          if (slashes & 1)
+            e++;
+          else
+            break;
+        }
     }
 
   *ptr = e;
