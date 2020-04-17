@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 3315 2020-03-31 01:12:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 3324 2020-04-17 01:14:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -702,7 +702,13 @@ int kDepObjCOFFParseCV8SymbolSection(PKDEPOBJGLOBALS pThis, const KU8 *pbSyms, K
                            off, cbSrcFiles);
         uSrc.pb = uSrcFiles.pb + off;
         u16Type = uSrc.pu16[2];
-        cbSrc = u16Type == 0x0110 ? 6 + 16 + 2 : 6 + 2;
+        switch (u16Type)
+        {
+            case 0x0110:    cbSrc = 6 + 16 + 2; break;  /* MD5 */
+            case 0x0214:    cbSrc = 6 + 20 + 2; break;  /* SHA1 */ /** @todo check this */
+            case 0x0320:    cbSrc = 6 + 32 + 2; break;  /* SHA-256 */
+            default:        cbSrc = 6 + 0  + 2; break;
+        }
         if (off + cbSrc > cbSrcFiles)
             return kDepErr(pThis, 1, "CV source file entry at %08" KX32_PRI " is too long; cbSrc=%#" KX32_PRI " cbSrcFiles=%#" KX32_PRI,
                            off, cbSrc, cbSrcFiles);
@@ -721,11 +727,17 @@ int kDepObjCOFFParseCV8SymbolSection(PKDEPOBJGLOBALS pThis, const KU8 *pbSyms, K
          * Display the result and add it to the dependency database.
          */
         depAdd(&pThis->Core, pszFile, cchFile);
-        if (u16Type == 0x0110)
-            dprintf(("#%03" KU32_PRI ": {todo-md5-todo} '%s'\n",
-                     iSrc, pszFile));
-        else
-            dprintf(("#%03" KU32_PRI ": type=%#06" KX16_PRI " '%s'\n", iSrc, u16Type, pszFile));
+#ifdef WITH_DPRINTF
+        dprintf(("#%03" KU32_PRI ": ", iSrc));
+        {
+            KU32 off = 6;
+            for (;off < cbSrc - 2; off++)
+                dprintf(("%02" KX8_PRI, uSrc.pb[off]));
+            if (cbSrc == 6)
+                dprintf(("type=%#06" KX16_PRI, u16Type));
+            dprintf((" '%s'\n", pszFile));
+        }
+#endif
 
 
         /* next */
