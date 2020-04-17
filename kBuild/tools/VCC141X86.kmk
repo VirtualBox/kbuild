@@ -1,6 +1,6 @@
-# $Id: VCC141AMD64.kmk 3325 2020-04-17 02:02:23Z knut.osmundsen@oracle.com $
+# $Id: VCC141X86.kmk 3325 2020-04-17 02:02:23Z knut.osmundsen@oracle.com $
 ## @file
-# kBuild Tool Config - Visual C++ 14.1 (aka Visual 2017 and MSC v19.10), targeting AMD64.
+# kBuild Tool Config - Visual C++ 14.1 (aka Visual 2017 and MSC v19.10), targeting x86.
 #
 
 #
@@ -35,64 +35,64 @@ ifndef TOOL_VCC141
  include $(KBUILD_PATH)/tools/VCC141.kmk
 endif
 
-TOOL_VCC141AMD64 := Visual C++ 14.1 (aka Visual 2017 and MSC v19.1), targeting AMD64
+TOOL_VCC141X86 := Visual C++ 14.1 (aka Visual 2017 and MSC v19.1), targeting x86
 
 #
 # Tool Specific Properties
 #
-ifndef PATH_TOOL_VCC141AMD64
- PATH_TOOL_VCC141AMD64 := $(PATH_TOOL_VCC141)
+ifndef PATH_TOOL_VCC141X86
+ PATH_TOOL_VCC141X86 := $(PATH_TOOL_VCC141)
 else
  # Resolve any fancy stuff once and for all.
- PATH_TOOL_VCC141AMD64 := $(PATH_TOOL_VCC141AMD64)
+ PATH_TOOL_VCC141X86 := $(PATH_TOOL_VCC141X86)
 endif
 
-ifndef PATH_TOOL_VCC141AMD64_BIN
-PATH_TOOL_VCC141AMD64_BIN     := $(PATH_TOOL_VCC141_HOST_BIN)/x64
+ifndef PATH_TOOL_VCC141X86_BIN
+PATH_TOOL_VCC141X86_BIN     := $(PATH_TOOL_VCC141_HOST_BIN)/x86
 else
-PATH_TOOL_VCC141AMD64_BIN     := $(PATH_TOOL_VCC141_BIN)
+PATH_TOOL_VCC141X86_BIN     := $(PATH_TOOL_VCC141_BIN)
 endif
-PATH_TOOL_VCC141AMD64_BIN_QSH := $(requote sh,$(PATH_TOOL_VCC141AMD64_BIN))
+PATH_TOOL_VCC141X86_BIN_QSH := $(requote sh,$(PATH_TOOL_VCC141X86_BIN))
 
-ifndef PATH_TOOL_VCC141AMD64_LIB
-PATH_TOOL_VCC141AMD64_LIB     := $(PATH_TOOL_VCC141_LIB.amd64)
+ifndef PATH_TOOL_VCC141X86_LIB
+PATH_TOOL_VCC141X86_LIB     := $(PATH_TOOL_VCC141_LIB.x86)
 endif
 ifndef PATH_TOOL_VCC141_ONECORE_LIB
-PATH_TOOL_VCC141_ONECORE_LIB  := $(PATH_TOOL_VCC141_ONECORE_LIB.amd64)
+PATH_TOOL_VCC141_ONECORE_LIB  := $(PATH_TOOL_VCC141_ONECORE_LIB.x86)
 endif
 
-ifndef PATH_TOOL_VCC141AMD64_INC
-PATH_TOOL_VCC141AMD64_INC     := $(PATH_TOOL_VCC141_INC)
+ifndef PATH_TOOL_VCC141X86_INC
+PATH_TOOL_VCC141X86_INC     := $(PATH_TOOL_VCC141_INC)
 endif
 
-ifndef PATH_TOOL_VCC141AMD64_ATLMFC_INC
-PATH_TOOL_VCC141AMD64_ATLMFC_INC := $(PATH_TOOL_VCC141_ATLMFC_INC.amd64)
+ifndef PATH_TOOL_VCC141X86_ATLMFC_INC
+PATH_TOOL_VCC141X86_ATLMFC_INC := $(PATH_TOOL_VCC141_ATLMFC_INC.x86)
 endif
-ifndef PATH_TOOL_VCC141AMD64_ATLMFC_LIB
-PATH_TOOL_VCC141AMD64_ATLMFC_LIB := $(PATH_TOOL_VCC141_ATLMFC_LIB.amd64)
+ifndef PATH_TOOL_VCC141X86_ATLMFC_LIB
+PATH_TOOL_VCC141X86_ATLMFC_LIB := $(PATH_TOOL_VCC141_ATLMFC_LIB.x86)
 endif
 
-TOOL_VCC141AMD64_CC      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141AMD64_BIN_QSH)/cl.exe
-TOOL_VCC141AMD64_CXX     ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141AMD64_BIN_QSH)/cl.exe
-TOOL_VCC141AMD64_AS      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141AMD64_BIN_QSH)/ml64.exe
-#TOOL_VCC141AMD64_AR      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141AMD64_BIN_QSH)/lib.exe - just an exec wrapper for the below
-TOOL_VCC141AMD64_AR      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141AMD64_BIN_QSH)/link.exe /LIB
-TOOL_VCC141AMD64_LD      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141AMD64_BIN_QSH)/link.exe
-TOOL_VCC141AMD64_DUMPBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141AMD64_BIN_QSH)/dumpbin.exe
-TOOL_VCC141AMD64_EDITBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141AMD64_BIN_QSH)/editbin.exe
+TOOL_VCC141X86_CC      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141X86_BIN_QSH)/cl.exe
+TOOL_VCC141X86_CXX     ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141X86_BIN_QSH)/cl.exe
+TOOL_VCC141X86_AS      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141X86_BIN_QSH)/ml64.exe
+#TOOL_VCC141X86_AR      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141X86_BIN_QSH)/lib.exe - just an exec wrapper for the below
+TOOL_VCC141X86_AR      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141X86_BIN_QSH)/link.exe /LIB
+TOOL_VCC141X86_LD      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141X86_BIN_QSH)/link.exe
+TOOL_VCC141X86_DUMPBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141X86_BIN_QSH)/dumpbin.exe
+TOOL_VCC141X86_EDITBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC141X86_BIN_QSH)/editbin.exe
 
-TOOL_VCC141AMD64_RC ?= $(EXEC_X86_WIN32) $(call TOOL_VCC141_FN_FIND_SDK_TOOL,rc.exe,[Rr][Cc].[Ee][Xx][Ee],TOOL_VCC141_RC_CACHED)
-TOOL_VCC141AMD64_MT ?= $(EXEC_X86_WIN32) $(call TOOL_VCC141_FN_FIND_SDK_TOOL,mt.exe,[Mm][Tt].[Ee][Xx][Ee],TOOL_VCC141_MT_CACHED)
+TOOL_VCC141X86_RC ?= $(EXEC_X86_WIN32) $(call TOOL_VCC141_FN_FIND_SDK_TOOL,rc.exe,[Rr][Cc].[Ee][Xx][Ee],TOOL_VCC141_RC_CACHED)
+TOOL_VCC141X86_MT ?= $(EXEC_X86_WIN32) $(call TOOL_VCC141_FN_FIND_SDK_TOOL,mt.exe,[Mm][Tt].[Ee][Xx][Ee],TOOL_VCC141_MT_CACHED)
 
-undefine TOOL_VCC141AMD64_USE_KSUBMIT # for now
-ifdef TOOL_VCC141AMD64_USE_KSUBMIT
+undefine TOOL_VCC141X86_USE_KSUBMIT # for now
+ifdef TOOL_VCC141X86_USE_KSUBMIT
  ifeq ($(KBUILD_HOST),win)
-  ifneq ($(substr $(qdir un,$(PATH_TOOL_VCC141AMD64_BIN)),-3),64/)
-   TOOL_VCC141AMD64_KSUBMIT ?= kmk_builtin_kSubmit --64-bit
-   TOOL_VCC141AMD64_KSUBMIT_DD = $(TOOL_VCC141AMD64_KSUBMIT) --
+  ifneq ($(substr $(qdir un,$(PATH_TOOL_VCC141X86_BIN)),-3),64/)
+   TOOL_VCC141X86_KSUBMIT ?= kmk_builtin_kSubmit --64-bit
+   TOOL_VCC141X86_KSUBMIT_DD = $(TOOL_VCC141X86_KSUBMIT) --
   else
-   TOOL_VCC141AMD64_KSUBMIT ?= kmk_builtin_kSubmit --32-bit
-   TOOL_VCC141AMD64_KSUBMIT_DD = $(TOOL_VCC141AMD64_KSUBMIT) --
+   TOOL_VCC141X86_KSUBMIT ?= kmk_builtin_kSubmit --32-bit
+   TOOL_VCC141X86_KSUBMIT_DD = $(TOOL_VCC141X86_KSUBMIT) --
   endif
  endif
 endif
@@ -101,37 +101,37 @@ endif
 #
 # Properties used by kBuild
 #
-TOOL_VCC141AMD64_COBJSUFF         ?= .obj
-TOOL_VCC141AMD64_CFLAGS           ?= -TC -nologo -Zi -ZH:SHA_256
-TOOL_VCC141AMD64_CFLAGS.debug     ?=
-TOOL_VCC141AMD64_CFLAGS.dbgopt    ?= -O2
-TOOL_VCC141AMD64_CFLAGS.release   ?= -O2
-TOOL_VCC141AMD64_CFLAGS.profile   ?= -O2
-TOOL_VCC141AMD64_CINCS            ?= $(PATH_TOOL_VCC141AMD64_INC)
-TOOL_VCC141AMD64_CDEFS            ?=
+TOOL_VCC141X86_COBJSUFF         ?= .obj
+TOOL_VCC141X86_CFLAGS           ?= -TC -nologo -Zi -ZH:SHA_256
+TOOL_VCC141X86_CFLAGS.debug     ?=
+TOOL_VCC141X86_CFLAGS.dbgopt    ?= -O2
+TOOL_VCC141X86_CFLAGS.release   ?= -O2
+TOOL_VCC141X86_CFLAGS.profile   ?= -O2
+TOOL_VCC141X86_CINCS            ?= $(PATH_TOOL_VCC141X86_INC)
+TOOL_VCC141X86_CDEFS            ?=
 
-TOOL_VCC141AMD64_CXXOBJSUFF       ?= .obj
-TOOL_VCC141AMD64_CXXFLAGS         ?= -TP -nologo -Zi -ZH:SHA_256
-TOOL_VCC141AMD64_CXXFLAGS.debug   ?=
-TOOL_VCC141AMD64_CXXFLAGS.dbgopt  ?= -O2
-TOOL_VCC141AMD64_CXXFLAGS.release ?= -O2
-TOOL_VCC141AMD64_CXXFLAGS.profile ?= -O2
-TOOL_VCC141AMD64_CXXINCS          ?= $(PATH_TOOL_VCC141AMD64_INC) $(PATH_TOOL_VCC141AMD64_ATLMFC_INC)
-TOOL_VCC141AMD64_CXXDEFS          ?=
+TOOL_VCC141X86_CXXOBJSUFF       ?= .obj
+TOOL_VCC141X86_CXXFLAGS         ?= -TP -nologo -Zi -ZH:SHA_256
+TOOL_VCC141X86_CXXFLAGS.debug   ?=
+TOOL_VCC141X86_CXXFLAGS.dbgopt  ?= -O2
+TOOL_VCC141X86_CXXFLAGS.release ?= -O2
+TOOL_VCC141X86_CXXFLAGS.profile ?= -O2
+TOOL_VCC141X86_CXXINCS          ?= $(PATH_TOOL_VCC141X86_INC) $(PATH_TOOL_VCC141X86_ATLMFC_INC)
+TOOL_VCC141X86_CXXDEFS          ?=
 
-TOOL_VCC141AMD64_ASOBJSUFF        ?= .obj
+TOOL_VCC141X86_ASOBJSUFF        ?= .obj
 
-TOOL_VCC141AMD64_RCOBJSUFF        ?= .res
-TOOL_VCC141AMD64_RCINCS           ?= $(PATH_TOOL_VCC141AMD64_INC) $(PATH_TOOL_VCC141AMD64_ATLMFC_INC)
+TOOL_VCC141X86_RCOBJSUFF        ?= .res
+TOOL_VCC141X86_RCINCS           ?= $(PATH_TOOL_VCC141X86_INC) $(PATH_TOOL_VCC141X86_ATLMFC_INC)
 
-TOOL_VCC141AMD64_ARFLAGS          ?= -nologo -machine:amd64
-TOOL_VCC141AMD64_ARLIBSUFF        ?= .lib
+TOOL_VCC141X86_ARFLAGS          ?= -nologo -machine:x86
+TOOL_VCC141X86_ARLIBSUFF        ?= .lib
 
-TOOL_VCC141AMD64_LDFLAGS          ?= -nologo -machine:amd64
-TOOL_VCC141AMD64_LDFLAGS.debug    ?= -debug
-TOOL_VCC141AMD64_LDFLAGS.dbgopt   ?= -debug
-TOOL_VCC141AMD64_LDFLAGS.profile  ?= -debug
-TOOL_VCC141AMD64_LDFLAGS.release  ?=
+TOOL_VCC141X86_LDFLAGS          ?= -nologo -machine:x86
+TOOL_VCC141X86_LDFLAGS.debug    ?= -debug
+TOOL_VCC141X86_LDFLAGS.dbgopt   ?= -debug
+TOOL_VCC141X86_LDFLAGS.profile  ?= -debug
+TOOL_VCC141X86_LDFLAGS.release  ?=
 
 
 
@@ -148,30 +148,30 @@ TOOL_VCC141AMD64_LDFLAGS.release  ?=
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_VCC141AMD64_COMPILE_C_DEPEND =
-TOOL_VCC141AMD64_COMPILE_C_DEPORD =
-TOOL_VCC141AMD64_COMPILE_C_OUTPUT =
-TOOL_VCC141AMD64_COMPILE_C_OUTPUT_MAYBE = $(call TOOL_VCC141_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC141_PDB, $(outbase)-obj,idb)
-ifdef TOOL_VCC141AMD64_KSUBMIT
- TOOL_VCC141AMD64_COMPILE_C_DONT_PURGE_OUTPUT := 1 # speed
- define TOOL_VCC141AMD64_COMPILE_C_CMDS
-	$(QUIET)$(TOOL_VCC141AMD64_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
-		-- $(TOOL_VCC141AMD64_CC) -c\
+TOOL_VCC141X86_COMPILE_C_DEPEND =
+TOOL_VCC141X86_COMPILE_C_DEPORD =
+TOOL_VCC141X86_COMPILE_C_OUTPUT =
+TOOL_VCC141X86_COMPILE_C_OUTPUT_MAYBE = $(call TOOL_VCC141_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC141_PDB, $(outbase)-obj,idb)
+ifdef TOOL_VCC141X86_KSUBMIT
+ TOOL_VCC141X86_COMPILE_C_DONT_PURGE_OUTPUT := 1 # speed
+ define TOOL_VCC141X86_COMPILE_C_CMDS
+	$(QUIET)$(TOOL_VCC141X86_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
+		-- $(TOOL_VCC141X86_CC) -c\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
  endef
 else
- define TOOL_VCC141AMD64_COMPILE_C_CMDS
-	$(QUIET)$(TOOL_VCC141AMD64_CC) -c\
+ define TOOL_VCC141X86_COMPILE_C_CMDS
+	$(QUIET)$(TOOL_VCC141X86_CC) -c\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_OBJ) -f -s -q -o $(dep) -t $(obj) $(obj)
  endef
-endif # !TOOL_VCC141AMD64_KSUBMIT
+endif # !TOOL_VCC141X86_KSUBMIT
 
 
 ## Compile C++ source.
@@ -187,16 +187,16 @@ endif # !TOOL_VCC141AMD64_KSUBMIT
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_VCC141AMD64_COMPILE_CXX_DEPEND = $($(target)_1_VCC_PCH_FILE)
-TOOL_VCC141AMD64_COMPILE_CXX_DEPORD =
-TOOL_VCC141AMD64_COMPILE_CXX_OUTPUT =
-TOOL_VCC141AMD64_COMPILE_CXX_OUTPUT_MAYBE = $(if-expr defined($(target)_1_VCC_COMMON_OBJ_PDB)\
+TOOL_VCC141X86_COMPILE_CXX_DEPEND = $($(target)_1_VCC_PCH_FILE)
+TOOL_VCC141X86_COMPILE_CXX_DEPORD =
+TOOL_VCC141X86_COMPILE_CXX_OUTPUT =
+TOOL_VCC141X86_COMPILE_CXX_OUTPUT_MAYBE = $(if-expr defined($(target)_1_VCC_COMMON_OBJ_PDB)\
 	,,$(call TOOL_VCC141_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC141_PDB, $(outbase)-obj,idb))
-ifdef TOOL_VCC141AMD64_KSUBMIT
- TOOL_VCC141AMD64_COMPILE_CXX_DONT_PURGE_OUTPUT := 1 # speed
- define TOOL_VCC141AMD64_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC141AMD64_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
-		-- $(TOOL_VCC141AMD64_CXX) -c\
+ifdef TOOL_VCC141X86_KSUBMIT
+ TOOL_VCC141X86_COMPILE_CXX_DONT_PURGE_OUTPUT := 1 # speed
+ define TOOL_VCC141X86_COMPILE_CXX_CMDS
+	$(QUIET)$(TOOL_VCC141X86_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
+		-- $(TOOL_VCC141X86_CXX) -c\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		$(if-expr defined($(target)_PCH_HDR)\
 		,-FI$($(target)_PCH_HDR) -Yu$($(target)_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE) -FS,)\
@@ -205,8 +205,8 @@ ifdef TOOL_VCC141AMD64_KSUBMIT
 		$(subst /,\\,$(abspath $(source)))
  endef
 else
- define TOOL_VCC141AMD64_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC141AMD64_CXX) -c\
+ define TOOL_VCC141X86_COMPILE_CXX_CMDS
+	$(QUIET)$(TOOL_VCC141X86_CXX) -c\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		$(if-expr defined($(target)_PCH_HDR)\
 		,-FI$($(target)_PCH_HDR) -Yu$($(target)_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE) -FS,)\
@@ -215,7 +215,7 @@ else
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_OBJ) -f -s -q -o $(dep) -t $(obj) $(obj)
  endef
-endif # !TOOL_VCC141AMD64_KSUBMIT
+endif # !TOOL_VCC141X86_KSUBMIT
 
 
 #
@@ -224,24 +224,24 @@ endif # !TOOL_VCC141AMD64_KSUBMIT
 # It only have the C++ compile bits and it's purpose is to skip bits
 # related _1_VCC_PCH_FILE and add -Yc.
 #
-TOOL_VCC141AMD64-PCH                         := Helper for creating precompiled header using CXX handling.
-TOOL_VCC141AMD64-PCH_EXTENDS                 := VCC141AMD64
-TOOL_VCC141AMD64-PCH_CXXOBJSUFF              := .obj
-TOOL_VCC141AMD64-PCH_CXXINCS                  = $(TOOL_VCC141AMD64_CXXINCS)
-TOOL_VCC141AMD64-PCH_CXXFLAGS                 = $(TOOL_VCC141AMD64_CXXFLAGS) -FS
-TOOL_VCC141AMD64-PCH_CXXFLAGS.debug           = $(TOOL_VCC141AMD64_CXXFLAGS.debug)
-TOOL_VCC141AMD64-PCH_CXXFLAGS.dbgopt          = $(TOOL_VCC141AMD64_CXXFLAGS.dbgopt)
-TOOL_VCC141AMD64-PCH_CXXFLAGS.release         = $(TOOL_VCC141AMD64_CXXFLAGS.release)
-TOOL_VCC141AMD64-PCH_CXXFLAGS.profile         = $(TOOL_VCC141AMD64_CXXFLAGS.profile)
-TOOL_VCC141AMD64-PCH_COMPILE_CXX_DEPEND       = $(NO_SUCH_VARIABLE)
-TOOL_VCC141AMD64-PCH_COMPILE_CXX_DEPORD       = $(NO_SUCH_VARIABLE)
-TOOL_VCC141AMD64-PCH_COMPILE_CXX_OUTPUT       = $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
-TOOL_VCC141AMD64-PCH_COMPILE_CXX_OUTPUT_MAYBE = $(NO_SUCH_VARIABLE)
-ifdef TOOL_VCC141AMD64_KSUBMIT
- define TOOL_VCC141AMD64-PCH_COMPILE_CXX_CMDS
+TOOL_VCC141X86-PCH                         := Helper for creating precompiled header using CXX handling.
+TOOL_VCC141X86-PCH_EXTENDS                 := VCC141X86
+TOOL_VCC141X86-PCH_CXXOBJSUFF              := .obj
+TOOL_VCC141X86-PCH_CXXINCS                  = $(TOOL_VCC141X86_CXXINCS)
+TOOL_VCC141X86-PCH_CXXFLAGS                 = $(TOOL_VCC141X86_CXXFLAGS) -FS
+TOOL_VCC141X86-PCH_CXXFLAGS.debug           = $(TOOL_VCC141X86_CXXFLAGS.debug)
+TOOL_VCC141X86-PCH_CXXFLAGS.dbgopt          = $(TOOL_VCC141X86_CXXFLAGS.dbgopt)
+TOOL_VCC141X86-PCH_CXXFLAGS.release         = $(TOOL_VCC141X86_CXXFLAGS.release)
+TOOL_VCC141X86-PCH_CXXFLAGS.profile         = $(TOOL_VCC141X86_CXXFLAGS.profile)
+TOOL_VCC141X86-PCH_COMPILE_CXX_DEPEND       = $(NO_SUCH_VARIABLE)
+TOOL_VCC141X86-PCH_COMPILE_CXX_DEPORD       = $(NO_SUCH_VARIABLE)
+TOOL_VCC141X86-PCH_COMPILE_CXX_OUTPUT       = $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
+TOOL_VCC141X86-PCH_COMPILE_CXX_OUTPUT_MAYBE = $(NO_SUCH_VARIABLE)
+ifdef TOOL_VCC141X86_KSUBMIT
+ define TOOL_VCC141X86-PCH_COMPILE_CXX_CMDS
 	$(QUIET)$(RM) -f -- $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
-	$(QUIET)$(TOOL_VCC141AMD64_KSUBMIT) --no-pch-caching -P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
-		-- $(TOOL_VCC141AMD64_CXX) -c -Yc\
+	$(QUIET)$(TOOL_VCC141X86_KSUBMIT) --no-pch-caching -P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
+		-- $(TOOL_VCC141X86_CXX) -c -Yc\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
                -Fp$($(target)_1_VCC_PCH_FILE) \
 		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
@@ -250,9 +250,9 @@ ifdef TOOL_VCC141AMD64_KSUBMIT
 		$(subst /,\\,$(abspath $(source)))
  endef
 else
- define TOOL_VCC141AMD64-PCH_COMPILE_CXX_CMDS
+ define TOOL_VCC141X86-PCH_COMPILE_CXX_CMDS
 	$(QUIET)$(RM) -f -- $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
-	$(QUIET)$(TOOL_VCC141AMD64_CXX) -c -Yc\
+	$(QUIET)$(TOOL_VCC141X86_CXX) -c -Yc\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
                -Fp$($(target)_1_VCC_PCH_FILE) \
 		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
@@ -262,7 +262,7 @@ else
 	$(QUIET)$(DEP_OBJ) -f -s -q  -e .pch -o $(dep) -t $(obj) $(obj)
 
  endef
-endif # !TOOL_VCC141AMD64_KSUBMIT
+endif # !TOOL_VCC141X86_KSUBMIT
 
 
 ## @todo configure the assembler template.
@@ -280,11 +280,11 @@ endif # !TOOL_VCC141AMD64_KSUBMIT
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_VCC141AMD64_COMPILE_RC_DEPEND =
-TOOL_VCC141AMD64_COMPILE_RC_DEPORD =
-TOOL_VCC141AMD64_COMPILE_RC_OUTPUT =
-define TOOL_VCC141AMD64_COMPILE_RC_CMDS
-	$(QUIET)$(TOOL_VCC141AMD64_RC) \
+TOOL_VCC141X86_COMPILE_RC_DEPEND =
+TOOL_VCC141X86_COMPILE_RC_DEPORD =
+TOOL_VCC141X86_COMPILE_RC_OUTPUT =
+define TOOL_VCC141X86_COMPILE_RC_CMDS
+	$(QUIET)$(TOOL_VCC141X86_RC) \
 		$(flags) $(qaddprefix sh,/i, $(subst /,\\,$(incs))) $(qaddprefix sh,/d, $(defs))\
 		/fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
@@ -301,15 +301,15 @@ endef
 # @param    $(othersrc) Unhandled sources.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 #
-TOOL_VCC141AMD64_LINK_LIBRARY_DEPEND = $(othersrc)
-TOOL_VCC141AMD64_LINK_LIBRARY_DEPORD =
-TOOL_VCC141AMD64_LINK_LIBRARY_OUTPUT = $(outbase).rsp
-TOOL_VCC141AMD64_LINK_LIBRARY_OUTPUT_MAYBE = $(outbase).lst $(outbase).exp $(outbase).pdb
-define TOOL_VCC141AMD64_LINK_LIBRARY_CMDS
+TOOL_VCC141X86_LINK_LIBRARY_DEPEND = $(othersrc)
+TOOL_VCC141X86_LINK_LIBRARY_DEPORD =
+TOOL_VCC141X86_LINK_LIBRARY_OUTPUT = $(outbase).rsp
+TOOL_VCC141X86_LINK_LIBRARY_OUTPUT_MAYBE = $(outbase).lst $(outbase).exp $(outbase).pdb
+define TOOL_VCC141X86_LINK_LIBRARY_CMDS
 	$(QUIET)$(APPEND) -tn $(outbase).rsp \
 		$(qforeachfile u,arg, $(objs) $(filter-out %.def,$(othersrc)),$(quote-sh "$(subst /,\,$(arg))")) \
 		$(qforeachfile u,arg, $(filter %.def,$(othersrc)),$(quote-sh "/DEF:$(subst /,\,$(arg))"))
-	$(QUIET)$(TOOL_VCC141AMD64_KSUBMIT_DD) $(TOOL_VCC141AMD64_AR) $(flags) /OUT:$(out) @$(outbase).rsp
+	$(QUIET)$(TOOL_VCC141X86_KSUBMIT_DD) $(TOOL_VCC141X86_AR) $(flags) /OUT:$(out) @$(outbase).rsp
 endef
 
 
@@ -327,16 +327,16 @@ endef
 # @param    $(custom_post)  Custom step invoked after linking.
 # @param    $(outbase)      Output basename (full). Use this for list files and such.
 #
-TOOL_VCC141AMD64_LINK_PROGRAM_DEPEND = $(foreachfile lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
-TOOL_VCC141AMD64_LINK_PROGRAM_DEPORD =
-TOOL_VCC141AMD64_LINK_PROGRAM_OUTPUT_MAYBE_PRECIOUS = $(outbase).map $(outbase).rsp
-TOOL_VCC141AMD64_LINK_PROGRAM_OUTPUT_MAYBE = $(outbase).lib $(outbase).exp $(outbase).ilk $(out).manifest
-TOOL_VCC141AMD64_LINK_PROGRAM_OUTPUT_DEBUG = $(outbase).pdb
-TOOL_VCC141AMD64_LINK_PROGRAM_DEBUG_INSTALL_FN = $(2).pdb=>$(basename $(3)).pdb
-define TOOL_VCC141AMD64_LINK_PROGRAM_CMDS
+TOOL_VCC141X86_LINK_PROGRAM_DEPEND = $(foreachfile lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
+TOOL_VCC141X86_LINK_PROGRAM_DEPORD =
+TOOL_VCC141X86_LINK_PROGRAM_OUTPUT_MAYBE_PRECIOUS = $(outbase).map $(outbase).rsp
+TOOL_VCC141X86_LINK_PROGRAM_OUTPUT_MAYBE = $(outbase).lib $(outbase).exp $(outbase).ilk $(out).manifest
+TOOL_VCC141X86_LINK_PROGRAM_OUTPUT_DEBUG = $(outbase).pdb
+TOOL_VCC141X86_LINK_PROGRAM_DEBUG_INSTALL_FN = $(2).pdb=>$(basename $(3)).pdb
+define TOOL_VCC141X86_LINK_PROGRAM_CMDS
 	$(QUIET)$(APPEND) -tn $(outbase).rsp \
 		$(qforeachfile u,arg, $(objs) $(libs),$(quote-sh "$(subst /,\,$(arg))"))
-	$(QUIET)$(TOOL_VCC141AMD64_KSUBMIT_DD) $(TOOL_VCC141AMD64_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC141X86_KSUBMIT_DD) $(TOOL_VCC141X86_LD) $(flags) \
 		/OUT:$(out) \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
 		/MAP:$(outbase).map \
@@ -344,9 +344,9 @@ define TOOL_VCC141AMD64_LINK_PROGRAM_CMDS
 		$(subst /,\\,$(filter %.exp %.res,$(othersrc))) \
 		$(qaddprefix sh,/LIBPATH:,$(libpath)) \
 		@$(outbase).rsp
-ifndef TOOL_VCC141AMD64_NO_AUTO_MANIFEST
+ifndef TOOL_VCC141X86_NO_AUTO_MANIFEST
 	$(QUIET)$(TEST) -f $(out).manifest -- \
-		$(TOOL_VCC141AMD64_MT) -manifest $(subst /,\\,$(out)).manifest -outputresource:$(subst /,\\,$(out))
+		$(TOOL_VCC141X86_MT) -manifest $(subst /,\\,$(out)).manifest -outputresource:$(subst /,\\,$(out))
 endif
 endef
 
@@ -365,17 +365,17 @@ endef
 # @param    $(custom_post)  Custom step invoked after linking.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
-TOOL_VCC141AMD64_LINK_DLL_DEPEND = $(foreachfile lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
-TOOL_VCC141AMD64_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_STAGE_LIB))
-TOOL_VCC141AMD64_LINK_DLL_OUTPUT = $(outbase).lib $(outbase).exp
-TOOL_VCC141AMD64_LINK_DLL_OUTPUT_MAYBE = $(outbase).ilk $(out).manifest $(PATH_STAGE_LIB)/$(notdir $(outbase)).exp
-TOOL_VCC141AMD64_LINK_DLL_OUTPUT_MAYBE_PRECIOUS = $(PATH_STAGE_LIB)/$(notdir $(outbase)).lib $(outbase).map $(outbase).rsp
-TOOL_VCC141AMD64_LINK_DLL_OUTPUT_DEBUG = $(outbase).pdb
-TOOL_VCC141AMD64_LINK_DLL_DEBUG_INSTALL_FN = $(2).pdb=>$(basename $(3)).pdb
-define TOOL_VCC141AMD64_LINK_DLL_CMDS
+TOOL_VCC141X86_LINK_DLL_DEPEND = $(foreachfile lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
+TOOL_VCC141X86_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_STAGE_LIB))
+TOOL_VCC141X86_LINK_DLL_OUTPUT = $(outbase).lib $(outbase).exp
+TOOL_VCC141X86_LINK_DLL_OUTPUT_MAYBE = $(outbase).ilk $(out).manifest $(PATH_STAGE_LIB)/$(notdir $(outbase)).exp
+TOOL_VCC141X86_LINK_DLL_OUTPUT_MAYBE_PRECIOUS = $(PATH_STAGE_LIB)/$(notdir $(outbase)).lib $(outbase).map $(outbase).rsp
+TOOL_VCC141X86_LINK_DLL_OUTPUT_DEBUG = $(outbase).pdb
+TOOL_VCC141X86_LINK_DLL_DEBUG_INSTALL_FN = $(2).pdb=>$(basename $(3)).pdb
+define TOOL_VCC141X86_LINK_DLL_CMDS
 	$(QUIET)$(APPEND) -tn $(outbase).rsp \
 		$(qforeachfile u,arg, $(objs) $(libs),$(quote-sh "$(subst /,\,$(arg))"))
-	$(QUIET)$(TOOL_VCC141AMD64_KSUBMIT_DD) $(TOOL_VCC141AMD64_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC141X86_KSUBMIT_DD) $(TOOL_VCC141X86_LD) $(flags) \
 		/OUT:$(out) \
 		/IMPLIB:$(outbase).lib \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
@@ -385,9 +385,9 @@ define TOOL_VCC141AMD64_LINK_DLL_CMDS
 		$(subst /,\\,$(filter %.exp %.res,$(othersrc))) \
 		$(qaddprefix sh,/LIBPATH:,$(libpath)) \
 		@$(outbase).rsp
-ifndef TOOL_VCC141AMD64_NO_AUTO_MANIFEST
+ifndef TOOL_VCC141X86_NO_AUTO_MANIFEST
 	$(QUIET)$(TEST) -f $(out).manifest -- \
-		$(TOOL_VCC141AMD64_MT) -manifest $(subst /,\\,$(out)).manifest '-outputresource:$(subst /,\\,$(out));#2'
+		$(TOOL_VCC141X86_MT) -manifest $(subst /,\\,$(out)).manifest '-outputresource:$(subst /,\\,$(out));#2'
 endif
 	$(QUIET)$(TEST) -f $(outbase).lib -- $(KLIBTWEAKER_EXT) --clear-timestamps $(outbase).lib
 	$(QUIET)$(CP) --changed -v --ignore-non-existing $(outbase).exp $(outbase).lib $(PATH_STAGE_LIB)/
@@ -409,16 +409,16 @@ endef
 # @param    $(custom_post)  Custom step invoked after linking.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
-TOOL_VCC141AMD64_LINK_SYSMOD_DEPEND = $(foreachfile lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
-TOOL_VCC141AMD64_LINK_SYSMOD_DEPORD =
-TOOL_VCC141AMD64_LINK_SYSMOD_OUTPUT_MAYBE = $(outbase).lib $(outbase).exp $(outbase).ilk $(out).manifest
-TOOL_VCC141AMD64_LINK_SYSMOD_OUTPUT_MAYBE_PRECIOUS = $(outbase).map $(outbase).rsp
-TOOL_VCC141AMD64_LINK_SYSMOD_OUTPUT_DEBUG = $(outbase).pdb
-TOOL_VCC141AMD64_LINK_SYSMOD_DEBUG_INSTALL_FN = $(2).pdb=>$(basename $(3)).pdb
-define TOOL_VCC141AMD64_LINK_SYSMOD_CMDS
+TOOL_VCC141X86_LINK_SYSMOD_DEPEND = $(foreachfile lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
+TOOL_VCC141X86_LINK_SYSMOD_DEPORD =
+TOOL_VCC141X86_LINK_SYSMOD_OUTPUT_MAYBE = $(outbase).lib $(outbase).exp $(outbase).ilk $(out).manifest
+TOOL_VCC141X86_LINK_SYSMOD_OUTPUT_MAYBE_PRECIOUS = $(outbase).map $(outbase).rsp
+TOOL_VCC141X86_LINK_SYSMOD_OUTPUT_DEBUG = $(outbase).pdb
+TOOL_VCC141X86_LINK_SYSMOD_DEBUG_INSTALL_FN = $(2).pdb=>$(basename $(3)).pdb
+define TOOL_VCC141X86_LINK_SYSMOD_CMDS
 	$(QUIET)$(APPEND) -tn $(outbase).rsp \
 		$(qforeachfile u,arg, $(objs) $(libs),$(quote-sh "$(subst /,\,$(arg))"))
-	$(QUIET)$(TOOL_VCC141AMD64_KSUBMIT_DD) $(TOOL_VCC141AMD64_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC141X86_KSUBMIT_DD) $(TOOL_VCC141X86_LD) $(flags) \
 		/OUT:$(out) \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
 		/MAP:$(outbase).map \
@@ -426,9 +426,9 @@ define TOOL_VCC141AMD64_LINK_SYSMOD_CMDS
 		$(subst /,\\,$(filter %.exp %.res,$(othersrc))) \
 		$(qaddprefix sh,/LIBPATH:,$(libpath)) \
 		@$(outbase).rsp
-ifndef TOOL_VCC141AMD64_NO_AUTO_MANIFEST
+ifndef TOOL_VCC141X86_NO_AUTO_MANIFEST
 	$(QUIET)$(TEST) -f $(out).manifest -- \
-		$(TOOL_VCC141AMD64_MT) -manifest $(subst /,\\,$(out)).manifest '-outputresource:$(subst /,\\,$(out));#2'
+		$(TOOL_VCC141X86_MT) -manifest $(subst /,\\,$(out)).manifest '-outputresource:$(subst /,\\,$(out));#2'
 endif
 endef
 
