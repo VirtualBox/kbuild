@@ -1,4 +1,4 @@
-# $Id: VCC141.kmk 3325 2020-04-17 02:02:23Z knut.osmundsen@oracle.com $
+# $Id: VCC141.kmk 3326 2020-04-17 19:10:19Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 14.1 (aka Visual 2017 and MSC v19.10), targeting AMD64.
 #
@@ -78,6 +78,16 @@ PATH_TOOL_VCC141_BIN      := $(PATH_TOOL_VCC141_HOST_BIN)/$(WINCMN_MAP_ARCH.$(KB
 endif
 PATH_TOOL_VCC141_BIN_QSH  := $(requote sh,$(PATH_TOOL_VCC141_BIN))
 
+# A bunch of DLLs are only in the subdir matching the host one, so we need to add it to the PATH when cross compiling.
+ifndef PATH_TOOL_VCC141_HOST_DLL_BIN
+PATH_TOOL_VCC141_HOST_DLL_BIN := $(PATH_TOOL_VCC141_HOST_BIN)/$(WINCMN_MAP_ARCH.$(KBUILD_HOST_ARCH))
+endif
+ifndef PATH_TOOL_VCC141_DLL_BIN
+ ifneq ($(PATH_TOOL_VCC141_HOST_DLL_BIN),$(PATH_TOOL_VCC141_BIN))
+PATH_TOOL_VCC141_DLL_BIN      := $(PATH_TOOL_VCC141_HOST_DLL_BIN)
+ endif
+endif
+
 PATH_TOOL_VCC141_LIB.amd64         ?= $(PATH_TOOL_VCC141)/lib/x64
 PATH_TOOL_VCC141_LIB.arm32         ?= $(PATH_TOOL_VCC141)/lib/arm
 PATH_TOOL_VCC141_LIB.arm64         ?= $(PATH_TOOL_VCC141)/lib/arm64
@@ -112,16 +122,25 @@ ifdef TOOL_VCC141_USE_KSUBMIT
  ifeq ($(KBUILD_HOST),win)
   ifneq ($(substr $(qdir un,$(PATH_TOOL_VCC141_BIN)),-3),64/)
    TOOL_VCC141_KSUBMIT ?= kmk_builtin_kSubmit --64-bit
-   TOOL_VCC141_KSUBMIT_DD = $(TOOL_VCC141_KSUBMIT) --
   else
    TOOL_VCC141_KSUBMIT ?= kmk_builtin_kSubmit --32-bit
-   TOOL_VCC141_KSUBMIT_DD = $(TOOL_VCC141_KSUBMIT) --
   endif
+  ifdef PATH_TOOL_VCC141_DLL_BIN
+   TOOL_VCC141_KSUBMIT := $(TOOL_VCC141_KSUBMIT) --prepend "PATH=$(requote shell-in-dq,$(PATH_TOOL_VCC141_DLL_BIN));"
+  endif
+  TOOL_VCC141_KSUBMIT_DD := $(TOOL_VCC141_KSUBMIT) --
+ endif
+endif
+ifdef PATH_TOOL_VCC141_DLL_BIN
+ TOOL_VCC141_SETUP_ENV   := $(REDIRECT) --prepend "PATH=$(requote shell-in-dq,$(PATH_TOOL_VCC141_DLL_BIN));" --$(SP)
+ ifndef TOOL_VCC141_KSUBMIT_DD
+  TOOL_VCC141_KSUBMIT_DD := $(TOOL_VCC141_SETUP_ENV)
  endif
 endif
 
+
 ## Helper for finding rc.exe and mt.exe in the SDK.
-TOOL_VCC141_FN_FIND_SDK_TOOL_SUB = $(eval $3 := $(firstfile  \
+TOOL_VCC141_FN_FIND_SDK_TOOL_SUB = $(eval $3 := $(qfirstfile sh,\
        $(if-expr defined(PATH_SDK_WINSDK10_BIN) , $(qwildcard ,$(PATH_SDK_WINSDK10_BIN)/$2)) \
        $(if-expr defined(PATH_SDK_WINPSDK71_BIN), $(qwildcard ,$(PATH_SDK_WINPSDK71_BIN)/$2)) \
        $(if-expr defined(PATH_SDK_WINPSDK_BIN)  , $(qwildcard ,$(PATH_SDK_WINPSDK_BIN)/$2)) \
@@ -208,7 +227,7 @@ ifdef TOOL_VCC141_KSUBMIT
  endef
 else
  define TOOL_VCC141_COMPILE_C_CMDS
-	$(QUIET)$(TOOL_VCC141_CC) -c\
+	$(QUIET)$(TOOL_VCC141_SETUP_ENV) $(TOOL_VCC141_CC) -c\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-Fo$(obj)\
@@ -250,7 +269,7 @@ ifdef TOOL_VCC141_KSUBMIT
  endef
 else
  define TOOL_VCC141_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC141_CXX) -c\
+	$(QUIET)$(TOOL_VCC141_SETUP_ENV) $(TOOL_VCC141_CXX) -c\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		$(if-expr defined($(target)_PCH_HDR)\
 		,-FI$($(target)_PCH_HDR) -Yu$($(target)_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE) -FS,)\
@@ -296,7 +315,7 @@ ifdef TOOL_VCC141_KSUBMIT
 else
  define TOOL_VCC141-PCH_COMPILE_CXX_CMDS
 	$(QUIET)$(RM) -f -- $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
-	$(QUIET)$(TOOL_VCC141_CXX) -c -Yc\
+	$(QUIET)$(TOOL_VCC141_SETUP_ENV) $(TOOL_VCC141_CXX) -c -Yc\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
                -Fp$($(target)_1_VCC_PCH_FILE) \
 		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
