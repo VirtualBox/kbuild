@@ -6890,7 +6890,7 @@ static char *worker_abspath (char *o, char *line, const char *cwd,
                   free ((char *)cur->name);
                   cur->name = xstrdup (outbuf);
                   prev = cur;
-                  cur->next;
+                  cur = cur->next;
                 }
               else /* remove it */
                 cur = helper_unlink_and_free_ns (cur, prev, &chain);
