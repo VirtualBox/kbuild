@@ -1,4 +1,4 @@
-# $Id: VCC141.kmk 3326 2020-04-17 19:10:19Z knut.osmundsen@oracle.com $
+# $Id: VCC141.kmk 3329 2020-04-19 22:26:17Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 14.1 (aka Visual 2017 and MSC v19.10), targeting AMD64.
 #
@@ -153,6 +153,39 @@ TOOL_VCC141_FN_FIND_SDK_TOOL = $(if-expr !defined($3),$(TOOL_VCC141_FN_FIND_SDK_
 # @param    $(1)        Base name, no extention.
 # @param    $(2)        The extension.
 TOOL_VCC141_PDB = $(dir $(1))$(tolower $(notdir $(1))).$(2)
+
+#
+# Try find the redist directory.  A little complicated as the build number
+# doesn't necessarily match that of the compiler.
+#
+ifeq ($(tolower $(substr $(qdir u,$(PATH_TOOL_VCC141)), -12)),/tools/msvc/)
+PATH_TOOL_VCC141_REDIST ?= $(firstfile $(qwildcard ,$(substr $(qdir ,$(PATH_TOOL_VCC141)), 1, -12)/Redist/MSVC/14.1*))
+else
+PATH_TOOL_VCC141_REDIST ?= $(PATH_TOOL_VCC141)/Redist
+endif
+PATH_TOOL_VCC141_REDIST_DEBUG ?= $(PATH_TOOL_VCC141_REDIST)/debug_nonredist
+
+# Updates may add more msvcp140_[0-9].dll images as the product matures.
+# ASSUMES all platforms end up with the same number of DLLs.
+TOOL_VCC141_REDIST_CRT_SUBDIR       := Microsoft.VC141.CRT
+TOOL_VCC141_REDIST_DEBUG_CRT_SUBDIR := Microsoft.VC141.DebugCRT
+TOOL_VCC141_REDIST_CRT_DLLS    = vcruntime140.dll \
+	$(sortfiles $(qnotdir ,$(qwildcard ,$(qaddprefix ,$(requote unq,$(PATH_TOOL_VCC141_REDIST)/),\
+		$(addsuffix /$(TOOL_VCC141_REDIST_CRT_SUBDIR)/vcruntime140_*.dll, x86 x64 arm arm64)))))
+TOOL_VCC141_REDIST_CONCRT_DLLS = concrt140.dll \
+	$(sortfiles $(qnotdir ,$(qwildcard ,$(qaddprefix ,$(requote unq,$(PATH_TOOL_VCC141_REDIST)/),\
+		$(addsuffix /$(TOOL_VCC141_REDIST_CRT_SUBDIR)/concrt140_*.dll, x86 x64 arm arm64)))))
+TOOL_VCC141_REDIST_CPP_DLLS    = msvcp140.dll \
+	$(sortfiles $(qnotdir ,$(qwildcard ,$(qaddprefix ,$(requote unq,$(PATH_TOOL_VCC141_REDIST)/),\
+		$(addsuffix /$(TOOL_VCC141_REDIST_CRT_SUBDIR)/msvcp140_*.dll, x86 x64 arm arm64)))))
+TOOL_VCC141_REDIST_WINRT_DLLS  = vccorlib140.dll \
+	$(sortfiles $(qnotdir ,$(qwildcard ,$(qaddprefix ,$(requote unq,$(PATH_TOOL_VCC141_REDIST)/),\
+		$(addsuffix /$(TOOL_VCC141_REDIST_CRT_SUBDIR)/concrt140_*.dll, x86 x64 arm arm64)))))
+
+TOOL_VCC141_REDIST_CXXAMP_SUBDIR := Microsoft.VC141.CXXAMP
+TOOL_VCC141_REDIST_MFC_SUBDIR    := Microsoft.VC141.MFC
+TOOL_VCC141_REDIST_MFCLOC_SUBDIR := Microsoft.VC141.MFCLOC
+TOOL_VCC141_REDIST_OPENMP_SUBDIR := Microsoft.VC141.OpenMP
 
 
 #
