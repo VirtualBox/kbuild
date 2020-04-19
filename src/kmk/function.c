@@ -6883,6 +6883,7 @@ static char *worker_abspath (char *o, char *line, const char *cwd,
                   memcpy (name, cwd, cwd_len);
                   name[cwd_len] = '/';
                   name[cwd_len + 1 + len_name] = '\0';
+                  cur->name = name;
                 }
 
               if (abspath (cur->name, outbuf))
@@ -6926,7 +6927,7 @@ func_q_abspathex (char *o, char **argv, const char *funcname UNUSED)
     {
       while (ISBLANK (*cwd))
         cwd++;
-      if (*cwd)
+      if (*cwd == '\0')
         cwd = NULL;
     }
 
