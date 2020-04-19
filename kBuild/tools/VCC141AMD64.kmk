@@ -1,4 +1,4 @@
-# $Id: VCC141AMD64.kmk 3329 2020-04-19 22:26:17Z knut.osmundsen@oracle.com $
+# $Id: VCC141AMD64.kmk 3331 2020-04-19 22:40:21Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 14.1 (aka Visual 2017 and MSC v19.10), targeting AMD64.
 #
@@ -54,6 +54,13 @@ PATH_TOOL_VCC141AMD64_BIN     := $(PATH_TOOL_VCC141_BIN)
 endif
 PATH_TOOL_VCC141AMD64_BIN_QSH := $(requote sh,$(PATH_TOOL_VCC141AMD64_BIN))
 
+# A bunch of DLLs are only in the subdir matching the host one, so we need to add it to the PATH when cross compiling.
+ifndef PATH_TOOL_VCC141AMD64_DLL_BIN
+ ifneq ($(PATH_TOOL_VCC141_HOST_DLL_BIN),$(PATH_TOOL_VCC141AMD64_BIN))
+PATH_TOOL_VCC141AMD64_DLL_BIN := $(PATH_TOOL_VCC141_HOST_DLL_BIN)
+ endif
+endif
+
 ifndef PATH_TOOL_VCC141AMD64_LIB
 PATH_TOOL_VCC141AMD64_LIB     := $(PATH_TOOL_VCC141_LIB.amd64)
 endif
@@ -89,11 +96,19 @@ ifdef TOOL_VCC141AMD64_USE_KSUBMIT
  ifeq ($(KBUILD_HOST),win)
   ifneq ($(substr $(qdir un,$(PATH_TOOL_VCC141AMD64_BIN)),-3),64/)
    TOOL_VCC141AMD64_KSUBMIT ?= kmk_builtin_kSubmit --64-bit
-   TOOL_VCC141AMD64_KSUBMIT_DD = $(TOOL_VCC141AMD64_KSUBMIT) --
   else
    TOOL_VCC141AMD64_KSUBMIT ?= kmk_builtin_kSubmit --32-bit
-   TOOL_VCC141AMD64_KSUBMIT_DD = $(TOOL_VCC141AMD64_KSUBMIT) --
   endif
+  ifdef PATH_TOOL_VCC141AMD64_DLL_BIN
+   TOOL_VCC141AMD64_KSUBMIT := $(TOOL_VCC141AMD64_KSUBMIT) --prepend "PATH=$(requote shell-in-dq,$(PATH_TOOL_VCC141AMD64_DLL_BIN));"
+  endif
+  TOOL_VCC141AMD64_KSUBMIT_DD := $(TOOL_VCC141AMD64_KSUBMIT) --
+ endif
+endif
+ifdef PATH_TOOL_VCC141AMD64_DLL_BIN
+ TOOL_VCC141AMD64_SETUP_ENV   := $(REDIRECT) --prepend "PATH=$(requote shell-in-dq,$(PATH_TOOL_VCC141AMD64_DLL_BIN));" --$(SP)
+ ifndef TOOL_VCC141AMD64_KSUBMIT_DD
+  TOOL_VCC141AMD64_KSUBMIT_DD := $(TOOL_VCC141AMD64_SETUP_ENV)
  endif
 endif
 
@@ -102,7 +117,6 @@ PATH_TOOL_VCC141AMD64_REDIST           ?= $(PATH_TOOL_VCC141_REDIST)/x64
 PATH_TOOL_VCC141AMD64_REDIST_CRT        = $(PATH_TOOL_VCC141AMD64_REDIST)/$(TOOL_VCC141_REDIST_CRT_SUBDIR)
 PATH_TOOL_VCC141AMD64_REDIST_DEBUG     ?= $(PATH_TOOL_VCC141_REDIST_DEBUG)/x64
 PATH_TOOL_VCC141AMD64_REDIST_DEBUG_CRT  = $(PATH_TOOL_VCC141AMD64_REDIST_DEBUG)/$(TOOL_VCC141_REDIST_CRT_SUBDIR)
-
 
 #
 # Properties used by kBuild
@@ -170,7 +184,7 @@ ifdef TOOL_VCC141AMD64_KSUBMIT
  endef
 else
  define TOOL_VCC141AMD64_COMPILE_C_CMDS
-	$(QUIET)$(TOOL_VCC141AMD64_CC) -c\
+	$(QUIET)$(TOOL_VCC141AMD64_SETUP_ENV)$(TOOL_VCC141AMD64_CC) -c\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-Fo$(obj)\
@@ -212,7 +226,7 @@ ifdef TOOL_VCC141AMD64_KSUBMIT
  endef
 else
  define TOOL_VCC141AMD64_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC141AMD64_CXX) -c\
+	$(QUIET)$(TOOL_VCC141AMD64_SETUP_ENV)$(TOOL_VCC141AMD64_CXX) -c\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		$(if-expr defined($(target)_PCH_HDR)\
 		,-FI$($(target)_PCH_HDR) -Yu$($(target)_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE) -FS,)\
@@ -258,7 +272,7 @@ ifdef TOOL_VCC141AMD64_KSUBMIT
 else
  define TOOL_VCC141AMD64-PCH_COMPILE_CXX_CMDS
 	$(QUIET)$(RM) -f -- $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
-	$(QUIET)$(TOOL_VCC141AMD64_CXX) -c -Yc\
+	$(QUIET)$(TOOL_VCC141AMD64_SETUP_ENV)$(TOOL_VCC141AMD64_CXX) -c -Yc\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
                -Fp$($(target)_1_VCC_PCH_FILE) \
 		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
