@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3247 2018-12-25 21:02:16Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3332 2020-04-19 23:08:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -113,46 +113,64 @@ extern void kmk_cache_exec_image_a(const char *); /* imagecache.c */
 
 static int kmk_redirect_usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
+    /*                      0         1         2         3         4         5         6         7         8 */
+    /*                      012345678901234567890123456789012345678901234567890123456789012345678901234567890 */
     kmk_builtin_ctx_printf(pCtx, fIsErr,
-                           "usage: %s [-[rwa+tb]<fd> <file>] [-d<fd>=<src-fd>] [-c<fd>] [--stdin-pipe]\n"
-                           "           [-Z] [-E <var=val>] [-C <dir>] [--wcc-brain-damage]\n"
-                           "           [-v] -- <program> [args]\n"
+                           "Usage: %s [-[rwa+tb]<fd> <file>] [-d<fd>=<src-fd>] [-c<fd>] [--stdin-pipe]\n"
+                           "           [-Z] [-E <var=val>] [-A <var=val>] [-P <var=val>] [-D <var>]\n"
+                           "           [-C <dir>] [--wcc-brain-damage] [-v] -- <program> [args]\n"
                            "   or: %s --help\n"
                            "   or: %s --version\n"
                            "\n"
-                           "The rwa+tb is like for fopen, if not specified it defaults to w+.\n"
-                           "The <fd> is either a number or an alias for the standard handles:\n"
-                           "   i = stdin\n"
-                           "   o = stdout\n"
-                           "   e = stderr\n"
+                           "Options:\n"
+                           "-[rwa+tb]<fd> <file>\n"
+                           "    The rwa+tb is like for fopen, if not specified it defaults to w+.\n"
+                           "    The <fd> is either a number or an alias for the standard handles:\n"
+                           "       i = stdin\n"
+                           "       o = stdout\n"
+                           "       e = stderr\n"
+                           "-d\n"
+                           "    The -d switch duplicate the right hand file descriptor (src-fd) to the left\n"
+                           "    hand side one (fd).  The latter is limited to standard handles on windows.\n"
+                           "-c <fd>, --close <fd>\n"
+                           "    The -c switch will close the specified file descriptor. Limited to standard\n"
+                           "    handles on windows.\n"
+                           "--stdin-pipe\n"
+                           "    The --stdin-pipe switch will replace stdin with the read end of an\n"
+                           "    anonymous pipe.  This is for tricking things like rsh.exe that blocks\n"
+                           "    reading on stdin.\n"
+                           "-Z, --zap-env, --ignore-environment\n"
+                           "    The -Z switch zaps the environment.\n"
+                           "-E <var=val>, --set <var=val>, --env <var=val>\n"
+                           "    The -E (--set, --env) switch is for making changes to the environment\n"
+                           "    in an putenv fashion.\n"
+                           "-A <var=val>, --append  <var=val>\n"
+                           "    The -A switch appends to an environment variable in a putenv fashion.\n"
+                           "-D <var=val>, --prepend  <var=val>\n"
+                           "    The -D switch prepends to an environment variable in a putenv fashion.\n"
+                           "-U <var>, --unset <var>\n"
+                           "    The -U switch deletes an environment variable.\n"
+    /*                      0         1         2         3         4         5         6         7         8 */
+    /*                      012345678901234567890123456789012345678901234567890123456789012345678901234567890 */
+                           "-C <dir>, --chdir <dir>\n"
+                           "    The -C switch is for changing the current directory.  Please specify an\n"
+                           "    absolute program path as it's platform dependent whether this takes\n"
+                           "    effect before or after the executable is located.\n"
+                           "--wcc-brain-damage, --watcom-brain-damage\n"
+                           "    The --wcc-brain-damage switch is to work around wcc and wcc386\n"
+                           "    (Open Watcom) not following normal quoting conventions on Windows and OS/2.\n"
+                           "-v, --verbose\n"
+                           "    The -v switch is for making the thing more verbose.\n"
                            "\n"
-                           "The -d switch duplicate the right hand file descriptor (src-fd) to the left\n"
-                           "hand side one (fd).  The latter is limited to standard handles on windows.\n"
-                           "\n"
-                           "The -c switch will close the specified file descriptor. Limited to standard\n"
-                           "handles on windows.\n"
-                           "\n"
-                           "The --stdin-pipe switch will replace stdin with the read end of an anonymous\n"
-                           "pipe.  This is for tricking things like rsh.exe that blocks reading on stdin.\n"
-                           "\n"
-                           "The -Z switch zaps the environment.\n"
-                           "\n"
-                           "The -E switch is for making changes to the environment in a putenv\n"
-                           "fashion.\n"
-                           "\n"
-                           "The -C switch is for changing the current directory.  Please specify an\n"
-                           "absolute program path as it's platform dependent whether this takes effect\n"
-                           "before or after the executable is located.\n"
-                           "\n"
-                           "The --wcc-brain-damage switch is to work around wcc and wcc386 (Open Watcom)\n"
-                           "not following normal quoting conventions on Windows, OS/2, and DOS.\n"
-                           "\n"
-                           "The -v switch is for making the thing more verbose.\n"
+                           "On OS/2 the kernel variables BEGINLIBPATH, ENDLIBPATH and LIBPATHSTRICT can be\n"
+                           "accessed as-if they were regular enviornment variables.\n"
                            "\n"
                            "This command was originally just a quick hack to avoid invoking the shell\n"
                            "on Windows (cygwin) where forking is very expensive and has exhibited\n"
                            "stability issues on SMP machines.  It has since grown into something like\n"
                            "/usr/bin/env on steroids.\n"
+    /*                      0         1         2         3         4         5         6         7         8 */
+    /*                      012345678901234567890123456789012345678901234567890123456789012345678901234567890 */
                            ,
                            pCtx->pszProgName, pCtx->pszProgName, pCtx->pszProgName);
     return 2;
