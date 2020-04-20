@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 3293 2019-01-08 21:13:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3333 2020-04-20 23:55:38Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -134,6 +134,13 @@ int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapsz
                             else
                             {
                                 ch = *pszCmd++;
+                                if (ch == '\n')                    /* escaped end-of-line */
+                                    break;
+                                if (ch == '\r' && *pszCmd == '\n') /* escaped end-of-line */
+                                {
+                                    pszCmd++;
+                                    break;
+                                }
                                 if (ch)
                                     *pszDst++ = ch;
                                 else
@@ -220,7 +227,9 @@ int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapsz
          * Skip argument separators (IFS=space() for now).  Check for EOS.
          */
         if (ch != 0)
-            while ((ch = *pszCmd) && isspace(ch))
+            while (   (ch = *pszCmd)
+                   && (   isspace(ch)
+                       || (ch == '\\' && (pszCmd[1] == '\n' || (pszCmd[1] == '\r' && pszCmd[2] == '\n')))))
                 pszCmd++;
         if (ch == 0)
             break;
