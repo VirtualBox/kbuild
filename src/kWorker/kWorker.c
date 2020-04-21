@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3313 2020-03-16 02:31:38Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3335 2020-04-21 20:20:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -307,6 +307,8 @@ typedef struct KWMODULE
     const wchar_t      *pwszPath;
     /** The offset of the filename in pszPath. */
     KU16                offFilename;
+    /** The offset of the filename in pwszPath. */
+    KU16                offFilenameW;
     /** Set if executable. */
     KBOOL               fExe;
     /** Set if native module entry. */
@@ -429,9 +431,10 @@ typedef struct KWDYNLOAD
 typedef struct KWGETMODULEHANDLECACHE
 {
     const char     *pszName;
+    const wchar_t  *pwszName;
     KU8             cchName;
     KU8             cwcName;
-    const wchar_t  *pwszName;
+    KBOOL           fAlwaysPresent;
     HANDLE          hmod;
 } KWGETMODULEHANDLECACHE;
 typedef KWGETMODULEHANDLECACHE *PKWGETMODULEHANDLECACHE;
@@ -1046,9 +1049,13 @@ static PKWMODULE    g_apModules[127];
 /** GetModuleHandle cache. */
 static KWGETMODULEHANDLECACHE g_aGetModuleHandleCache[] =
 {
-#define MOD_CACHE_STRINGS(str) str, sizeof(str) - 1, (sizeof(L##str) / sizeof(wchar_t)) - 1, L##str
-    { MOD_CACHE_STRINGS("KERNEL32.DLL"),    NULL },
-    { MOD_CACHE_STRINGS("mscoree.dll"),     NULL },
+#define MOD_CACHE_STRINGS(str) str, L##str, sizeof(str) - 1, (sizeof(L##str) / sizeof(wchar_t)) - 1
+    { MOD_CACHE_STRINGS("KERNEL32.DLL"),    K_TRUE,  NULL },
+#if 1
+    { MOD_CACHE_STRINGS("KERNELBASE.DLL"),  K_TRUE,  NULL },
+    { MOD_CACHE_STRINGS("NTDLL.DLL"),       K_TRUE,  NULL },
+#endif
+    { MOD_CACHE_STRINGS("mscoree.dll"),     K_FALSE, NULL },
 };
 
 /** Module pending TLS allocation. See kwLdrModuleCreateNonNativeSetupTls. */
@@ -2084,6 +2091,7 @@ static PKWMODULE kwLdrModuleCreateForNativekLdrModule(PKLDRMOD pLdrMod, const ch
         pMod->uHashPath     = uHashPath;
         pMod->cRefs         = 1;
         pMod->offFilename   = (KU16)(kHlpGetFilename(pszPath) - pszPath);
+        pMod->offFilenameW  = (KU16)(kwPathGetFilenameW(pMod->pwszPath) - pMod->pwszPath);
         pMod->fExe          = K_FALSE;
         pMod->fNative       = K_TRUE;
         pMod->pLdrMod       = pLdrMod;
@@ -2508,6 +2516,7 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                     pMod->pszPath       = (char *)kHlpMemCopy(&pMod->u.Manual.apImpMods[cImports + 1], pszPath, cbPath);
                     pMod->pwszPath      = (wchar_t *)(pMod->pszPath + cbPath + (cbPath & 1));
                     kwStrToUtf16(pMod->pszPath, (wchar_t *)pMod->pwszPath, cbPath * 2);
+                    pMod->offFilenameW  = (KU16)(kwPathGetFilenameW(pMod->pwszPath) - pMod->pwszPath);
 
                     /*
                      * Figure out where to load it and get memory there.
@@ -3375,7 +3384,6 @@ static PKWMODULE kwToolLocateModuleByHandle(PKWTOOL pTool, HMODULE hmod)
         while (--iStart > 0)
             kHlpAssert((KUPTR)papMods[iStart]->hOurMod != uHMod);
         kHlpAssert(i == 0 || (KUPTR)papMods[i - 1]->hOurMod < uHMod);
-        kHlpAssert(i == pTool->u.Sandboxed.cModules || (KUPTR)papMods[i]->hOurMod > uHMod);
 #endif
     }
 
@@ -5061,12 +5069,20 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_VirtualApiModule(PKWDYNL
     KSIZE       cbFilename = kHlpStrLen(pDynLoad->szRequest) + 1;
 
     /*
-     * Lower case it.
+     * Lower case it and make it ends with .dll.
      */
     if (cbFilename <= sizeof(szNormPath))
     {
+        static const char s_szDll[] = ".dll";
         kHlpMemCopy(szNormPath, pDynLoad->szRequest, cbFilename);
         _strlwr(szNormPath);
+        if (   (   cbFilename <= 4
+                || strcmp(&szNormPath[cbFilename - 5], s_szDll) != 0)
+            && cbFilename + sizeof(s_szDll) - 1 <= sizeof(szNormPath))
+        {
+            memcpy(&szNormPath[cbFilename - sizeof(s_szDll)], s_szDll, sizeof(s_szDll));
+            cbFilename += sizeof(s_szDll) - 1;
+        }
     }
     else
     {
@@ -5093,7 +5109,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_VirtualApiModule(PKWDYNL
 
                 pDynLoad->pNext = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead;
                 g_Sandbox.pTool->u.Sandboxed.pDynLoadHead = pDynLoad;
-                KW_LOG(("LoadLibraryExA(%s,,) -> %p [already loaded]\n", pDynLoad->szRequest, pDynLoad->hmod));
+                KW_LOG(("LoadLibraryExA(%s,,) -> %p [virtual API module - already loaded]\n", pDynLoad->szRequest, pDynLoad->hmod));
                 return pDynLoad->hmod;
             }
             pMod = pMod->pNextHash;
@@ -5117,22 +5133,15 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_VirtualApiModule(PKWDYNL
             {
                 kwToolAddModuleAndImports(g_Sandbox.pTool, pMod);
 
-                pDynLoad = (PKWDYNLOAD)kHlpAlloc(sizeof(*pDynLoad) + cbFilename + cbFilename * sizeof(wchar_t));
-                if (pDynLoad)
-                {
-                    pDynLoad->pMod = pMod;
-                    pDynLoad->hmod = hmod;
+                pDynLoad->pMod = pMod;
+                pDynLoad->hmod = hmod;
 
-                    pDynLoad->pNext = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead;
-                    g_Sandbox.pTool->u.Sandboxed.pDynLoadHead = pDynLoad;
-                    KW_LOG(("LoadLibraryExA(%s,,) -> %p\n", pDynLoad->szRequest, pDynLoad->hmod));
-                    return hmod;
-                }
-
-                KWFS_TODO();
+                pDynLoad->pNext = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead;
+                g_Sandbox.pTool->u.Sandboxed.pDynLoadHead = pDynLoad;
+                KW_LOG(("LoadLibraryExA(%s,,) -> %p [virtual API module - new]\n", pDynLoad->szRequest, pDynLoad->hmod));
+                return hmod;
             }
-            else
-                KWFS_TODO();
+            KWFS_TODO();
         }
         else
             KWFS_TODO();
@@ -5375,50 +5384,123 @@ static BOOL WINAPI kwSandbox_Kernel32_FreeLibrary(HMODULE hmod)
 }
 
 
+/** Worker for GetModuleHandleA/W for handling cached modules. */
+static HMODULE kwSandbox_Kernel32_GetModuleHandle_ReturnedCachedEntry(KSIZE i)
+{
+    HMODULE hmod = g_aGetModuleHandleCache[i].hmod;
+    if (hmod)
+        KWLDR_LOG(("kwSandbox_Kernel32_GetModuleHandle_ReturnedCachedEntry(%u/%s -> %p [cached]\n",
+                   hmod, g_aGetModuleHandleCache[i].pszName));
+    else
+    {
+        /*
+         * The first time around we have to make sure we have a module table
+         * entry for it, if not we add one.  We need to add it to the tools
+         * module list to for it to work.
+         */
+        PKWMODULE pMod = kwLdrModuleForLoadedNative(g_aGetModuleHandleCache[i].pszName, K_FALSE);
+        if (pMod)
+        {
+            hmod = pMod->hOurMod;
+            if (!kwToolLocateModuleByHandle(g_Sandbox.pTool, hmod))
+            {
+                kwToolAddModule(g_Sandbox.pTool, pMod);
+                KWLDR_LOG(("kwSandbox_Kernel32_GetModuleHandle_ReturnedCachedEntry(%u/%s -> %p [added to tool]\n",
+                           hmod, g_aGetModuleHandleCache[i].pszName));
+            }
+            else
+                KWLDR_LOG(("kwSandbox_Kernel32_GetModuleHandle_ReturnedCachedEntry(%u/%s -> %p [known to tool]\n",
+                           hmod, g_aGetModuleHandleCache[i].pszName));
+
+        }
+    }
+    return hmod;
+}
+
+
 /** Kernel32 - GetModuleHandleA()   */
 static HMODULE WINAPI kwSandbox_Kernel32_GetModuleHandleA(LPCSTR pszModule)
 {
     KSIZE i;
     KSIZE cchModule;
     PKWDYNLOAD pDynLoad;
+    KSIZE cchSuffix;
+    DWORD dwErr = ERROR_MOD_NOT_FOUND;
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
 
     /*
      * The executable.
      */
     if (pszModule == NULL)
+    {
+        KWLDR_LOG(("kwSandbox_Kernel32_GetModuleHandleA(NULL) -> %p (exe)\n", g_Sandbox.pTool->u.Sandboxed.pExe->hOurMod));
         return (HMODULE)g_Sandbox.pTool->u.Sandboxed.pExe->hOurMod;
+    }
+
+    /*
+     * If no path of suffix, pretend it ends with .DLL.
+     */
+    cchSuffix = strpbrk(pszModule, ":/\\.") ? 0 : 4;
 
     /*
      * Cache of system modules we've seen queried.
      */
     cchModule = kHlpStrLen(pszModule);
     for (i = 0; i < K_ELEMENTS(g_aGetModuleHandleCache); i++)
-        if (   g_aGetModuleHandleCache[i].cchName == cchModule
-            && stricmp(pszModule, g_aGetModuleHandleCache[i].pszName) == 0)
-        {
-            if (g_aGetModuleHandleCache[i].hmod != NULL)
-                return g_aGetModuleHandleCache[i].hmod;
-            return g_aGetModuleHandleCache[i].hmod = GetModuleHandleA(pszModule);
-        }
+        if (    (   g_aGetModuleHandleCache[i].cchName == cchModule
+                 && stricmp(pszModule, g_aGetModuleHandleCache[i].pszName) == 0)
+            ||  (   cchSuffix > 0
+                 && g_aGetModuleHandleCache[i].cchName == cchModule + cchSuffix
+                 && strnicmp(pszModule, g_aGetModuleHandleCache[i].pszName, cchModule)
+                 && stricmp(&g_aGetModuleHandleCache[i].pszName[cchModule], ".dll") == 0))
+            return kwSandbox_Kernel32_GetModuleHandle_ReturnedCachedEntry(i);
 
     /*
      * Modules we've dynamically loaded.
      */
     for (pDynLoad = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead; pDynLoad; pDynLoad = pDynLoad->pNext)
-        if (   pDynLoad->pMod
-            && (   stricmp(pDynLoad->pMod->pszPath, pszModule) == 0
-                || stricmp(&pDynLoad->pMod->pszPath[pDynLoad->pMod->offFilename], pszModule) == 0) )
+        if (pDynLoad->pMod)
         {
-            if (   pDynLoad->pMod->fNative
-                || pDynLoad->pMod->u.Manual.enmState == KWMODSTATE_READY)
+            const char *pszPath = pDynLoad->pMod->pszPath;
+            const char *pszName = &pszPath[pDynLoad->pMod->offFilename];
+            if (   stricmp(pszPath, pszModule) == 0
+                || stricmp(pszName, pszModule) == 0
+                || (   cchSuffix > 0
+                    && strnicmp(pszName, pszModule, cchModule) == 0
+                    && stricmp(&pszName[cchModule], ".dll") == 0))
             {
-                KW_LOG(("kwSandbox_Kernel32_GetModuleHandleA(%s,,) -> %p [dynload]\n", pszModule, pDynLoad->hmod));
-                return pDynLoad->hmod;
+                if (   pDynLoad->pMod->fNative
+                    || pDynLoad->pMod->u.Manual.enmState == KWMODSTATE_READY)
+                {
+                    KW_LOG(("kwSandbox_Kernel32_GetModuleHandleA(%s,,) -> %p [dynload]\n", pszModule, pDynLoad->hmod));
+                    return pDynLoad->hmod;
+                }
+                KWLDR_LOG(("kwSandbox_Kernel32_GetModuleHandleA(%s) -> NULL (not read)\n", pszModule));
+                SetLastError(ERROR_MOD_NOT_FOUND);
+                return NULL;
             }
-            SetLastError(ERROR_MOD_NOT_FOUND);
-            return NULL;
         }
+
+    /*
+     * Hack for the api-ms-win-xxxxx.dll modules.  Find which module they map
+     * to and go via the g_aGetModuleHandleCache cache.
+     */
+    if (strnicmp(pszModule, "api-ms-win-", 11) == 0)
+    {
+        HMODULE hmod = GetModuleHandleA(pszModule);
+        KWLDR_LOG(("kwSandbox_Kernel32_GetModuleHandleA(%s); hmod=%p\n", pszModule, hmod));
+        if (hmod)
+        {
+            if (hmod == GetModuleHandleW(L"KERNELBASE.DLL"))
+                return kwSandbox_Kernel32_GetModuleHandleA("KERNELBASE.DLL");
+            if (hmod == GetModuleHandleW(L"KERNEL32.DLL"))
+                return kwSandbox_Kernel32_GetModuleHandleA("KERNEL32.DLL");
+            if (hmod == GetModuleHandleW(L"NTDLL.DLL"))
+                return kwSandbox_Kernel32_GetModuleHandleA("NTDLL.DLL");
+        }
+        else
+            dwErr = GetLastError();
+    }
 
     kwErrPrintf("pszModule=%s\n", pszModule);
     KWFS_TODO();
@@ -5433,48 +5515,87 @@ static HMODULE WINAPI kwSandbox_Kernel32_GetModuleHandleW(LPCWSTR pwszModule)
     KSIZE i;
     KSIZE cwcModule;
     PKWDYNLOAD pDynLoad;
+    KSIZE cwcSuffix;
+    DWORD dwErr = ERROR_MOD_NOT_FOUND;
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
 
     /*
      * The executable.
      */
     if (pwszModule == NULL)
+    {
+        KWLDR_LOG(("kwSandbox_Kernel32_GetModuleHandleW(NULL) -> %p (exe)\n", g_Sandbox.pTool->u.Sandboxed.pExe->hOurMod));
         return (HMODULE)g_Sandbox.pTool->u.Sandboxed.pExe->hOurMod;
+    }
+
+    /*
+     * If no path of suffix, pretend it ends with .DLL.
+     */
+    cwcSuffix = wcspbrk(pwszModule, L":/\\.") ? 0 : 4;
 
     /*
      * Cache of system modules we've seen queried.
      */
     cwcModule = kwUtf16Len(pwszModule);
     for (i = 0; i < K_ELEMENTS(g_aGetModuleHandleCache); i++)
-        if (   g_aGetModuleHandleCache[i].cwcName == cwcModule
-            && _wcsicmp(pwszModule, g_aGetModuleHandleCache[i].pwszName) == 0)
-        {
-            if (g_aGetModuleHandleCache[i].hmod != NULL)
-                return g_aGetModuleHandleCache[i].hmod;
-            return g_aGetModuleHandleCache[i].hmod = GetModuleHandleW(pwszModule);
-        }
+        if (   (   g_aGetModuleHandleCache[i].cwcName == cwcModule
+                && _wcsicmp(pwszModule, g_aGetModuleHandleCache[i].pwszName) == 0)
+            || (   cwcSuffix > 0
+                && g_aGetModuleHandleCache[i].cwcName == cwcModule + cwcSuffix
+                && _wcsnicmp(pwszModule, g_aGetModuleHandleCache[i].pwszName, cwcModule) == 0
+                && _wcsicmp(&g_aGetModuleHandleCache[i].pwszName[cwcModule], L".dll") == 0))
+            return kwSandbox_Kernel32_GetModuleHandle_ReturnedCachedEntry(i);
 
     /*
      * Modules we've dynamically loaded.
      */
     for (pDynLoad = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead; pDynLoad; pDynLoad = pDynLoad->pNext)
-        if (   pDynLoad->pMod
-            && (   _wcsicmp(pDynLoad->pMod->pwszPath, pwszModule) == 0
-                || _wcsicmp(&pDynLoad->pMod->pwszPath[pDynLoad->pMod->offFilename], pwszModule) == 0) ) /** @todo wrong offset */
+        if (pDynLoad->pMod)
         {
-            if (   pDynLoad->pMod->fNative
-                || pDynLoad->pMod->u.Manual.enmState == KWMODSTATE_READY)
+            const wchar_t *pwszPath = pDynLoad->pMod->pwszPath;
+            const wchar_t *pwszName = &pwszPath[pDynLoad->pMod->offFilenameW];
+            if (   _wcsicmp(pwszPath, pwszModule) == 0
+                || _wcsicmp(pwszName, pwszModule) == 0
+                || (   cwcSuffix
+                    && _wcsnicmp(pwszName, pwszModule, cwcModule) == 0
+                    && _wcsicmp(&pwszName[cwcModule], L".dll") == 0))
             {
-                KW_LOG(("kwSandbox_Kernel32_GetModuleHandleW(%ls,,) -> %p [dynload]\n", pwszModule, pDynLoad->hmod));
-                return pDynLoad->hmod;
+                if (   pDynLoad->pMod->fNative
+                    || pDynLoad->pMod->u.Manual.enmState == KWMODSTATE_READY)
+                {
+                    KWLDR_LOG(("kwSandbox_Kernel32_GetModuleHandleW(%ls,,) -> %p [dynload]\n", pwszModule, pDynLoad->hmod));
+                    return pDynLoad->hmod;
+                }
+                KWLDR_LOG(("kwSandbox_Kernel32_GetModuleHandleW(%ls) -> NULL (not read)\n", pwszModule));
+                SetLastError(ERROR_MOD_NOT_FOUND);
+                return NULL;
             }
-            SetLastError(ERROR_MOD_NOT_FOUND);
-            return NULL;
         }
+
+    /*
+     * Hack for the api-ms-win-xxxxx.dll modules.  Find which module they map
+     * to and go via the g_aGetModuleHandleCache cache.
+     */
+    if (_wcsnicmp(pwszModule, L"api-ms-win-", 11) == 0)
+    {
+        HMODULE hmod = GetModuleHandleW(pwszModule);
+        KWLDR_LOG(("kwSandbox_Kernel32_GetModuleHandleW(%ls); hmod=%p\n", pwszModule, hmod));
+        if (hmod)
+        {
+            if (hmod == GetModuleHandleW(L"KERNELBASE.DLL"))
+                return kwSandbox_Kernel32_GetModuleHandleW(L"KERNELBASE.DLL");
+            if (hmod == GetModuleHandleW(L"KERNEL32.DLL"))
+                return kwSandbox_Kernel32_GetModuleHandleW(L"KERNEL32.DLL");
+            if (hmod == GetModuleHandleW(L"NTDLL.DLL"))
+                return kwSandbox_Kernel32_GetModuleHandleW(L"NTDLL.DLL");
+        }
+        else
+            dwErr = GetLastError();
+    }
 
     kwErrPrintf("pwszModule=%ls\n", pwszModule);
     KWFS_TODO();
-    SetLastError(ERROR_MOD_NOT_FOUND);
+    SetLastError(dwErr);
     return NULL;
 }
 
