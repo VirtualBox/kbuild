@@ -1,4 +1,4 @@
-/* $Id: kmk_time.c 3310 2020-03-08 19:10:33Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_time.c 3336 2020-04-22 12:08:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
@@ -313,6 +313,7 @@ int main(int argc, char **argv)
                 fprintf(stderr, "%s: error: quote_argv failed\n");
                 return 8;
             }
+            fUnquoted = 1; /* Don't quote them again in the next iteration. */
         }
 
         GetSystemTimeAsFileTime(&ftStart);
