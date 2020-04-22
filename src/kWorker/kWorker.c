@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3335 2020-04-21 20:20:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3337 2020-04-22 17:56:36Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -49,6 +49,7 @@
 #include "kbuild_version.h"
 
 #include "nt/ntstuff.h"
+#include "nt/nthlp.h"
 #include <psapi.h>
 
 #include "nt/kFsCache.h"
@@ -8046,6 +8047,101 @@ static DWORD WINAPI kwSandbox_Kernel32_GetFileAttributesW(LPCWSTR pwszFilename)
 }
 
 
+/** Kernel32 - GetFileAttributesExA. */
+static BOOL WINAPI kwSandbox_Kernel32_GetFileAttributesExA(LPCSTR pszFilename, GET_FILEEX_INFO_LEVELS enmLevel,
+                                                           WIN32_FILE_ATTRIBUTE_DATA *pData)
+{
+    BOOL fRet;
+    const char *pszExt = kHlpGetExt(pszFilename);
+    if (kwFsIsCacheableExtensionA(pszExt, K_TRUE /*fAttrQuery*/))
+    {
+        KFSLOOKUPERROR enmError;
+        PKFSOBJ pFsObj;
+        kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+
+        pFsObj = kFsCacheLookupNoMissingA(g_pFsCache, pszFilename, &enmError);
+        if (pFsObj)
+        {
+            kHlpAssert(pFsObj->fHaveStats);
+            if (enmLevel == GetFileExInfoStandard)
+            {
+                pData->dwFileAttributes              = pFsObj->Stats.st_attribs;
+                pData->nFileSizeHigh                 = (KU64)pFsObj->Stats.st_size >> 32;
+                pData->nFileSizeLow                  = (KU32)pFsObj->Stats.st_size;
+                *(KU64 *)&pData->ftCreationTime   = birdNtTimeFromTimeSpec(&pFsObj->Stats.st_birthtim);
+                *(KU64 *)&pData->ftLastAccessTime = birdNtTimeFromTimeSpec(&pFsObj->Stats.st_atim);
+                *(KU64 *)&pData->ftLastWriteTime  = birdNtTimeFromTimeSpec(&pFsObj->Stats.st_mtim);
+                kFsCacheObjRelease(g_pFsCache, pFsObj);
+            }
+            else
+            {
+                kFsCacheObjRelease(g_pFsCache, pFsObj);
+                fRet = GetFileAttributesExA(pszFilename, enmLevel, pData);
+            }
+        }
+        else
+        {
+            SetLastError(kwFsLookupErrorToWindowsError(enmError));
+            fRet = FALSE;
+        }
+
+        KWFS_LOG(("GetFileAttributesA(%s,%d,) -> %d [cached]\n", pszFilename, enmLevel, fRet));
+        return fRet;
+    }
+
+    fRet = GetFileAttributesExA(pszFilename, enmLevel, pData);
+    KWFS_LOG(("GetFileAttributesExA(%s,%d,) -> %d\n", pszFilename, enmLevel, fRet));
+    return fRet;
+}
+
+
+/** Kernel32 - GetFileAttributesExW. */
+static BOOL WINAPI kwSandbox_Kernel32_GetFileAttributesExW(LPCWSTR pwszFilename, GET_FILEEX_INFO_LEVELS enmLevel,
+                                                           WIN32_FILE_ATTRIBUTE_DATA *pData)
+{
+    BOOL fRet;
+    if (kwFsIsCacheablePathExtensionW(pwszFilename, K_TRUE /*fAttrQuery*/))
+    {
+        KFSLOOKUPERROR enmError;
+        PKFSOBJ pFsObj;
+        kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+
+        pFsObj = kFsCacheLookupNoMissingW(g_pFsCache, pwszFilename, &enmError);
+        if (pFsObj)
+        {
+            kHlpAssert(pFsObj->fHaveStats);
+            if (enmLevel == GetFileExInfoStandard)
+            {
+                pData->dwFileAttributes              = pFsObj->Stats.st_attribs;
+                pData->nFileSizeHigh                 = (KU64)pFsObj->Stats.st_size >> 32;
+                pData->nFileSizeLow                  = (KU32)pFsObj->Stats.st_size;
+                *(KU64 *)&pData->ftCreationTime   = birdNtTimeFromTimeSpec(&pFsObj->Stats.st_birthtim);
+                *(KU64 *)&pData->ftLastAccessTime = birdNtTimeFromTimeSpec(&pFsObj->Stats.st_atim);
+                *(KU64 *)&pData->ftLastWriteTime  = birdNtTimeFromTimeSpec(&pFsObj->Stats.st_mtim);
+                kFsCacheObjRelease(g_pFsCache, pFsObj);
+            }
+            else
+            {
+                kFsCacheObjRelease(g_pFsCache, pFsObj);
+                fRet = GetFileAttributesExW(pwszFilename, enmLevel, pData);
+            }
+        }
+        else
+        {
+            SetLastError(kwFsLookupErrorToWindowsError(enmError));
+            fRet = FALSE;
+        }
+
+        KWFS_LOG(("GetFileAttributesW(%ls,%d,) -> %d [cached]\n", pwszFilename, enmLevel, fRet));
+        return fRet;
+    }
+
+    fRet = GetFileAttributesExW(pwszFilename, enmLevel, pData);
+    KWFS_LOG(("GetFileAttributesExW(%ls,%d,) -> %d\n", pwszFilename, enmLevel, fRet));
+    return fRet;
+}
+
+
 /** Kernel32 - GetShortPathNameW - c1[xx].dll of VS2010 does this to the
  * directory containing each include file.  We cache the result to speed
  * things up a little. */
@@ -9889,6 +9985,8 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("CloseHandle"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CloseHandle },
     { TUPLE("GetFileAttributesA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesA },
     { TUPLE("GetFileAttributesW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesW },
+    { TUPLE("GetFileAttributesExA"),        NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesExA },
+    { TUPLE("GetFileAttributesExW"),        NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesExW },
     { TUPLE("GetShortPathNameW"),           NULL,       (KUPTR)kwSandbox_Kernel32_GetShortPathNameW },
 #ifdef WITH_TEMP_MEMORY_FILES
     { TUPLE("DeleteFileW"),                 NULL,       (KUPTR)kwSandbox_Kernel32_DeleteFileW },
@@ -10028,6 +10126,8 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
     { TUPLE("CloseHandle"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CloseHandle },
     { TUPLE("GetFileAttributesA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesA },
     { TUPLE("GetFileAttributesW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesW },
+    { TUPLE("GetFileAttributesExA"),        NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesExA },
+    { TUPLE("GetFileAttributesExW"),        NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesExW },
     { TUPLE("GetShortPathNameW"),           NULL,       (KUPTR)kwSandbox_Kernel32_GetShortPathNameW },
 #ifdef WITH_TEMP_MEMORY_FILES
     { TUPLE("DeleteFileW"),                 NULL,       (KUPTR)kwSandbox_Kernel32_DeleteFileW },
