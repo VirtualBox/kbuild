@@ -1,4 +1,4 @@
-/* $Id: nthlp.h 3223 2018-03-31 02:29:56Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlp.h 3337 2020-04-22 17:56:36Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT helper functions.
  */
@@ -86,6 +86,15 @@ static __inline void birdNtTimeToTimeSpec(__int64 iNtTime, BirdTimeSpec_T *pTime
     iNtTime -= BIRD_NT_EPOCH_OFFSET_UNIX_100NS;
     pTimeSpec->tv_sec  = iNtTime / 10000000;
     pTimeSpec->tv_nsec = (iNtTime % 10000000) * 100;
+}
+
+
+static __inline __int64 birdNtTimeFromTimeSpec(BirdTimeSpec_T const *pTimeSpec)
+{
+    __int64 iNtTime = pTimeSpec->tv_sec * 10000000;
+    iNtTime += pTimeSpec->tv_nsec / 100;
+    iNtTime += BIRD_NT_EPOCH_OFFSET_UNIX_100NS;
+    return iNtTime;
 }
 
 
