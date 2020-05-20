@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 3324 2020-04-17 01:14:39Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 3341 2020-05-20 14:33:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -771,6 +771,7 @@ int kDepObjCOFFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
     KU32                                cSHdrs;
     unsigned                            iSHdr;
     KPCUINT                             u;
+    KBOOL                               fDebugS    = K_FALSE;
     int                                 rcRet      = 2;
     int                                 rc;
 
@@ -805,9 +806,27 @@ int kDepObjCOFFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                 rcRet = rc;
             if (rcRet != 2)
                 return rc;
+            fDebugS = K_TRUE;
         }
         dprintf(("#%d: %.8s\n", iSHdr, paSHdrs[iSHdr].Name));
     }
+
+    /* If we found no dependencies but did find a .debug$S section, check if
+       this is a case where the compile didn't emit any because there is no
+       code in this compilation unit. */
+    if (rcRet == 2)
+    {
+        if (fDebugS)
+        {
+            for (iSHdr = 0; iSHdr < cSHdrs; iSHdr++)
+                if (!memcmp(paSHdrs[iSHdr].Name, ".text", sizeof(".text") - 1))
+                    return kDepErr(pThis, 2, "%s: no dependencies (has text).", pThis->pszFile);
+            warnx(pThis->pCtx, "%s: no dependencies, but also no text, so probably (mostly) harmless.", pThis->pszFile);
+            return 0;
+        }
+        kDepErr(pThis, 2, "%s: no dependencies.", pThis->pszFile);
+    }
+
     return rcRet;
 }
 
@@ -1162,6 +1181,7 @@ int kmk_builtin_kDepObj(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
             pInput = fopen(argv[i], "rb" KMK_FOPEN_NO_INHERIT_MODE);
             if (!pInput)
                 return err(pCtx, 1, "Failed to open input file '%s'", argv[i]);
+            This.pszFile = argv[i];
             fInput = 1;
         }
 
