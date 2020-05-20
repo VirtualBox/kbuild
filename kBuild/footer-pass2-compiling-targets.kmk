@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 3304 2020-01-14 15:10:26Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 3344 2020-05-20 16:43:48Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -297,6 +297,15 @@ local type := RC
  $(kb-src-one 3)
 endef
 
+ifdef KMK_WITH_QUOTING
+define def_src_handler_obj
+ifeq ($(defpath),)
+ $(target)_2_OBJS += $(source)
+else
+ $(target)_2_OBJS += $(qabspathex ,$(source), $(defpath))
+endif
+endef
+else
 define def_src_handler_obj
 ifeq ($(defpath),)
  $(target)_2_OBJS += $(source)
@@ -304,6 +313,7 @@ else
  $(target)_2_OBJS += $(abspathex $(source), $(defpath))
 endif
 endef
+endif
 ## @}
 
 ## Handle one source.
@@ -324,6 +334,32 @@ endef # def_src_handler_one
 # @param    $(defpath)
 # @param    much-more...
 # @returns  othersrc, $(target)_2_OBJS, ++
+ifdef KMK_WITH_QUOTING
+define def_target_sources
+local target_src_handlers := $($(target)_SRC_HANDLERS) $(KBUILD_SRC_HANDLERS)
+$(foreachfile source,\
+	$($(target)_SOURCES)\
+	$($(target)_SOURCES.$(bld_trg))\
+	$($(target)_SOURCES.$(bld_trg).$(bld_type))\
+	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch).$(bld_type))\
+	$($(target)_SOURCES.$(bld_trg_arch))\
+	$($(target)_SOURCES.$(bld_trg_cpu))\
+	$($(target)_SOURCES.$(bld_type))\
+	,$(evalvalctx def_src_handler_one) )
+
+$(foreachfile source,\
+	$($(target)_GEN_SOURCES_)\
+	$($(target)_GEN_SOURCES_.$(bld_trg))\
+	$($(target)_GEN_SOURCES_.$(bld_trg).$(bld_type))\
+	$($(target)_GEN_SOURCES_.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_GEN_SOURCES_.$(bld_trg).$(bld_trg_arch).$(bld_type))\
+	$($(target)_GEN_SOURCES_.$(bld_trg_arch))\
+	$($(target)_GEN_SOURCES_.$(bld_trg_cpu))\
+	$($(target)_GEN_SOURCES_.$(bld_type))\
+	,$(evalvalctx def_src_handler_one) )
+endef # def_target_sources
+else
 define def_target_sources
 local target_src_handlers := $($(target)_SRC_HANDLERS) $(KBUILD_SRC_HANDLERS)
 $(foreach source,\
@@ -348,6 +384,7 @@ $(foreach source,\
 	$($(target)_GEN_SOURCES_.$(bld_type))\
 	,$(evalvalctx def_src_handler_one) )
 endef # def_target_sources
+endif
 $(eval-opt-var def_target_sources)
 
 
