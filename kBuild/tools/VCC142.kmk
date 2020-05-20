@@ -1,4 +1,4 @@
-# $Id: VCC142.kmk 3339 2020-05-19 12:45:34Z knut.osmundsen@oracle.com $
+# $Id: VCC142.kmk 3342 2020-05-20 14:33:53Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 14.2 (aka Visual 2019 and MSC v19.20), default target.
 #
@@ -107,7 +107,11 @@ PATH_TOOL_VCC142_ATLMFC_LIB.amd64  ?= $(PATH_TOOL_VCC142_ATLMFC)/lib/x64
 
 TOOL_VCC142_CC      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC142_BIN_QSH)/cl.exe
 TOOL_VCC142_CXX     ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC142_BIN_QSH)/cl.exe
+ifeq ($(KBUILD_TARGET_ARCH),x86)
+TOOL_VCC142_AS      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC142_BIN_QSH)/ml.exe
+else
 TOOL_VCC142_AS      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC142_BIN_QSH)/ml64.exe
+endif
 #TOOL_VCC142_AR      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC142_BIN_QSH)/lib.exe - just an exec wrapper for the below
 TOOL_VCC142_AR      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC142_BIN_QSH)/link.exe /LIB
 TOOL_VCC142_LD      ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC142_BIN_QSH)/link.exe
