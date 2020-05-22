@@ -1,4 +1,4 @@
-# $Id: VCC142AMD64.kmk 3339 2020-05-19 12:45:34Z knut.osmundsen@oracle.com $
+# $Id: VCC142AMD64.kmk 3346 2020-05-22 20:56:11Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 14.2 (aka Visual 2019 and MSC v19.20), targeting AMD64.
 #
@@ -50,7 +50,7 @@ endif
 ifndef PATH_TOOL_VCC142AMD64_BIN
 PATH_TOOL_VCC142AMD64_BIN     := $(PATH_TOOL_VCC142_HOST_BIN)/x64
 else
-PATH_TOOL_VCC142AMD64_BIN     := $(PATH_TOOL_VCC142_BIN)
+PATH_TOOL_VCC142AMD64_BIN     := $(PATH_TOOL_VCC142AMD64_BIN)
 endif
 PATH_TOOL_VCC142AMD64_BIN_QSH := $(requote sh,$(PATH_TOOL_VCC142AMD64_BIN))
 

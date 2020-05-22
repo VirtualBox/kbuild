@@ -1,4 +1,4 @@
-# $Id: VCC142X86.kmk 3342 2020-05-20 14:33:53Z knut.osmundsen@oracle.com $
+# $Id: VCC142X86.kmk 3346 2020-05-22 20:56:11Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 14.2 (aka Visual 2019 and MSC v19.20), targeting x86.
 #
@@ -50,7 +50,7 @@ endif
 ifndef PATH_TOOL_VCC142X86_BIN
 PATH_TOOL_VCC142X86_BIN     := $(PATH_TOOL_VCC142_HOST_BIN)/x86
 else
-PATH_TOOL_VCC142X86_BIN     := $(PATH_TOOL_VCC142_BIN)
+PATH_TOOL_VCC142X86_BIN     := $(PATH_TOOL_VCC142X86_BIN)
 endif
 PATH_TOOL_VCC142X86_BIN_QSH := $(requote sh,$(PATH_TOOL_VCC142X86_BIN))
 
