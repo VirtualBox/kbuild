@@ -476,9 +476,17 @@ rm_tree(PRMINSTANCE pThis, char **argv)
 						continue;
 #ifdef KBUILD_OS_WINDOWS
 				if (p->fts_parent->fts_dirfd != NT_FTS_INVALID_HANDLE_VALUE) {
-				    rval = birdUnlinkForcedFastEx(p->fts_parent->fts_dirfd, p->fts_name);
+					if (p->fts_info != FTS_SL && p->fts_info != FTS_SLNONE) {
+						rval = birdUnlinkForcedFastEx(p->fts_parent->fts_dirfd, p->fts_name);
+					} else { /* NtDeleteFile doesn't work on directory links, so slow symlink deletion: */
+						rval = birdUnlinkForcedEx(p->fts_parent->fts_dirfd, p->fts_name);
+					}
 				} else {
-				    rval = birdUnlinkForcedFast(p->fts_accpath);
+					if (p->fts_info != FTS_SL && p->fts_info != FTS_SLNONE) {
+						rval = birdUnlinkForcedFast(p->fts_accpath);
+					} else { /* NtDeleteFile doesn't work on directory links, so slow symlink deletion: */
+						rval = birdUnlinkForced(p->fts_accpath);
+					}
 				}
 #else
 				rval = unlink(p->fts_accpath);
