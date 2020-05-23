@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 3328 2020-04-18 18:05:25Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 3349 2020-05-23 09:54:19Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -381,7 +381,7 @@ TOOL_QT5_MOC_CPP_DEPEND =
 TOOL_QT5_MOC_CPP_DEPORD =
 TOOL_QT5_MOC_CPP_OUTPUT =
 TOOL_QT5_MOC_CPP_OUTPUT_MAYBE =
-if1of (quote, $(KMK_FEATURES))
+ifdef KMK_WITH_QUOTING
  define TOOL_QT5_MOC_CPP_CMDS
 	$(QUIET)$(TOOL_QT5_MOC_KSUBMIT)$(TOOL_QT5_MOC)\
 		$(flags)\
@@ -415,7 +415,7 @@ TOOL_QT5_MOC_HPP_DEPEND =
 TOOL_QT5_MOC_HPP_DEPORD =
 TOOL_QT5_MOC_HPP_OUTPUT =
 TOOL_QT5_MOC_HPP_OUTPUT_MAYBE =
-if1of (quote, $(KMK_FEATURES))
+ifdef KMK_WITH_QUOTING
  define TOOL_QT5_MOC_HPP_CMDS
 	$(QUIET)$(TOOL_QT5_MOC_KSUBMIT)$(TOOL_QT5_MOC)\
 		$(flags)\
@@ -594,7 +594,7 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
- if1of (quote, $(KMK_FEATURES))
+ ifdef KMK_WITH_QUOTING
 local source    := $(qabspathex ,$(source),$(defpath))
 local deps      := $(qabspathex ,$(deps),$(defpath)) $(source)
 local incs      := $(qabspathex ,$(incs),$(defpath))
@@ -694,14 +694,14 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
- if1of (quote, $(KMK_FEATURES))
-local source    := $(abspathex $(source),$(defpath))
-local deps      := $(abspathex $(deps),$(defpath)) $(source)
-local incs      := $(abspathex $(incs),$(defpath))
- else
+ ifdef KMK_WITH_QUOTING
 local source    := $(qabspathex ,$(source),$(defpath))
 local deps      := $(qabspathex ,$(deps),$(defpath)) $(source)
 local incs      := $(qabspathex ,$(incs),$(defpath))
+ else
+local source    := $(abspathex $(source),$(defpath))
+local deps      := $(abspathex $(deps),$(defpath)) $(source)
+local incs      := $(abspathex $(incs),$(defpath))
  endif
 else
 local deps      += $(source)
@@ -793,7 +793,7 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
- if1of (quote, $(KMK_FEATURES))
+ ifdef KMK_WITH_QUOTING
 local source    := $(qabspathex ,$(source),$(defpath))
 local deps      := $(qabspathex ,$(deps),$(defpath)) $(source)
 local incs      := $(qabspathex ,$(incs),$(defpath))
@@ -900,7 +900,7 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
- if1of (quote, $(KMK_FEATURES))
+ ifdef KMK_WITH_QUOTING
 local source    := $(qabspathex ,$(source),$(defpath))
 local deps      := $(qabspathex ,$(deps),$(defpath)) $(source)
 local incs      := $(qabspathex ,$(incs),$(defpath))
@@ -1002,7 +1002,7 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
- if1of (quote, $(KMK_FEATURES))
+ ifdef KMK_WITH_QUOTING
 local source    := $(qabspathex ,$(source),$(defpath))
 local deps      := $(qabspathex ,$(deps),$(defpath)) $(source)
 local incs      := $(qabspathex ,$(incs),$(defpath))
