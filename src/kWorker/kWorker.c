@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3338 2020-04-22 18:40:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3347 2020-05-23 08:28:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -1203,7 +1203,7 @@ static KSIZE    g_cbWriteFileToInMemTemp;
 static FNKLDRMODGETIMPORT kwLdrModuleGetImportCallback;
 static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWMODULE pImporter,
                                        const char *pszSearchPath, PKWMODULE *ppMod);
-static PKWMODULE kwLdrModuleForLoadedNative(const char *pszName, KBOOL fEnsureCrtSlot);
+static PKWMODULE kwLdrModuleForLoadedNative(const char *pszName, KBOOL fEnsureCrtSlot, KBOOL fAlwaysPresent);
 static char *kwSandboxDoGetEnvA(PKWSANDBOX pSandbox, const char *pchVar, KSIZE cchVar);
 static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle, HANDLE hHandle);
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
@@ -2032,7 +2032,8 @@ static void kwLdrModuleDoNativeImportReplacements(PKWMODULE pMod)
                                      */
                                     if (!pImportMod)
                                     {
-                                        pImportMod = kwLdrModuleForLoadedNative(pszImport, K_TRUE /*fEnsureCrtSlot*/);
+                                        pImportMod = kwLdrModuleForLoadedNative(pszImport, K_TRUE /*fEnsureCrtSlot*/,
+                                                                                K_TRUE /*fAlwaysPresent*/);
                                         if (!pImportMod)
                                         {
                                             kwErrPrintf("Failed to get module '%s' when performing replacements on module '%s'!\n",
@@ -3055,8 +3056,10 @@ static int kwLdrModuleCreateCrtSlot(PKWMODULE pModule)
  * @returns Pointer to the module structure on success, NULL on failure.
  * @param   pszName         The name of the module.
  * @param   fEnsureCrtSlot  Whether to ensure that it has a valid CRT slot.
+ * @param   fAlwaysPresent  Whether the module is expected to always be present,
+ *                          or not.  If not, complain less.
  */
-static PKWMODULE kwLdrModuleForLoadedNative(const char *pszName, KBOOL fEnsureCrtSlot)
+static PKWMODULE kwLdrModuleForLoadedNative(const char *pszName, KBOOL fEnsureCrtSlot, KBOOL fAlwaysPresent)
 {
     /*
      * Locate the module and get a normalized path for it.
@@ -3131,8 +3134,8 @@ static PKWMODULE kwLdrModuleForLoadedNative(const char *pszName, KBOOL fEnsureCr
         else
             kwErrPrintf("GetModuleFileNameA failed for '%s': %u!\n", pszName, GetLastError());
     }
-    else
-        kwErrPrintf("Module '%s' was not found by GetModuleHandleA!\n", pszName);
+    else if (fAlwaysPresent)
+        kwErrPrintf("Module '%s' was not found by GetModuleHandleA/W!\n", pszName);
     return NULL;
 }
 
@@ -5399,7 +5402,8 @@ static HMODULE kwSandbox_Kernel32_GetModuleHandle_ReturnedCachedEntry(KSIZE i)
          * entry for it, if not we add one.  We need to add it to the tools
          * module list to for it to work.
          */
-        PKWMODULE pMod = kwLdrModuleForLoadedNative(g_aGetModuleHandleCache[i].pszName, K_FALSE);
+        PKWMODULE pMod = kwLdrModuleForLoadedNative(g_aGetModuleHandleCache[i].pszName, K_FALSE,
+                                                    g_aGetModuleHandleCache[i].fAlwaysPresent);
         if (pMod)
         {
             hmod = pMod->hOurMod;
