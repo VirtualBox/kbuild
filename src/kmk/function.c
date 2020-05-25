@@ -5903,15 +5903,6 @@ static char *func_quote_make (char *o, char **argv, const char *funcname)
   int const is_dep = funcname[5] == '-' && funcname[6] == 'd';
   int const is_tgt = funcname[5] == '-' && funcname[6] == 't';
   int const quote_trailing_slashes = funcname[5] == '\0' || funcname[9] == '\0';
-  unsigned const map_flags = MAP_NUL
-                           | MAP_BLANK
-                           | MAP_NEWLINE
-                           | MAP_COMMENT
-                           | MAP_VARIABLE
-                           | MAP_SEMI
-                           | MAP_EQUALS
-                           | (is_dep ? MAP_PIPE :
-                              is_tgt ? MAP_COLON : 0);
   char * const o_initial = o;
   int i;
 
@@ -6844,7 +6835,6 @@ static int helper_is_abs (const char *path)
       || path[0] == '\\'
       || (isalpha(path[0]) && path[1] == ':');
 #else
-  (void)len;
   return path[0] == '/';
 #endif
 }
