@@ -1,4 +1,4 @@
-/* $Id: win_get_processor_group_active_mask.c 3354 2020-06-05 02:04:25Z knut.osmundsen@oracle.com $ */
+/* $Id: win_get_processor_group_active_mask.c 3356 2020-06-05 02:09:14Z knut.osmundsen@oracle.com $ */
 /** @file
  * win_get_processor_group_active_mask - Helper.
  */
@@ -69,7 +69,6 @@ KAFFINITY win_get_processor_group_active_mask(unsigned iGroup)
         uBuf.Info.Size = cbBuf = sizeof(uBuf);
         if (pfnGetLogicalProcessorInformationEx(RelationGroup, &uBuf.Info, &cbBuf))
         {
-            __debugbreak();
             SetLastError(0);
             if (iGroup < uBuf.Info.Group.MaximumGroupCount)
                 return uBuf.Info.Group.GroupInfo[iGroup].ActiveProcessorMask;
