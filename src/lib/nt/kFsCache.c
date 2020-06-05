@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 3184 2018-03-23 22:36:43Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 3359 2020-06-05 16:17:17Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -4454,12 +4454,31 @@ void kFsCacheInvalidateMissing(PKFSCACHE pCache)
 }
 
 
+/** 
+ * Recursively close directories. 
+ */ 
+static void kFsCacheCloseDirs(PKFSOBJ *papChildren, KU32 cChildren)
+{
+    while (cChildren-- > 0)
+    {
+        PKFSDIR pDir = (PKFSDIR)papChildren[cChildren];
+        if (pDir && pDir->Obj.bObjType == KFSOBJ_TYPE_DIR)
+        {
+            if (pDir->hDir != INVALID_HANDLE_VALUE)
+            {
+                g_pfnNtClose(pDir->hDir);
+                pDir->hDir = INVALID_HANDLE_VALUE;
+            }
+            kFsCacheCloseDirs(pDir->papChildren, pDir->cChildren);
+        }
+    }
+}
+
+
 /**
- * Invalidate all cache entries (regular, custom & missing).
- *
- * @param   pCache      The cache.
+ * Worker for kFsCacheInvalidateAll and kFsCacheInvalidateAllAndCloseDirs
  */
-void kFsCacheInvalidateAll(PKFSCACHE pCache)
+static void kFsCacheInvalidateAllWorker(PKFSCACHE pCache, KBOOL fCloseDirs, KBOOL fIncludingRoot)
 {
     kHlpAssert(pCache->u32Magic == KFSOBJ_MAGIC);
     KFSCACHE_LOCK(pCache);
@@ -4474,10 +4493,46 @@ void kFsCacheInvalidateAll(PKFSCACHE pCache)
     pCache->auGenerations[1]++;
     kHlpAssert(pCache->auGenerations[1] < KU32_MAX);
 
+    if (fCloseDirs)
+    {
+        kFsCacheCloseDirs(pCache->RootDir.papChildren, pCache->RootDir.cChildren);
+        if (fCloseDirs && pCache->RootDir.hDir != INVALID_HANDLE_VALUE)
+        {
+            g_pfnNtClose(pCache->RootDir.hDir);
+            pCache->RootDir.hDir = INVALID_HANDLE_VALUE;
+        }
+    }
+
     KFSCACHE_LOG(("Invalidate all - default: %#x/%#x,  custom: %#x/%#x\n",
                   pCache->auGenerationsMissing[0], pCache->auGenerations[0],
                   pCache->auGenerationsMissing[1], pCache->auGenerations[1]));
     KFSCACHE_UNLOCK(pCache);
+}
+
+
+/**
+ * Invalidate all cache entries (regular, custom & missing).
+ *
+ * @param   pCache      The cache.
+ */
+void kFsCacheInvalidateAll(PKFSCACHE pCache)
+{
+    kHlpAssert(pCache->u32Magic == KFSOBJ_MAGIC);
+    kFsCacheInvalidateAllWorker(pCache, K_FALSE, K_FALSE);
+}
+
+
+/**
+ * Invalidate all cache entries (regular, custom & missing) and close all the
+ * directory handles.
+ *
+ * @param   pCache          The cache.
+ * @param   fIncludingRoot  Close the root directory handle too.
+ */
+void kFsCacheInvalidateAllAndCloseDirs(PKFSCACHE pCache, KBOOL fIncludingRoot)
+{
+    kHlpAssert(pCache->u32Magic == KFSOBJ_MAGIC);
+    kFsCacheInvalidateAllWorker(pCache, K_TRUE, fIncludingRoot);
 }
 
 

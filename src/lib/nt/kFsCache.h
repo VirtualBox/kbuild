@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 3199 2018-03-28 18:56:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 3359 2020-06-05 16:17:17Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -554,6 +554,7 @@ PKFSCACHE   kFsCacheCreate(KU32 fFlags);
 void        kFsCacheDestroy(PKFSCACHE);
 void        kFsCacheInvalidateMissing(PKFSCACHE pCache);
 void        kFsCacheInvalidateAll(PKFSCACHE pCache);
+void        kFsCacheInvalidateAllAndCloseDirs(PKFSCACHE pCache, KBOOL fIncludingRoot);
 void        kFsCacheInvalidateCustomMissing(PKFSCACHE pCache);
 void        kFsCacheInvalidateCustomBoth(PKFSCACHE pCache);
 KBOOL       kFsCacheSetupCustomRevisionForTree(PKFSCACHE pCache, PKFSOBJ pRoot);

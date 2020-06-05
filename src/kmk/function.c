@@ -5745,6 +5745,12 @@ func_dircache_ctl (char *o, char **argv UNUSED, const char *funcname UNUSED)
         O (error, reading_file, "$(dircache-ctl invalidate) takes no parameters");
       dir_cache_invalid_all ();
     }
+  else if (strcmp (cmd, "invalidate-and-close-dirs") == 0)
+    {
+      if (argv[1] != NULL)
+        O (error, reading_file, "$(dircache-ctl invalidate) takes no parameters");
+      dir_cache_invalid_all_and_close_dirs (0 /*including_root*/);
+    }
   else if (strcmp (cmd, "invalidate-missing") == 0)
     {
       if (argv[1] != NULL)
