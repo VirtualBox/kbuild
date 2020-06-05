@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3355 2020-06-05 02:06:42Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3357 2020-06-05 14:49:14Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -110,6 +110,7 @@ extern void kmk_cache_exec_image_w(const wchar_t *); /* imagecache.c */
 /* Option values from main.c: */
 extern const char *win_job_object_mode;
 extern const char *win_job_object_name;
+extern int         win_job_object_no_kill;
 
 
 /*********************************************************************************************************************************
@@ -377,6 +378,14 @@ static unsigned volatile    g_idxLastChildcareWorker = 0;
 static SRWLOCK              g_RWLock;
 #endif
 
+/** The job object for this make instance, if we created/opened one. */
+static HANDLE               g_hJob = NULL;
+
+
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
+static void mkWinChildInitJobObjectAssociation(void);
 
 #if K_ARCH_BITS == 32 && !defined(_InterlockedCompareExchangePointer)
 /** _InterlockedCompareExchangePointer is missing? (VS2010) */
@@ -486,87 +495,9 @@ void MkWinChildInit(unsigned int cJobSlots)
 #endif
 
     /*
-     * Depending on the --job-object=mode value, we typically create a job
-     * object here if we're the root make instance.  The job object is then
-     * typically configured to kill all remaining processes when the root make
-     * terminates, so that there aren't any stuck processes around messing up
-     * subsequent builds.  This is very handy on build servers, provided of
-     * course that, there aren't parallel kmk instance that wants to share
-     * mspdbsrv.exe or something like that.
-     *
-     * If we're not in a -kill mode, the job object is pretty pointless for
-     * manual cleanup as the job object becomes invisible (or something) when
-     * the last handle to it closes, i.e. hJob below.  On windows 8 and later
-     * it looks like any orphaned children are immediately assigned to the
-     * parent job object. Too bad for kmk_kill and such.
-     *
-     * win_job_object_mode values: none, root-kill, root-nokill, all-kill, all-nokill
+     * Associate with a job object.
      */
-    if (   strcmp(win_job_object_mode, "none") != 0
-        && (   makelevel == 0
-            || strstr(win_job_object_mode, "root") == NULL))
-    {
-        HANDLE      hJob = NULL;
-        BOOL        fCreate = TRUE;
-        const char *pszJobName = win_job_object_name;
-        if (pszJobName)
-        {
-            /* Try open it first, in case it already exists. If it doesn't we'll try create it. */
-            fCreate = FALSE;
-            hJob = OpenJobObjectA(JOB_OBJECT_ASSIGN_PROCESS, FALSE /*bInheritHandle*/, pszJobName);
-            if (hJob)
-            {
-                DWORD dwErr = GetLastError();
-                if (dwErr == ERROR_PATH_NOT_FOUND || dwErr == ERROR_FILE_NOT_FOUND)
-                    fCreate = TRUE;
-                else
-                    OSN(message, 0, _("OpenJobObjectA(,,%s) failed: %u"), pszJobName, GetLastError());
-            }
-        }
-
-        if (fCreate)
-        {
-            char       szJobName[128];
-            SYSTEMTIME Now = {0};
-            GetSystemTime(&Now);
-            snprintf(szJobName, sizeof(szJobName) / 2, "kmk-job-obj-%04u-%02u-%02uT%02u-%02u-%02uZ%u",
-                     Now.wYear, Now.wMonth, Now.wDay, Now.wHour, Now.wMinute, Now.wSecond, getpid());
-            if (!pszJobName)
-                pszJobName = szJobName;
-
-            hJob = CreateJobObjectA(NULL, pszJobName);
-            if (hJob)
-            {
-                /* We need to set the BREAKAWAY_OK flag, as we don't want make CreateProcess fail if
-                   someone tries to break way.  Also set KILL_ON_JOB_CLOSE unless 'nokill' is given. */
-                JOBOBJECT_EXTENDED_LIMIT_INFORMATION Info;
-                DWORD cbActual = 0;
-                memset(&Info, 0, sizeof(Info));
-                if (QueryInformationJobObject(hJob, JobObjectExtendedLimitInformation, &Info, sizeof(Info), &cbActual))
-                {
-                    Info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_BREAKAWAY_OK;
-                    if (strstr(win_job_object_mode, "nokill") == NULL)
-                        Info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-                    else
-                        Info.BasicLimitInformation.LimitFlags &= ~JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-                    if (!SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &Info, sizeof(Info)))
-                        OSSN(message, 0, _("SetInformationJobObject(%s,JobObjectExtendedLimitInformation,{%s},) failed: %u"),
-                             pszJobName, win_job_object_mode, GetLastError());
-                }
-                else
-                    OSN(message, 0, _("QueryInformationJobObject(%s,JobObjectExtendedLimitInformation,,,) failed: %u"),
-                        pszJobName, GetLastError());
-            }
-            else
-                OSN(message, 0, _("CreateJobObjectA(NULL,%s) failed: %u"), pszJobName, GetLastError());
-        }
-
-        if (hJob)
-        {
-            if (!(AssignProcessToJobObject(hJob, GetCurrentProcess())))
-                OSN(message, 0, _("AssignProcessToJobObject(%s, me) failed: %u"), pszJobName, GetLastError());
-        }
-    }
+    mkWinChildInitJobObjectAssociation();
 
     /*
      * This is dead code that was thought to fix a problem observed doing
@@ -634,6 +565,135 @@ void MkWinChildInit(unsigned int cJobSlots)
             }
     }
 #endif
+}
+
+/**
+ * Create or open a job object for this make instance and its children.
+ *
+ * Depending on the --job-object=mode value, we typically create/open a job
+ * object here if we're the root make instance.  The job object is then
+ * typically configured to kill all remaining processes when the root make
+ * terminates, so that there aren't any stuck processes around messing up
+ * subsequent builds.  This is very handy on build servers.
+ *
+ * If we're it no-kill mode, the job object is pretty pointless for manual
+ * cleanup as the job object becomes invisible (or something) when the last
+ * handle to it closes, i.e. g_hJob.  On windows 8 and later it looks
+ * like any orphaned children are immediately assigned to the parent job
+ * object.  Too bad for kmk_kill and such.
+ *
+ * win_job_object_mode values: login, root, each, none
+ */
+static void mkWinChildInitJobObjectAssociation(void)
+{
+    BOOL        fCreate   = TRUE;
+    char        szJobName[128];
+    const char *pszJobName = win_job_object_name;
+
+    /* Skip if disabled. */
+    if (strcmp(win_job_object_mode, "none") == 0)
+        return;
+
+    /* Skip if not root make instance, unless we're having one job object
+       per make instance. */
+    if (   makelevel != 0
+        && strcmp(win_job_object_mode, "each") != 0)
+        return;
+
+    /* Format the the default job object name if --job-object-name
+       wasn't given. */
+    if (!pszJobName || *pszJobName == '\0')
+    {
+        pszJobName = szJobName;
+        if (strcmp(win_job_object_mode, "login") == 0)
+        {
+            /* Use the AuthenticationId like mspdbsrv.exe does. */
+            HANDLE hToken;
+            if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
+            {
+                TOKEN_STATISTICS TokenStats;
+                DWORD            cbRet = 0;
+                memset(&TokenStats, 0, sizeof(TokenStats));
+                if (GetTokenInformation(hToken, TokenStatistics, &TokenStats, sizeof(TokenStats), &cbRet))
+                    snprintf(szJobName, sizeof(szJobName), "kmk-job-obj-login-%08x.%08x",
+                             (unsigned)TokenStats.AuthenticationId.HighPart, (unsigned)TokenStats.AuthenticationId.LowPart);
+                else
+                {
+                    ONN(message, 0, _("GetTokenInformation failed: %u (cbRet=%u)"), GetLastError(), cbRet);
+                    return;
+                }
+                CloseHandle(hToken);
+            }
+            else
+            {
+                ON(message, 0, _("OpenProcessToken failed: %u"), GetLastError());
+                return;
+            }
+        }
+        else
+        {
+            SYSTEMTIME Now = {0};
+            GetSystemTime(&Now);
+            snprintf(szJobName, sizeof(szJobName), "kmk-job-obj-%04u-%02u-%02uT%02u-%02u-%02uZ%u",
+                     Now.wYear, Now.wMonth, Now.wDay, Now.wHour, Now.wMinute, Now.wSecond, getpid());
+        }
+    }
+
+    /* In login mode and when given a job object name, we try open it first. */
+    if (   win_job_object_name
+        || strcmp(win_job_object_mode, "login") == 0)
+    {
+        g_hJob = OpenJobObjectA(JOB_OBJECT_ASSIGN_PROCESS, win_job_object_no_kill /*bInheritHandle*/, pszJobName);
+        if (g_hJob)
+            fCreate = FALSE;
+        else
+        {
+            DWORD dwErr = GetLastError();
+            if (dwErr != ERROR_PATH_NOT_FOUND && dwErr != ERROR_FILE_NOT_FOUND)
+            {
+                OSN(message, 0, _("OpenJobObjectA(,,%s) failed: %u"), pszJobName, GetLastError());
+                return;
+            }
+        }
+    }
+
+    if (fCreate)
+    {
+        SECURITY_ATTRIBUTES SecAttr = { sizeof(SecAttr), NULL, TRUE /*bInheritHandle*/ };
+        g_hJob = CreateJobObjectA(win_job_object_no_kill ? &SecAttr : NULL, pszJobName);
+        if (g_hJob)
+        {
+            /* We need to set the BREAKAWAY_OK flag, as we don't want make CreateProcess
+               fail if someone tries to break way.  Also set KILL_ON_JOB_CLOSE unless
+               --job-object-no-kill is given. */
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION Info;
+            DWORD cbActual = 0;
+            memset(&Info, 0, sizeof(Info));
+            if (QueryInformationJobObject(g_hJob, JobObjectExtendedLimitInformation, &Info, sizeof(Info), &cbActual))
+            {
+                Info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_BREAKAWAY_OK;
+                if (!win_job_object_no_kill)
+                    Info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+                else
+                    Info.BasicLimitInformation.LimitFlags &= ~JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+                if (!SetInformationJobObject(g_hJob, JobObjectExtendedLimitInformation, &Info, sizeof(Info)))
+                    OSSN(message, 0, _("SetInformationJobObject(%s,JobObjectExtendedLimitInformation,{%s},) failed: %u"),
+                         pszJobName, win_job_object_mode, GetLastError());
+            }
+            else
+                OSN(message, 0, _("QueryInformationJobObject(%s,JobObjectExtendedLimitInformation,,,) failed: %u"),
+                    pszJobName, GetLastError());
+        }
+        else
+        {
+            OSN(message, 0, _("CreateJobObjectA(NULL,%s) failed: %u"), pszJobName, GetLastError());
+            return;
+        }
+    }
+
+    /* Make it our job object. */
+    if (!(AssignProcessToJobObject(g_hJob, GetCurrentProcess())))
+        OSN(message, 0, _("AssignProcessToJobObject(%s, me) failed: %u"), pszJobName, GetLastError());
 }
 
 /**
@@ -1154,7 +1214,7 @@ static void mkWinChildcareWorkerCloseStandardHandles(PWINCHILD pChild)
 
 
 /**
- * Does the actual process creation given.
+ * Does the actual process creation.
  *
  * @returns 0 if there is anything to wait on, otherwise non-zero windows error.
  * @param   pWorker             The childcare worker.
@@ -1303,6 +1363,17 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, WCHAR 
         }
         assert(fRet);
 #endif
+
+        /*
+         * Inject the job object if we're in a non-killing mode, to postpone
+         * the closing of the job object and maybe make it more useful.
+         */
+        if (win_job_object_no_kill && g_hJob)
+        {
+            HANDLE hWhatever = INVALID_HANDLE_VALUE;
+            DuplicateHandle(GetCurrentProcess(), g_hJob, ProcInfo.hProcess, &hWhatever, GENERIC_ALL,
+                            TRUE /*bInheritHandle*/, DUPLICATE_SAME_ACCESS);
+        }
 
         /*
          * Resume the thread if the adjustments succeeded, otherwise kill it.
@@ -3535,8 +3606,7 @@ intptr_t MkWinChildGetCompleteEventHandle(void)
 }
 
 /**
- * Emulate execv() for restarting kmk after one ore more makefiles has been
- * made.
+ * Emulate execv() for restarting kmk after one or more makefiles has been made.
  *
  * Does not return.
  *

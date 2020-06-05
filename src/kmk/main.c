@@ -422,6 +422,9 @@ char *win_job_object_mode = NULL;
 
 /* --job-object-name=name */
 char *win_job_object_name = NULL;
+
+/** --job-object-no-kill.   */
+int win_job_object_no_kill = 0;
 #endif
 
 
@@ -560,17 +563,15 @@ static const char *const usage[] =
 #if defined (WINDOWS32) && defined (CONFIG_NEW_WIN_CHILDREN)
     N_("\
   --job-object=mode           Windows job object mode:\n\
-                                root-kill   = Root make instance only, kill all\n\
-                                              process when root exits. (def)\n\
-                                root-nokill = Root make instance only.\n\
-                                              No killing.\n\
-                                each-kill   = Each make instances, kill all\n\
-                                              children when an instance exits.\n\
-                                each-nokill = Each make instances, no killing.\n\
-                                none        = No job objects.\n"),
+                                login = Per login session (default).\n\
+                                root  = Root make instance only.\n\
+                                each  = Each make instances.\n\
+                                none  = No job objects.\n"),
     N_("\
   --job-object-name=name      Name of windows job object to open or create.\n\
-                              The default name is 'kmk-job-obj-<date>Z<pid>'.\n"),
+                              The default name depends on the level.\n"),
+    N_("\
+  --job-object-no-kill        Do not kill orphaned child processes when done.\n"),
 #endif
     NULL
   };
@@ -661,8 +662,10 @@ static const struct command_switch switches[] =
     { CHAR_MAX+7, string, &sync_mutex, 1, 1, 0, 0, 0, "sync-mutex" },
 #if defined (WINDOWS32) && defined (CONFIG_NEW_WIN_CHILDREN)
     { CHAR_MAX+58, string, &win_job_object_mode, 1, 1, 1, 0, 0, "job-object" },
-    { CHAR_MAX+59, string, &win_job_object_name,  1, 1, 1, 0, 0,
+    { CHAR_MAX+59, string, &win_job_object_name, 1, 1, 1, 0, 0,
       "job-object-name" },
+    { CHAR_MAX+60, flag, &win_job_object_no_kill, 1, 1, 1, 0, 0,
+      "job-object-no-kill" },
 #endif
     { 0, 0, 0, 0, 0, 0, 0, 0, 0 }
   };
@@ -3754,12 +3757,11 @@ decode_switches (int argc, const char **argv, int env)
 #if defined (WINDOWS32) && defined (CONFIG_NEW_WIN_CHILDREN)
   /* validate the job object mode value . */
   if (win_job_object_mode == NULL)
-    win_job_object_mode = xstrdup("root-kill");
+    win_job_object_mode = xstrdup ("login");
   else if (   strcmp (win_job_object_mode, "none") != 0
-           && strcmp (win_job_object_mode, "root-kill") != 0
-           && strcmp (win_job_object_mode, "root-nokill") != 0
-           && strcmp (win_job_object_mode, "each-kill") != 0
-           && strcmp (win_job_object_mode, "each-nokill") != 0)
+           && strcmp (win_job_object_mode, "login") != 0
+           && strcmp (win_job_object_mode, "root") != 0
+           && strcmp (win_job_object_mode, "each") != 0)
     OS (fatal, NILF, _("unknown job object mode '%s'"), win_job_object_mode);
 #endif
 }
