@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3273 2019-01-04 00:48:51Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3352 2020-06-05 00:31:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -125,7 +125,7 @@ typedef struct KMKBUILTINENTRY
     } u;
     size_t      uFnSignature : 8;
     size_t      fMtSafe : 1;            /**< Safe for multi threaded execution. */
-    size_t      fNeedEnv : 1;           /**< Needs the (target) enviornment. */
+    size_t      fNeedEnv : 1;           /**< Needs the (target) environment. */
 } KMKBUILTINENTRY;
 /** Pointer to kmk built-in command entry. */
 typedef KMKBUILTINENTRY const *PCKMKBUILTINENTRY;
@@ -155,6 +155,7 @@ extern int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCT
 extern int kSubmitSubProcGetResult(intptr_t pvUser, int fBlock, int *prcExit, int *piSigNo);
 extern int kSubmitSubProcKill(intptr_t pvUser, int iSignal);
 extern void kSubmitSubProcCleanup(intptr_t pvUser);
+extern int kmk_builtin_kill(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
 #endif
 extern int kmk_builtin_kDepIDB(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);
 extern int kmk_builtin_kDepObj(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx);

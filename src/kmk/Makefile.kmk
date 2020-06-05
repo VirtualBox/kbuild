@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3214 2018-03-30 21:03:40Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3352 2020-06-05 00:31:50Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -339,6 +339,8 @@ kmk_SOURCES += \
 	kmkbuiltin/touch.c \
        \
 	kmkbuiltin/err.c
+kmk_SOURCES.win += \
+	kmkbuiltin/kill.c
 
 
 ## @todo kmkbuiltin/redirect.c
@@ -373,7 +375,9 @@ PROGRAMS += \
 	kmk_test \
 	kmk_touch \
 	kDepIDB \
-	kDepObj \
+	kDepObj
+PROGRAMS.win += \
+	kmk_kill
 
 kmk_append_TEMPLATE = BIN-KMK-BUILTIN
 kmk_append_INCS = .
@@ -410,6 +414,10 @@ kmk_expr_SOURCES = \
 kmk_install_TEMPLATE = BIN-KMK-BUILTIN
 kmk_install_SOURCES = \
 	kmkbuiltin/install.c
+
+kmk_kill_TEMPLATE = BIN-KMK-BUILTIN
+kmk_kill_SOURCES = \
+	kmkbuiltin/kill.c
 
 kmk_ln_TEMPLATE = BIN-KMK-BUILTIN
 kmk_ln_SOURCES = \
