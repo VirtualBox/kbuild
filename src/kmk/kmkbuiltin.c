@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 3333 2020-04-20 23:55:38Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3352 2020-06-05 00:31:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -264,6 +264,7 @@ static const KMKBUILTINENTRY g_aBuiltIns[] =
     BUILTIN_ENTRY(kmk_builtin_kDepObj,  "kDepObj",      FN_SIG_MAIN,            1, 0),
 #ifdef KBUILD_OS_WINDOWS
     BUILTIN_ENTRY(kmk_builtin_kSubmit,  "kSubmit",      FN_SIG_MAIN_SPAWNS,     0, 1),
+    BUILTIN_ENTRY(kmk_builtin_kill,     "kill",         FN_SIG_MAIN,            0, 0),
 #endif
     BUILTIN_ENTRY(kmk_builtin_mkdir,    "mkdir",        FN_SIG_MAIN,            0, 0),
     BUILTIN_ENTRY(kmk_builtin_mv,       "mv",           FN_SIG_MAIN,            0, 0),
