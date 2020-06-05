@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3313 2020-03-16 02:31:38Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3353 2020-06-05 00:57:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -106,6 +106,10 @@
 #ifndef KMK_BUILTIN_STANDALONE
 extern void kmk_cache_exec_image_w(const wchar_t *); /* imagecache.c */
 #endif
+
+/* Option values from main.c: */
+extern const char *win_job_object_mode;
+extern const char *win_job_object_name;
 
 
 /*********************************************************************************************************************************
@@ -480,6 +484,89 @@ void MkWinChildInit(unsigned int cJobSlots)
      */
     InitializeSRWLock(&g_RWLock);
 #endif
+
+    /*
+     * Depending on the --job-object=mode value, we typically create a job
+     * object here if we're the root make instance.  The job object is then
+     * typically configured to kill all remaining processes when the root make
+     * terminates, so that there aren't any stuck processes around messing up
+     * subsequent builds.  This is very handy on build servers, provided of
+     * course that, there aren't parallel kmk instance that wants to share
+     * mspdbsrv.exe or something like that.
+     *
+     * If we're not in a -kill mode, the job object is pretty pointless for
+     * manual cleanup as the job object becomes invisible (or something) when
+     * the last handle to it closes, i.e. hJob below.  On windows 8 and later
+     * it looks like any orphaned children are immediately assigned to the
+     * parent job object. Too bad for kmk_kill and such.
+     *
+     * win_job_object_mode values: none, root-kill, root-nokill, all-kill, all-nokill
+     */
+    if (   strcmp(win_job_object_mode, "none") != 0
+        && (   makelevel == 0
+            || strstr(win_job_object_mode, "root") == NULL))
+    {
+        HANDLE      hJob = NULL;
+        BOOL        fCreate = TRUE;
+        const char *pszJobName = win_job_object_name;
+        if (pszJobName)
+        {
+            /* Try open it first, in case it already exists. If it doesn't we'll try create it. */
+            fCreate = FALSE;
+            hJob = OpenJobObjectA(JOB_OBJECT_ASSIGN_PROCESS, FALSE /*bInheritHandle*/, pszJobName);
+            if (hJob)
+            {
+                DWORD dwErr = GetLastError();
+                if (dwErr == ERROR_PATH_NOT_FOUND || dwErr == ERROR_FILE_NOT_FOUND)
+                    fCreate = TRUE;
+                else
+                    OSN(message, 0, _("OpenJobObjectA(,,%s) failed: %u"), pszJobName, GetLastError());
+            }
+        }
+
+        if (fCreate)
+        {
+            char       szJobName[128];
+            SYSTEMTIME Now = {0};
+            GetSystemTime(&Now);
+            snprintf(szJobName, sizeof(szJobName) / 2, "kmk-job-obj-%04u-%02u-%02uT%02u-%02u-%02uZ%u",
+                     Now.wYear, Now.wMonth, Now.wDay, Now.wHour, Now.wMinute, Now.wSecond, getpid());
+            if (!pszJobName)
+                pszJobName = szJobName;
+
+            hJob = CreateJobObjectA(NULL, pszJobName);
+            if (hJob)
+            {
+                /* We need to set the BREAKAWAY_OK flag, as we don't want make CreateProcess fail if
+                   someone tries to break way.  Also set KILL_ON_JOB_CLOSE unless 'nokill' is given. */
+                JOBOBJECT_EXTENDED_LIMIT_INFORMATION Info;
+                DWORD cbActual = 0;
+                memset(&Info, 0, sizeof(Info));
+                if (QueryInformationJobObject(hJob, JobObjectExtendedLimitInformation, &Info, sizeof(Info), &cbActual))
+                {
+                    Info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_BREAKAWAY_OK;
+                    if (strstr(win_job_object_mode, "nokill") == NULL)
+                        Info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+                    else
+                        Info.BasicLimitInformation.LimitFlags &= ~JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+                    if (!SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &Info, sizeof(Info)))
+                        OSN(message, 0, _("SetInformationJobObject(%s,JobObjectExtendedLimitInformation,{%s},) failed: %u"),
+                            pszJobName, win_job_object_mode, GetLastError());
+                }
+                else
+                    OSN(message, 0, _("QueryInformationJobObject(%s,JobObjectExtendedLimitInformation,,,) failed: %u"),
+                        pszJobName, GetLastError());
+            }
+            else
+                OSN(message, 0, _("CreateJobObjectA(NULL,%s) failed: %u"), pszJobName, GetLastError());
+        }
+
+        if (hJob)
+        {
+            if (!(AssignProcessToJobObject(hJob, GetCurrentProcess())))
+                OSN(message, 0, _("AssignProcessToJobObject(%s, me) failed: %u"), pszJobName, GetLastError());
+        }
+    }
 
     /*
      * This is dead code that was thought to fix a problem observed doing
