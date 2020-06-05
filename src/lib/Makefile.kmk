@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3354 2020-06-05 02:04:25Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -45,6 +45,7 @@ kUtil_SOURCES = \
 	kbuild_version.c
 kUtil_SOURCES.win = \
 	msc_buffered_printf.c \
+	win_get_processor_group_active_mask.c \
 	nt_fullpath.c \
 	nt_fullpath_cached.c \
 	quote_argv.c \
