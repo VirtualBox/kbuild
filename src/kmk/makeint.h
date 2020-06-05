@@ -1174,6 +1174,7 @@ extern char *func_breakpoint(char *o, char **argv, const char *funcname);
 # ifdef KBUILD_OS_WINDOWS
 extern void dir_cache_invalid_after_job (void);
 extern void dir_cache_invalid_all (void);
+extern void dir_cache_invalid_all_and_close_dirs (int including_root);
 extern void dir_cache_invalid_missing (void);
 extern int dir_cache_volatile_dir (const char *dir);
 extern int dir_cache_deleted_directory(const char *pszDir);

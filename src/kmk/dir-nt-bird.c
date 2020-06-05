@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 3203 2018-03-28 22:23:23Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 3359 2020-06-05 16:17:17Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -656,6 +656,19 @@ void dir_cache_invalid_all(void)
 {
     g_cInvalidates++;
     kFsCacheInvalidateAll(g_pFsCache);
+}
+
+/**
+ * Invalidate the whole directory cache and closes all open handles.
+ *
+ * Used by $(dircache-ctl invalidate-and-close-dirs)
+ * @param   including_root      Also close the root directory.
+ * @note    Multi-thread safe.
+ */
+void dir_cache_invalid_all_and_close_dirs(int including_root)
+{
+    g_cInvalidates++;
+    kFsCacheInvalidateAllAndCloseDirs(g_pFsCache, !!including_root);
 }
 
 /**
