@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3347 2020-05-23 08:28:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3355 2020-06-05 02:06:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -54,6 +54,7 @@
 
 #include "nt/kFsCache.h"
 #include "nt_fullpath.h"
+#include "win_get_processor_group_active_mask.h"
 #include "quote_argv.h"
 #include "md5.h"
 #include "console.h"
@@ -12283,6 +12284,43 @@ static int kwFullTestRun(int argc, char **argv)
 }
 
 
+/**
+ * Helper for main() argument handling that sets the processor group if
+ * possible.
+ */
+static void kwSetProcessorGroup(unsigned long uGroup)
+{
+    typedef BOOL (WINAPI *PFNSETTHREADGROUPAFFINITY)(HANDLE, const GROUP_AFFINITY*, GROUP_AFFINITY *);
+    HMODULE             const hmodKernel32 = GetModuleHandleW(L"KERNEL32.DLL");
+    PFNSETTHREADGROUPAFFINITY pfnSetThreadGroupAffinity;
+
+    pfnSetThreadGroupAffinity = (PFNSETTHREADGROUPAFFINITY)GetProcAddress(hmodKernel32, "SetThreadGroupAffinity");
+    if (pfnSetThreadGroupAffinity)
+    {
+        GROUP_AFFINITY OldAff = { 0,            0, 0, 0, 0 };
+        GROUP_AFFINITY NewAff = { 0, (WORD)uGroup, 0, 0, 0 };
+        NewAff.Mask = win_get_processor_group_active_mask((WORD)uGroup);
+        if (NewAff.Mask && (WORD)uGroup == uGroup)
+        {
+            if (!pfnSetThreadGroupAffinity(GetCurrentThread(), &NewAff, &OldAff))
+                kwErrPrintf("Failed to set processor group to %lu (%p): %u\n", uGroup, NewAff.Mask, GetLastError());
+        }
+        else if (GetLastError() == NO_ERROR)
+            kwErrPrintf("Cannot set processor group to %lu: No active processors in group!\n", uGroup);
+        else
+            kwErrPrintf("Cannot set processor group to %lu: GetLogicalProcessorInformationEx failed: %u\n",
+                        uGroup, GetLastError());
+    }
+    else
+    {
+        OSVERSIONINFOA VerInfo = {0};
+        if (VerInfo.dwMajorVersion > 6 || (VerInfo.dwMajorVersion == 6 && VerInfo.dwMinorVersion >= 1))
+            kwErrPrintf("Cannot set processor group to %lu: SetThreadGroupAffinity no found! (Windows version %lu.%lu)\n",
+                        uGroup, VerInfo.dwMajorVersion, VerInfo.dwMinorVersion);
+    }
+}
+
+
 int main(int argc, char **argv)
 {
     KSIZE                           cbMsgBuf = 0;
@@ -12510,21 +12548,7 @@ int main(int argc, char **argv)
                     && pszEnd != NULL
                     && *pszEnd == '\0'
                     && uValue == (WORD)uValue)
-                {
-                    typedef BOOL (WINAPI *PFNSETTHREADGROUPAFFINITY)(HANDLE, const GROUP_AFFINITY*, GROUP_AFFINITY *);
-                    PFNSETTHREADGROUPAFFINITY pfnSetThreadGroupAffinity;
-                    pfnSetThreadGroupAffinity = (PFNSETTHREADGROUPAFFINITY)GetProcAddress(GetModuleHandleW(L"KERNEL32.DLL"),
-                                                                                          "SetThreadGroupAffinity");
-                    if (pfnSetThreadGroupAffinity)
-                    {
-                        GROUP_AFFINITY NewAff = { ~(uintptr_t)0, (WORD)uValue, 0, 0, 0 };
-                        GROUP_AFFINITY OldAff = {             0,            0, 0, 0, 0 };
-                        if (!pfnSetThreadGroupAffinity(GetCurrentThread(), &NewAff, &OldAff))
-                            kwErrPrintf("Failed to set processor group to %lu: %u\n", uValue, GetLastError());
-                    }
-                    else
-                        kwErrPrintf("Cannot set processor group to %lu because SetThreadGroupAffinity was not found\n", uValue);
-                }
+                    kwSetProcessorGroup(uValue);
                 else
                     return kwErrPrintfRc(2, "Invalid --priority argument: %s\n", argv[i]);
             }

@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3313 2020-03-16 02:31:38Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3355 2020-06-05 02:06:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -587,8 +587,8 @@ static int kSubmitSpawnWorker(PKMKBUILTINCTX pCtx, PWORKERINSTANCE pWorker, int 
 
                             if (iProcessorGroup >= 0 && g_pfnSetThreadGroupAffinity)
                             {
-                                GROUP_AFFINITY NewAff = { ~(uintptr_t)0, (WORD)iProcessorGroup, 0, 0, 0 };
-                                GROUP_AFFINITY OldAff = {             0,                     0, 0, 0, 0 };
+                                GROUP_AFFINITY OldAff = { 0,                                                    0, 0, 0, 0 };
+                                GROUP_AFFINITY NewAff = { 0 /* == all active apparently */, (WORD)iProcessorGroup, 0, 0, 0 };
                                 if (!g_pfnSetThreadGroupAffinity(ProcInfo.hThread, &NewAff, &OldAff))
                                     warnx(pCtx, "warning: Failed to set processor group to %d: %u\n",
                                           iProcessorGroup, GetLastError());
