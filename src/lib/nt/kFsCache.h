@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 3359 2020-06-05 16:17:17Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 3362 2020-06-08 19:28:44Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -160,8 +160,11 @@ typedef struct KFSOBJ
     KU8                 bObjType;
     /** Set if the Stats member is valid, clear if not. */
     KBOOL               fHaveStats;
-    /** Unused flags. */
-    KBOOL               abUnused[2];
+    /** Internal debug field for counting path hash references.
+     * @internal  */
+    KU8                 cPathHashRefs;
+    /** Index into KFSCACHE::auUserData. */
+    KU8                 idxUserDataLock;
     /** Flags, KFSOBJ_F_XXX. */
     KU32                fFlags;
 
@@ -380,12 +383,29 @@ typedef struct KFSHASHW
  *  Locks the cache exclusively. */
 /** @def KFSCACHE_UNLOCK
  *  Counterpart to KFSCACHE_LOCK. */
+/** @def KFSCACHE_OBJUSERDATA_LOCK
+ *  Locks the user data list of an object exclusively. */
+/** @def KFSCACHE_OBJUSERDATA_UNLOCK
+ *  Counterpart to KFSCACHE_OBJUSERDATA_LOCK. */
 #ifdef KFSCACHE_CFG_LOCKING
 # define KFSCACHE_LOCK(a_pCache)        EnterCriticalSection(&(a_pCache)->u.CritSect)
 # define KFSCACHE_UNLOCK(a_pCache)      LeaveCriticalSection(&(a_pCache)->u.CritSect)
+# define KFSCACHE_OBJUSERDATA_LOCK(a_pCache, a_pObj) do { \
+        KU8 idxUserDataLock = (a_pObj)->idxUserDataLock; \
+        if (idxUserDataLock != KU8_MAX) \
+        { /* likely */ } \
+        else \
+            idxUserDataLock = kFsCacheObjGetUserDataLockIndex(a_pCache, a_pObj); \
+        idxUserDataLock &= (KU8)(K_ELEMENTS((a_pCache)->auUserDataLocks) - 1); \
+        EnterCriticalSection(&(a_pCache)->auUserDataLocks[idxUserDataLock].CritSect); \
+    } while (0)
+# define KFSCACHE_OBJUSERDATA_UNLOCK(a_pCache, a_pObj) \
+    LeaveCriticalSection(&(a_pCache)->auUserDataLocks[(a_pObj)->idxUserDataLock & (K_ELEMENTS((a_pCache)->auUserDataLocks) - 1)].CritSect)
 #else
 # define KFSCACHE_LOCK(a_pCache)        do { } while (0)
 # define KFSCACHE_UNLOCK(a_pCache)      do { } while (0)
+# define KFSCACHE_OBJUSERDATA_LOCK(a_pCache, a_pObj)    do { } while (0)
+# define KFSCACHE_OBJUSERDATA_UNLOCK(a_pCache, a_pObj)  do { } while (0)
 #endif
 
 
@@ -455,14 +475,20 @@ typedef struct KFSCACHE
     KFSDIR              RootDir;
 
 #ifdef KFSCACHE_CFG_LOCKING
-    /** Critical section protecting the cache. */
     union
     {
 # ifdef _WINBASE_
         CRITICAL_SECTION    CritSect;
 # endif
         KU64                abPadding[2 * 4 + 4 * sizeof(void *)];
-    } u;
+    }
+    /** Critical section protecting the cache. */
+                        u,
+    /** Critical section protecting the pUserDataHead of objects.
+     * @note Array size must be a power of two. */
+                        auUserDataLocks[8];
+    /** The next auUserData index. */
+    KU8                 idxUserDataNext;
 #endif
 
     /** File system hash table for ANSI filename strings. */
@@ -543,6 +569,7 @@ KU32        kFsCacheObjReleaseTagged(PKFSCACHE pCache, PKFSOBJ pObj, const char 
 KU32        kFsCacheObjRetain(PKFSOBJ pObj);
 PKFSUSERDATA kFsCacheObjAddUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey, KSIZE cbUserData);
 PKFSUSERDATA kFsCacheObjGetUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey);
+KU8         kFsCacheObjGetUserDataLockIndex(PKFSCACHE pCache, PKFSOBJ pObj);
 KBOOL       kFsCacheObjGetFullPathA(PKFSOBJ pObj, char *pszPath, KSIZE cbPath, char chSlash);
 KBOOL       kFsCacheObjGetFullPathW(PKFSOBJ pObj, wchar_t *pwszPath, KSIZE cwcPath, wchar_t wcSlash);
 KBOOL       kFsCacheObjGetFullShortPathA(PKFSOBJ pObj, char *pszPath, KSIZE cbPath, char chSlash);
