@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3355 2020-06-05 02:06:42Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3363 2020-06-08 19:29:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -1225,13 +1225,14 @@ static void kSubmitDumpHistoryPrintf(HISTORYDUMPBUF *pBuf, const char *pszFormat
             {
                 const char * const psz = va_arg(va, const char *);
                 size_t const       cch = strlen(psz);
-                if (memchr(psz, '\'', cch))
+                if (cch == 0 || memchr(psz, '\'', cch))
                 {
                     kSubmitDumpHistoryWrite(pBuf, TUPLE("\"")); /** @todo what if there are '"' in the string? */
                     kSubmitDumpHistoryWrite(pBuf, psz, cch);
                     kSubmitDumpHistoryWrite(pBuf, TUPLE("\""));
                 }
                 else if (   !memchr(psz, ' ', cch)
+                         && !memchr(psz, '\\', cch)
                          && !memchr(psz, '\t', cch)
                          && !memchr(psz, '\n', cch)
                          && !memchr(psz, '\r', cch)
