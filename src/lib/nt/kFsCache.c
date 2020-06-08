@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 3359 2020-06-05 16:17:17Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 3362 2020-06-08 19:28:44Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -428,7 +428,7 @@ static PKFSHASHA kFsCacheCreatePathHashTabEntryA(PKFSCACHE pCache, PKFSOBJ pFsOb
             pHashEntry->uCacheGen   = pFsObj->bObjType != KFSOBJ_TYPE_MISSING
                                     ? pCache->auGenerations[       pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
                                     : pCache->auGenerationsMissing[pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
-            pFsObj->abUnused[0] += 1; // for debugging
+            pFsObj->cPathHashRefs += 1; // for debugging
         }
         else
         {
@@ -485,7 +485,7 @@ static PKFSHASHW kFsCacheCreatePathHashTabEntryW(PKFSCACHE pCache, PKFSOBJ pFsOb
             pHashEntry->uCacheGen   = pFsObj->bObjType != KFSOBJ_TYPE_MISSING
                                     ? pCache->auGenerations[       pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
                                     : pCache->auGenerationsMissing[pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
-            pFsObj->abUnused[0] += 1; // for debugging
+            pFsObj->cPathHashRefs += 1; // for debugging
         }
         else
         {
@@ -592,8 +592,8 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
                             : pCache->auGenerationsMissing[pParent->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
         pObj->bObjType      = bObjType;
         pObj->fHaveStats    = K_FALSE;
-        pObj->abUnused[0]   = K_FALSE;
-        pObj->abUnused[1]   = K_FALSE;
+        pObj->cPathHashRefs = 0;
+        pObj->idxUserDataLock = KU8_MAX;
         pObj->fFlags        = pParent->Obj.fFlags & KFSOBJ_F_INHERITED_MASK;
         pObj->pParent       = pParent;
         pObj->uNameHash     = 0;
@@ -3385,6 +3385,7 @@ static PKFSHASHA kFsCacheRefreshPathA(PKFSCACHE pCache, PKFSHASHA pHashEntry, KU
             { }
             else
             {
+                pHashEntry->pFsObj->cPathHashRefs -= 1;
                 kFsCacheObjRelease(pCache, pHashEntry->pFsObj);
                 if (pHashEntry->fAbsolute)
                     pHashEntry->pFsObj = kFsCacheLookupAbsoluteA(pCache, pHashEntry->pszPath, pHashEntry->cchPath, 0 /*fFlags*/,
@@ -3446,6 +3447,7 @@ static PKFSHASHW kFsCacheRefreshPathW(PKFSCACHE pCache, PKFSHASHW pHashEntry, KU
             { }
             else
             {
+                pHashEntry->pFsObj->cPathHashRefs -= 1;
                 kFsCacheObjRelease(pCache, pHashEntry->pFsObj);
                 if (pHashEntry->fAbsolute)
                     pHashEntry->pFsObj = kFsCacheLookupAbsoluteW(pCache, pHashEntry->pwszPath, pHashEntry->cwcPath, 0 /*fFlags*/,
@@ -3899,10 +3901,10 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj, const char *pszWhere)
 
     KFSCACHE_LOG(("Destroying %s/%s, type=%d, pObj=%p, pszWhere=%s\n",
                   pObj->pParent ? pObj->pParent->Obj.pszName : "", pObj->pszName, pObj->bObjType, pObj, pszWhere));
-    if (pObj->abUnused[1] != 0)
+    if (pObj->cPathHashRefs != 0)
     {
         fprintf(stderr, "Destroying %s/%s, type=%d, path hash entries: %d!\n", pObj->pParent ? pObj->pParent->Obj.pszName : "",
-                pObj->pszName, pObj->bObjType, pObj->abUnused[0]);
+                pObj->pszName, pObj->bObjType, pObj->cPathHashRefs);
         fflush(stderr);
         __debugbreak();
     }
@@ -4079,7 +4081,7 @@ KU32 kFsCacheObjRetain(PKFSOBJ pObj)
 PKFSUSERDATA kFsCacheObjAddUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey, KSIZE cbUserData)
 {
     kHlpAssert(cbUserData >= sizeof(*pNew));
-    KFSCACHE_LOCK(pCache);
+    KFSCACHE_OBJUSERDATA_LOCK(pCache, pObj);
 
     if (kFsCacheObjGetUserData(pCache, pObj, uKey) == NULL)
     {
@@ -4090,12 +4092,12 @@ PKFSUSERDATA kFsCacheObjAddUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey, 
             pNew->pfnDestructor = NULL;
             pNew->pNext         = pObj->pUserDataHead;
             pObj->pUserDataHead = pNew;
-            KFSCACHE_UNLOCK(pCache);
+            KFSCACHE_OBJUSERDATA_UNLOCK(pCache, pObj);
             return pNew;
         }
     }
 
-    KFSCACHE_UNLOCK(pCache);
+    KFSCACHE_OBJUSERDATA_UNLOCK(pCache, pObj);
     return NULL;
 }
 
@@ -4114,19 +4116,46 @@ PKFSUSERDATA kFsCacheObjGetUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey)
 
     kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
-    KFSCACHE_LOCK(pCache);
+    KFSCACHE_OBJUSERDATA_LOCK(pCache, pObj);
 
     for (pCur = pObj->pUserDataHead; pCur; pCur = pCur->pNext)
         if (pCur->uKey == uKey)
         {
-            KFSCACHE_UNLOCK(pCache);
+            KFSCACHE_OBJUSERDATA_UNLOCK(pCache, pObj);
             return pCur;
         }
 
-    KFSCACHE_UNLOCK(pCache);
+    KFSCACHE_OBJUSERDATA_UNLOCK(pCache, pObj);
     return NULL;
 }
 
+
+/**
+ * Determins the idxUserDataLock value.
+ *
+ * Called by KFSCACHE_OBJUSERDATA_LOCK when idxUserDataLock is set to KU8_MAX.
+ *
+ * @returns The proper idxUserDataLock value.
+ * @param   pCache              The cache.
+ * @param   pObj                The object.
+ */
+KU8 kFsCacheObjGetUserDataLockIndex(PKFSCACHE pCache, PKFSOBJ pObj)
+{
+    KU8 idxUserDataLock = pObj->idxUserDataLock;
+    if (idxUserDataLock == KU8_MAX)
+    {
+        KFSCACHE_LOCK(pCache);
+        idxUserDataLock = pObj->idxUserDataLock;
+        if (idxUserDataLock == KU8_MAX)
+        {
+            idxUserDataLock = pCache->idxUserDataNext++;
+            idxUserDataLock %= K_ELEMENTS(pCache->auUserDataLocks);
+            pObj->idxUserDataLock = idxUserDataLock;
+        }
+        KFSCACHE_UNLOCK(pCache);
+    }
+    return idxUserDataLock;
+}
 
 /**
  * Gets the full path to @a pObj, ANSI version.
@@ -4765,7 +4794,12 @@ PKFSCACHE kFsCacheCreate(KU32 fFlags)
 #endif
 
 #ifdef KFSCACHE_CFG_LOCKING
-            InitializeCriticalSection(&pCache->u.CritSect);
+            {
+                KSIZE idx = K_ELEMENTS(pCache->auUserDataLocks);
+                while (idx-- > 0)
+                    InitializeCriticalSection(&pCache->auUserDataLocks[idx].CritSect);
+                InitializeCriticalSection(&pCache->u.CritSect);
+            }
 #endif
             return pCache;
         }
