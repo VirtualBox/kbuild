@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 3341 2020-05-20 14:33:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 3364 2020-06-08 19:29:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -441,8 +441,8 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                     /* Skip file numbers (we parse them to follow the stream correctly). */
                     if (uLinNumType != 3 && uLinNumType != 4)
                     {
-                        static const unsigned s_acbTypes[3] = { 2+2+4, 4+4+4, 2+2+4+4+4 };
-                        unsigned              cbEntry = s_acbTypes[uLinNumType];
+                        static const KU16 s_acbTypes[3] = { 2+2+4, 4+4+4, 2+2+4+4+4 };
+                        KU16              cbEntry = s_acbTypes[uLinNumType];
 
                         while (cLinNums && cbRecLeft)
                         {
@@ -503,7 +503,7 @@ int kDepObjOMFParse(PKDEPOBJGLOBALS pThis, const KU8 *pbFile, KSIZE cbFile)
                         /* Parse the file names / path table. */
                         while (iLinFile < cLinFiles && cbRecLeft)
                         {
-                            int cbName = *uData.pb++;
+                            KU16 cbName = *uData.pb++;
                             if (cbRecLeft < 1 + cbName)
                                 return kDepErr(pThis, 1, "%#07lx - Bad LINNUM32 record, file/path table entry too long.", (long)((const KU8 *)pHdr - pbFile));
                             iLinFile++;
