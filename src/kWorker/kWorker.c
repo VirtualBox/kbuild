@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3361 2020-06-08 19:27:14Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3365 2020-06-08 23:35:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -645,8 +645,10 @@ typedef enum KWHANDLETYPE
     KWHANDLETYPE_INVALID = 0,
     KWHANDLETYPE_FSOBJ_READ_CACHE,
     KWHANDLETYPE_FSOBJ_READ_CACHE_MAPPING,
+#ifdef WITH_TEMP_MEMORY_FILES
     KWHANDLETYPE_TEMP_FILE,
     KWHANDLETYPE_TEMP_FILE_MAPPING,
+#endif
     KWHANDLETYPE_OUTPUT_BUF
 } KWHANDLETYPE;
 
@@ -668,8 +670,10 @@ typedef struct KWHANDLE
     {
         /** The file system object.   */
         PKFSWCACHEDFILE     pCachedFile;
+#ifdef WITH_TEMP_MEMORY_FILES
         /** Temporary file handle or mapping handle. */
         PKWFSTEMPFILE       pTempFile;
+#endif
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
         /** Buffered output stream. */
         PKWOUTPUTSTREAMBUF  pOutBuf;
@@ -695,8 +699,10 @@ typedef struct KWMEMMAPPING
     {
         /** The file system object.   */
         PKFSWCACHEDFILE     pCachedFile;
+#ifdef WITH_TEMP_MEMORY_FILES
         /** Temporary file handle or mapping handle. */
         PKWFSTEMPFILE       pTempFile;
+#endif
     } u;
 } KWMEMMAPPING;
 /** Pointer to a memory mapping tracker. */
@@ -887,8 +893,10 @@ typedef struct KWSANDBOX
     /** Memory mappings (MapViewOfFile / UnmapViewOfFile). */
     PKWMEMMAPPING   paMemMappings;
 
+#ifdef WITH_TEMP_MEMORY_FILES
     /** Head of the list of temporary file. */
     PKWFSTEMPFILE   pTempFileHead;
+#endif
 
     /** Critical section protecting pVirtualAllocHead. */
     CRITICAL_SECTION VirtualAllocLock;
@@ -6955,17 +6963,26 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileA(LPCSTR pszFilename, DWORD dw
                         PKFSOBJ pFsObj;
                         kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
 
-                        pFsObj = kFsCacheLookupNoMissingA(g_pFsCache, pszFilename, &enmError);
+                        pFsObj = kFsCacheLookupA(g_pFsCache, pszFilename, &enmError);
                         if (pFsObj)
                         {
-                            KBOOL fRc = kwFsObjCacheCreateFile(pFsObj, dwDesiredAccess, pSecAttrs && pSecAttrs->bInheritHandle,
-                                                               &hFile);
-                            kFsCacheObjRelease(g_pFsCache, pFsObj);
-                            if (fRc)
+                            if (pFsObj->bObjType != KFSOBJ_TYPE_MISSING)
                             {
-                                KWFS_LOG(("CreateFileA(%s) -> %p [cached]\n", pszFilename, hFile));
-                                return hFile;
+                                KBOOL fRc = kwFsObjCacheCreateFile(pFsObj, dwDesiredAccess,
+                                                                   pSecAttrs && pSecAttrs->bInheritHandle, &hFile);
+                                kFsCacheObjRelease(g_pFsCache, pFsObj);
+                                if (fRc)
+                                {
+                                    KWFS_LOG(("CreateFileA(%s) -> %p [cached]\n", pszFilename, hFile));
+                                    return hFile;
+                                }
                             }
+                            else if (!(pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN))
+                            {
+                                KWFS_LOG(("CreateFileA(%ls) -> INVALID_HANDLE_VALUE, ERROR_FILE_NOT_FOUND\n", pszFilename));
+                                return INVALID_HANDLE_VALUE;
+                            }
+                            /* Always fall back on missing files in volatile areas. */
                         }
                         /* These are for nasm and yasm header searching.  Cache will already
                            have checked the directories for the file, no need to call
@@ -7054,17 +7071,26 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileW(LPCWSTR pwszFilename, DWORD 
                         PKFSOBJ pFsObj;
                         kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
 
-                        pFsObj = kFsCacheLookupNoMissingW(g_pFsCache, pwszFilename, &enmError);
+                        pFsObj = kFsCacheLookupW(g_pFsCache, pwszFilename, &enmError);
                         if (pFsObj)
                         {
-                            KBOOL fRc = kwFsObjCacheCreateFile(pFsObj, dwDesiredAccess, pSecAttrs && pSecAttrs->bInheritHandle,
-                                                               &hFile);
-                            kFsCacheObjRelease(g_pFsCache, pFsObj);
-                            if (fRc)
+                            if (pFsObj->bObjType != KFSOBJ_TYPE_MISSING)
                             {
-                                KWFS_LOG(("CreateFileW(%ls) -> %p [cached]\n", pwszFilename, hFile));
-                                return hFile;
+                                KBOOL fRc = kwFsObjCacheCreateFile(pFsObj, dwDesiredAccess,
+                                                                   pSecAttrs && pSecAttrs->bInheritHandle, &hFile);
+                                kFsCacheObjRelease(g_pFsCache, pFsObj);
+                                if (fRc)
+                                {
+                                    KWFS_LOG(("CreateFileW(%ls) -> %p [cached]\n", pwszFilename, hFile));
+                                    return hFile;
+                                }
                             }
+                            else if (!(pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN))
+                            {
+                                KWFS_LOG(("CreateFileW(%ls) -> INVALID_HANDLE_VALUE, ERROR_FILE_NOT_FOUND\n", pwszFilename));
+                                return INVALID_HANDLE_VALUE;
+                            }
+                            /* Always fall back on missing files in volatile areas. */
                         }
                         /* These are for nasm and yasm style header searching.  Cache will
                            already have checked the directories for the file, no need to call
@@ -7137,8 +7163,8 @@ static DWORD WINAPI kwSandbox_Kernel32_SetFilePointer(HANDLE hFile, LONG cbMove,
                 case KWHANDLETYPE_TEMP_FILE:
                     cbFile = pHandle->u.pTempFile->cbFile;
                     break;
-#endif
                 case KWHANDLETYPE_TEMP_FILE_MAPPING:
+#endif
                 case KWHANDLETYPE_OUTPUT_BUF:
                 default:
                     kHlpAssertFailed();
@@ -7165,9 +7191,12 @@ static DWORD WINAPI kwSandbox_Kernel32_SetFilePointer(HANDLE hFile, LONG cbMove,
             {
                 if (offMove >= (KSSIZE)cbFile)
                 {
+#ifdef WITH_TEMP_MEMORY_FILES
                     /* For read-only files, seeking beyond the end isn't useful to us, so clamp it. */
                     if (pHandle->enmType != KWHANDLETYPE_TEMP_FILE)
+#endif
                         offMove = (KSSIZE)cbFile;
+#ifdef WITH_TEMP_MEMORY_FILES
                     /* For writable files, seeking beyond the end is fine, but check that we've got
                        the type range for the request. */
                     else if (((KU64)offMove & KU32_MAX) != (KU64)offMove)
@@ -7176,6 +7205,7 @@ static DWORD WINAPI kwSandbox_Kernel32_SetFilePointer(HANDLE hFile, LONG cbMove,
                         SetLastError(ERROR_SEEK);
                         return INVALID_SET_FILE_POINTER;
                     }
+#endif
                 }
                 pHandle->offFile = (KU32)offMove;
             }
@@ -7220,8 +7250,8 @@ static BOOL WINAPI kwSandbox_Kernel32_SetFilePointerEx(HANDLE hFile, LARGE_INTEG
                 case KWHANDLETYPE_TEMP_FILE:
                     cbFile = pHandle->u.pTempFile->cbFile;
                     break;
-#endif
                 case KWHANDLETYPE_TEMP_FILE_MAPPING:
+#endif
                 case KWHANDLETYPE_OUTPUT_BUF:
                 default:
                     kHlpAssertFailed();
@@ -7248,9 +7278,12 @@ static BOOL WINAPI kwSandbox_Kernel32_SetFilePointerEx(HANDLE hFile, LARGE_INTEG
             {
                 if (offMyMove >= (KSSIZE)cbFile)
                 {
+#ifdef WITH_TEMP_MEMORY_FILES
                     /* For read-only files, seeking beyond the end isn't useful to us, so clamp it. */
                     if (pHandle->enmType != KWHANDLETYPE_TEMP_FILE)
+#endif
                         offMyMove = (KSSIZE)cbFile;
+#ifdef WITH_TEMP_MEMORY_FILES
                     /* For writable files, seeking beyond the end is fine, but check that we've got
                        the type range for the request. */
                     else if (((KU64)offMyMove & KU32_MAX) != (KU64)offMyMove)
@@ -7259,6 +7292,7 @@ static BOOL WINAPI kwSandbox_Kernel32_SetFilePointerEx(HANDLE hFile, LARGE_INTEG
                         SetLastError(ERROR_SEEK);
                         return INVALID_SET_FILE_POINTER;
                     }
+#endif
                 }
                 pHandle->offFile = (KU32)offMyMove;
             }
@@ -7387,9 +7421,9 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
                     KWFS_LOG(("ReadFile(%p,,%#x) -> TRUE, %#x bytes [temp]\n", hFile, cbToRead, (KU32)cbActually));
                     return TRUE;
                 }
-#endif /* WITH_TEMP_MEMORY_FILES */
 
                 case KWHANDLETYPE_TEMP_FILE_MAPPING:
+#endif /* WITH_TEMP_MEMORY_FILES */
                 case KWHANDLETYPE_OUTPUT_BUF:
                 default:
                     kHlpAssertFailed();
@@ -7731,7 +7765,9 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
 # endif
 
                 default:
+#ifdef WITH_TEMP_MEMORY_FILES
                 case KWHANDLETYPE_TEMP_FILE_MAPPING:
+#endif
                     kHlpAssertFailed();
                     SetLastError(ERROR_INVALID_FUNCTION);
                     *pcbActuallyWritten = 0;
@@ -7804,10 +7840,12 @@ static BOOL WINAPI kwSandbox_Kernel32_SetEndOfFile(HANDLE hFile)
                     SetLastError(ERROR_ACCESS_DENIED);
                     return FALSE;
 
+# ifdef WITH_CONSOLE_OUTPUT_BUFFERING
                 case KWHANDLETYPE_OUTPUT_BUF:
                     kHlpAssertFailed();
                     SetLastError(pHandle->u.pOutBuf->fIsConsole ? ERROR_INVALID_OPERATION : ERROR_ACCESS_DENIED);
                     return FALSE;
+# endif
 
                 default:
                 case KWHANDLETYPE_TEMP_FILE_MAPPING:
@@ -7843,6 +7881,7 @@ static BOOL WINAPI kwSandbox_Kernel32_GetFileType(HANDLE hFile)
                     KWFS_LOG(("GetFileType(%p) -> FILE_TYPE_DISK [temp]\n", hFile));
                     return FILE_TYPE_DISK;
 
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
                 case KWHANDLETYPE_OUTPUT_BUF:
                 {
                     PKWOUTPUTSTREAMBUF pOutBuf = pHandle->u.pOutBuf;
@@ -7859,6 +7898,7 @@ static BOOL WINAPI kwSandbox_Kernel32_GetFileType(HANDLE hFile)
                     }
                     return fRet;
                 }
+#endif
 
             }
         }
@@ -8373,8 +8413,12 @@ static BOOL WINAPI kwSandbox_Kernel32_CloseHandle(HANDLE hObject)
             }
             else
             {
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
                 KWFS_LOG(("CloseHandle(%p) -> TRUE [intercepted handle] Ignored closing of std%s!\n",
                           hObject, hObject == g_Sandbox.StdErr.hOutput ? "err" : "out"));
+#else
+                KWFS_LOG(("CloseHandle(%p) -> TRUE [intercepted handle] Ignored closing of stdXXX!\n", hObject));
+#endif
                 fRet = TRUE;
             }
             return fRet;
@@ -10462,8 +10506,10 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("DeleteFileW"),                 NULL,       (KUPTR)kwSandbox_Kernel32_DeleteFileW },
 #endif
 
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
     { TUPLE("WriteConsoleA"),               NULL,       (KUPTR)kwSandbox_Kernel32_WriteConsoleA },
     { TUPLE("WriteConsoleW"),               NULL,       (KUPTR)kwSandbox_Kernel32_WriteConsoleW },
+#endif
 
     { TUPLE("VirtualAlloc"),                NULL,       (KUPTR)kwSandbox_Kernel32_VirtualAlloc },
     { TUPLE("VirtualFree"),                 NULL,       (KUPTR)kwSandbox_Kernel32_VirtualFree },
@@ -10605,8 +10651,10 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
     { TUPLE("SetConsoleCtrlHandler"),       NULL,       (KUPTR)kwSandbox_Kernel32_SetConsoleCtrlHandler },
     { TUPLE("LoadLibraryExA"),              NULL,       (KUPTR)kwSandbox_Kernel32_Native_LoadLibraryExA },
 
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
     { TUPLE("WriteConsoleA"),               NULL,       (KUPTR)kwSandbox_Kernel32_WriteConsoleA },
     { TUPLE("WriteConsoleW"),               NULL,       (KUPTR)kwSandbox_Kernel32_WriteConsoleW },
+#endif
 
 #ifdef WITH_HASH_MD5_CACHE
     { TUPLE("CryptCreateHash"),             NULL,       (KUPTR)kwSandbox_Advapi32_CryptCreateHash },
@@ -11195,6 +11243,7 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
                             KWFS_LOG(("Closing leaked output buf handle: %#x/%p cRefs=%d\n",
                                       idxHandle, pHandle->hHandle, pHandle->cRefs));
                             break;
+#ifdef WITH_TEMP_MEMORY_FILES
                         case KWHANDLETYPE_TEMP_FILE:
                             KWFS_LOG(("Closing leaked temp file  handle: %#x/%p cRefs=%d\n",
                                       idxHandle, pHandle->hHandle, pHandle->cRefs));
@@ -11205,6 +11254,7 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
                                       idxHandle, pHandle->hHandle, pHandle->cRefs));
                             pHandle->u.pTempFile->cActiveHandles--;
                             break;
+#endif
                         default:
                             kHlpAssertFailed();
                     }
@@ -11403,8 +11453,10 @@ static void kwSandboxCleanup(PKWSANDBOX pSandbox)
     PPEB pPeb = kwSandboxGetProcessEnvironmentBlock();
     PMY_RTL_USER_PROCESS_PARAMETERS pProcParams = (PMY_RTL_USER_PROCESS_PARAMETERS)pPeb->ProcessParameters;
     pProcParams->CommandLine    = pSandbox->SavedCommandLine;
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
     pProcParams->StandardOutput = pSandbox->StdOut.hOutput;
     pProcParams->StandardError  = pSandbox->StdErr.hOutput; /* CL.EXE messes with this one. */
+#endif
 }
 
 
@@ -12847,6 +12899,7 @@ int main(int argc, char **argv)
     HANDLE                          hPipe = INVALID_HANDLE_VALUE;
     const char                     *pszTmp;
     KFSLOOKUPERROR                  enmIgnored;
+    DWORD                           dwType;
 #if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_X86)
     PVOID                           pvVecXcptHandler = AddVectoredExceptionHandler(0 /*called last*/,
                                                                                    kwSandboxVecXcptEmulateChained);
@@ -12855,7 +12908,6 @@ int main(int argc, char **argv)
     HANDLE                          hCurProc       = GetCurrentProcess();
     PPEB                            pPeb           = kwSandboxGetProcessEnvironmentBlock();
     PMY_RTL_USER_PROCESS_PARAMETERS pProcessParams = (PMY_RTL_USER_PROCESS_PARAMETERS)pPeb->ProcessParameters;
-    DWORD                           dwType;
 #endif
 
 
