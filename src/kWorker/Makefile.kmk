@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3361 2020-06-08 19:27:14Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3366 2020-06-09 23:53:39Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -54,7 +54,7 @@ kWorker_LIBS.win = \
 kWorker_LDFLAGS.win = \
 	/DYNAMICBASE:NO /FIXED
 kWorker_LDFLAGS.win.x86   = /BASE:0x00010000
-kWorker_LDFLAGS.win.amd64 = /BASE:0x0000000420000000
+kWorker_LDFLAGS.win.amd64 = /BASE:0x0000000420000000 /STACK:16777216,262144
 
 #kWorker_LDFLAGS.win.x86 = \
 #	/SAFESEH:NO - doesn't help anyone.
@@ -164,8 +164,7 @@ kStuff_SOURCES.darwin += \
 #
 # A couple of dummy DLLs we use for grabbing LDR TLS entries.
 #
-DLLS += kWorkerTls1K kWorkerTls1K01 kWorkerTls1K02 kWorkerTls1K03 kWorkerTls1K04 kWorkerTls1K05 kWorkerTls1K06 kWorkerTls1K07 \
-	kWorkerTls1K08 kWorkerTls1K09 kWorkerTls1K10 kWorkerTls1K11 kWorkerTls1K12 kWorkerTls1K13 kWorkerTls1K14 kWorkerTls1K15
+DLLS += kWorkerTls1K kWorkerTls1K01 kWorkerTls1K02 kWorkerTls1K03 kWorkerTls1K04 kWorkerTls1K05 kWorkerTls1K06 kWorkerTls1K07
 kWorkerTls1K_TEMPLATE   = BIN-STATIC-THREADED
 kWorkerTls1K_DEFS       = TLS_SIZE=1024
 kWorkerTls1K_SOURCES    = kWorkerTlsXxxK.c
@@ -178,26 +177,51 @@ kWorkerTls1K04_EXTENDS = kWorkerTls1K
 kWorkerTls1K05_EXTENDS = kWorkerTls1K
 kWorkerTls1K06_EXTENDS = kWorkerTls1K
 kWorkerTls1K07_EXTENDS = kWorkerTls1K
-kWorkerTls1K08_EXTENDS = kWorkerTls1K
-kWorkerTls1K09_EXTENDS = kWorkerTls1K
-kWorkerTls1K10_EXTENDS = kWorkerTls1K
-kWorkerTls1K11_EXTENDS = kWorkerTls1K
-kWorkerTls1K12_EXTENDS = kWorkerTls1K
-kWorkerTls1K13_EXTENDS = kWorkerTls1K
-kWorkerTls1K14_EXTENDS = kWorkerTls1K
-kWorkerTls1K15_EXTENDS = kWorkerTls1K
 
-DLLS += kWorkerTls64K kWorkerTls512K
 
+DLLS += kWorkerTls64K kWorkerTls64K01 kWorkerTls64K02 kWorkerTls64K03 kWorkerTls64K04 kWorkerTls64K05 kWorkerTls64K06 kWorkerTls64K07
 kWorkerTls64K_TEMPLATE  = BIN-STATIC-THREADED
 kWorkerTls64K_DEFS      = TLS_SIZE=65536
 kWorkerTls64K_SOURCES   = kWorkerTlsXxxK.c
 kWorkerTls64K_LDFLAGS   = /Entry:DummyDllEntry
 
+kWorkerTls64K01_EXTENDS = kWorkerTls64K
+kWorkerTls64K02_EXTENDS = kWorkerTls64K
+kWorkerTls64K03_EXTENDS = kWorkerTls64K
+kWorkerTls64K04_EXTENDS = kWorkerTls64K
+kWorkerTls64K05_EXTENDS = kWorkerTls64K
+kWorkerTls64K06_EXTENDS = kWorkerTls64K
+kWorkerTls64K07_EXTENDS = kWorkerTls64K
+
+
+DLLS += kWorkerTls128K kWorkerTls128K01 kWorkerTls128K02 kWorkerTls128K03 kWorkerTls128K04 kWorkerTls128K05 kWorkerTls128K06 kWorkerTls128K07
+kWorkerTls128K_TEMPLATE  = BIN-STATIC-THREADED
+kWorkerTls128K_DEFS      = TLS_SIZE=131072
+kWorkerTls128K_SOURCES   = kWorkerTlsXxxK.c
+kWorkerTls128K_LDFLAGS   = /Entry:DummyDllEntry
+
+kWorkerTls128K01_EXTENDS = kWorkerTls128K
+kWorkerTls128K02_EXTENDS = kWorkerTls128K
+kWorkerTls128K03_EXTENDS = kWorkerTls128K
+kWorkerTls128K04_EXTENDS = kWorkerTls128K
+kWorkerTls128K05_EXTENDS = kWorkerTls128K
+kWorkerTls128K06_EXTENDS = kWorkerTls128K
+kWorkerTls128K07_EXTENDS = kWorkerTls128K
+
+
+DLLS += kWorkerTls512K kWorkerTls512K01 kWorkerTls512K02 kWorkerTls512K03 kWorkerTls512K04 kWorkerTls512K05 kWorkerTls512K06 kWorkerTls512K07
 kWorkerTls512K_TEMPLATE = BIN-STATIC-THREADED
 kWorkerTls512K_DEFS     = TLS_SIZE=524288
 kWorkerTls512K_SOURCES  = kWorkerTlsXxxK.c
 kWorkerTls512K_LDFLAGS  = /Entry:DummyDllEntry
+
+kWorkerTls512K01_EXTENDS = kWorkerTls512K
+kWorkerTls512K02_EXTENDS = kWorkerTls512K
+kWorkerTls512K03_EXTENDS = kWorkerTls512K
+kWorkerTls512K04_EXTENDS = kWorkerTls512K
+kWorkerTls512K05_EXTENDS = kWorkerTls512K
+kWorkerTls512K06_EXTENDS = kWorkerTls512K
+kWorkerTls512K07_EXTENDS = kWorkerTls512K
 
 
 include $(KBUILD_PATH)/subfooter.kmk

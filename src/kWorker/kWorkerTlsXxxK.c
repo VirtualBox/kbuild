@@ -1,4 +1,4 @@
-/* $Id: kWorkerTlsXxxK.c 3361 2020-06-08 19:27:14Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorkerTlsXxxK.c 3366 2020-06-09 23:53:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorkerTlsXxxK - Loader TLS allocation hack DLL.
  */
@@ -33,7 +33,9 @@
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
 *********************************************************************************************************************************/
-typedef void KWLDRTLSALLOCATIONHOOK(void *hDll, ULONG idxTls, PIMAGE_TLS_CALLBACK *ppfnTlsCallback);
+typedef void KWLDRTLSCALLBACK(void *hDll, DWORD dwReason, void *pvContext, void *pvWorkerModule);
+typedef KWLDRTLSCALLBACK *PKWLDRTLSCALLBACK;
+typedef PKWLDRTLSCALLBACK KWLDRTLSALLOCATIONHOOK(void *hDll, ULONG idxTls, char *pabInitData, void **ppvWorkerModule);
 
 
 /*********************************************************************************************************************************
@@ -47,18 +49,30 @@ __declspec(dllexport) void __stdcall DummyTlsCallback(void *hDll, DWORD dwReason
 *********************************************************************************************************************************/
 /** The TLS pointer array. The 2nd entry is NULL and serve to terminate the array.
  * The first entry can be used by kWorker if it needs to. */
-__declspec(dllexport) PIMAGE_TLS_CALLBACK g_apfnTlsCallbacks[2] = { DummyTlsCallback, NULL };
+__declspec(dllexport) PIMAGE_TLS_CALLBACK   g_apfnTlsCallbacks[2]   = { DummyTlsCallback, NULL };
 
 /**
  * The TLS index.
  */
-__declspec(dllexport) ULONG               g_idxTls              = ~(ULONG)0;
+__declspec(dllexport) ULONG                 g_idxTls                = ~(ULONG)0;
+
+/**
+ * Callback context.
+ */
+__declspec(dllexport) void                 *g_pvWorkerModule        = NULL;
+
+/**
+ * Regular callback method (returned by kwLdrTlsAllocationHook).
+ */
+__declspec(dllexport) PKWLDRTLSCALLBACK     g_pfnWorkerCallback     = NULL;
+
+
 
 /**
  * Initialization data.
+ * kWorker will copy the init data of the target DLL here.
  */
-//static char const g_abDummy[TLS_SIZE] = {0x42};
-static char g_abDummy[TLS_SIZE] = {0};
+static char g_abInitData[TLS_SIZE] = {0};
 
 /**
  * The TLS directory entry.  Not possible to get more than one from the linker
@@ -67,13 +81,23 @@ static char g_abDummy[TLS_SIZE] = {0};
 #pragma section(".rdata$T", long, read)
 __declspec(allocate(".rdata$T")) const IMAGE_TLS_DIRECTORY _tls_used =
 {
-    (ULONG_PTR)&g_abDummy,
-    (ULONG_PTR)&g_abDummy + sizeof(g_abDummy),
+    (ULONG_PTR)&g_abInitData,
+    (ULONG_PTR)&g_abInitData + sizeof(g_abInitData),
     (ULONG_PTR)&g_idxTls,
     (ULONG_PTR)&g_apfnTlsCallbacks,
     0, /* This SizeOfZeroFill bugger doesn't work on w10/amd64 from what I can tell! */
     IMAGE_SCN_ALIGN_32BYTES
 };
+
+
+/**
+ * Just a dummy callback function in case the allocation hook gambit fails below
+ * (see KWLDRTLSCALLBACK).
+ */
+static void DummyWorkerCallback(void *hDll, DWORD dwReason, void *pvContext, void *pvWorkerModule)
+{
+    (void)hDll; (void)dwReason; (void)pvContext; (void)pvWorkerModule;
+}
 
 
 /*
@@ -85,18 +109,20 @@ __declspec(allocate(".rdata$T")) const IMAGE_TLS_DIRECTORY _tls_used =
  */
 __declspec(dllexport) void __stdcall DummyTlsCallback(void *hDll, DWORD dwReason, void *pvContext)
 {
-    (void)hDll; (void)dwReason; (void)pvContext;
-    if (dwReason == DLL_PROCESS_ATTACH)
+    if (g_pfnWorkerCallback)
+        g_pfnWorkerCallback(hDll, dwReason, pvContext, g_pvWorkerModule);
+    else
     {
-        //HMODULE hModExe = (HMODULE)(ULONG_PTR)KWORKER_BASE;
-        HMODULE hModExe = GetModuleHandleW(NULL);
-        KWLDRTLSALLOCATIONHOOK *pfnHook = (KWLDRTLSALLOCATIONHOOK *)GetProcAddress(hModExe, "kwLdrTlsAllocationHook");
-        if (pfnHook)
+        g_pfnWorkerCallback = DummyWorkerCallback;
+        if (dwReason == DLL_PROCESS_ATTACH)
         {
-            pfnHook(hDll, g_idxTls, &g_apfnTlsCallbacks[0]);
-            return;
+            HMODULE hModExe = GetModuleHandleW(NULL);
+            KWLDRTLSALLOCATIONHOOK *pfnHook = (KWLDRTLSALLOCATIONHOOK *)GetProcAddress(hModExe, "kwLdrTlsAllocationHook");
+            if (pfnHook)
+                g_pfnWorkerCallback = pfnHook(hDll, g_idxTls, g_abInitData, &g_pvWorkerModule);
+            else
+                __debugbreak();
         }
-        __debugbreak();
     }
 }
 
