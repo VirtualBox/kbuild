@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3367 2020-06-09 23:54:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3368 2020-06-09 23:56:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -3119,7 +3119,7 @@ static KBOOL kwLdrModuleShouldDoNativeReplacements(const char *pszFilename, KWLO
         || kHlpStrNICompAscii(pszFilename, TUPLE("vcruntime"))       == 0
         || kHlpStrNICompAscii(pszFilename, TUPLE("ucrtbase"))        == 0
         || kHlpStrNICompAscii(pszFilename, TUPLE("api-ms-win-crt-")) == 0
-#if 1 /* for debugging, only for debugging. */
+#if 0 /* for debugging, only for debugging. */
         || kHlpStrICompAscii(pszFilename, "c1.dll") == 0
         || kHlpStrICompAscii(pszFilename, "c1xx.dll") == 0
         || kHlpStrICompAscii(pszFilename, "c2.dll") == 0
@@ -3209,10 +3209,10 @@ static KBOOL kwLdrModuleCanLoadNatively(const char *pszFilename, KWLOCATION enmL
         || kHlpStrNICompAscii(pszFilename, TUPLE("vcruntime")) == 0
         || (   enmLocation != KWLOCATION_UNKNOWN
             && kwLdrIsVirtualApiModule(pszFilename, kHlpStrLen(pszFilename)))
-#if 1 /* for debugging, only for debugging. */
+#if 0 /* for debugging, only for debugging. */
         //|| kHlpStrICompAscii(pszFilename, "c1.dll") == 0
         //|| kHlpStrICompAscii(pszFilename, "c1xx.dll") == 0
-//        || kHlpStrICompAscii(pszFilename, "c2.dll") == 0
+        //|| kHlpStrICompAscii(pszFilename, "c2.dll") == 0
 #endif
         ;
 }
