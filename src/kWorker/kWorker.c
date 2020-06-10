@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3369 2020-06-10 10:43:44Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3371 2020-06-10 10:58:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -1124,6 +1124,14 @@ static KWTLSDLL     g_aTls1KDlls[] =
     { L"kWorkerTls1K05.dll", K_FALSE },
     { L"kWorkerTls1K06.dll", K_FALSE },
     { L"kWorkerTls1K07.dll", K_FALSE },
+    { L"kWorkerTls1K08.dll", K_FALSE },
+    { L"kWorkerTls1K09.dll", K_FALSE },
+    { L"kWorkerTls1K10.dll", K_FALSE },
+    { L"kWorkerTls1K11.dll", K_FALSE },
+    { L"kWorkerTls1K12.dll", K_FALSE },
+    { L"kWorkerTls1K13.dll", K_FALSE },
+    { L"kWorkerTls1K14.dll", K_FALSE },
+    { L"kWorkerTls1K15.dll", K_FALSE },
 };
 
 /** The 64KB TLS DLLs. */
