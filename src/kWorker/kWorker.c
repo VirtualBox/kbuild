@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3368 2020-06-09 23:56:06Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3369 2020-06-10 10:43:44Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -5722,6 +5722,15 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HAND
     pszSearchPath = kwSandboxDoGetEnvA(&g_Sandbox, "PATH", 4);
     if (!kHlpIsFilenameOnly(pszFilename))
         pMod = kwLdrModuleTryLoadDll(pszFilename, KWLOCATION_UNKNOWN, g_Sandbox.pTool->u.Sandboxed.pExe, pszSearchPath);
+#if 1 /* HACK ALERT! We run into trouble with a 2nd mspdb140.dll instance (x64 + x86), so use the one already loaded.   A call
+       * to NdrClientCall2 at ConnectToServer+0x426 fails with E_INVALIDARG.  Problems with multiple connections from same PID? */
+    else if (   strcmp(pszFilename, "mspdb140.dll") == 0
+             && GetModuleHandleA(pszFilename) != NULL)
+    {
+        pMod = kwLdrModuleForLoadedNativeByHandle(GetModuleHandleA(pszFilename), K_FALSE, pszFilename);
+        KWLDR_LOG(("LoadLibraryExA: mspdb140 hack: pMod=%p\n", pMod));
+    }
+#endif
     else
     {
         rc = kwLdrModuleResolveAndLookup(pszFilename, g_Sandbox.pTool->u.Sandboxed.pExe, NULL /*pImporter*/, pszSearchPath, &pMod);
@@ -5771,67 +5780,95 @@ static HMODULE WINAPI kwSandbox_Kernel32_Native_LoadLibraryExA(LPCSTR pszFilenam
     /*
      * We may have to help resolved unqualified DLLs living in the executable directory.
      */
-    if (kHlpIsFilenameOnly(pszFilename))
+    if (   kHlpIsFilenameOnly(pszFilename)
+        && g_Sandbox.pTool
+        && g_Sandbox.pTool->u.Sandboxed.pExe)
     {
-        KSIZE cchFilename = kHlpStrLen(pszFilename);
-        KSIZE cchExePath  = g_Sandbox.pTool->u.Sandboxed.pExe->offFilename;
-        if (cchExePath + cchFilename + 1 <= sizeof(szPath))
+        KSIZE const cchFilename = kHlpStrLen(pszFilename);
+#define MY_IMATCH(a_szName)   (cchFilename == sizeof(a_szName) - 1 && kHlpStrICompAscii(pszFilename, a_szName) == 0)
+        if (   !kwLdrIsVirtualApiModule(pszFilename, cchFilename)
+            && !MY_IMATCH("ntdll")
+            && !MY_IMATCH("kernel32")
+            && !MY_IMATCH("ntdll.dll")
+            && !MY_IMATCH("kernelbase")
+            && !MY_IMATCH("kernel32.dll")
+            && !MY_IMATCH("kernelbase.dll")
+           )
+#undef  MY_IMATCH
         {
-            kHlpMemCopy(szPath, g_Sandbox.pTool->u.Sandboxed.pExe->pszPath, cchExePath);
-            kHlpMemCopy(&szPath[cchExePath], pszFilename, cchFilename + 1);
-            if (kwFsPathExists(szPath))
+            KSIZE cchExePath = g_Sandbox.pTool->u.Sandboxed.pExe->offFilename;
+            if (cchExePath + cchFilename + 1 <= sizeof(szPath))
             {
-                KWLDR_LOG(("kwSandbox_Kernel32_Native_LoadLibraryExA: %s -> %s\n", pszFilename, szPath));
-                pszFilename = szPath;
-            }
-        }
-
-        if (pszFilename != szPath)
-        {
-            KSIZE cchSuffix = 0;
-            KBOOL fNeedSuffix = K_FALSE;
-            const char *pszCur = kwSandboxDoGetEnvA(&g_Sandbox, "PATH", 4);
-            kHlpAssert(pszCur);
-            if (pszCur)
-            {
-                while (*pszCur != '\0')
+                kHlpMemCopy(szPath, g_Sandbox.pTool->u.Sandboxed.pExe->pszPath, cchExePath);
+                kHlpMemCopy(&szPath[cchExePath], pszFilename, cchFilename + 1);
+                if (kwFsPathExists(szPath))
                 {
-                    /* Find the end of the component */
-                    KSIZE cch = 0;
-                    while (pszCur[cch] != ';' && pszCur[cch] != '\0')
-                        cch++;
+                    KWLDR_LOG(("kwSandbox_Kernel32_Native_LoadLibraryExA: %s -> %s\n", pszFilename, szPath));
+                    pszFilename = szPath;
+                }
+            }
 
-                    if (   cch > 0 /* wrong, but whatever */
-                        && cch + 1 + cchFilename + cchSuffix < sizeof(szPath))
+            if (pszFilename != szPath)
+            {
+                KSIZE cchSuffix = 0;
+                KBOOL fNeedSuffix = K_FALSE;
+                const char *pszCur = kwSandboxDoGetEnvA(&g_Sandbox, "PATH", 4);
+                kHlpAssert(pszCur);
+                if (pszCur)
+                {
+                    while (*pszCur != '\0')
                     {
-                        char *pszDst = kHlpMemPCopy(szPath, pszCur, cch);
-                        if (   szPath[cch - 1] != ':'
-                            && szPath[cch - 1] != '/'
-                            && szPath[cch - 1] != '\\')
-                            *pszDst++ = '\\';
-                        pszDst = kHlpMemPCopy(pszDst, pszFilename, cchFilename);
-                        if (fNeedSuffix)
-                            pszDst = kHlpMemPCopy(pszDst, ".dll", 4);
-                        *pszDst = '\0';
+                        /* Find the end of the component */
+                        KSIZE cch = 0;
+                        while (pszCur[cch] != ';' && pszCur[cch] != '\0')
+                            cch++;
 
-                        if (kwFsPathExists(szPath))
+                        if (   cch > 0 /* wrong, but whatever */
+                            && cch + 1 + cchFilename + cchSuffix < sizeof(szPath))
                         {
-                            KWLDR_LOG(("kwSandbox_Kernel32_Native_LoadLibraryExA: %s -> %s\n", pszFilename, szPath));
-                            pszFilename = szPath;
-                            break;
-                        }
-                    }
+                            char *pszDst = kHlpMemPCopy(szPath, pszCur, cch);
+                            if (   szPath[cch - 1] != ':'
+                                && szPath[cch - 1] != '/'
+                                && szPath[cch - 1] != '\\')
+                                *pszDst++ = '\\';
+                            pszDst = kHlpMemPCopy(pszDst, pszFilename, cchFilename);
+                            if (fNeedSuffix)
+                                pszDst = kHlpMemPCopy(pszDst, ".dll", 4);
+                            *pszDst = '\0';
 
-                    /* Advance */
-                    pszCur += cch;
-                    while (*pszCur == ';')
-                        pszCur++;
+                            if (kwFsPathExists(szPath))
+                            {
+                                KWLDR_LOG(("kwSandbox_Kernel32_Native_LoadLibraryExA: %s -> %s\n", pszFilename, szPath));
+                                pszFilename = szPath;
+                                break;
+                            }
+                        }
+
+                        /* Advance */
+                        pszCur += cch;
+                        while (*pszCur == ';')
+                            pszCur++;
+                    }
                 }
             }
         }
     }
 
     return LoadLibraryExA(pszFilename, hFile, fFlags);
+}
+
+
+/** Kernel32 - LoadLibraryExW() for native overloads */
+static HMODULE WINAPI kwSandbox_Kernel32_Native_LoadLibraryExW(LPCWSTR pwszFilename, HANDLE hFile, DWORD fFlags)
+{
+    char szTmp[4096];
+    KSIZE cchTmp = kwUtf16ToStr(pwszFilename, szTmp, sizeof(szTmp));
+    if (cchTmp < sizeof(szTmp))
+        return kwSandbox_Kernel32_Native_LoadLibraryExA(szTmp, hFile, fFlags);
+
+    KWFS_TODO();
+    SetLastError(ERROR_FILENAME_EXCED_RANGE);
+    return NULL;
 }
 
 
@@ -6284,6 +6321,17 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
     KWFS_TODO();
     return GetProcAddress(hmod, pszProc);
 }
+
+
+#ifndef NDEBUG
+/** Kernel32 - GetProcAddress() - native replacement for debugging only.  */
+static FARPROC WINAPI kwSandbox_Kernel32_Native_GetProcAddress(HMODULE hmod, LPCSTR pszProc)
+{
+    FARPROC pfnRet = GetProcAddress(hmod, pszProc);
+    KWLDR_LOG(("kwSandbox_Kernel32_Native_GetProcAddress(%p, %s) -> %p\n", hmod, pszProc, pfnRet));
+    return pfnRet;
+}
+#endif
 
 
 /** Kernel32 - GetModuleFileNameA()   */
@@ -10779,6 +10827,9 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
     { TUPLE("ExitProcess"),                 NULL,       (KUPTR)kwSandbox_Kernel32_ExitProcess },
     { TUPLE("TerminateProcess"),            NULL,       (KUPTR)kwSandbox_Kernel32_TerminateProcess },
 
+    { TUPLE("GetCommandLineA"),             NULL,       (KUPTR)kwSandbox_Kernel32_GetCommandLineA },
+    { TUPLE("GetCommandLineW"),             NULL,       (KUPTR)kwSandbox_Kernel32_GetCommandLineW },
+
 #if 0
     { TUPLE("CreateThread"),                NULL,       (KUPTR)kwSandbox_Kernel32_CreateThread },
 #endif
@@ -10813,6 +10864,10 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
 #endif
     { TUPLE("SetConsoleCtrlHandler"),       NULL,       (KUPTR)kwSandbox_Kernel32_SetConsoleCtrlHandler },
     { TUPLE("LoadLibraryExA"),              NULL,       (KUPTR)kwSandbox_Kernel32_Native_LoadLibraryExA },
+    { TUPLE("LoadLibraryExW"),              NULL,       (KUPTR)kwSandbox_Kernel32_Native_LoadLibraryExW },
+#ifndef NDEBUG
+    { TUPLE("GetProcAddress"),              NULL,       (KUPTR)kwSandbox_Kernel32_Native_GetProcAddress },
+#endif
 
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
     { TUPLE("WriteConsoleA"),               NULL,       (KUPTR)kwSandbox_Kernel32_WriteConsoleA },
