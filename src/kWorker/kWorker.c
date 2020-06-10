@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3371 2020-06-10 10:58:58Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3374 2020-06-10 18:01:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -69,11 +69,11 @@
  * Enables temporary memory files for cl.exe.  */
 #define WITH_TEMP_MEMORY_FILES
 
-/** @def WITH_HASH_MD5_CACHE
- * Enables caching of MD5 sums for cl.exe.
+/** @def WITH_HASH_CACHE
+ * Enables caching of MD5, SHA-1, SHA-256 and SHA-512 hashes for cl.exe.
  * This prevents wasting time on rehashing common headers each time
  * they are included. */
-#define WITH_HASH_MD5_CACHE
+#define WITH_HASH_CACHE
 
 /** @def WITH_CRYPT_CTX_REUSE
  * Enables reusing crypt contexts.  The Visual C++ compiler always creates a
@@ -491,11 +491,23 @@ typedef struct KFSWCACHEDFILE
     KU8                *pbCached;
     /** The file size. */
     KU32                cbCached;
-#ifdef WITH_HASH_MD5_CACHE
+#ifdef WITH_HASH_CACHE
     /** Set if we've got a valid MD5 hash in abMd5Digest. */
     KBOOL               fValidMd5;
+    /** Set if we've got a valid SHA-1 hash in abMd5Digest. */
+    KBOOL               fValidSha1;
+    /** Set if we've got a valid SHA-256 hash in abMd5Digest. */
+    KBOOL               fValidSha256;
+    /** Set if we've got a valid SHA-512 hash in abMd5Digest. */
+    KBOOL               fValidSha512;
     /** The MD5 digest if fValidMd5 is set. */
     KU8                 abMd5Digest[16];
+    /** The SHA-1 digest if fValidSha1 is set. */
+    KU8                 abSha1Digest[20];
+    /** The SHA-256 digest if fValidSha256 is set. */
+    KU8                 abSha256Digest[32];
+    /** The SHA-512 digest if fValidSha256 is set. */
+    KU8                 abSha512Digest[64];
 #endif
 
     /** Circular self reference. Prevents the object from ever going away and
@@ -507,39 +519,42 @@ typedef struct KFSWCACHEDFILE
 /** Pointer to a cached filed. */
 typedef KFSWCACHEDFILE *PKFSWCACHEDFILE;
 
-#ifdef WITH_HASH_MD5_CACHE
+#ifdef WITH_HASH_CACHE
 
 /** Pointer to a MD5 hash instance. */
-typedef struct KWHASHMD5 *PKWHASHMD5;
+typedef struct KWCRYPTHASH *PKWCRYPTHASH;
 /**
  * A MD5 hash instance.
  */
-typedef struct KWHASHMD5
+typedef struct KWCRYPTHASH
 {
     /** The magic value. */
     KUPTR               uMagic;
     /** Pointer to the next hash handle. */
-    PKWHASHMD5          pNext;
+    PKWCRYPTHASH        pNext;
     /** The cached file we've associated this handle with. */
     PKFSWCACHEDFILE     pCachedFile;
     /** The number of bytes we've hashed. */
     KU32                cbHashed;
     /** Set if this has gone wrong. */
     KBOOL               fGoneBad;
-    /** Set if we're in fallback mode (file not cached). */
-    KBOOL               fFallbackMode;
     /** Set if we've already finalized the digest. */
     KBOOL               fFinal;
-    /** The MD5 fallback context. */
-    struct MD5Context   Md5Ctx;
+    /** If in fallback mode. */
+    HCRYPTHASH          hFallback;
+    /** The algorithm. */
+    ALG_ID              idAlg;
+    /** The hash name. */
+    const char         *pszAlgName;
+    /** The digest size. */
+    KU32                cbDigest;
     /** The finalized digest. */
-    KU8                 abDigest[16];
+    KU8                 abDigest[64];
+} KWCRYPTHASH;
+/** Magic value for KWCRYPTHASH::uMagic (Les McCann). */
+# define KWCRYPTHASH_MAGIC    KUPTR_C(0x19350923)
 
-} KWHASHMD5;
-/** Magic value for KWHASHMD5::uMagic (Les McCann). */
-# define KWHASHMD5_MAGIC    KUPTR_C(0x19350923)
-
-#endif /* WITH_HASH_MD5_CACHE */
+#endif /* WITH_HASH_CACHE */
 #ifdef WITH_TEMP_MEMORY_FILES
 
 typedef struct KWFSTEMPFILESEG *PKWFSTEMPFILESEG;
@@ -929,14 +944,19 @@ typedef struct KWSANDBOX
 
     MY_UNICODE_STRING SavedCommandLine;
 
-#ifdef WITH_HASH_MD5_CACHE
-    /** The special MD5 hash instance. */
-    PKWHASHMD5      pHashHead;
+#ifdef WITH_HASH_CACHE
+    /** The crypto provider instance we use for hashes. */
+    HCRYPTPROV      hCryptProvRsa;
+    /** The crypto provider instance we use for hashes. */
+    HCRYPTPROV      hCryptProvAes;
+    /** List of crypto hash instances. */
+    PKWCRYPTHASH    pHashHead;
     /** ReadFile sets these while CryptHashData claims and clears them.
      *
-     * This is part of the heuristics we use for MD5 caching for header files. The
-     * observed pattern is that c1.dll/c1xx.dll first reads a chunk of a source or
-     * header, then passes the same buffer and read byte count to CryptHashData.
+     * This is part of the heuristics we use for MD5/SHA1/SHA256 caching for header
+     * files. The observed pattern is that c1.dll/c1xx.dll first reads a chunk of a
+     * source or header, then passes the same buffer and read byte count to
+     * CryptHashData.
      */
     struct
     {
@@ -1320,6 +1340,25 @@ static KSIZE    g_cbWriteFileTotal;
 static KSIZE    g_cWriteFileToInMemTemp;
 /** Total bytes written to in-memory temporary files. */
 static KSIZE    g_cbWriteFileToInMemTemp;
+
+#ifdef WITH_HASH_CACHE
+/** Total number of hashes. */
+static KSIZE    g_cHashes;
+/** Number of cached hash hits. */
+static KSIZE    g_cHashesCached;
+/** Number of fallbacks. */
+static KSIZE    g_cHashesFallbacks;
+/** Number of partial cached file hashes. */
+static KSIZE    g_cHashesPartial;
+/** Total number of MD5 hashes. */
+static KSIZE    g_cHashesMd5;
+/** Total number of SHA-1 hashes. */
+static KSIZE    g_cHashesSha1;
+/** Total number of SHA-256 hashes. */
+static KSIZE    g_cHashesSha256;
+/** Total number of SHA-512 hashes. */
+static KSIZE    g_cHashesSha512;
+#endif
 
 
 /*********************************************************************************************************************************
@@ -7557,7 +7596,7 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
                 if (cbActually > cbToRead)
                     cbActually = cbToRead;
 
-#ifdef WITH_HASH_MD5_CACHE
+#ifdef WITH_HASH_CACHE
                 if (g_Sandbox.pHashHead)
                 {
                     g_Sandbox.LastHashRead.pCachedFile = pCachedFile;
@@ -9895,7 +9934,44 @@ BOOL WINAPI kwSandbox_Kernel32_TlsFree(DWORD idxTls)
  * via ReadFile, same buffers and sizes.
  */
 
-#ifdef WITH_HASH_MD5_CACHE
+#ifdef WITH_HASH_CACHE
+
+/**
+ * Gets our crypto provider context/instance, creating it if needed.
+ */
+static HCRYPTPROV kwSandboxGetCryptoProvider(ALG_ID idAlg)
+{
+    DWORD       dwProvider;
+    HCRYPTPROV *phCryptProv;
+    HCRYPTPROV  hCryptProv;
+    if (   idAlg == CALG_SHA_256
+        || idAlg == CALG_SHA_512)
+    {
+        phCryptProv = &g_Sandbox.hCryptProvAes;
+        dwProvider = PROV_RSA_AES;
+    }
+    else
+    {
+        phCryptProv = &g_Sandbox.hCryptProvRsa;
+        dwProvider = PROV_RSA_FULL;
+    }
+    hCryptProv = *phCryptProv;
+    if (hCryptProv)
+        return hCryptProv;
+
+    /* Create it. */
+    if (CryptAcquireContextW(&hCryptProv, NULL, NULL, dwProvider, CRYPT_VERIFYCONTEXT))
+    {
+        kHlpAssert(hCryptProv != 0);
+        kHlpAssert(hCryptProv != KUPTR_MAX);
+        *phCryptProv = hCryptProv;
+        return hCryptProv;
+    }
+
+    kwErrPrintf("kwSandboxGetCryptoProvider: CryptAcquireContext(,,,%#x, CRYPT_VERIFYCONTEXT) failed! %u\n",
+                dwProvider, GetLastError());
+    return (HCRYPTPROV)NULL;
+}
 
 /** AdvApi32 - CryptCreateHash */
 static BOOL WINAPI kwSandbox_Advapi32_CryptCreateHash(HCRYPTPROV hProv, ALG_ID idAlg, HCRYPTKEY hKey, DWORD dwFlags,
@@ -9908,44 +9984,75 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptCreateHash(HCRYPTPROV hProv, ALG_ID i
      */
     if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL)
     {
-        /** @todo do generic caching of hash results.  Need SHA-1 and SHA-256 for
-         *        more recent compilers. */
-        if (idAlg == CALG_MD5)
+        KU32        cbDigest;
+        const char *pszName;
+        switch (idAlg)
+        {
+            case CALG_MD5:
+                cbDigest = 128/8;
+                pszName  = "MD5";
+                g_cHashesMd5++;
+                break;
+            case CALG_SHA1:
+                cbDigest = 160/8;
+                pszName  = "SHA1";
+                g_cHashesSha1++;
+                break;
+            case CALG_SHA_256:
+                cbDigest = 256/8;
+                pszName  = "SHA-256";
+                g_cHashesSha256++;
+                break;
+            case CALG_SHA_512:
+                cbDigest = 512/8;
+                pszName  = "SHA-512";
+                g_cHashesSha512++;
+                break;
+            default:
+                cbDigest = 0;
+                pszName  = NULL;
+                break;
+        }
+
+        if (cbDigest)
         {
             if (hKey == 0)
             {
                 if (dwFlags == 0)
                 {
-                    PKWHASHMD5 pHash = (PKWHASHMD5)kHlpAllocZ(sizeof(*pHash));
+                    PKWCRYPTHASH pHash = (PKWCRYPTHASH)kHlpAllocZ(sizeof(*pHash));
                     if (pHash)
                     {
                         kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
-                        pHash->uMagic        = KWHASHMD5_MAGIC;
+                        pHash->uMagic        = KWCRYPTHASH_MAGIC;
                         pHash->cbHashed      = 0;
                         pHash->fGoneBad      = K_FALSE;
-                        pHash->fFallbackMode = K_FALSE;
                         pHash->fFinal        = K_FALSE;
+                        pHash->hFallback     = KUPTR_MAX;
+                        pHash->idAlg         = idAlg;
+                        pHash->pszAlgName    = pszName;
+                        pHash->cbDigest      = cbDigest;
 
                         /* link it. */
                         pHash->pNext         = g_Sandbox.pHashHead;
                         g_Sandbox.pHashHead  = pHash;
 
                         *phHash = (KUPTR)pHash;
-                        KWCRYPT_LOG(("CryptCreateHash(hProv=%p, idAlg=CALG_MD5, 0, 0, *phHash=%p) -> %d [cached]\n",
-                                     hProv, *phHash, TRUE));
+                        KWCRYPT_LOG(("CryptCreateHash(hProv=%p, idAlg=%s, 0, 0, *phHash=%p) -> %d [cached]\n",
+                                     hProv, pszName, *phHash, TRUE));
                         return TRUE;
                     }
 
                     kwErrPrintf("CryptCreateHash: out of memory!\n");
                 }
                 else
-                    kwErrPrintf("CryptCreateHash: dwFlags=%p is not supported with CALG_MD5\n", hKey);
+                    kwErrPrintf("CryptCreateHash: dwFlags=%p is not supported with %s\n", hKey, pszName);
             }
             else
-                kwErrPrintf("CryptCreateHash: hKey=%p is not supported with CALG_MD5\n", hKey);
+                kwErrPrintf("CryptCreateHash: hKey=%p is not supported with %s\n", hKey, pszName);
         }
-        //else
-        //    kwErrPrintf("CryptCreateHash: idAlg=%#x is not supported\n", idAlg);
+        else
+            kwErrPrintf("CryptCreateHash: idAlg=%#x is not supported\n", idAlg);
     }
 
     /*
@@ -9961,8 +10068,8 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptCreateHash(HCRYPTPROV hProv, ALG_ID i
 /** AdvApi32 - CryptHashData */
 static BOOL WINAPI kwSandbox_Advapi32_CryptHashData(HCRYPTHASH hHash, CONST BYTE *pbData, DWORD cbData, DWORD dwFlags)
 {
-    BOOL        fRc;
-    PKWHASHMD5  pHash = g_Sandbox.pHashHead;
+    BOOL         fRc;
+    PKWCRYPTHASH pHash = g_Sandbox.pHashHead;
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
     while (pHash && (KUPTR)pHash != hHash)
         pHash = pHash->pNext;
@@ -9973,10 +10080,11 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptHashData(HCRYPTHASH hHash, CONST BYTE
         /*
          * Validate the state.
          */
-        if (   pHash->uMagic == KWHASHMD5_MAGIC
-            && !pHash->fFinal)
+        if (   pHash->uMagic == KWCRYPTHASH_MAGIC
+            && !pHash->fFinal
+            && !pHash->fGoneBad)
         {
-            if (!pHash->fFallbackMode)
+            if (pHash->hFallback == KUPTR_MAX)
             {
                 /*
                  * Does this match the previous ReadFile call to a cached file?
@@ -10016,7 +10124,7 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptHashData(HCRYPTHASH hHash, CONST BYTE
                                         pHash->cbHashed, g_Sandbox.LastHashRead.offRead);
                     }
                     else if (!pCachedFile)
-                        kwErrPrintf("CryptHashData: Last pCachedFile is NULL when buffer address and size matches!\n");
+                        KWCRYPT_LOG(("CryptHashData: Last pCachedFile is NULL when buffer address and size matches!\n"));
                     else
                         kwErrPrintf("CryptHashData: First 64 bytes of the buffer doesn't match the cache.\n");
                 }
@@ -10024,17 +10132,31 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptHashData(HCRYPTHASH hHash, CONST BYTE
                     kwErrPrintf("CryptHashData: Expected cbRead=%#x and pbData=%p, got %#x and %p instead\n",
                                 g_Sandbox.LastHashRead.cbRead, g_Sandbox.LastHashRead.pvRead, cbData, pbData);
                 if (pHash->cbHashed == 0)
-                    pHash->fFallbackMode = K_TRUE;
-                if (pHash->fFallbackMode)
                 {
                     /* Initiate fallback mode (file that we don't normally cache, like .c/.cpp). */
-                    pHash->fFallbackMode = K_TRUE;
-                    MD5Init(&pHash->Md5Ctx);
-                    MD5Update(&pHash->Md5Ctx, pbData, cbData);
-                    pHash->cbHashed = cbData;
-                    KWCRYPT_LOG(("CryptHashData(hHash=%p/fallback, pbData=%p, cbData=%#x, dwFlags=%#x) -> 1 [fallback!]\n",
-                                 hHash, pbData, cbData, dwFlags));
-                    return TRUE;
+                    HCRYPTPROV hCryptProv = kwSandboxGetCryptoProvider(pHash->idAlg);
+                    if (hCryptProv)
+                    {
+                        HCRYPTHASH hCryptHash = KUPTR_MAX;
+                        if (CryptCreateHash(hCryptProv, pHash->idAlg, 0, 0, &hCryptHash))
+                        {
+                            kHlpAssert(hCryptHash != KUPTR_MAX);
+                            pHash->hFallback = hCryptHash;
+                            fRc = CryptHashData(hCryptHash, pbData, cbData, dwFlags);
+                            if (fRc)
+                                pHash->cbHashed = cbData;
+                            g_cHashesFallbacks++;
+                            KWCRYPT_LOG(("CryptHashData(hHash=%p/fallback, pbData=%p, cbData=%#x, dwFlags=%#x) -> %d (%u) [fallback!]\n",
+                                         hHash, pbData, cbData, dwFlags, fRc, GetLastError()));
+                        }
+                        else
+                        {
+                            kwErrPrintf("kwSandbox_Advapi32_CryptHashData: Fallback CryptCreateHash(%u) failed: %u\n",
+                                        pHash->idAlg, GetLastError());
+                            fRc = FALSE;
+                        }
+                        return fRc;
+                    }
                 }
                 pHash->fGoneBad = K_TRUE;
                 SetLastError(ERROR_INVALID_PARAMETER);
@@ -10043,11 +10165,11 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptHashData(HCRYPTHASH hHash, CONST BYTE
             else
             {
                 /* fallback. */
-                MD5Update(&pHash->Md5Ctx, pbData, cbData);
-                pHash->cbHashed += cbData;
-                fRc = TRUE;
-                KWCRYPT_LOG(("CryptHashData(hHash=%p/fallback, pbData=%p, cbData=%#x, dwFlags=%#x) -> 1 [fallback]\n",
-                             hHash, pbData, cbData, dwFlags));
+                fRc = CryptHashData(pHash->hFallback, pbData, cbData, dwFlags);
+                if (fRc)
+                    pHash->cbHashed += cbData;
+                KWCRYPT_LOG(("CryptHashData(hHash=%p/fallback, pbData=%p, cbData=%#x, dwFlags=%#x) -> %d [fallback]\n",
+                             hHash, pbData, cbData, dwFlags, fRc));
             }
         }
         /*
@@ -10055,7 +10177,7 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptHashData(HCRYPTHASH hHash, CONST BYTE
          */
         else
         {
-            if (pHash->uMagic != KWHASHMD5_MAGIC)
+            if (pHash->uMagic != KWCRYPTHASH_MAGIC)
                 kwErrPrintf("CryptHashData: Invalid cached hash handle!!\n");
             else
                 kwErrPrintf("CryptHashData: Hash is already finalized!!\n");
@@ -10073,18 +10195,62 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptHashData(HCRYPTHASH hHash, CONST BYTE
 }
 
 
+/** Helper for simpe data hashing.   */
+static BOOL kwSandboxCalcHash(ALG_ID idAlg, void const *pvData, KSIZE cbData, KU8 *pbDigest, KSIZE cbDigest)
+{
+    BOOL fRet = FALSE;
+    if (idAlg == CALG_MD5)
+    {
+        struct MD5Context Ctx;
+        MD5Init(&Ctx);
+        MD5Update(&Ctx, (unsigned char const *)pvData, (unsigned)cbData);
+        MD5Final(pbDigest, &Ctx);
+        fRet = TRUE;
+    }
+    else
+    {
+        HCRYPTPROV hCryptProv = kwSandboxGetCryptoProvider(idAlg);
+        if (hCryptProv)
+        {
+            HCRYPTHASH hCryptHash = KUPTR_MAX;
+            if (CryptCreateHash(hCryptProv, idAlg, 0, 0, &hCryptHash))
+            {
+                if (CryptHashData(hCryptHash, (const BYTE *)pvData, (DWORD)cbData, 0))
+                {
+                    DWORD cbActual = (DWORD)cbDigest;
+                    if (CryptGetHashParam(hCryptHash, HP_HASHVAL, pbDigest, &cbActual, 0))
+                    {
+                        fRet = TRUE;
+                        kHlpAssert(cbActual == cbDigest);
+                    }
+                    else
+                        kwErrPrintf("CryptGetHashParam([%#x],HP_HASHVAL,%p,%#x,0) failed: %u\n",
+                                    idAlg, pbDigest, cbDigest, GetLastError());
+                }
+                else
+                    kwErrPrintf("CryptHashData([%#x],%p,%#x,0) failed: %u\n", idAlg, pvData, cbData, GetLastError());
+                CryptDestroyHash(hCryptHash);
+            }
+            else
+                kwErrPrintf("CryptCreateHash(%#x) failed: %u\n", idAlg, GetLastError());
+        }
+    }
+    return fRet;
+}
+
+
 /** AdvApi32 - CryptGetHashParam */
 static BOOL WINAPI kwSandbox_Advapi32_CryptGetHashParam(HCRYPTHASH hHash, DWORD dwParam,
                                                         BYTE *pbData, DWORD *pcbData, DWORD dwFlags)
 {
-    BOOL        fRc;
-    PKWHASHMD5  pHash = g_Sandbox.pHashHead;
+    BOOL            fRc;
+    PKWCRYPTHASH    pHash = g_Sandbox.pHashHead;
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
     while (pHash && (KUPTR)pHash != hHash)
         pHash = pHash->pNext;
     if (pHash)
     {
-        if (pHash->uMagic == KWHASHMD5_MAGIC)
+        if (pHash->uMagic == KWCRYPTHASH_MAGIC)
         {
             if (dwFlags == 0)
             {
@@ -10101,22 +10267,51 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptGetHashParam(HCRYPTHASH hHash, DWORD 
                     {
                         /* Check the hash progress. */
                         PKFSWCACHEDFILE pCachedFile = pHash->pCachedFile;
+                        g_cHashes++;
                         if (pCachedFile)
                         {
                             if (   pCachedFile->cbCached == pHash->cbHashed
                                 && !pHash->fGoneBad)
                             {
-                                if (pCachedFile->fValidMd5)
+                                KBOOL *pfValid;
+                                switch (pHash->idAlg)
+                                {
+                                    case CALG_MD5:
+                                        pfValid = &pCachedFile->fValidMd5;
+                                        pvRet   = pCachedFile->abMd5Digest;
+                                        break;
+                                    case CALG_SHA1:
+                                        pfValid = &pCachedFile->fValidSha1;
+                                        pvRet   = pCachedFile->abSha1Digest;
+                                        break;
+                                    case CALG_SHA_256:
+                                        pfValid = &pCachedFile->fValidSha256;
+                                        pvRet   = pCachedFile->abSha256Digest;
+                                        break;
+                                    case CALG_SHA_512:
+                                        pfValid = &pCachedFile->fValidSha512;
+                                        pvRet   = pCachedFile->abSha512Digest;
+                                        break;
+                                    default:
+                                        kwErrPrintf("Invalid idAlg value: %#x\n", pHash->idAlg);
+                                        SetLastError(ERROR_INVALID_SERVER_STATE);
+                                        return FALSE;
+                                }
+
+                                if (*pfValid)
+                                {
                                     KWCRYPT_LOG(("Already calculated hash for %p/%s! [hit]\n", pCachedFile, pCachedFile->szPath));
+                                    g_cHashesCached++;
+                                }
                                 else
                                 {
-                                    MD5Init(&pHash->Md5Ctx);
-                                    MD5Update(&pHash->Md5Ctx, pCachedFile->pbCached, pCachedFile->cbCached);
-                                    MD5Final(pCachedFile->abMd5Digest, &pHash->Md5Ctx);
-                                    pCachedFile->fValidMd5 = K_TRUE;
+                                    fRc = kwSandboxCalcHash(pHash->idAlg, pCachedFile->pbCached, pCachedFile->cbCached,
+                                                            pvRet, pHash->cbDigest);
+                                    if (!fRc)
+                                        return FALSE;
+                                    *pfValid = K_TRUE;
                                     KWCRYPT_LOG(("Calculated hash for %p/%s.\n", pCachedFile, pCachedFile->szPath));
                                 }
-                                pvRet = pCachedFile->abMd5Digest;
                             }
                             else
                             {
@@ -10125,27 +10320,36 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptGetHashParam(HCRYPTHASH hHash, DWORD 
                                 KWCRYPT_LOG(("CryptGetHashParam/HP_HASHVAL: Not at end of cached file! cbCached=%#x cbHashed=%#x fGoneBad=%d (%p/%p/%s)\n",
                                              pHash->pCachedFile->cbCached, pHash->cbHashed, pHash->fGoneBad,
                                              pHash, pCachedFile, pCachedFile->szPath));
-                                pHash->fFallbackMode = K_TRUE;
-                                pHash->pCachedFile   = NULL;
-                                MD5Init(&pHash->Md5Ctx);
-                                MD5Update(&pHash->Md5Ctx, pCachedFile->pbCached, pHash->cbHashed);
-                                MD5Final(pHash->abDigest, &pHash->Md5Ctx);
+                                g_cHashesPartial++;
+                                pHash->pCachedFile = NULL;
                                 pvRet = pHash->abDigest;
+                                fRc = kwSandboxCalcHash(pHash->idAlg, pCachedFile->pbCached, pHash->cbHashed,
+                                                        pvRet, pHash->cbDigest);
+                                if (!fRc)
+                                {
+                                    pHash->fGoneBad = K_TRUE;
+                                    return FALSE;
+                                }
                             }
                             pHash->fFinal = K_TRUE;
-                            cbRet = 16;
+                            cbRet = pHash->cbDigest;
                             break;
                         }
-                        else if (pHash->fFallbackMode)
-                        {
-                            if (!pHash->fFinal)
-                            {
-                                pHash->fFinal = K_TRUE;
-                                MD5Final(pHash->abDigest, &pHash->Md5Ctx);
-                            }
-                            pvRet = pHash->abDigest;
-                            cbRet = 16;
+
+                        pvRet = pHash->abDigest;
+                        cbRet = pHash->cbDigest;
+                        if (pHash->fFinal)
                             break;
+                        if (pHash->hFallback != KUPTR_MAX)
+                        {
+                            DWORD cbActual = (DWORD)pHash->cbDigest;
+                            if (CryptGetHashParam(pHash->hFallback, HP_HASHVAL, pHash->abDigest, &cbActual, 0))
+                            {
+                                kHlpAssert(cbActual == pHash->cbDigest);
+                                pHash->fFinal = K_TRUE;
+                                break;
+                            }
+                            kwErrPrintf("CryptGetHashParam/HP_HASHVAL: Fallback CryptGetHashParam failed: %u!!\n", GetLastError());
                         }
                         else
                         {
@@ -10156,13 +10360,13 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptGetHashParam(HCRYPTHASH hHash, DWORD 
                     }
 
                     case HP_HASHSIZE:
-                        uBuf.dw = 16;
+                        uBuf.dw = pHash->cbDigest;
                         pvRet = &uBuf;
                         cbRet = sizeof(DWORD);
                         break;
 
                     case HP_ALGID:
-                        uBuf.dw = CALG_MD5;
+                        uBuf.dw = pHash->idAlg;
                         pvRet = &uBuf;
                         cbRet = sizeof(DWORD);
                         break;
@@ -10192,6 +10396,25 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptGetHashParam(HCRYPTHASH hHash, DWORD 
                                          pbData[4],  pbData[5],  pbData[6],  pbData[7],
                                          pbData[8],  pbData[9],  pbData[10], pbData[11],
                                          pbData[12], pbData[13], pbData[14], pbData[15]));
+                        else if (cbRet == 20)
+                            KWCRYPT_LOG(("CryptGetHashParam/%#x/%p/%p: TRUE, cbRet=%#x data=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x [cached]\n",
+                                         dwParam, pHash, pHash->pCachedFile, cbRet,
+                                         pbData[0],  pbData[1],  pbData[2],  pbData[3],
+                                         pbData[4],  pbData[5],  pbData[6],  pbData[7],
+                                         pbData[8],  pbData[9],  pbData[10], pbData[11],
+                                         pbData[12], pbData[13], pbData[14], pbData[15],
+                                         pbData[16], pbData[17], pbData[18], pbData[19] ));
+                        else if (cbRet >= 32)
+                            KWCRYPT_LOG(("CryptGetHashParam/%#x/%p/%p: TRUE, cbRet=%#x data=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%s [cached]\n",
+                                         dwParam, pHash, pHash->pCachedFile, cbRet,
+                                         pbData[0],  pbData[1],  pbData[2],  pbData[3],
+                                         pbData[4],  pbData[5],  pbData[6],  pbData[7],
+                                         pbData[8],  pbData[9],  pbData[10], pbData[11],
+                                         pbData[12], pbData[13], pbData[14], pbData[15],
+                                         pbData[16], pbData[17], pbData[18], pbData[19],
+                                         pbData[20], pbData[21], pbData[22], pbData[23],
+                                         pbData[24], pbData[25], pbData[26], pbData[27],
+                                         pbData[28], pbData[29], pbData[30], pbData[31], cbRet > 32 ? "..." : ""));
                         else
                             KWCRYPT_LOG(("CryptGetHashParam/%#x%/p%/%p: TRUE, cbRet=%#x [cached]\n",
                                          dwParam, pHash, pHash->pCachedFile, cbRet));
@@ -10234,9 +10457,9 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptGetHashParam(HCRYPTHASH hHash, DWORD 
 /** AdvApi32 - CryptDestroyHash */
 static BOOL WINAPI kwSandbox_Advapi32_CryptDestroyHash(HCRYPTHASH hHash)
 {
-    BOOL        fRc;
-    PKWHASHMD5  pPrev = NULL;
-    PKWHASHMD5  pHash = g_Sandbox.pHashHead;
+    BOOL            fRc;
+    PKWCRYPTHASH    pPrev = NULL;
+    PKWCRYPTHASH    pHash = g_Sandbox.pHashHead;
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
     while (pHash && (KUPTR)pHash != hHash)
     {
@@ -10245,7 +10468,7 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptDestroyHash(HCRYPTHASH hHash)
     }
     if (pHash)
     {
-        if (pHash->uMagic == KWHASHMD5_MAGIC)
+        if (pHash->uMagic == KWCRYPTHASH_MAGIC)
         {
             pHash->uMagic = 0;
             if (!pPrev)
@@ -10275,7 +10498,7 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptDestroyHash(HCRYPTHASH hHash)
     return fRc;
 }
 
-#endif /* WITH_HASH_MD5_CACHE */
+#endif /* WITH_HASH_CACHE */
 
 
 /*
@@ -10747,7 +10970,7 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("RtlUnwind"),                   NULL,       (KUPTR)kwSandbox_ntdll_RtlUnwind },
 #endif
 
-#ifdef WITH_HASH_MD5_CACHE
+#ifdef WITH_HASH_CACHE
     { TUPLE("CryptCreateHash"),             NULL,       (KUPTR)kwSandbox_Advapi32_CryptCreateHash },
     { TUPLE("CryptHashData"),               NULL,       (KUPTR)kwSandbox_Advapi32_CryptHashData },
     { TUPLE("CryptGetHashParam"),           NULL,       (KUPTR)kwSandbox_Advapi32_CryptGetHashParam },
@@ -10882,7 +11105,7 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
     { TUPLE("WriteConsoleW"),               NULL,       (KUPTR)kwSandbox_Kernel32_WriteConsoleW },
 #endif
 
-#ifdef WITH_HASH_MD5_CACHE
+#ifdef WITH_HASH_CACHE
     { TUPLE("CryptCreateHash"),             NULL,       (KUPTR)kwSandbox_Advapi32_CryptCreateHash },
     { TUPLE("CryptHashData"),               NULL,       (KUPTR)kwSandbox_Advapi32_CryptHashData },
     { TUPLE("CryptGetHashParam"),           NULL,       (KUPTR)kwSandbox_Advapi32_CryptGetHashParam },
@@ -11440,8 +11663,8 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
     PKWVIRTALLOC                pTracker;
     PKWHEAP                     pHeap;
     PKWLOCALSTORAGE             pLocalStorage;
-#ifdef WITH_HASH_MD5_CACHE
-    PKWHASHMD5                  pHash;
+#ifdef WITH_HASH_CACHE
+    PKWCRYPTHASH                pHash;
 #endif
 #ifdef WITH_TEMP_MEMORY_FILES
     PKWFSTEMPFILE               pTempFile;
@@ -11626,7 +11849,7 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
         pSandbox->papwszEnvVars[0] = NULL;
     }
 
-#ifdef WITH_HASH_MD5_CACHE
+#ifdef WITH_HASH_CACHE
     /*
      * Hash handles.
      */
@@ -11634,8 +11857,10 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
     pSandbox->pHashHead = NULL;
     while (pHash)
     {
-        PKWHASHMD5 pNext = pHash->pNext;
+        PKWCRYPTHASH pNext = pHash->pNext;
         KWCRYPT_LOG(("Freeing leaked hash instance %#p\n", pHash));
+        if (pHash->hFallback != KUPTR_MAX)
+            CryptDestroyHash(pHash->hFallback);
         kHlpFree(pHash);
         pHash = pNext;
     }
@@ -12578,6 +12803,16 @@ static void kwPrintStats(void)
                    kwFmtU64(sz2, g_pFsCache->cNameGrowths),
                    (unsigned)(g_pFsCache->cNameGrowths * 100 / K_MAX(g_pFsCache->cNameChanges, 1)) );
 
+#ifdef WITH_HASH_CACHE
+    off += sprintf(&szBuf[off], "%s %14s hashes calculated, %s cache hits (%u%%), %s fallbacks, %s partial\n", szPrf,
+                   kwFmtU64(sz1, g_cHashes),
+                   kwFmtU64(sz2, g_cHashesCached),
+                   (unsigned)(g_cHashesCached * 100 / K_MAX(g_cHashes, 1)),
+                   kwFmtU64(sz3, g_cHashesFallbacks),
+                   kwFmtU64(sz4, g_cHashesPartial));
+    off += sprintf(&szBuf[off], "%s %14s MD5: %s  SHA-1: %s  SHA-256: %s  SHA-512: %s\n", szPrf, "", kwFmtU64(sz1, g_cHashesMd5),
+                   kwFmtU64(sz2, g_cHashesSha1), kwFmtU64(sz3, g_cHashesSha256), kwFmtU64(sz4, g_cHashesSha512));
+#endif
 
     /*
      * Process & Memory details.
