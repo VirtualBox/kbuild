@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3366 2020-06-09 23:53:39Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3371 2020-06-10 10:58:58Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -164,7 +164,8 @@ kStuff_SOURCES.darwin += \
 #
 # A couple of dummy DLLs we use for grabbing LDR TLS entries.
 #
-DLLS += kWorkerTls1K kWorkerTls1K01 kWorkerTls1K02 kWorkerTls1K03 kWorkerTls1K04 kWorkerTls1K05 kWorkerTls1K06 kWorkerTls1K07
+DLLS += kWorkerTls1K kWorkerTls1K01 kWorkerTls1K02 kWorkerTls1K03 kWorkerTls1K04 kWorkerTls1K05 kWorkerTls1K06 kWorkerTls1K07 \
+      kWorkerTls1K08 kWorkerTls1K09 kWorkerTls1K10 kWorkerTls1K11 kWorkerTls1K12 kWorkerTls1K13 kWorkerTls1K14 kWorkerTls1K15
 kWorkerTls1K_TEMPLATE   = BIN-STATIC-THREADED
 kWorkerTls1K_DEFS       = TLS_SIZE=1024
 kWorkerTls1K_SOURCES    = kWorkerTlsXxxK.c
@@ -177,6 +178,14 @@ kWorkerTls1K04_EXTENDS = kWorkerTls1K
 kWorkerTls1K05_EXTENDS = kWorkerTls1K
 kWorkerTls1K06_EXTENDS = kWorkerTls1K
 kWorkerTls1K07_EXTENDS = kWorkerTls1K
+kWorkerTls1K08_EXTENDS = kWorkerTls1K
+kWorkerTls1K09_EXTENDS = kWorkerTls1K
+kWorkerTls1K10_EXTENDS = kWorkerTls1K
+kWorkerTls1K11_EXTENDS = kWorkerTls1K
+kWorkerTls1K12_EXTENDS = kWorkerTls1K
+kWorkerTls1K13_EXTENDS = kWorkerTls1K
+kWorkerTls1K14_EXTENDS = kWorkerTls1K
+kWorkerTls1K15_EXTENDS = kWorkerTls1K
 
 
 DLLS += kWorkerTls64K kWorkerTls64K01 kWorkerTls64K02 kWorkerTls64K03 kWorkerTls64K04 kWorkerTls64K05 kWorkerTls64K06 kWorkerTls64K07
