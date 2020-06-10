@@ -1,4 +1,4 @@
-# $Id: VCC142.kmk 3342 2020-05-20 14:33:53Z knut.osmundsen@oracle.com $
+# $Id: VCC142.kmk 3370 2020-06-10 10:45:05Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 14.2 (aka Visual 2019 and MSC v19.20), default target.
 #
@@ -121,13 +121,12 @@ TOOL_VCC142_EDITBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC142_BIN_QSH)/editbin.exe
 TOOL_VCC142_RC  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC142_FN_FIND_SDK_TOOL,rc.exe,[Rr][Cc].[Ee][Xx][Ee],TOOL_VCC142_RC_CACHED)
 TOOL_VCC142_MT  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC142_FN_FIND_SDK_TOOL,mt.exe,[Mm][Tt].[Ee][Xx][Ee],TOOL_VCC142_MT_CACHED)
 
-undefine TOOL_VCC142_USE_KSUBMIT # for now
 ifdef TOOL_VCC142_USE_KSUBMIT
  ifeq ($(KBUILD_HOST),win)
-  ifneq ($(substr $(qdir un,$(PATH_TOOL_VCC142_BIN)),-3),64/)
-   TOOL_VCC142_KSUBMIT ?= kmk_builtin_kSubmit --64-bit
-  else
+  ifeq ($(findstring /HostX86/,$(PATH_TOOL_VCC142AMD64_BIN)),/HostX86/)
    TOOL_VCC142_KSUBMIT ?= kmk_builtin_kSubmit --32-bit
+  else
+   TOOL_VCC142_KSUBMIT ?= kmk_builtin_kSubmit --64-bit
   endif
   ifdef PATH_TOOL_VCC142_DLL_BIN
    TOOL_VCC142_KSUBMIT := $(TOOL_VCC142_KSUBMIT) --prepend "PATH=$(requote shell-in-dq,$(PATH_TOOL_VCC142_DLL_BIN));"
@@ -271,6 +270,8 @@ TOOL_VCC142_LDFLAGS.release  ?=
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
+# @note The -d1scalableinclude- option disables include directory caching as the cache goes
+#       stale in kWorker.  Besides, kWorker does it's own caching, so it is not necessary.
 TOOL_VCC142_COMPILE_C_DEPEND =
 TOOL_VCC142_COMPILE_C_DEPORD =
 TOOL_VCC142_COMPILE_C_OUTPUT =
@@ -279,7 +280,7 @@ ifdef TOOL_VCC142_KSUBMIT
  TOOL_VCC142_COMPILE_C_DONT_PURGE_OUTPUT := 1 # speed
  define TOOL_VCC142_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_VCC142_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
-		-- $(TOOL_VCC142_CC) -c\
+		-- $(TOOL_VCC142_CC) -c -d1scalableinclude-\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-Fo$(obj)\
@@ -287,7 +288,7 @@ ifdef TOOL_VCC142_KSUBMIT
  endef
 else
  define TOOL_VCC142_COMPILE_C_CMDS
-	$(QUIET)$(TOOL_VCC142_SETUP_ENV) $(TOOL_VCC142_CC) -c\
+	$(QUIET)$(TOOL_VCC142_SETUP_ENV)$(TOOL_VCC142_CC) -c\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-Fo$(obj)\
@@ -310,6 +311,9 @@ endif # !TOOL_VCC142_KSUBMIT
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
+# @note The -d1scalableinclude- option disables include directory caching as the cache goes
+#       stale in kWorker.  Besides, kWorker does it's own caching, so it is not necessary.
+#       ('-d1' means it's passed to c1.dll/c1xx.dll and 'scalableinclude-' is the actual option.)
 TOOL_VCC142_COMPILE_CXX_DEPEND = $($(target)_1_VCC_PCH_FILE)
 TOOL_VCC142_COMPILE_CXX_DEPORD =
 TOOL_VCC142_COMPILE_CXX_OUTPUT =
@@ -319,7 +323,7 @@ ifdef TOOL_VCC142_KSUBMIT
  TOOL_VCC142_COMPILE_CXX_DONT_PURGE_OUTPUT := 1 # speed
  define TOOL_VCC142_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC142_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
-		-- $(TOOL_VCC142_CXX) -c\
+		-- $(TOOL_VCC142_CXX) -c -d1scalableinclude-\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		$(if-expr defined($(target)_PCH_HDR)\
 		,-FI$($(target)_PCH_HDR) -Yu$($(target)_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE) -FS,)\
@@ -329,7 +333,7 @@ ifdef TOOL_VCC142_KSUBMIT
  endef
 else
  define TOOL_VCC142_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC142_SETUP_ENV) $(TOOL_VCC142_CXX) -c\
+	$(QUIET)$(TOOL_VCC142_SETUP_ENV)$(TOOL_VCC142_CXX) -c\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		$(if-expr defined($(target)_PCH_HDR)\
 		,-FI$($(target)_PCH_HDR) -Yu$($(target)_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE) -FS,)\
@@ -364,7 +368,7 @@ ifdef TOOL_VCC142_KSUBMIT
  define TOOL_VCC142-PCH_COMPILE_CXX_CMDS
 	$(QUIET)$(RM) -f -- $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
 	$(QUIET)$(TOOL_VCC142_KSUBMIT) --no-pch-caching -P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
-		-- $(TOOL_VCC142_CXX) -c -Yc\
+		-- $(TOOL_VCC142_CXX) -c -Yc -d1scalableinclude-\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
                -Fp$($(target)_1_VCC_PCH_FILE) \
 		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
@@ -375,7 +379,7 @@ ifdef TOOL_VCC142_KSUBMIT
 else
  define TOOL_VCC142-PCH_COMPILE_CXX_CMDS
 	$(QUIET)$(RM) -f -- $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
-	$(QUIET)$(TOOL_VCC142_SETUP_ENV) $(TOOL_VCC142_CXX) -c -Yc\
+	$(QUIET)$(TOOL_VCC142_SETUP_ENV)$(TOOL_VCC142_CXX) -c -Yc\
 		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
                -Fp$($(target)_1_VCC_PCH_FILE) \
 		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
