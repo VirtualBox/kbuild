@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 3362 2020-06-08 19:28:44Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 3372 2020-06-10 11:00:45Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -3310,7 +3310,7 @@ static PKFSOBJ kFsCacheLookupSlowA(PKFSCACHE pCache, const char *pszPath, KU32 c
 
     /* The path is too long! */
     kHlpAssertMsgFailed(("'%s' -> cchFull=%u\n", pszPath, cchFull));
-    *penmError = KFSLOOKUPERROR_PATH_TOO_LONG;
+    *penmError = cchFull >= 3 ? KFSLOOKUPERROR_PATH_TOO_LONG : KFSLOOKUPERROR_PATH_TOO_SHORT;
     return NULL;
 }
 
@@ -3350,7 +3350,7 @@ static PKFSOBJ kFsCacheLookupSlowW(PKFSCACHE pCache, const wchar_t *pwszPath, KU
 
     /* The path is too long! */
     kHlpAssertMsgFailed(("'%ls' -> cwcFull=%u\n", pwszPath, cwcFull));
-    *penmError = KFSLOOKUPERROR_PATH_TOO_LONG;
+    *penmError = cwcFull >= 3 ? KFSLOOKUPERROR_PATH_TOO_LONG : KFSLOOKUPERROR_PATH_TOO_SHORT;
     return NULL;
 }
 
@@ -3582,7 +3582,7 @@ static PKFSOBJ kFsCacheLookupHashedA(PKFSCACHE pCache, const char *pchPath, KU32
         return pFsObj;
     }
 
-    *penmError = KFSLOOKUPERROR_PATH_TOO_LONG;
+    *penmError = cchPath > 0 ? KFSLOOKUPERROR_PATH_TOO_LONG : KFSLOOKUPERROR_PATH_TOO_SHORT;
     return NULL;
 }
 
@@ -3690,7 +3690,7 @@ static PKFSOBJ kFsCacheLookupHashedW(PKFSCACHE pCache, const wchar_t *pwcPath, K
         return pFsObj;
     }
 
-    *penmError = KFSLOOKUPERROR_PATH_TOO_LONG;
+    *penmError = cwcPath > 0 ? KFSLOOKUPERROR_PATH_TOO_LONG : KFSLOOKUPERROR_PATH_TOO_SHORT;
     return NULL;
 }
 

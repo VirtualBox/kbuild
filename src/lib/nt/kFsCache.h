@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 3362 2020-06-08 19:28:44Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 3372 2020-06-10 11:00:45Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -299,6 +299,8 @@ typedef enum KFSLOOKUPERROR
     KFSLOOKUPERROR_NOT_FOUND,
     /** The path is too long. */
     KFSLOOKUPERROR_PATH_TOO_LONG,
+    /** The path is too short. */
+    KFSLOOKUPERROR_PATH_TOO_SHORT,
     /** Unsupported path type. */
     KFSLOOKUPERROR_UNSUPPORTED,
     /** We're out of memory. */
