@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3374 2020-06-10 18:01:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3376 2020-06-10 21:09:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -2171,7 +2171,7 @@ static void kwLdrModuleDoNativeImportReplacements(PKWMODULE pMod)
                                     if (fOldProt)
                                     {
                                         fRc = VirtualProtect(pbProtRange, cbProtRange, fOldProt, NULL /*pfOldProt*/);
-                                        kHlpAssert(fRc);
+                                        kHlpAssert(fRc || GetLastError() == ERROR_NOACCESS /*tinderwin2*/);
                                         fOldProt = 0;
                                     }
 
@@ -2885,6 +2885,7 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
 
             default:
                 rc = KERR_GENERAL_FAILURE;
+                kwErrPrintf("kwLdrModuleCreateNonNative: Unsupported module type %d (%s)!\n", pLdrMod->enmType, pszPath);
                 break;
         }
         if (rc == 0)
@@ -2986,6 +2987,7 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                                     if (rc == 0)
                                         continue;
                                 }
+                                kwErrPrintf("Error getting import '%s' for '%s': %d\n", szName, pMod->pszPath);
                                 break;
                             }
 
@@ -3043,6 +3045,7 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                                         g_cNonNativeModules++;
                                         return pMod;
                                     }
+                                    kwErrPrintf("kwLdrModuleCreateNonNativeSetupTls failed with %d for %s\n", rc, pMod->pszPath);
                                 }
                                 else
                                     kwErrPrintf("kLdrModGetBits failed for %s: %#x (%d)\n", pszPath, rc, rc);
@@ -3061,7 +3064,11 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                     else
                         kwErrPrintf("Failed to allocate %#x bytes\n", pMod->cbImage);
                 }
+                else
+                    kwErrPrintf("kwLdrModuleCreateNonNative: out of memory!\n");
             }
+            else
+                kwErrPrintf("kwLdrModuleCreateNonNative: kLdrModNumberOfImports failed for '%s'\n", pszPath);
         }
         kLdrModClose(pLdrMod);
     }
@@ -4085,6 +4092,8 @@ static PKWTOOL kwToolEntryCreate(PKFSOBJ pToolFsObj, const char *pszSearchPath)
     if (pTool)
     {
         KBOOL fRc;
+        wchar_t wcSaved;
+        wchar_t *pwcEnd;
         pTool->pwszPath = (wchar_t const *)(pTool + 1);
         fRc = kFsCacheObjGetFullPathW(pToolFsObj, (wchar_t *)pTool->pwszPath, cwcPath, '\\');
         kHlpAssert(fRc); K_NOREF(fRc);
@@ -4093,9 +4102,17 @@ static PKWTOOL kwToolEntryCreate(PKFSOBJ pToolFsObj, const char *pszSearchPath)
         fRc = kFsCacheObjGetFullPathA(pToolFsObj, (char *)pTool->pszPath, cbPath, '\\');
         kHlpAssert(fRc);
 
+        /* HACK ALERT! This is to help the loader search the application directory. */
+        pwcEnd = (wchar_t *)&pTool->pwszPath[pToolFsObj->cwcParent];
+        wcSaved = *pwcEnd;
+        *pwcEnd = '\0';
+        if (!SetDllDirectoryW(pTool->pwszPath))
+            kwErrPrintf("SetDllDirectoryW(tool) failed: %u\n", GetLastError());
+        *pwcEnd = wcSaved;
+
         pTool->enmType = KWTOOLTYPE_SANDBOXED;
         pTool->u.Sandboxed.pExe = kwLdrModuleCreateNonNative(pTool->pszPath, kwStrHash(pTool->pszPath), K_TRUE /*fExe*/,
-                                                             NULL /*pEexeMod*/, pszSearchPath);
+                                                             NULL /*pExeMod*/, pszSearchPath);
         if (pTool->u.Sandboxed.pExe)
         {
             int rc = kwLdrModuleQueryMainEntrypoint(pTool->u.Sandboxed.pExe, &pTool->u.Sandboxed.uMainAddr);
@@ -4118,12 +4135,16 @@ static PKWTOOL kwToolEntryCreate(PKFSOBJ pToolFsObj, const char *pszSearchPath)
             }
         }
         else
+        {
+            kwErrPrintf("kwLdrModuleCreateNonNative failed!\n");
             pTool->enmType = KWTOOLTYPE_EXEC;
+        }
 
         kFsCacheObjRelease(g_pFsCache, pToolFsObj);
         g_cTools++;
         return pTool;
     }
+    kwErrPrintf("kFsCacheObjAddUserData failed!\n");
     kFsCacheObjRelease(g_pFsCache, pToolFsObj);
     return NULL;
 }
