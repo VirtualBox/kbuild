@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3376 2020-06-10 21:09:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3378 2020-06-11 21:26:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -2987,7 +2987,8 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                                     if (rc == 0)
                                         continue;
                                 }
-                                kwErrPrintf("Error getting import '%s' for '%s': %d\n", szName, pMod->pszPath);
+                                kwErrPrintf("Error getting import '%s' for '%s': %d (%u)\n",
+                                            szName, pMod->pszPath, rc, GetLastError());
                                 break;
                             }
 
@@ -12351,6 +12352,7 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
     /*
      * Lookup the tool.
      */
+    g_Sandbox.pTool = NULL; /* Avoid confusion between the SetDllDirectoryW hacks. */
     pTool = kwToolLookup(pszExecutable, cEnvVars, papszEnvVars);
     if (pTool)
     {
