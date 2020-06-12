@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 3372 2020-06-10 11:00:45Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 3381 2020-06-12 11:36:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -274,6 +274,8 @@ typedef struct KFSDIR
      * @remarks May differ from st_mtim because it will be updated when the
      *          parent directory is refreshed. */
     KI64                iLastWrite;
+    /** The time that iLastWrite was read. */
+    KI64                iLastPopulated;
 
     /** Set if populated. */
     KBOOL               fPopulated;

@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 3379 2020-06-12 00:54:55Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 3381 2020-06-12 11:36:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -63,6 +63,19 @@
 #else
 # define KFSCACHE_LOG2(a) do { } while (0)
 #endif
+
+/** The minimum time between a directory last populated time and its
+ * modification time for the cache to consider it up-to-date.
+ *
+ * This helps work around races between us reading a directory and someone else
+ * adding / removing files and directories to /from it.  Given that the
+ * effective time resolution typically is around 2000Hz these days, unless you
+ * use the new *TimePrecise API variants, there is plenty of room for a race
+ * here.
+ *
+ * The current value is 20ms in NT time units (100ns each), which translates
+ * to a 50Hz time update frequency. */
+#define KFSCACHE_MIN_LAST_POPULATED_VS_WRITE (20*1000*10)
 
 
 /*********************************************************************************************************************************
@@ -661,6 +674,7 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
             pDirObj->hDir               = INVALID_HANDLE_VALUE;
             pDirObj->uDevNo             = pParent->uDevNo;
             pDirObj->iLastWrite         = 0;
+            pDirObj->iLastPopulated     = 0;
             pDirObj->fPopulated         = K_FALSE;
         }
 
@@ -1315,6 +1329,7 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
     KBOOL                       fRefreshing = K_FALSE;
     KFSDIRREPOP                 DirRePop    = { NULL, 0, 0, 0, NULL };
     MY_UNICODE_STRING           UniStrStar  = { 1 * sizeof(wchar_t), 2 * sizeof(wchar_t), L"*" };
+    FILETIME                    Now;
 
     /** @todo May have to make this more flexible wrt information classes since
      *        older windows versions (XP, w2K) might not correctly support the
@@ -1436,6 +1451,8 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
      *       previously quried a single file name and just passing NULL would
      *       restart that single file name query.
      */
+    GetSystemTimeAsFileTime(&Now);
+    pDir->iLastPopulated = ((KI64)Now.dwHighDateTime << 32) | Now.dwLowDateTime;
     Ios.Information = -1;
     Ios.u.Status    = -1;
     rcNt = g_pfnNtQueryDirectoryFile(pDir->hDir,
@@ -1525,7 +1542,9 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
                                 PKFSDIR pCurDir = (PKFSDIR)pCur;
                                 if (   !pCurDir->fPopulated
                                     ||  (   pCurDir->iLastWrite == uPtr.pWithId->LastWriteTime.QuadPart
-                                         && (pCur->fFlags & KFSOBJ_F_WORKING_DIR_MTIME) ) )
+                                         && (pCur->fFlags & KFSOBJ_F_WORKING_DIR_MTIME)
+                                         &&    pCurDir->iLastPopulated - pCurDir->iLastWrite
+                                            >= KFSCACHE_MIN_LAST_POPULATED_VS_WRITE ))
                                 { /* kind of likely */ }
                                 else
                                 {
@@ -1774,7 +1793,8 @@ static KBOOL kFsCacheDirIsModified(PKFSDIR pDir)
             rcNt = g_pfnNtQueryInformationFile(pDir->hDir, &Ios, &BasicInfo, sizeof(BasicInfo), MyFileBasicInformation);
             if (MY_NT_SUCCESS(rcNt))
             {
-                if (BasicInfo.LastWriteTime.QuadPart != pDir->iLastWrite)
+                if (   BasicInfo.LastWriteTime.QuadPart != pDir->iLastWrite
+                    || pDir->iLastPopulated - pDir->iLastWrite < KFSCACHE_MIN_LAST_POPULATED_VS_WRITE)
                 {
                     pDir->fNeedRePopulating = K_TRUE;
                     return K_TRUE;
@@ -2058,7 +2078,8 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
                                              / BIRD_STAT_BLOCK_SIZE;
 
                 if (   pDir->iLastWrite == uBuf.FullInfo.LastWriteTime.QuadPart
-                    && (pObj->fFlags & KFSOBJ_F_WORKING_DIR_MTIME) )
+                    && (pObj->fFlags & KFSOBJ_F_WORKING_DIR_MTIME)
+                    && pDir->iLastPopulated - pDir->iLastWrite >= KFSCACHE_MIN_LAST_POPULATED_VS_WRITE)
                     KFSCACHE_LOG(("Refreshing %s/%s/ - no re-populating necessary.\n",
                                   pObj->pParent->Obj.pszName, pObj->pszName));
                 else
