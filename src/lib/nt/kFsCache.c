@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 3372 2020-06-10 11:00:45Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 3379 2020-06-12 00:54:55Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -911,7 +911,7 @@ static PKFSOBJ kFsCacheRefreshGrowNames(PKFSCACHE pCache, PKFSOBJ pCur,
 
     pCur->pszName = pch;
     pCur->cchName = cchName;
-    pch = kHlpMemPCopy(pch, pchName, cchShortName);
+    pch = kHlpMemPCopy(pch, pchName, cchName);
     *pch++ = '\0';
 
 #ifdef KFSCACHE_CFG_SHORT_NAMES
@@ -1534,12 +1534,16 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
                                     pCurDir->fNeedRePopulating = K_TRUE;
                                 }
                             }
+                            if (pCur->uCacheGen != KFSOBJ_CACHE_GEN_IGNORE)
+                                pCur->uCacheGen = pCache->auGenerations[pCur->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
                         }
                         else if (pCur->bObjType == KFSOBJ_TYPE_MISSING)
                         {
                             KFSCACHE_LOG(("Refreshing %s/%s/ - %s appeared as %u, was missing.\n",
                                           pDir->Obj.pParent->Obj.pszName, pDir->Obj.pszName, pCur->pszName, bObjType));
                             pCur->bObjType = bObjType;
+                            if (pCur->uCacheGen != KFSOBJ_CACHE_GEN_IGNORE)
+                                pCur->uCacheGen = pCache->auGenerations[pCur->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
                         }
                         else
                         {
@@ -1836,7 +1840,11 @@ static KBOOL kFsCacheRefreshMissing(PKFSCACHE pCache, PKFSOBJ pMissing, KFSLOOKU
             KFSCACHE_LOG(("Birth of %s/%s as %d with attribs %#x...\n",
                           pMissing->pParent->Obj.pszName, pMissing->pszName, bObjType, BasicInfo.FileAttributes));
             pMissing->bObjType  = bObjType;
-            pMissing->uCacheGen = pCache->auGenerations[pMissing->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
+            /* (auGenerations[] - 1): make sure it's not considered up to date */
+            pMissing->uCacheGen = pCache->auGenerations[pMissing->fFlags & KFSOBJ_F_USE_CUSTOM_GEN] - 1;
+            /* Trigger parent directory repopulation. */
+            if (pMissing->pParent->fPopulated)
+                pMissing->pParent->fNeedRePopulating = K_TRUE;
 /**
  * @todo refresh missing object names when it appears.
  */
@@ -2801,7 +2809,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
             && (   pParent->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
                 || pParent->Obj.uCacheGen == pCache->auGenerations[pParent->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN]) )
         { /* likely */ }
-        else if (   (fFlags & (KFSCACHE_LOOKUP_F_NO_INSERT | fFlags & KFSCACHE_LOOKUP_F_NO_REFRESH))
+        else if (   (fFlags & (KFSCACHE_LOOKUP_F_NO_INSERT | KFSCACHE_LOOKUP_F_NO_REFRESH))
                  || kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
         { /* likely */ }
         else
@@ -2969,7 +2977,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
             && (   pParent->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
                 || pParent->Obj.uCacheGen == pCache->auGenerations[pParent->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN]) )
         { /* likely */ }
-        else if (   (fFlags & (KFSCACHE_LOOKUP_F_NO_INSERT | fFlags & KFSCACHE_LOOKUP_F_NO_REFRESH))
+        else if (   (fFlags & (KFSCACHE_LOOKUP_F_NO_INSERT | KFSCACHE_LOOKUP_F_NO_REFRESH))
                  || kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
         { /* likely */ }
         else
