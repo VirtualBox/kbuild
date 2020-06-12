@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3354 2020-06-05 02:04:25Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3380 2020-06-12 00:55:31Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -90,6 +90,12 @@ tstNtFts_TEMPLATE = BIN
 tstNtFts_SOURCES = nt/tstNtFts.c nt/fts-nt.c
 tstNtFts_LIBS = $(LIB_KUTIL)
 tstNtFts_NOINST = 1
+
+PROGRAMS.win += tstkFsCache
+tstkFsCache_TEMPLATE = BIN
+tstkFsCache_SOURCES = nt/tstkFsCache.c
+tstkFsCache_LIBS = $(LIB_KUTIL)
+tstkFsCache_NOINST = 1
 
 include $(FILE_KBUILD_SUB_FOOTER)
 
