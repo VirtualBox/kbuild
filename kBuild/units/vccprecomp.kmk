@@ -1,4 +1,4 @@
-# $Id: vccprecomp.kmk 3285 2019-01-05 03:24:58Z knut.osmundsen@oracle.com $
+# $Id: vccprecomp.kmk 3383 2020-06-16 15:56:15Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Unit - Target Level Precompiled Headers for Visual C++.
 #
@@ -49,18 +49,18 @@ endef
 # Early target processing pass #2.
 #
 # This sets up a rule for creating the .pch file after qt5 and similar units
-# are done modifying INCS, DEFS and company.  The 'tool' variable is defined by
-# footer-pass2-compiling-targets.kmk and is really the LD tool, but that'll
-# have to do for now.  The '-PCH' variant of the VCC tool, is defined together
-# with $(tool) and allow us to bypass the options and dependencies triggered
-# by _1_VCC_PCH_FILE, _1_VCC_COMMON_OBJ_PDB and _PCH_HDR, and also make sure we
-# don't get circular dependencies by way of kDepObj and the debug info.
+# are done modifying INCS, DEFS and company.  The '-PCH' variant of the VCC
+# tool, is defined together with $(pchtool) and allow us to bypass the options
+# and dependencies triggered by _1_VCC_PCH_FILE, _1_VCC_COMMON_OBJ_PDB and
+# _PCH_HDR, and also make sure we  don't get circular dependencies by way of
+# kDepObj and the debug info.
 #
 define def_unit_vccprecomp_target_pre_2
- local source := $($(target)_PCH_HDR)
- $(source)_TOOL := $(tool)-PCH
- local suff   := $(suffix $(source))
- local type   := CXX
+ local pchtool  := $(call _TARGET_TOOL,$(target),PCH)
+ local source   := $($(target)_PCH_HDR)
+ $(source)_TOOL := $(pchtool)-PCH
+ local suff     := $(suffix $(source))
+ local type     := CXX
  $(kb-src-one 3)
 endef
 
