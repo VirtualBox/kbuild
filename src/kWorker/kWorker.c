@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3378 2020-06-11 21:26:51Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3384 2020-06-17 20:22:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -2475,7 +2475,32 @@ static PKWMODULE kwLdrModuleTryLoadVirtualDll(const char *pszName, KSIZE cchName
                 kwErrPrintf("kLdrModOpenNativeByHandle failed for %p / '%s': %d\n", hModule, pszName, rc);
         }
         else
+        {
             KWLDR_LOG(("kwLdrModuleTryLoadVirtualDll: %s -> %s - A real DLL!\n", pszName, pMod->pszPath));
+            /* HACK ALERT! If api-ms-win-crt-* find ucrtbase.dll and attach it as the
+                           real module as we cannot make replacements in the virtual
+                           API set forward DLLs. */
+            /** @todo Find a way of scanning the exports and collect forwarder DLLs and
+             *        imported DLLs. kLdrModEnumSymbols()? */
+            if (   pMod->pVirtualApiMod == NULL
+                && kHlpStrNICompAscii(pszName, TUPLE("api-ms-win-crt-")) == 0)
+            {
+                HMODULE hModReal = GetModuleHandleW(L"ucrtbase.dll");
+                if (hModReal)
+                {
+                    PKWMODULE pRealMod = kwLdrModuleForLoadedNativeByHandle(hModReal, K_TRUE /*fEnsureCrtSlot*/, "ucrtbase.dll");
+                    if (pRealMod)
+                    {
+                        KWLDR_LOG(("kwLdrModuleTryLoadVirtualDll: Linking %s to '%s'.\n", pszName, pRealMod->pszPath));
+                        pMod->pVirtualApiMod = pRealMod;
+                    }
+                    else
+                        KWLDR_LOG(("kwLdrModuleTryLoadVirtualDll: kwLdrModuleForLoadedNativeByHandle failed for ucrtbase.dll/%s!\n", pszName));
+                }
+                else
+                    KWLDR_LOG(("kwLdrModuleTryLoadVirtualDll: no ucrtbase.dll found for %s!\n", pszName));
+            }
+        }
     }
 
     return pMod;
