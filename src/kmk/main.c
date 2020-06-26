@@ -817,6 +817,11 @@ unsigned short stopchar_map[UCHAR_MAX + 1] = {0};
 
 struct output make_sync;
 
+#ifdef KMK
+/** Current umask() value. */
+mode_t g_fUMask = 0022;
+#endif
+
 
 /* Mask of signals that are being caught with fatal_error_signal.  */
 
@@ -1762,6 +1767,11 @@ main (int argc, char **argv, char **envp)
 #endif
 #ifdef SIGXFSZ
   FATAL_SIG (SIGXFSZ);
+#endif
+
+#ifdef KMK
+  /* Get the incoming umask so we don't have to modify it later to get it. */
+  umask(g_fUMask = umask(0077));
 #endif
 
 #ifdef CONFIG_NEW_WIN32_CTRL_EVENT

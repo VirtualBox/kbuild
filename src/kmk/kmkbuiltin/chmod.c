@@ -277,9 +277,11 @@ usage(PKMKBUILTINCTX pCtx, int is_err)
 }
 
 #ifdef KMK_BUILTIN_STANDALONE
+mode_t g_fUMask;
 int main(int argc, char **argv, char **envp)
 {
     KMKBUILTINCTX Ctx = { "kmk_chmod", NULL };
+    umask(g_fUMask = umask(0077));
     return kmk_builtin_chmod(argc, argv, envp, &Ctx);
 }
 #endif

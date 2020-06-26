@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $
 
 #include "err.h"
 #include <errno.h>
+#include <assert.h>
 #ifndef _MSC_VER
 # include <libgen.h>
 #endif
@@ -79,6 +80,7 @@ static struct option long_options[] =
     { 0, 0,	0, 0 },
 };
 
+extern mode_t g_fUMask;
 
 extern void * bsd_setmode(const char *p);
 extern mode_t bsd_getmode(const void *bbox, mode_t omode);
@@ -166,9 +168,11 @@ kmk_builtin_mkdir(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 }
 
 #ifdef KMK_BUILTIN_STANDALONE
+mode_t g_fUMask;
 int main(int argc, char **argv, char **envp)
 {
     KMKBUILTINCTX Ctx = { "kmk_mkdir", NULL };
+    umask(g_fUMask = umask(0077));
     return kmk_builtin_mkdir(argc, argv, envp, &Ctx);
 }
 #endif
@@ -239,12 +243,18 @@ build(PKMKBUILTINCTX pCtx, char *path, mode_t omode, int vflag)
 			 * We change the user's umask and then restore it,
 			 * instead of doing chmod's.
 			 */
-			oumask = umask(0);
+#ifdef KMK_BUILTIN_STANDALONE
+			oumask = umask(0077);
+#else
+			oumask = g_fUMask;
+			assert(oumask == umask(g_fUMask));
+#endif
 			numask = oumask & ~(S_IWUSR | S_IXUSR);
-			(void)umask(numask);
+			if (numask != oumask)
+			    (void)umask(numask);
 			first = 0;
 		}
-		if (last)
+		if (last && oumask != numask)
 			(void)umask(oumask);
 		if (mkdir(path, last ? omode : S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
 			if (errno == EEXIST || errno == EISDIR
@@ -254,7 +264,8 @@ build(PKMKBUILTINCTX pCtx, char *path, mode_t omode, int vflag)
 					warn(pCtx, "stat: %s", path);
 					retval = 1;
 					break;
-				} else if (!S_ISDIR(sb.st_mode)) {
+				}
+				if (!S_ISDIR(sb.st_mode)) {
 					if (last)
 						errno = EEXIST;
 					else
@@ -273,7 +284,7 @@ build(PKMKBUILTINCTX pCtx, char *path, mode_t omode, int vflag)
 		if (!last)
 		    *p = '/';
 	}
-	if (!first && !last)
+	if (!first && !last && oumask != numask)
 		(void)umask(oumask);
 	return (retval);
 }

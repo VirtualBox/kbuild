@@ -5647,8 +5647,8 @@ func_get_umask (char *o, char **argv UNUSED, const char *funcname UNUSED)
         }
     }
 
-  u = umask (002);
-  umask (u);
+  u = g_fUMask;
+  assert (u == umask (g_fUMask));
 
   if (symbolic)
     {
@@ -5716,15 +5716,14 @@ func_set_umask (char *o, char **argv UNUSED, const char *funcname UNUSED)
 
       if (argv[1] != NULL)
           OS (error, reading_file, _("$(%s ) too many arguments for octal mode"), funcname);
+
+      umask (u);
+      g_fUMask = u;
   }
   else
   {
-      u = umask(0);
-      umask(u);
       OS (error, reading_file, _("$(%s ) symbol mode is not implemented"), funcname);
   }
-
-  umask(u);
 
   return o;
 }

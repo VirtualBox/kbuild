@@ -1187,3 +1187,7 @@ extern big_int nano_timestamp (void);
 extern int format_elapsed_nano (char *buf, size_t size, big_int ts);
 #endif
 
+#ifdef KMK
+/* main.c */
+extern mode_t g_fUMask;
+#endif
