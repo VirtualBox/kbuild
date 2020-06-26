@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 3219 2018-03-30 22:30:15Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 3387 2020-06-26 16:51:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -206,9 +206,16 @@ int lchmod(const char *pszPath, mode_t mode)
          * Modify the attributes and try set them.
          */
         if (mode & _S_IWRITE)
+        {
             fAttr &= ~FILE_ATTRIBUTE_READONLY;
+            if (fAttr == 0)
+                fAttr = FILE_ATTRIBUTE_NORMAL;
+        }
         else
+        {
+            fAttr &= ~FILE_ATTRIBUTE_NORMAL;
             fAttr |= FILE_ATTRIBUTE_READONLY;
+        }
         if (!SetFileAttributes(pszPath, fAttr))
             rc = birdSetErrno(GetLastError());
     }
@@ -251,9 +258,16 @@ int msc_chmod(const char *pszPath, mode_t mode)
          * Modify the attributes and try set them.
          */
         if (mode & _S_IWRITE)
+        {
             fAttr &= ~FILE_ATTRIBUTE_READONLY;
+            if (fAttr == 0)
+                fAttr = FILE_ATTRIBUTE_NORMAL;
+        }
         else
+        {
+            fAttr &= ~FILE_ATTRIBUTE_NORMAL;
             fAttr |= FILE_ATTRIBUTE_READONLY;
+        }
         if (!SetFileAttributes(pszPath, fAttr))
             rc = birdSetErrno(GetLastError());
     }
