@@ -1,4 +1,4 @@
-/* $Id: ntunlink.c 3386 2020-06-25 18:49:02Z knut.osmundsen@oracle.com $ */
+/* $Id: ntunlink.c 3388 2020-06-26 16:52:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT unlink and variations.
  */
@@ -60,9 +60,10 @@ static MY_NTSTATUS birdMakeWritable(HANDLE hRoot, MY_UNICODE_STRING *pNtPath)
 
         Ios.Information = -1;
         Ios.u.Status    = -1;
+        memset(&BasicInfo, 0, sizeof(BasicInfo));
         rcNt = g_pfnNtQueryInformationFile(hFile, &Ios, &BasicInfo, sizeof(BasicInfo), MyFileBasicInformation);
 
-        if (MY_NT_SUCCESS(rcNt) && MY_NT_SUCCESS(Ios.u.Status))
+        if (MY_NT_SUCCESS(rcNt) && MY_NT_SUCCESS(Ios.u.Status) /*&& BasicInfo.FileAttributes != FILE_ATTRIBUTE_READONLY*/)
             dwAttr = BasicInfo.FileAttributes & ~FILE_ATTRIBUTE_READONLY;
         else
             dwAttr = FILE_ATTRIBUTE_NORMAL;
