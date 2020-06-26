@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <assert.h>
 #include "err.h"
 #include <errno.h>
 #include "fts.h"
@@ -174,6 +175,8 @@ static char emptystring[] = "";
 #if defined(SIGINFO) && defined(KMK_BUILTIN_STANDALONE)
 volatile sig_atomic_t g_cp_info;
 #endif
+
+extern mode_t g_fUMask;
 
 
 /*********************************************************************************************************************************
@@ -422,9 +425,11 @@ kmk_builtin_cp(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx)
 }
 
 #ifdef KMK_BUILTIN_STANDALONE
+mode_t g_fUMask;
 int main(int argc, char **argv, char **envp)
 {
     KMKBUILTINCTX Ctx = { "kmk_cp", NULL };
+    umask(g_fUMask = umask(0077));
     return kmk_builtin_cp(argc, argv, envp, &Ctx);
 }
 #endif
@@ -444,8 +449,9 @@ copy(CPINSTANCE *pThis, char * const *argv, enum op type, int fts_options)
 	 * Keep an inverted copy of the umask, for use in correcting
 	 * permissions on created directories when not using -p.
 	 */
-	mask = ~umask(0777);
-	umask(~mask);
+	mask = g_fUMask;
+	assert(mask == umask(mask));
+	mask = ~mask;
 
 	if ((ftsp = fts_open(argv, fts_options, mastercmp)) == NULL)
 		return err(pThis->Utils.pCtx, 1, "fts_open");

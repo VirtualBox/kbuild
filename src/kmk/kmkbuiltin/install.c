@@ -395,9 +395,11 @@ kmk_builtin_install(int argc, char *argv[], char ** envp, PKMKBUILTINCTX pCtx)
 }
 
 #ifdef KMK_BUILTIN_STANDALONE
+mode_t g_fUMask;
 int main(int argc, char **argv, char **envp)
 {
 	KMKBUILTINCTX Ctx = { "kmk_install", NULL };
+	umask(g_fUMask = umask(0077));
 	return kmk_builtin_install(argc, argv, envp, &Ctx);
 }
 #endif

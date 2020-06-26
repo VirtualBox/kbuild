@@ -99,6 +99,9 @@ static void	 dumpmode(BITCMD *);
 # endif
 #endif /* !S_ISTXT */
 
+extern mode_t g_fUMask; /* Initialize in main() and keep up to date. */
+
+
 /*
  * Given the old mode and an array of bitcmd structures, apply the operations
  * described in the bitcmd structures to the old mode, and return the new mode.
@@ -222,7 +225,8 @@ bsd_setmode(p)
 	sigfillset(&signset);
 	(void)sigprocmask(SIG_BLOCK, &signset, &sigoset);
 #endif
-	(void)umask(mask = umask(0));
+	mask = g_fUMask;
+	assert(mask == umask(g_fUMask));
 	mask = ~mask;
 #ifndef _MSC_VER
 	(void)sigprocmask(SIG_SETMASK, &sigoset, NULL);
