@@ -1,4 +1,4 @@
-# $Id: GCC.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: GCC.kmk 3393 2020-06-30 17:11:42Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic GCC Using The System GCC.
 #
@@ -34,18 +34,26 @@
 TOOL_GCC := Generic GCC Using The System GCC.
 
 # Tool Specific Properties
-TOOL_GCC_CC  ?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC_CXX ?= g++$(HOSTSUFF_EXE)
-TOOL_GCC_AS  ?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC_AR  ?= ar$(HOSTSUFF_EXE)
-TOOL_GCC_RANLIB ?= ranlib$(HOSTSUFF_EXE)
-TOOL_GCC_LD  ?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC_LDFLAGS.dll.os2 ?= -Zdll
+ifndef TOOL_GCC_PREFIX
+ TOOL_GCC_PREFIX :=
+endif
+ifndef TOOL_GCC_SUFFIX
+ TOOL_GCC_SUFFIX := $(HOSTSUFF_EXE)
+endif
+TOOL_GCC_PREFIX2 ?= $(TOOL_GCC_PREFIX)
+TOOL_GCC_SUFFIX2 ?= $(TOOL_GCC_SUFFIX)
+TOOL_GCC_CC      ?= $(TOOL_GCC_PREFIX)gcc$(TOOL_GCC_SUFFIX)
+TOOL_GCC_CXX     ?= $(TOOL_GCC_PREFIX)g++$(TOOL_GCC_SUFFIX)
+TOOL_GCC_AS      ?= $(TOOL_GCC_PREFIX)gcc$(TOOL_GCC_SUFFIX)
+TOOL_GCC_AR      ?= $(TOOL_GCC_PREFIX2)ar$(TOOL_GCC_SUFFIX2)
+TOOL_GCC_RANLIB  ?= $(TOOL_GCC_PREFIX2)ranlib$(TOOL_GCC_SUFFIX2)
+TOOL_GCC_LD      ?= $(TOOL_GCC_PREFIX)gcc$(TOOL_GCC_SUFFIX)
+TOOL_GCC_LDFLAGS.dll.os2    ?= -Zdll
 TOOL_GCC_LDFLAGS.dll.darwin ?= -dynamiclib
 ifndef TOOL_GCC_LDFLAGS.$(KBUILD_TARGET)
-TOOL_GCC_LDFLAGS.dll ?= -shared
+ TOOL_GCC_LDFLAGS.dll       ?= -shared
 else
-TOOL_GCC_LDFLAGS.dll ?= $(TOOL_GCC_LDFLAGS.$(KBUILD_TARGET))
+ TOOL_GCC_LDFLAGS.dll       ?= $(TOOL_GCC_LDFLAGS.$(KBUILD_TARGET))
 endif
 
 # General Properties used by kBuild
