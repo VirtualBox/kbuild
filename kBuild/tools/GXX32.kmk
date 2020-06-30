@@ -1,4 +1,4 @@
-# $Id: GXX32.kmk 3258 2019-01-03 05:34:09Z knut.osmundsen@oracle.com $
+# $Id: GXX32.kmk 3391 2020-06-30 08:08:15Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic 32-bit GCC v3.2.x or later using the system GCC, for building C++ code.
 #
@@ -35,34 +35,44 @@ TOOL_GXX32 := Generic 32-bit GCC v3.2.x or later using the system GCC, for build
 	More or less Linux/ELF specfic.
 
 # Tool Specific Properties
-TOOL_GXX32_CC  ?= gcc$(HOSTSUFF_EXE) -m32
-TOOL_GXX32_CXX ?= g++$(HOSTSUFF_EXE) -m32
+ifndef TOOL_GXX32_PREFIX
+ TOOL_GXX32_PREFIX :=
+endif
+ifndef TOOL_GXX32_SUFFIX
+ TOOL_GXX32_SUFFIX := $(HOSTSUFF_EXE)
+endif
+TOOL_GXX32_CC  ?= $(TOOL_GXX32_PREFIX)gcc$(TOOL_GXX32_SUFFIX) -m32
+TOOL_GXX32_CXX ?= $(TOOL_GXX32_PREFIX)g++$(TOOL_GXX32_SUFFIX) -m32
 TOOL_GXX32_PCH ?= $(TOOL_GXX32_CXX)
-TOOL_GXX32_AS  ?= gcc$(HOSTSUFF_EXE) -m32
-TOOL_GXX32_AR  ?= ar$(HOSTSUFF_EXE)
-TOOL_GXX32_LD  ?= g++$(HOSTSUFF_EXE) -m32
-TOOL_GXX32_LD_SYSMOD ?= ld$(HOSTSUFF_EXE)
-ifndef TOOL_GXX32_LDFLAGS.$(KBUILD_TARGET)
-TOOL_GXX32_LDFLAGS.dll ?= -shared
+TOOL_GXX32_AS  ?= $(TOOL_GXX32_PREFIX)gcc$(TOOL_GXX32_SUFFIX) -m32
+if1of ($(KBUILD_TARGET),solaris)
+ TOOL_GXX32_AR ?= $(TOOL_GXX32_PREFIX)gar$(TOOL_GXX32_SUFFIX)
 else
-TOOL_GXX32_LDFLAGS.dll ?= $(TOOL_GXX32_LDFLAGS.$(KBUILD_TARGET))
+ TOOL_GXX32_AR ?= $(TOOL_GXX32_PREFIX)ar$(TOOL_GXX32_SUFFIX)
+endif
+TOOL_GXX32_LD  ?= $(TOOL_GXX32_PREFIX)g++$(TOOL_GXX32_SUFFIX) -m32
+TOOL_GXX32_LD_SYSMOD ?= $(TOOL_GXX32_PREFIX)ld$(TOOL_GXX32_SUFFIX)
+ifndef TOOL_GXX32_LDFLAGS.$(KBUILD_TARGET)
+ TOOL_GXX32_LDFLAGS.dll ?= -shared
+else
+ TOOL_GXX32_LDFLAGS.dll ?= $(TOOL_GXX32_LDFLAGS.$(KBUILD_TARGET))
 endif
 TOOL_GXX32_LDFLAGS.sysmod ?= -r -m elf_i386$(if-expr "$(KBUILD_TARGET)" == "freebsd" || "$(KBUILD_TARGET)" == "gnukfbsd",_fbsd,)
 TOOL_GXX32_LD_SONAME ?= -Wl,-soname=$(firstword $($(1)_SONAME.$(KBUILD_TARGET).$(KBUILD_TYPE)) $($(1)_SONAME.$(KBUILD_TARGET)) $($(1)_SONAME.$(KBUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
 ifeq ($(KBUILD_TARGET),os2)
-TOOL_GXX32_LD_MAP ?= -Zmap=$(1)
+ TOOL_GXX32_LD_MAP ?= -Zmap=$(1)
 else
-TOOL_GXX32_LD_MAP ?=
+ TOOL_GXX32_LD_MAP ?=
 endif
 ifeq ($(KBUILD_TARGET),os2)
-TOOL_GXX32_LD_SYSMOD_MAP ?= -Zmap=$(1)
+ TOOL_GXX32_LD_SYSMOD_MAP ?= -Zmap=$(1)
 else
-TOOL_GXX32_LD_SYSMOD_MAP ?=
+ TOOL_GXX32_LD_SYSMOD_MAP ?=
 endif
 if1of ($(KBUILD_HOST), solaris)
- TOOL_GXX32_OBJCOPY ?= gobjcopy$(HOSTSUFF_EXE)
+ TOOL_GXX32_OBJCOPY ?= $(TOOL_GXX32_PREFIX)gobjcopy$(TOOL_GXX32_SUFFIX)
 else
- TOOL_GXX32_OBJCOPY ?= objcopy$(HOSTSUFF_EXE)
+ TOOL_GXX32_OBJCOPY ?= $(TOOL_GXX32_PREFIX)objcopy$(TOOL_GXX32_SUFFIX)
 endif
 
 ifdef SLKRUNS
