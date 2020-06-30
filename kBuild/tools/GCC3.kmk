@@ -1,4 +1,4 @@
-# $Id: GCC3.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: GCC3.kmk 3393 2020-06-30 17:11:42Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic GCC v3.2.x or later Using The System GCC and Binutils.
 #
@@ -34,21 +34,35 @@
 TOOL_GCC3 := Generic GCC v3.2.x or later Using The System GCC and Binutils.
 
 # Tool Specific Properties
-TOOL_GCC3_CC  ?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC3_CXX ?= g++$(HOSTSUFF_EXE)
-TOOL_GCC3_AS  ?= gcc$(HOSTSUFF_EXE)
-ifeq ($(KBUILD_TARGET),solaris) ## @todo drop the MRI script!
- TOOL_GCC3_AR ?= gar$(HOSTSUFF_EXE)
-else
- TOOL_GCC3_AR ?= ar$(HOSTSUFF_EXE)
+ifndef TOOL_GCC3_PREFIX
+ TOOL_GCC3_PREFIX :=
 endif
+ifndef TOOL_GCC3_SUFFIX
+ TOOL_GCC3_SUFFIX := $(HOSTSUFF_EXE)
+endif
+if1of ($(KBUILD_HOST), solaris)
+ TOOL_GCC3_PREFIX2  ?= g
+else
+ TOOL_GCC3_PREFIX2  ?=
+endif
+TOOL_GCC3_SUFFIX2   ?= $(HOSTSUFF_EXE)
+TOOL_GCC3_PREFIX3   ?=
+TOOL_GCC3_SUFFIX3   ?= $(HOSTSUFF_EXE)
+TOOL_GCC3_CC        ?= $(TOOL_GCC3_PREFIX)gcc$(TOOL_GCC3_SUFFIX)
+TOOL_GCC3_CXX       ?= $(TOOL_GCC3_PREFIX)g++$(TOOL_GCC3_SUFFIX)
+TOOL_GCC3_AS        ?= $(TOOL_GCC3_PREFIX)gcc$(TOOL_GCC3_SUFFIX)
+TOOL_GCC3_AR        ?= $(TOOL_GCC3_PREFIX2)ar$(TOOL_GCC3_SUFFIX2)
 ifeq ($(KBUILD_TARGET),os2)
- TOOL_GCC3_AR_IMP ?= emximp$(HOSTSTUFF_EXE)
+ TOOL_GCC3_AR_IMP   ?= $(TOOL_GCC3_PREFIX3)emximp$(TOOL_GCC3_SUFFIX3)
 else
- TOOL_GCC3_AR_IMP ?= $(ECHO) not supported!
+ TOOL_GCC3_AR_IMP   ?= $(ECHO) not supported!
 endif
-TOOL_GCC3_LD ?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC3_LD_SYSMOD ?= ld$(HOSTSUFF_EXE)
+TOOL_GCC3_LD        ?= $(TOOL_GCC3_PREFIX)gcc$(TOOL_GCC3_SUFFIX)
+if1of ($(KBUILD_HOST), solaris)
+TOOL_GCC3_LD_SYSMOD ?= $(TOOL_GCC3_PREFIX3)ld$(TOOL_GCC3_SUFFIX3)
+else
+TOOL_GCC3_LD_SYSMOD ?= $(TOOL_GCC3_PREFIX2)ld$(TOOL_GCC3_SUFFIX2)
+endif
 ifndef TOOL_GCC3_LDFLAGS.$(KBUILD_TARGET)
  TOOL_GCC3_LDFLAGS.dll ?= -shared
 else
@@ -63,11 +77,7 @@ else
  TOOL_GCC3_LD_MAP ?=
  TOOL_GCC3_LD_SYSMOD_MAP ?=
 endif
-if1of ($(KBUILD_HOST), solaris)
- TOOL_GCC3_OBJCOPY ?= gobjcopy$(HOSTSUFF_EXE)
-else
- TOOL_GCC3_OBJCOPY ?= objcopy$(HOSTSUFF_EXE)
-endif
+TOOL_GCC3_OBJCOPY ?= $(TOOL_GCC3_PREFIX2)objcopy$(TOOL_GCC3_SUFFIX2)
 
 ifdef SLKRUNS
  TOOL_GCC3_CC  += -fmessage-length=0
