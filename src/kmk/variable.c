@@ -1595,9 +1595,7 @@ define_automatic_variables (void)
   const char *val;
   struct variable *envvar1;
   struct variable *envvar2;
-# ifdef WINDOWS32
-  OSVERSIONINFOEX oix;
-# else
+# ifndef WINDOWS32
   struct utsname uts;
 # endif
   unsigned long ulMajor = 0, ulMinor = 0, ulPatch = 0, ul4th = 0;
@@ -1666,32 +1664,43 @@ define_automatic_variables (void)
     define_variable_cname ("BUILD_PLATFORM_CPU", val, o_default, 0);
 
   /* The host kernel version. */
-#if defined(WINDOWS32)
-  memset (&oix, '\0', sizeof (oix));
-  oix.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-  if (!GetVersionEx ((LPOSVERSIONINFO)&oix))
-    {
-      memset (&oix, '\0', sizeof (oix));
-      oix.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
-      GetVersionEx ((LPOSVERSIONINFO)&oix);
-    }
-  if (oix.dwPlatformId == VER_PLATFORM_WIN32_NT)
-    {
-      ulMajor = oix.dwMajorVersion;
-      ulMinor = oix.dwMinorVersion;
-      ulPatch = oix.wServicePackMajor;
-      ul4th   = oix.wServicePackMinor;
-    }
-  else
-    {
-      ulMajor = oix.dwPlatformId == 1 ? 0 /*Win95/98/ME*/
-              : oix.dwPlatformId == 3 ? 1 /*WinCE*/
-              : 2; /*??*/
-      ulMinor = oix.dwMajorVersion;
-      ulPatch = oix.dwMinorVersion;
-      ul4th   = oix.wServicePackMajor;
-    }
-#else
+# if defined(WINDOWS32)
+  {
+    OSVERSIONINFOEXW oix;
+    typedef NTSTATUS (WINAPI *pfnRtlGetVersion)(OSVERSIONINFOEXW *);
+    *(FARPROC *)&pfnRtlGetVersion = GetProcAddress (GetModuleHandleW ("NTDLL.DLL"),
+                                                    "RtlGetVersion"); /* GetVersionEx lies */
+    memset (&oix, '\0', sizeof (oix));
+    oix.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEX);
+    if (!pfnRtlGetVersion || pfnRtlGetVersion (&oix) < 0)
+      {
+        memset (&oix, '\0', sizeof (oix));
+        oix.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEX);
+        if (!GetVersionExW((LPOSVERSIONINFO)&oix))
+          {
+            memset (&oix, '\0', sizeof (oix));
+            oix.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
+            GetVersionExW ((LPOSVERSIONINFO)&oix);
+          }
+      }
+    if (oix.dwPlatformId == VER_PLATFORM_WIN32_NT)
+      {
+        ulMajor = oix.dwMajorVersion;
+        ulMinor = oix.dwMinorVersion;
+        ulPatch = oix.wServicePackMajor;
+        ul4th   = oix.wServicePackMinor;
+      }
+    else
+      {
+        ulMajor = oix.dwPlatformId == 1 ? 0 /*Win95/98/ME*/
+                : oix.dwPlatformId == 3 ? 1 /*WinCE*/
+                : 2; /*??*/
+        ulMinor = oix.dwMajorVersion;
+        ulPatch = oix.dwMinorVersion;
+        ul4th   = oix.wServicePackMajor;
+      }
+  }
+# else
   memset (&uts, 0, sizeof(uts));
   uname (&uts);
   val = uts.release;
@@ -1705,7 +1714,7 @@ define_automatic_variables (void)
   define_variable_cname ("KBUILD_HOST_UNAME_VERSION", uts.version, o_default, 0);
   define_variable_cname ("KBUILD_HOST_UNAME_MACHINE", uts.machine, o_default, 0);
   define_variable_cname ("KBUILD_HOST_UNAME_NODENAME", uts.nodename, o_default, 0);
-#endif
+# endif
 
   sprintf (buf, "%lu.%lu.%lu.%lu", ulMajor, ulMinor, ulPatch, ul4th);
   define_variable_cname ("KBUILD_HOST_VERSION", buf, o_default, 0);
@@ -1754,7 +1763,7 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_DEFINED_FUNCTIONS) \
   && defined (KMK_HELPERS)
   define_variable_cname ("KMK_FEATURES",
-                         "append-dash-n abspath includedep-queue install-hard-linking umask quote"
+                         "append-dash-n abspath includedep-queue install-hard-linking umask quote versort"
                          " kBuild-define"
                          " rsort"
                          " abspathex"
@@ -1785,7 +1794,7 @@ define_automatic_variables (void)
                          , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
 #  error "All features should be enabled by default!"
-  strcpy (buf, "append-dash-n abspath includedep-queue install-hard-linking umask quote"
+  strcpy (buf, "append-dash-n abspath includedep-queue install-hard-linking umask quote versort"
                " kBuild-define");
 #  if defined (CONFIG_WITH_RSORT)
   strcat (buf, " rsort");

@@ -312,7 +312,7 @@ char *func_commands (char *o, char **argv, const char *funcname);
 /* Avoid calling handle_function for every variable, do the
    basic checks in variable_expand_string_2. */
 extern char func_char_map[256];
-# define MAX_FUNCTION_LENGTH    12
+# define MAX_FUNCTION_LENGTH    14
 # define MIN_FUNCTION_LENGTH    2
 K_INLINE const char *may_be_function_name (const char *name, const char *eos)
 {

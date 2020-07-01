@@ -62,6 +62,7 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		../lib/kbuild_version.c \
 		../lib/dos2unix.c \
 		../lib/maybe_con_fwrite.c \
+		../lib/version_compare.c \
 		\
 		kmkbuiltin.c \
 		kmkbuiltin/append.c \

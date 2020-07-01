@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3352 2020-06-05 00:31:50Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3394 2020-07-01 20:24:52Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -77,7 +77,8 @@ endif
 # GCC sanitizers.
 ifdef GCC_SANITIZERS
  TEMPLATE_BIN-KMK_CFLAGS  ?= $(TEMPLATE_BIN-THREADED_CFLAGS)
- TEMPLATE_BIN-KMK_CFLAGS  += -fsanitize=address -fsanitize=undefined -static-libubsan -D GCC_ADDRESS_SANITIZER
+# TEMPLATE_BIN-KMK_CFLAGS  += -fsanitize=address -fsanitize=undefined -static-libubsan -D GCC_ADDRESS_SANITIZER
+ TEMPLATE_BIN-KMK_CFLAGS  += -fsanitize=address -fsanitize=undefined -D GCC_ADDRESS_SANITIZER
  TEMPLATE_BIN-KMK_LDFLAGS ?= $(TEMPLATE_BIN-THREADED_LDFLAGS)
  TEMPLATE_BIN-KMK_LDFLAGS += -fsanitize=address -fsanitize=undefined
 endif
