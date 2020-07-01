@@ -89,6 +89,7 @@ static math_int math_int_from_string (const char *str);
 # ifdef _MSC_VER
 #  include "kmkbuiltin/mscfakes.h"
 # endif
+# include "version_compare.h"
 #endif
 
 
@@ -1756,6 +1757,19 @@ func_error (char *o, char **argv, const char *funcname)
   return o;
 }
 
+#ifdef KMK
+/* Compare strings *S1 and *S2.
+   Return negative if the first is less, positive if it is greater,
+   zero if they are equal.  */
+
+static int
+version_compare_wrapper (const void *v1, const void *v2)
+{
+  const char *s1 = *((char **)v1);
+  const char *s2 = *((char **)v2);
+  return version_compare (s1, s2);
+}
+#endif /* KMK */
 
 /*
   chop argv[0] into words, and sort them.
@@ -1796,11 +1810,18 @@ func_sort (char *o, char **argv, const char *funcname UNUSED)
       int i;
 
       /* Now sort the list of words.  */
+#ifdef KMK
+      if (funcname[0] == 'v' || funcname[1] == 'v')
+        qsort (words, wordi, sizeof (char *), version_compare_wrapper);
+      else
+        qsort (words, wordi, sizeof (char *), alpha_compare);
+#else
       qsort (words, wordi, sizeof (char *), alpha_compare);
+#endif
 
       /* Now write the sorted list, uniquified.  */
 #ifdef CONFIG_WITH_RSORT
-      if (strcmp (funcname, "rsort"))
+      if (*funcname != 'r')
         {
           /* sort */
 #endif
@@ -6758,7 +6779,7 @@ func_q_foreachfile (char *o, char **argv, const char *funcname UNUSED)
 /* Common worker for func_sortfiles() and func_q_sortfiles(). */
 
 static char *common_sortfiles (char *o, char **argv, unsigned int style,
-                               int ascending)
+                               int ascending, int version)
 {
   struct nameseq *chain = helper_parse_file_list (argv[0], style, 0);
 
@@ -6816,7 +6837,8 @@ static char *common_sortfiles (char *o, char **argv, unsigned int style,
 static char *func_sortfiles (char *o, char **argv, const char *funcname)
 {
   return common_sortfiles (o, argv, Q_IN_QUOTED | Q_RET_QUOTED | Q_SEP_SPACE,
-                           funcname[0] != 'r');
+                           funcname[0] != 'r',
+                           funcname[0] == 'v' || funcname[1] == 'v');
 }
 
 /* $(qsortfiles style, file1 ... fileN) and
@@ -6827,7 +6849,8 @@ static char *func_sortfiles (char *o, char **argv, const char *funcname)
 static char *func_q_sortfiles (char *o, char **argv, const char *funcname)
 {
   unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
-  return common_sortfiles (o, &argv[1], style, funcname[1] != 'r');
+  return common_sortfiles (o, &argv[1], style, funcname[1] != 'r',
+                           funcname[1] == 'v' || funcname[2] == 'v');
 }
 
 
@@ -6852,7 +6875,6 @@ static char *worker_abspath (char *o, char *line, const char *cwd,
   if (line && *line != '\0')
     {
       PATH_VAR (outbuf);
-      int doneany = 0;
       struct nameseq *chain = helper_parse_file_list (line, style, 0);
 
       /* Special case: single path, no cwd - no is_last path trouble */
@@ -7384,9 +7406,15 @@ static struct function_table_entry function_table_init[] =
   FT_ENTRY ("realpath",      0,  1,  1,  func_realpath),
 #ifdef CONFIG_WITH_RSORT
   FT_ENTRY ("rsort",         0,  1,  1,  func_sort),
+# ifdef KMK
+  FT_ENTRY ("rversort",      0,  1,  1,  func_sort),
+# endif
 #endif
   FT_ENTRY ("shell",         0,  1,  1,  func_shell),
   FT_ENTRY ("sort",          0,  1,  1,  func_sort),
+# ifdef KMK
+  FT_ENTRY ("versort",       0,  1,  1,  func_sort),
+# endif
   FT_ENTRY ("strip",         0,  1,  1,  func_strip),
 #ifdef CONFIG_WITH_WHERE_FUNCTION
   FT_ENTRY ("where",         0,  1,  1,  func_where),
@@ -7546,8 +7574,10 @@ static struct function_table_entry function_table_init[] =
   FT_ENTRY ("countfiles",    0,  1, 1, func_countfiles),
   FT_ENTRY ("foreachfile",   3,  3, 0, func_foreachfile),
   FT_ENTRY ("sortfiles",     0,  1, 1, func_sortfiles),
+  FT_ENTRY ("versortfiles",  0,  1, 1, func_sortfiles),
 # ifdef CONFIG_WITH_RSORT
   FT_ENTRY ("rsortfiles",    0,  1, 1, func_sortfiles),
+  FT_ENTRY ("rversortfiles", 0,  1, 1, func_sortfiles),
 # endif
   /* Function variants with preceding style argument and quoting by default. */
   FT_ENTRY ("qfirstfile",   1+0, 1+1, 1, func_q_firstfile),
@@ -7556,8 +7586,10 @@ static struct function_table_entry function_table_init[] =
   FT_ENTRY ("qcountfiles",  1+0, 1+1, 1, func_q_countfiles),
   FT_ENTRY ("qforeachfile", 1+3, 1+3, 0, func_q_foreachfile),
   FT_ENTRY ("qsortfiles",   1+0, 1+1, 1, func_q_sortfiles),
+  FT_ENTRY ("qversortfiles",1+0, 1+1, 1, func_q_sortfiles),
 # ifdef CONFIG_WITH_RSORT
   FT_ENTRY ("qrsortfiles",  1+0, 1+1, 1, func_q_sortfiles),
+  FT_ENTRY ("qrversortfiles",1+0,1+1, 1, func_q_sortfiles),
 # endif
   FT_ENTRY ("qabspath",     1+0, 1+1, 1, func_q_abspath),
   FT_ENTRY ("qaddprefix",   1+2, 1+2, 1, func_q_addsuffix_addprefix),
