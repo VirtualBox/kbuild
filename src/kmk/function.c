@@ -6801,7 +6801,10 @@ static char *common_sortfiles (char *o, char **argv, unsigned int style,
         files[idx++] = (char *)cur->name;
 
       /* Sort it. */
-      qsort (files, num_files, sizeof (files[0]), alpha_compare);
+      if (version)
+        qsort(files, num_files, sizeof(files[0]), version_compare_wrapper);
+      else
+        qsort(files, num_files, sizeof(files[0]), alpha_compare);
 
       /* Output. We skip equal files. */
       if (ascending)
