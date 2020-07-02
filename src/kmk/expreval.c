@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 3398 2020-07-02 09:16:27Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 3399 2020-07-02 11:35:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -58,6 +58,15 @@
 #define EXPR_MAX_OPERATORS  72
 /** The max operand depth. */
 #define EXPR_MAX_OPERANDS   128
+
+/** Check if @a a_ch is a valid separator for a alphabetical binary
+ *  operator, omitting isspace. */
+#define EXPR_IS_OP_SEPARATOR_NO_SPACE(a_ch) \
+    (ispunct((a_ch)) && (a_ch) != '@' && (a_ch) != '_'))
+
+/** Check if @a a_ch is a valid separator for a alphabetical binary operator. */
+#define EXPR_IS_OP_SEPARATOR(a_ch) \
+    (isspace((a_ch)) || EXPR_IS_OP_SEPARATOR_NO_SPACE(a_ch))
 
 
 /*******************************************************************************
@@ -180,7 +189,15 @@ typedef struct EXPR
 *   Global Variables                                                           *
 *******************************************************************************/
 /** Operator start character map.
- * This indicates which characters that are starting operators and which aren't. */
+ * This indicates which characters that are starting operators and which aren't.
+ *
+ * Bit 0: Indicates that this char is used in operators.
+ * Bit 1: When bit 0 is clear, this indicates whitespace.
+ *        When bit 1 is set, this indicates whether the operator can be used
+ *        immediately next to an operand without any clear separation.
+ * Bits 2 thru 7: Index into g_aExprOps of the first operator starting with
+ *        this character.
+ */
 static unsigned char g_auchOpStartCharMap[256];
 /** Whether we've initialized the map. */
 static int g_fExprInitializedMap = 0;
@@ -1819,7 +1836,7 @@ static const EXPROP g_aExprOps[] =
 /** Dummy end of expression fake. */
 static const EXPROP g_ExprEndOfExpOp =
 {
-              "", 0, '\0',    0,      0,    NULL
+            "", 0, '\0',    0,      0,    NULL
 };
 
 
@@ -1840,8 +1857,24 @@ static void expr_map_init(void)
     {
         unsigned int ch = (unsigned int)g_aExprOps[i].szOp[0];
         if (!g_auchOpStartCharMap[ch])
-            g_auchOpStartCharMap[ch] = (i << 1) | 1;
+        {
+            g_auchOpStartCharMap[ch] = (i << 2) | 1;
+            if (!isalpha(ch))
+                g_auchOpStartCharMap[ch] |= 2; /* Need no clear separation from operands. */
+        }
     }
+
+    /* whitespace (assumes C-like locale because I'm lazy): */
+#define SET_WHITESPACE(a_ch) do {  \
+        assert(g_auchOpStartCharMap[(unsigned char)(a_ch)] == 0); \
+        g_auchOpStartCharMap[(unsigned char)(a_ch)] |= 2; \
+    } while (0)
+    SET_WHITESPACE(' ');
+    SET_WHITESPACE('\t');
+    SET_WHITESPACE('\n');
+    SET_WHITESPACE('\r');
+    SET_WHITESPACE('\v');
+    SET_WHITESPACE('\f');
 
     g_fExprInitializedMap = 1;
 }
@@ -1850,12 +1883,7 @@ static void expr_map_init(void)
 /**
  * Looks up a character in the map.
  *
- * @returns the value for that char.
- * @retval  0 if not a potential opcode start char.
- * @retval  non-zero if it's a potential operator. The low bit is always set
- *          while the remaining 7 bits is the index into the operator table
- *          of the first match.
- *
+ * @returns the value for that char, see g_auchOpStartCharMap for details.
  * @param   ch      The character.
  */
 static unsigned char expr_map_get(char ch)
@@ -1876,8 +1904,9 @@ static PCEXPROP expr_lookup_op(char const *psz, unsigned char uchVal, int fUnary
 {
     char ch = *psz;
     unsigned i;
+    assert((uchVal & 2) == (isalpha(ch) ? 0 : 2));
 
-    for (i = uchVal >> 1; i < sizeof(g_aExprOps) / sizeof(g_aExprOps[0]); i++)
+    for (i = uchVal >> 2; i < sizeof(g_aExprOps) / sizeof(g_aExprOps[0]); i++)
     {
         /* compare the string... */
         if (g_aExprOps[i].szOp[0] != ch)
@@ -1899,8 +1928,13 @@ static PCEXPROP expr_lookup_op(char const *psz, unsigned char uchVal, int fUnary
         /* ... and the operator type. */
         if (fUnary == (g_aExprOps[i].cArgs == 1))
         {
-            /* got a match! */
-            return &g_aExprOps[i];
+            /* Check if we've got the needed operand separation: */
+            if (   (uchVal & 2)
+                || EXPR_IS_OP_SEPARATOR(psz[g_aExprOps[i].cchOp]))
+            {
+                /* got a match! */
+                return &g_aExprOps[i];
+            }
         }
     }
 
@@ -1957,13 +1991,15 @@ static EXPRRET expr_get_binary_or_eoe_or_rparen(PEXPR pThis)
         char const *psz = pThis->psz;
 
         /* spaces */
-        while (ISSPACE(*psz))
+        unsigned char uchVal;
+        char ch;
+        while (((uchVal = expr_map_get((ch = *psz))) & 3) == 2)
             psz++;
+
         /* see what we've got. */
-        if (*psz)
+        if (ch)
         {
-            unsigned char uchVal = expr_map_get(*psz);
-            if (uchVal)
+            if (uchVal & 1)
                 pOp = expr_lookup_op(psz, uchVal, 0 /* fUnary */);
             if (!pOp)
             {
@@ -2017,13 +2053,14 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
     unsigned char uchVal;
     PCEXPROP      pOp;
     char const   *psz = pThis->psz;
+    char          ch;
 
     /*
      * Eat white space and make sure there is something after it.
      */
-    while (ISSPACE(*psz))
+    while (((uchVal = expr_map_get((ch = *psz))) & 3) == 2)
         psz++;
-    if (!*psz)
+    if (ch == '\0')
     {
         expr_error(pThis, "Unexpected end of expression");
         return kExprRet_Error;
@@ -2033,8 +2070,7 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
      * Is it an operator?
      */
     pOp = NULL;
-    uchVal = expr_map_get(*psz);
-    if (uchVal)
+    if (uchVal & 1)
         pOp = expr_lookup_op(psz, uchVal, 1 /* fUnary */);
     if (pOp)
     {
@@ -2062,22 +2098,22 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
         const char *pszStart;
 
         rc = kExprRet_Ok;
-        if (*psz == '"')
+        if (ch == '"')
         {
             pszStart = ++psz;
-            while (*psz && *psz != '"')
+            while ((ch = *psz) != '\0' && ch != '"')
                 psz++;
             expr_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kExprVar_QuotedString);
-            if (*psz)
+            if (ch != '\0')
                 psz++;
         }
-        else if (*psz == '\'')
+        else if (ch == '\'')
         {
             pszStart = ++psz;
-            while (*psz && *psz != '\'')
+            while ((ch = *psz) != '\0' && ch != '\'')
                 psz++;
             expr_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kExprVar_QuotedSimpleString);
-            if (*psz)
+            if (ch != '\0')
                 psz++;
         }
         else
@@ -2085,11 +2121,12 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
             char    achPars[20];
             int     iPar = -1;
             char    chEndPar = '\0';
-            char    ch, ch2;
 
             pszStart = psz;
             while ((ch = *psz) != '\0')
             {
+                char ch2;
+
                 /* $(adsf) or ${asdf} needs special handling. */
                 if (    ch == '$'
                     &&  (   (ch2 = psz[1]) == '('
@@ -2111,16 +2148,20 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
                 }
                 else if (!chEndPar)
                 {
-                    /** @todo combine isspace and expr_map_get! */
-                    unsigned chVal = expr_map_get(ch);
-                    if (chVal)
+                    uchVal = expr_map_get(ch);
+                    if (uchVal == 0)
+                    { /*likely*/ }
+                    else if ((uchVal & 3) == 2 /*isspace*/)
+                        break;
+                    else if (   (uchVal & 1)
+                             && psz != pszStart  /* not at the start */
+                             && (   (uchVal & 2) /* operator without separator needs */
+                                 || EXPR_IS_OP_SEPARATOR_NO_SPACE(psz[-1])))
                     {
                         pOp = expr_lookup_op(psz, uchVal, 0 /* fUnary */);
                         if (pOp)
                             break;
                     }
-                    if (ISSPACE(ch))
-                        break;
                 }
 
                 /* next */
