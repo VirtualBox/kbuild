@@ -1667,20 +1667,20 @@ define_automatic_variables (void)
 # if defined(WINDOWS32)
   {
     OSVERSIONINFOEXW oix;
-    typedef NTSTATUS (WINAPI *pfnRtlGetVersion)(OSVERSIONINFOEXW *);
-    *(FARPROC *)&pfnRtlGetVersion = GetProcAddress (GetModuleHandleW ("NTDLL.DLL"),
+    NTSTATUS (WINAPI *pfnRtlGetVersion)(OSVERSIONINFOEXW *);
+    *(FARPROC *)&pfnRtlGetVersion = GetProcAddress (GetModuleHandleW (L"NTDLL.DLL"),
                                                     "RtlGetVersion"); /* GetVersionEx lies */
     memset (&oix, '\0', sizeof (oix));
-    oix.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEX);
+    oix.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEXW);
     if (!pfnRtlGetVersion || pfnRtlGetVersion (&oix) < 0)
       {
         memset (&oix, '\0', sizeof (oix));
-        oix.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEX);
-        if (!GetVersionExW((LPOSVERSIONINFO)&oix))
+        oix.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEXW);
+        if (!GetVersionExW((LPOSVERSIONINFOW)&oix))
           {
             memset (&oix, '\0', sizeof (oix));
-            oix.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
-            GetVersionExW ((LPOSVERSIONINFO)&oix);
+            oix.dwOSVersionInfoSize = sizeof (OSVERSIONINFOW);
+            GetVersionExW ((LPOSVERSIONINFOW)&oix);
           }
       }
     if (oix.dwPlatformId == VER_PLATFORM_WIN32_NT)
@@ -1699,6 +1699,12 @@ define_automatic_variables (void)
         ulPatch = oix.dwMinorVersion;
         ul4th   = oix.wServicePackMajor;
       }
+    oix.dwBuildNumber &= 0x3fffffff;
+    sprintf (buf, "%lu", oix.dwBuildNumber);
+    define_variable_cname ("KBUILD_HOST_VERSION_BUILD", buf, o_default, 0);
+
+    sprintf (buf, "%lu.%lu.%lu.%lu.%lu", ulMajor, ulMinor, ulPatch, ul4th, oix.dwBuildNumber);
+    define_variable_cname ("KBUILD_HOST_VERSION", buf, o_default, 0);
   }
 # else
   memset (&uts, 0, sizeof(uts));
@@ -1714,10 +1720,10 @@ define_automatic_variables (void)
   define_variable_cname ("KBUILD_HOST_UNAME_VERSION", uts.version, o_default, 0);
   define_variable_cname ("KBUILD_HOST_UNAME_MACHINE", uts.machine, o_default, 0);
   define_variable_cname ("KBUILD_HOST_UNAME_NODENAME", uts.nodename, o_default, 0);
-# endif
 
   sprintf (buf, "%lu.%lu.%lu.%lu", ulMajor, ulMinor, ulPatch, ul4th);
   define_variable_cname ("KBUILD_HOST_VERSION", buf, o_default, 0);
+# endif
 
   sprintf (buf, "%lu", ulMajor);
   define_variable_cname ("KBUILD_HOST_VERSION_MAJOR", buf, o_default, 0);
