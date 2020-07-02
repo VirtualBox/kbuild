@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 3399 2020-07-02 11:35:23Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 3400 2020-07-02 11:53:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -62,7 +62,7 @@
 /** Check if @a a_ch is a valid separator for a alphabetical binary
  *  operator, omitting isspace. */
 #define EXPR_IS_OP_SEPARATOR_NO_SPACE(a_ch) \
-    (ispunct((a_ch)) && (a_ch) != '@' && (a_ch) != '_'))
+    (ispunct((a_ch)) && (a_ch) != '@' && (a_ch) != '_')
 
 /** Check if @a a_ch is a valid separator for a alphabetical binary operator. */
 #define EXPR_IS_OP_SEPARATOR(a_ch) \
@@ -994,6 +994,23 @@ static EXPRRET expr_op_num(PEXPR pThis)
 
 
 /**
+ * Performs a strlen() on the simplified/converted string argument.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static EXPRRET expr_op_strlen(PEXPR pThis)
+{
+    PEXPRVAR pVar = &pThis->aVars[pThis->iVar];
+
+    expr_var_make_simple_string(pVar);
+    expr_var_assign_num(pVar, strlen(pVar->uVal.psz));
+
+    return kExprRet_Ok;
+}
+
+
+/**
  * Convert to string (simplified and quoted)
  *
  * @returns Status code.
@@ -1797,6 +1814,7 @@ static const EXPROP g_aExprOps[] =
     EXPR_OP("target",      90,      1,    expr_op_target),
     EXPR_OP("bool",        90,      1,    expr_op_bool),
     EXPR_OP("num",         90,      1,    expr_op_num),
+    EXPR_OP("strlen",      90,      1,    expr_op_strlen),
     EXPR_OP("str",         90,      1,    expr_op_str),
     EXPR_OP("+",           80,      1,    expr_op_pluss),
     EXPR_OP("-",           80,      1,    expr_op_minus),
