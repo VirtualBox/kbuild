@@ -4108,8 +4108,10 @@ define_makeflags (int all, int makefile)
   /* Provide simple access to some of the options. */
   {
     char val[32];
-    sprintf (val, "%u", job_slots);
+    sprintf (val, "%u", job_slots ? job_slots : master_job_slots);
     define_variable_cname ("KMK_OPTS_JOBS", val, o_default, 1);
+    sprintf (val, "%u", default_job_slots);
+    define_variable_cname ("KMK_OPTS_JOBS_DEFAULT", val, o_default, 1);
     define_variable_cname ("KMK_OPTS_KEEP_GOING", keep_going_flag ? "1" : "0", o_default, 1);
     define_variable_cname ("KMK_OPTS_JUST_PRINT", just_print_flag ? "1" : "0", o_default, 1);
     define_variable_cname ("KMK_OPTS_PRETTY_COMMAND_PRINTING",
