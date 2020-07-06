@@ -1,4 +1,4 @@
-# $Id: header.kmk 3344 2020-05-20 16:43:48Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3402 2020-07-06 09:29:00Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3344 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3402 $  )
 
 
 #
@@ -405,13 +405,23 @@ KBUILD_HOST_DOT_ARCH   = $(KBUILD_HOST).$(KBUILD_TARGET_ARCH)
 
 
 #
-# Paths and stuff.
+# Feature indicators.
 #
 
-## Cache this query.
-if1of (quote,$(KMK_FEATURES))
+## File quoting functions.
+if1of (quote, $(KMK_FEATURES))
  KMK_WITH_QUOTING := 1
 endif
+
+## Version sorting and comparing.
+if1of (versort, $(KMK_FEATURES))
+ KMK_WITH_VERSION_COMPARE := 1
+endif
+
+
+#
+# Paths and stuff.
+#
 
 # Adjust DEPTH first.
 DEPTH := $(strip $(DEPTH))
@@ -1675,23 +1685,23 @@ endif
 #
 ifdef KBUILD_QUIET
  # No output
- QUIET := @
- QUIET2:= @
- MSG_L1	=
- MSG_L2 =
+ QUIET  := @
+ QUIET2 := @
+ MSG_L1 :=
+ MSG_L2 :=
 else
  ifndef KBUILD_VERBOSE
   # Default output level.
   QUIET  := @
   QUIET2 := @
   MSG_L1 ?= %@$(ECHO) "kBuild: $1"
-  MSG_L2  =
+  MSG_L2 :=
  else ifeq ($(KBUILD_VERBOSE),1)
   # A bit more output
   QUIET  := @
   QUIET2 := @
   MSG_L1 ?= %@$(ECHO) "kBuild: $1 $2"
-  MSG_L2  =
+  MSG_L2 :=
  else ifeq ($(KBUILD_VERBOSE),2)
   # Lot more output
   QUIET  :=
