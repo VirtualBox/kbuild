@@ -1,4 +1,4 @@
-# $Id: MACOSX1013.kmk 3401 2020-07-05 15:58:36Z knut.osmundsen@oracle.com $
+# $Id: MACOSX1013.kmk 3406 2020-07-17 20:02:41Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Mac OS X v10.13 SDK.
 #
@@ -53,9 +53,10 @@ SDK_MACOSX1013_VERSION_VALUE := 101300
 
 # General Properties (used by kBuild)
 # Note: The MAC_OS_X_VERSION_MAX_ALLOWED is left free for the SDK user to define.
-SDK_MACOSX1013_DEFS      ?= MAC_OS_X_VERSION_MIN_REQUIRED=101300
-SDK_MACOSX1013_CFLAGS    ?= -mmacosx-version-min=10.13 -isysroot $(PATH_SDK_MACOSX1013)
-SDK_MACOSX1013_CXXFLAGS  ?= -mmacosx-version-min=10.13 -isysroot $(PATH_SDK_MACOSX1013)
-SDK_MACOSX1013_OBJCFLAGS ?= -mmacosx-version-min=10.13 -isysroot $(PATH_SDK_MACOSX1013)
-SDK_MACOSX1013_LDFLAGS   ?= -mmacosx-version-min=10.13 -isysroot $(PATH_SDK_MACOSX1013)
+SDK_MACOSX1013_DEFS        ?= MAC_OS_X_VERSION_MIN_REQUIRED=101300
+SDK_MACOSX1013_CFLAGS      ?= -mmacosx-version-min=10.13 -isysroot $(PATH_SDK_MACOSX1013)
+SDK_MACOSX1013_CXXFLAGS    ?= -mmacosx-version-min=10.13 -isysroot $(PATH_SDK_MACOSX1013)
+SDK_MACOSX1013_OBJCFLAGS   ?= -mmacosx-version-min=10.13 -isysroot $(PATH_SDK_MACOSX1013)
+SDK_MACOSX1013_OBJCXXFLAGS ?= -mmacosx-version-min=10.13 -isysroot $(PATH_SDK_MACOSX1013)
+SDK_MACOSX1013_LDFLAGS     ?= -mmacosx-version-min=10.13 -isysroot $(PATH_SDK_MACOSX1013)
 
