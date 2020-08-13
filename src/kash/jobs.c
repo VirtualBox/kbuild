@@ -389,6 +389,7 @@ showjob(shinstance *psh, struct output *out, struct job *jp, int mode)
 			else
 				fmtstr(s + col, 16, "Done");
 		} else {
+			const char *pszSigNm;
 #if JOBS
 			if (WIFSTOPPED(ps->status))
 				st = WSTOPSIG(ps->status);
@@ -396,8 +397,9 @@ showjob(shinstance *psh, struct output *out, struct job *jp, int mode)
 #endif
 				st = WTERMSIG(ps->status);
 			st &= 0x7f;
-			if (st < NSIG && sys_siglist[st])
-				scopyn(sys_siglist[st], s + col, 32);
+			pszSigNm = st < NSIG ? strsignal(st) : NULL;
+			if (pszSigNm)
+				scopyn(pszSigNm, s + col, 32);
 			else
 				fmtstr(s + col, 16, "Signal %d", st);
 			if (WCOREDUMP(ps->status)) {
