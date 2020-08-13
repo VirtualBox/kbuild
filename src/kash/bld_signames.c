@@ -23,6 +23,24 @@ int main(int argc, char **argv)
         sprintf(aszSigName[i], "%i", i);
 
 #define SET_SIG_STR(sig) strcpy(aszSigName[SIG##sig], #sig);
+
+#if defined(SIGRTMIN) && defined(SIGRTMAX)
+    if (SIGRTMIN < SIGRTMAX && SIGRTMAX < NSIG)
+    {
+        /* lets mimick what bash seems to be doing. */
+        int const iMidWay = SIGRTMIN + (SIGRTMAX - SIGRTMIN) / 2;
+        SET_SIG_STR(RTMIN);
+        SET_SIG_STR(RTMAX);
+
+        for (i = SIGRTMIN + 1; i <= iMidWay; i++)
+            sprintf(aszSigName[i], "RTMIN+%i", (int)(i - SIGRTMIN));
+        for (; i < SIGRTMAX; i++)
+            sprintf(aszSigName[i], "RTMAX%i", (int)(i - SIGRTMAX));
+    }
+    else
+        fprintf(stderr, "warning: SIGRTMIN=%d, SIGRTMAX=%d, NSIG=%d\n", (int)SIGRTMIN, (int)SIGRTMAX, (int)NSIG);
+#endif
+
 #ifdef SIGHUP
     SET_SIG_STR(HUP);
 #endif
