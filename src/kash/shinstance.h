@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 3408 2020-08-13 09:01:14Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 3409 2020-08-13 09:49:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -383,7 +383,7 @@ const char *sh_gethomedir(shinstance *, const char *);
 const char *strsignal(int iSig);
 #endif /* _MSC_VER */
 #ifndef HAVE_SYS_SIGNAME
-extern char sys_signame[NSIG][16];
+extern const char * const sys_signame[NSIG];
 #endif
 
 int sh_sigaction(shinstance *, int, const struct shsigaction *, struct shsigaction *);

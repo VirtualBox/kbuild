@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3175 2018-03-21 21:38:50Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3409 2020-08-13 09:49:06Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -418,6 +418,14 @@ endif
 TEMPLATE_LIB-STATIC-THREADED = Threaded command line library
 TEMPLATE_LIB-STATIC-THREADED_EXTENDS  = BIN-STATIC-THREADED
 TEMPLATE_LIB-STATIC-THREADED_INST     = lib/
+
+
+#
+# Template for build programs.
+# This currently does not do cross compilation, sorry.
+#
+TEMPLATE_BLD = Build program to be executed during the build but not installed.
+TEMPLATE_BLD_EXTENDS = BIN
 
 
 #

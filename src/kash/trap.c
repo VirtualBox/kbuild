@@ -58,10 +58,6 @@ __RCSID("$NetBSD: trap.c,v 1.31 2005/01/11 19:38:57 christos Exp $");
 #include "var.h"
 #include "shinstance.h"
 
-#ifndef HAVE_SYS_SIGNAME
-extern void init_sys_signame(void);
-extern char sys_signame[NSIG][16];
-#endif
 
 /*
  * Sigmode records the current value of the signal handlers for the various
@@ -102,9 +98,6 @@ signame_to_signum(shinstance *psh, const char *p)
 	if (strncasecmp(p, "sig", 3) == 0)
 		p += 3;
 
-#ifndef HAVE_SYS_SIGNAME
-	init_sys_signame();
-#endif
 	for (i = 0; i < NSIG; ++i)
 		if (strcasecmp(p, sys_signame[i]) == 0)
 			return i;
@@ -120,9 +113,6 @@ printsignals(shinstance *psh)
 	int n;
 
 	out1str(psh, "EXIT ");
-#ifndef HAVE_SYS_SIGNAME
-	init_sys_signame();
-#endif
 
 	for (n = 1; n < NSIG; n++) {
 		out1fmt(psh, "%s", sys_signame[n]);
@@ -143,9 +133,6 @@ trapcmd(shinstance *psh, int argc, char **argv)
 	char *action;
 	char **ap;
 	int signo;
-#ifndef HAVE_SYS_SIGNAME
-	init_sys_signame();
-#endif
 
 	if (argc <= 1) {
 		for (signo = 0 ; signo <= NSIG ; signo++)
