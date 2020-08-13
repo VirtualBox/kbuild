@@ -11,7 +11,7 @@ char sys_signame[NSIG][16];
 
 void init_sys_signame(void)
 {
-    unsigned i;
+	unsigned i;
 	if (sys_signame_initialized)
 		return;
 	for (i = 0; i < NSIG; ++i)
@@ -119,3 +119,15 @@ void init_sys_signame(void)
 #undef SET_SIG_STR
 	sys_signame_initialized = 1;
 }
+
+#if defined(_MSC_VER)
+const char *strsignal(int iSig)
+{
+    if (!sys_signame_initialized)
+	init_sys_signame();
+    if (iSig < NSIG)
+	return sys_signame(iSig);
+    return NULL;
+}
+#endif
+
