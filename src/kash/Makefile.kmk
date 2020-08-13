@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3110 2017-10-20 19:14:56Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3409 2020-08-13 09:49:06Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -103,25 +103,26 @@ kash_SOURCES = \
 	shthread.c \
 	shfile.c
 kash_SOURCES.gnuhurd = \
-	sys_signame.c \
+	$(kash_0_OUTDIR)/sys_signame.c \
 	strlcpy.c
 kash_SOURCES.gnukfbsd = \
-	sys_signame.c \
+	$(kash_0_OUTDIR)/sys_signame.c \
 	strlcpy.c
 kash_SOURCES.gnuknbsd = \
-	sys_signame.c \
+	$(kash_0_OUTDIR)/sys_signame.c \
 	strlcpy.c
 kash_SOURCES.haiku = \
-	sys_signame.c \
+	$(kash_0_OUTDIR)/sys_signame.c \
 	strlcpy.c
 kash_SOURCES.linux = \
-	sys_signame.c \
+	$(kash_0_OUTDIR)/sys_signame.c \
 	strlcpy.c
 kash_SOURCES.solaris = \
-	sys_signame.c \
+	$(kash_0_OUTDIR)/sys_signame.c \
 	strlcpy.c
 kash_SOURCES.win = \
-	sys_signame.c \
+	$(kash_0_OUTDIR)/sys_signame.c \
+	strsignal.c \
 	strlcpy.c \
 	shfork-win.c \
 	shforkA-win.asm
@@ -144,6 +145,18 @@ kash_main.c_DEFS = KBUILD_SVN_REV=$(KBUILD_SVN_REV)
 #INSTALLS += kash.man
 #kash.man_TEMPLATE = usr.bin.man
 #kash.man_SOURCES = sh.1=>kash.1
+
+
+#
+# The signal name list:
+#
+$$(kash_0_OUTDIR)/sys_signame.c: $$(bld_signames_1_TARGET) | $$(dir $$@)
+	$< $@
+
+BLDPROGS += bld_signames
+bld_signames_TEMPLATE := BLD
+bld_signames_DEFS     := SHELL SMALL
+bld_signames_SOURCES  := bld_signames.c
 
 
 if1of ($(KBUILD_TARGET), win os2)

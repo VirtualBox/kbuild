@@ -51,10 +51,6 @@ __RCSID("$NetBSD: kill.c,v 1.23 2003/08/07 09:05:13 agc Exp $");
 #include "error.h"
 #include "shinstance.h"
 
-#ifndef HAVE_SYS_SIGNAME
-extern void init_sys_signame(void);
-extern char sys_signame[NSIG][16];
-#endif
 
 static int nosig(shinstance *, char *);
 static void printsignals(shinstance *, struct output *);
@@ -71,9 +67,6 @@ killcmd(shinstance *psh, int argc, char *argv[])
 		return usage(psh);
 
 	numsig = SIGTERM;
-#ifndef HAVE_SYS_SIGNAME
-	init_sys_signame();
-#endif
 
 	argc--, argv++;
 	if (strcmp(*argv, "-l") == 0) {
