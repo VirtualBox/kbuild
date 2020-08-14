@@ -8,7 +8,7 @@
 const char *strsignal(int iSig)
 {
     if (iSig < NSIG)
-	return sys_signame(iSig);
+	return sys_signame[iSig];
     return NULL;
 }
 
