@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3332 2020-04-19 23:08:16Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3412 2020-08-19 21:41:54Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -1033,7 +1033,7 @@ static int kRedirectCreateProcessWindows(PKMKBUILTINCTX pCtx, const char *pszExe
 
                     /* Duplicate the write end of any stdin pipe handles into the child. */
                     for (i = 0; i < cOrders; i++)
-                        if (paOrders[cOrders].fdOtherPipeEnd >= 0)
+                        if (paOrders[i].fdOtherPipeEnd >= 0)
                         {
                             HANDLE hIgnored = INVALID_HANDLE_VALUE;
                             HANDLE hPipeW   = (HANDLE)_get_osfhandle(paOrders[i].fdOtherPipeEnd);
