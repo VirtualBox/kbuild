@@ -7546,9 +7546,9 @@ static struct function_table_entry function_table_init[] =
   FT_ENTRY ("commands-usr",  2,  2,  1,  func_commands),
 #endif
 #ifdef KMK_HELPERS
-  FT_ENTRY ("kb-src-tool",   1,  1,  0,  func_kbuild_source_tool),
-  FT_ENTRY ("kb-obj-base",   1,  1,  0,  func_kbuild_object_base),
-  FT_ENTRY ("kb-obj-suff",   1,  1,  0,  func_kbuild_object_suffix),
+  FT_ENTRY ("kb-src-tool",   1,  2,  0,  func_kbuild_source_tool),
+  FT_ENTRY ("kb-obj-base",   1,  2,  0,  func_kbuild_object_base),
+  FT_ENTRY ("kb-obj-suff",   1,  2,  0,  func_kbuild_object_suffix),
   FT_ENTRY ("kb-src-prop",   3,  4,  0,  func_kbuild_source_prop),
   FT_ENTRY ("kb-src-one",    0,  1,  0,  func_kbuild_source_one),
   FT_ENTRY ("kb-exp-tmpl",   6,  6,  1,  func_kbuild_expand_template),
