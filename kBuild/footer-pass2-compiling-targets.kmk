@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 3344 2020-05-20 16:43:48Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 3415 2020-08-20 23:43:33Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -269,32 +269,32 @@ endef
 # @{
 define def_src_handler_c
 local type := C
- $(kb-src-one 3)
+ $(kb-src-one 4)
 endef
 
 define def_src_handler_cxx
 local type := CXX
- $(kb-src-one 3)
+ $(kb-src-one 4)
 endef
 
 define def_src_handler_objc
 local type := OBJC
- $(kb-src-one 3)
+ $(kb-src-one 4)
 endef
 
 define def_src_handler_objcxx
 local type := OBJCXX
- $(kb-src-one 3)
+ $(kb-src-one 4)
 endef
 
 define def_src_handler_asm
 local type := AS
- $(kb-src-one 3)
+ $(kb-src-one 4)
 endef
 
 define def_src_handler_rc
 local type := RC
- $(kb-src-one 3)
+ $(kb-src-one 4)
 endef
 
 ifdef KMK_WITH_QUOTING
@@ -773,9 +773,9 @@ endif
 define def_link_common
 # basics
 local bld_type    := $(firstword $($(target)_BLD_TYPE)     $(KBUILD_TYPE))
-local bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_$(bld_trg_base_var)))
-local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_$(bld_trg_base_var)_ARCH))
-local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_$(bld_trg_base_var)_CPU))
+local bld_trg     := $(firstword $($(target)_BLD_TRG)      $(KBUILD_$(bld_trg_base_var)))
+local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(KBUILD_$(bld_trg_base_var)_ARCH))
+local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_$(bld_trg_base_var)_CPU))
 
 local tool        := $(call _TARGET_TOOL,$(target),LD)
 local name        := $(firstword\
@@ -1114,7 +1114,7 @@ EXTPRE  := HOST
 tool_do := LINK_PROGRAM
 typevar := _BLDPROGS
 mode    := 0755
-bld_trg_base_var := PLATFORM
+bld_trg_base_var := HOST
 $(foreach target, $(_ALL_BLDPROGS), $(evalvalctx def_link_common))
 
 ifdef KBUILD_PROFILE_SELF

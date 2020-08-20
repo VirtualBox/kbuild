@@ -1,4 +1,4 @@
-# $Id: gccprecomp.kmk 3285 2019-01-05 03:24:58Z knut.osmundsen@oracle.com $
+# $Id: gccprecomp.kmk 3415 2020-08-20 23:43:33Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Unit - Target Level Precompiled Headers for GNU GCC.
 #
@@ -62,6 +62,6 @@ define def_unit_gccprecomp_target_pre_2
  local source := $($(target)_PCH_HDR)
  local suff   := $(suffix $(source))
  local type   := PCH
- $(kb-src-one 3)
+ $(kb-src-one 4)
 endef
 

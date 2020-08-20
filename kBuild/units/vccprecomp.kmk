@@ -1,4 +1,4 @@
-# $Id: vccprecomp.kmk 3383 2020-06-16 15:56:15Z knut.osmundsen@oracle.com $
+# $Id: vccprecomp.kmk 3415 2020-08-20 23:43:33Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Unit - Target Level Precompiled Headers for Visual C++.
 #
@@ -61,6 +61,6 @@ define def_unit_vccprecomp_target_pre_2
  $(source)_TOOL := $(pchtool)-PCH
  local suff     := $(suffix $(source))
  local type     := CXX
- $(kb-src-one 3)
+ $(kb-src-one 4)
 endef
 
