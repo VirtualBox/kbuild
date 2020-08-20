@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3363 2020-06-08 19:29:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3413 2020-08-20 08:20:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -121,6 +121,8 @@ typedef struct WORKERINSTANCE
     int                     fdSocket;
 #endif
 
+    /** --debug-dump-history-on-failure.   */
+    int                     fDebugDumpHistoryOnFailure;
     /** Current history index (must mod with aHistory element count). */
     unsigned                iHistory;
     /** History.   */
@@ -1551,7 +1553,7 @@ int kSubmitSubProcGetResult(intptr_t pvUser, int fBlock, int *prcExit, int *piSi
         case STATUS_PRIVILEGED_INSTRUCTION:
         case STATUS_ILLEGAL_INSTRUCTION:        *piSigNo = SIGILL; break;
     }
-    if (pWorker->Result.s.rcExit && 1)
+    if (pWorker->Result.s.rcExit && pWorker->fDebugDumpHistoryOnFailure)
         kSubmitDumpHistory(pCtx, pWorker);
     if (pWorker->Result.s.bWorkerExiting)
         kSubmitCloseConnectOnExitingWorker(pCtx, pWorker);
@@ -1757,8 +1759,11 @@ static int kmk_builtin_kSubmit_usage(PKMKBUILTINCTX pCtx, int fIsErr)
                            "  -v,--verbose\n"
                            "    More verbose execution.\n"
                            "  --debug-dump-history\n"
-                           "    Dump the history as of the submitted command.  Handy for debuging\n"
+                           "    Dump the history as of the submitted command.  Handy for debugging\n"
                            "    trouble caused by a previous job.\n"
+                           "  --debug-dump-history-on-failure, --no-debug-dump-history-on-failure\n"
+                           "    Dump the history on failure.  Can also be enabled by a non-empty\n"
+                           "    KMK_KSUBMIT_DUMP_HISTORY_ON_FAILURE variable (first invocation only).\n"
                            "  -P|--post-cmd <cmd> ...\n"
                            "    For running a built-in command on the output, specifying the command\n"
                            "    and all it's parameters.  Currently supported commands:\n"
@@ -1792,6 +1797,8 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
     int             fWatcomBrainDamage  = 0;
     int             fNoPchCaching       = 0;
     int             fDebugDumpHistory   = 0;
+    static int      s_fDebugDumpHistoryOnFailure = -1;
+    int             fDebugDumpHistoryOnFailure = s_fDebugDumpHistoryOnFailure;
     int             cVerbosity          = 0;
     size_t const    cbCwdBuf            = GET_PATH_MAX;
     PATH_VAR(szCwd);
@@ -1812,6 +1819,14 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
         s_fInitialized = 1;
     }
 #endif
+    if (fDebugDumpHistoryOnFailure != -1)
+    { /* likely */ }
+    else
+    {
+        struct variable *pVar = lookup_variable(TUPLE("KMK_KSUBMIT_DUMP_HISTORY_ON_FAILURE"));
+        fDebugDumpHistoryOnFailure = pVar && *pVar->value != '\0';
+        s_fDebugDumpHistoryOnFailure = fDebugDumpHistoryOnFailure;
+    }
 
     /*
      * Create default program environment.
@@ -1879,6 +1894,17 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
                     continue;
                 }
 
+                if (strcmp(pszArg, "debug-dump-history-on-failure") == 0)
+                {
+                    fDebugDumpHistoryOnFailure = 1;
+                    continue;
+                }
+
+                if (strcmp(pszArg, "no-debug-dump-history-on-failure") == 0)
+                {
+                    fDebugDumpHistoryOnFailure = 0;
+                    continue;
+                }
 
                 /* convert to short. */
                 if (strcmp(pszArg, "help") == 0)
@@ -2060,6 +2086,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
             if (pCtx->pOut)
 #endif
                 output_dump(pCtx->pOut);
+            pWorker->fDebugDumpHistoryOnFailure = fDebugDumpHistoryOnFailure;
             rcExit = kSubmitSendJobMessage(pCtx, pWorker, pvMsg, cbMsg, 0 /*fNoRespawning*/, cVerbosity);
             if (rcExit == 0)
             {
