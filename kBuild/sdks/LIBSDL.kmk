@@ -1,4 +1,4 @@
-# $Id: LIBSDL.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL.kmk 3418 2020-08-21 11:02:13Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Simple DirectMedia Layer, targeting $(KBUILD_TARGET).
 #
@@ -36,9 +36,9 @@ SDK_LIBSDL := Simple DirectMedia Layer, targeting $(KBUILD_TARGET).
 # SDK Specific Properties
 _SDK_LIBSDK_IS_FRAMEWORK := no
 ifndef PATH_SDK_LIBSDL
- PATH_SDK_LIBSDL := $(wildcard $(PATH_DEVTOOLS_TRG)/libsdl/v*)
+ PATH_SDK_LIBSDL := $(wildcard $(KBUILD_DEVTOOLS_TRG)/libsdl/v*)
  ifeq ($(PATH_SDK_LIBSDL),)
-  PATH_SDK_LIBSDL := $(wildcard $(PATH_DEVTOOLS_BLD)/libsdl/v*)
+  PATH_SDK_LIBSDL := $(wildcard $(KBUILD_DEVTOOLS_BLD)/libsdl/v*)
  endif
  ifneq ($(PATH_SDK_LIBSDL),)
   PATH_SDK_LIBSDL := $(lastword $(sort $(PATH_SDK_LIBSDL)))
@@ -65,7 +65,7 @@ ifndef PATH_SDK_LIBSDL
 	PATH_SDK_LIBSDL := $(patsubst %/,%,$(PATH_SDK_LIBSDL))
    else
     $(warning kBuild: PATH_SDK_LIBSDL couldn't be determined!)
-    PATH_SDK_LIBSDL := $(PATH_DEVTOOLS_TRG)/libsdl/not/found
+    PATH_SDK_LIBSDL := $(KBUILD_DEVTOOLS_TRG)/libsdl/not/found
    endif
   endif
  endif

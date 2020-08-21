@@ -1,4 +1,4 @@
-# $Id: DXSDK.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: DXSDK.kmk 3418 2020-08-21 11:02:13Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Direct X SDK, targeting $(KBUILD_TARGET).
 #
@@ -36,21 +36,21 @@ SDK_DXSDK := The Microsoft Direct X SDK, targeting $(KBUILD_TARGET)
 # SDK Specific Properties
 ifndef PATH_SDK_DXSDK
  ## @todo which order is logical here, BLD and then TRG or the other way?
- PATH_SDK_DXSDK := $(sort $(wildcard $(PATH_DEVTOOLS_BLD)/dxsdk/2*))
+ PATH_SDK_DXSDK := $(sort $(wildcard $(KBUILD_DEVTOOLS_BLD)/dxsdk/2*))
  ifeq ($(PATH_SDK_DXSDK),)
-  PATH_SDK_DXSDK := $(sort $(wildcard $(PATH_DEVTOOLS_TRG)/dxsdk/2*))
+  PATH_SDK_DXSDK := $(sort $(wildcard $(KBUILD_DEVTOOLS_TRG)/dxsdk/2*))
  endif
  ifeq ($(PATH_SDK_DXSDK),)
-  PATH_SDK_DXSDK := $(sort $(wildcard $(PATH_DEVTOOLS)/win.x86/dxsdk/2*))
+  PATH_SDK_DXSDK := $(sort $(wildcard $(KBUILD_DEVTOOLS)/win.x86/dxsdk/2*))
  endif
  ifeq ($(PATH_SDK_DXSDK),)
-  PATH_SDK_DXSDK := $(sort $(wildcard $(PATH_DEVTOOLS)/win.amd64/dxsdk/2*))
+  PATH_SDK_DXSDK := $(sort $(wildcard $(KBUILD_DEVTOOLS)/win.amd64/dxsdk/2*))
  endif
  ifneq ($(PATH_SDK_DXSDK),)
   PATH_SDK_DXSDK := $(call lastword,$(PATH_SDK_DXSDK))
  else
   $(warning kBuild: PATH_SDK_DXSDK couldn't be determined!)
-  PATH_SDK_DXSDK := $(PATH_DEVTOOLS_TRG)/dxsdk/not/found
+  PATH_SDK_DXSDK := $(KBUILD_DEVTOOLS_TRG)/dxsdk/not/found
  endif
 else
  # Resolve any fancy stuff once and for all.

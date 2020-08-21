@@ -1,4 +1,4 @@
-# $Id: WINDDK71.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: WINDDK71.kmk 3418 2020-08-21 11:02:13Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Windows 7 DDK, v7.1.
 #              Defaults to $(KBUILD_TARGET_ARCH). Base SDK.
@@ -37,12 +37,12 @@ SDK_WINDDK71 := The Microsoft Windows 7 DDK, v7.1. \
 
 # SDK Specific Properties
 ifndef PATH_SDK_WINDDK71
- PATH_SDK_WINDDK71 := $(wildcard $(PATH_DEVTOOLS_TRG)/ddk/7600.16385.1*)
+ PATH_SDK_WINDDK71 := $(wildcard $(KBUILD_DEVTOOLS_TRG)/ddk/7600.16385.1*)
  ifeq ($(PATH_SDK_WINDDK71),)
-  PATH_SDK_WINDDK71 := $(wildcard $(PATH_DEVTOOLS)/win.x86/ddk/7600.16385.1*)
+  PATH_SDK_WINDDK71 := $(wildcard $(KBUILD_DEVTOOLS)/win.x86/ddk/7600.16385.1*)
  endif
  ifeq ($(PATH_SDK_WINDDK71),)
-  PATH_SDK_WINDDK71 := $(wildcard $(PATH_DEVTOOLS)/win.amd64/ddk/7600.16385.1*)
+  PATH_SDK_WINDDK71 := $(wildcard $(KBUILD_DEVTOOLS)/win.amd64/ddk/7600.16385.1*)
  endif
  ifeq ($(PATH_SDK_WINDDK71),)
   ifeq ($(KBUILD_HOST),win)
@@ -53,7 +53,7 @@ ifndef PATH_SDK_WINDDK71
   PATH_SDK_WINDDK71 := $(lastword $(sort $(PATH_SDK_WINDDK71)))
  else
   $(warning kBuild: PATH_SDK_WINDDK71 couldn't be determined!)
-  PATH_SDK_WINDDK71 := $(PATH_DEVTOOLS)/win.x86/ddk/7600.16385.1-not-found
+  PATH_SDK_WINDDK71 := $(KBUILD_DEVTOOLS)/win.x86/ddk/7600.16385.1-not-found
  endif
 else
  # Resolve any fancy stuff once and for all.

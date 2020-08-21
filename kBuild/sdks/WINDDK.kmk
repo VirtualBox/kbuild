@@ -1,4 +1,4 @@
-# $Id: WINDDK.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: WINDDK.kmk 3418 2020-08-21 11:02:13Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Windows Vista and Server 2008 DDKs.
 #              Defaults to $(KBUILD_TARGET_ARCH). Base SDK.
@@ -37,12 +37,12 @@ SDK_WINDDK := The Microsoft Windows Vista and Server 2008 DDKs. \
 
 # SDK Specific Properties
 ifndef PATH_SDK_WINDDK
- PATH_SDK_WINDDK := $(wildcard $(PATH_DEVTOOLS_TRG)/ddk/6*)
+ PATH_SDK_WINDDK := $(wildcard $(KBUILD_DEVTOOLS_TRG)/ddk/6*)
  ifeq ($(PATH_SDK_WINDDK),)
-  PATH_SDK_WINDDK := $(wildcard $(PATH_DEVTOOLS)/win.x86/ddk/6*)
+  PATH_SDK_WINDDK := $(wildcard $(KBUILD_DEVTOOLS)/win.x86/ddk/6*)
  endif
  ifeq ($(PATH_SDK_WINDDK),)
-  PATH_SDK_WINDDK := $(wildcard $(PATH_DEVTOOLS)/win.amd64/ddk/6*)
+  PATH_SDK_WINDDK := $(wildcard $(KBUILD_DEVTOOLS)/win.amd64/ddk/6*)
  endif
  ifeq ($(PATH_SDK_WINDDK),)
   ifeq ($(KBUILD_HOST),win)
@@ -53,7 +53,7 @@ ifndef PATH_SDK_WINDDK
   PATH_SDK_WINDDK := $(lastword $(sort $(PATH_SDK_WINDDK)))
  else
   $(warning kBuild: PATH_SDK_WINDDK couldn't be determined!)
-  PATH_SDK_WINDDK := $(PATH_DEVTOOLS)/win.x86/ddk/not/found
+  PATH_SDK_WINDDK := $(KBUILD_DEVTOOLS)/win.x86/ddk/not/found
  endif
 else
  # Resolve any fancy stuff once and for all.

@@ -1,4 +1,4 @@
-# $Id: WINPSDK71INCS.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: WINPSDK71INCS.kmk 3418 2020-08-21 11:02:13Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Windows Platform SDK v7.1, targeting (KBUILD_TARGET) but
 #              without any libraries or LIBPATH properties.
@@ -42,21 +42,21 @@ ifndef PATH_SDK_WINPSDK71INCS
  ifdef PATH_SDK_WINPSDK71
   PATH_SDK_WINPSDK71INCS := $(PATH_SDK_WINPSDK71)
  else
-  PATH_SDK_WINPSDK71INCS := $(wildcard $(PATH_DEVTOOLS_BLD)/sdk/v7.1*)
+  PATH_SDK_WINPSDK71INCS := $(wildcard $(KBUILD_DEVTOOLS_BLD)/sdk/v7.1*)
   ifeq ($(PATH_SDK_WINPSDK71INCS),)
-   PATH_SDK_WINPSDK71INCS := $(wildcard $(PATH_DEVTOOLS_TRG)/sdk/v7.1*)
+   PATH_SDK_WINPSDK71INCS := $(wildcard $(KBUILD_DEVTOOLS_TRG)/sdk/v7.1*)
   endif
   ifeq ($(PATH_SDK_WINPSDK71INCS),)
-   PATH_SDK_WINPSDK71INCS := $(wildcard $(PATH_DEVTOOLS)/win.x86/sdk/v7.1*)
+   PATH_SDK_WINPSDK71INCS := $(wildcard $(KBUILD_DEVTOOLS)/win.x86/sdk/v7.1*)
   endif
   ifeq ($(PATH_SDK_WINPSDK71INCS),)
-   PATH_SDK_WINPSDK71INCS := $(wildcard $(PATH_DEVTOOLS)/win.amd64/sdk/v7.1*)
+   PATH_SDK_WINPSDK71INCS := $(wildcard $(KBUILD_DEVTOOLS)/win.amd64/sdk/v7.1*)
   endif
   ifneq ($(PATH_SDK_WINPSDK71INCS),)
    PATH_SDK_WINPSDK71INCS := $(lastword $(sort $(PATH_SDK_WINPSDK71INCS)))
   else
    $(warning kBuild: PATH_SDK_WINPSDK71INCS couldn't be determined!)
-   PATH_SDK_WINPSDK71INCS := $(PATH_DEVTOOLS_BLD)/sdk/v7.1-not-found
+   PATH_SDK_WINPSDK71INCS := $(KBUILD_DEVTOOLS_BLD)/sdk/v7.1-not-found
   endif
  endif
 else
