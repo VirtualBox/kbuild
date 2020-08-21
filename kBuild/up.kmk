@@ -1,4 +1,4 @@
-# $Id: up.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: up.kmk 3422 2020-08-21 11:48:40Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a up forwarder makefile.
 #          This method is DEPRECATED. Use Makefile.kup files instead.
@@ -33,7 +33,7 @@
 
 # include the header to get the right MAKE and to include config.kmk
 # files since these may contain global goals.
-include $(PATH_KBUILD)/header.kmk
+include $(KBUILD_PATH)/header.kmk
 
 UP_TO ?= ..
 

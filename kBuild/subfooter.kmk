@@ -1,4 +1,4 @@
-# $Id: subfooter.kmk 3416 2020-08-21 10:59:02Z knut.osmundsen@oracle.com $
+# $Id: subfooter.kmk 3422 2020-08-21 11:48:40Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at bottom of a makefile or sub-makefile.
 #
@@ -69,7 +69,7 @@ else
  #
  # We've reached the end of the line, include the real footer.
  #
- include $(PATH_KBUILD)/footer.kmk
+ include $(KBUILD_PATH)/footer.kmk
 
 endif
 
