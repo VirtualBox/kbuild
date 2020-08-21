@@ -1,4 +1,4 @@
-# $Id: footer-pass1.kmk 3415 2020-08-20 23:43:33Z knut.osmundsen@oracle.com $
+# $Id: footer-pass1.kmk 3417 2020-08-21 10:59:17Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 1.
 #
@@ -45,7 +45,7 @@
 # @param    $(EXTPRE)           HOST or nothing.
 # @param    $(definst)          The default _INST value.
 # @param    $(tool_prefix)      LD or AR.
-# @param    $(bld_trg_base_var) TARGET or PLATFORM.
+# @param    $(bld_trg_base_var) TARGET or HOST.
 define def_pass1_link_common
 
 local bld_type    := $(firstword $($(target)_BLD_TYPE)     $(KBUILD_TYPE))
