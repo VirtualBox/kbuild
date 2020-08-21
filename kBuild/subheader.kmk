@@ -1,4 +1,4 @@
-# $Id: subheader.kmk 3416 2020-08-21 10:59:02Z knut.osmundsen@oracle.com $
+# $Id: subheader.kmk 3422 2020-08-21 11:48:40Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile or sub-makefile.
 #
@@ -45,7 +45,7 @@ ifndef _SUB_MAKEFILE_NOT_FIRST
  #
  _SUB_MAKEFILE_NOT_FIRST := 1
  DEPTH ?= $(SUB_DEPTH)
- include $(PATH_KBUILD)/header.kmk
+ include $(KBUILD_PATH)/header.kmk
 
 else
 
