@@ -1738,8 +1738,8 @@ define_automatic_variables (void)
   define_variable_cname ("KBUILD_PATH", get_kbuild_path (), o_default, 0);
   define_variable_cname ("KBUILD_BIN_PATH", get_kbuild_bin_path (), o_default, 0);
 
-  define_variable_cname ("PATH_KBUILD", get_kbuild_path (), o_default, 0);
-  define_variable_cname ("PATH_KBUILD_BIN", get_kbuild_bin_path (), o_default, 0);
+  define_variable_cname ("PATH_KBUILD", "$(KBUILD_PATH)", o_default, 1);
+  define_variable_cname ("PATH_KBUILD_BIN", "$(KBUILD_BIN_PATH)", o_default, 1);
 
   /* Define KMK_FEATURES to indicate various working KMK features. */
 # if defined (CONFIG_WITH_RSORT) \
