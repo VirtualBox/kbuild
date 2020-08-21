@@ -1641,7 +1641,7 @@ define_automatic_variables (void)
   if (!envvar1)
     define_variable_cname ("KBUILD_HOST", val, o_default, 0);
   if (!envvar2)
-    define_variable_cname ("BUILD_PLATFORM", val, o_default, 0);
+    define_variable_cname ("BUILD_PLATFORM", "$(KBUILD_HOST)", o_default, 1);
 
   envvar1 = lookup_variable (STRING_SIZE_TUPLE ("KBUILD_HOST_ARCH"));
   envvar2 = lookup_variable (STRING_SIZE_TUPLE ("BUILD_PLATFORM_ARCH"));
@@ -1651,7 +1651,7 @@ define_automatic_variables (void)
   if (!envvar1)
     define_variable_cname ("KBUILD_HOST_ARCH", val, o_default, 0);
   if (!envvar2)
-    define_variable_cname ("BUILD_PLATFORM_ARCH", val, o_default, 0);
+    define_variable_cname ("BUILD_PLATFORM_ARCH", "$(KBUILD_HOST_ARCH)", o_default, 1);
 
   envvar1 = lookup_variable (STRING_SIZE_TUPLE ("KBUILD_HOST_CPU"));
   envvar2 = lookup_variable (STRING_SIZE_TUPLE ("BUILD_PLATFORM_CPU"));
@@ -1661,7 +1661,7 @@ define_automatic_variables (void)
   if (!envvar1)
     define_variable_cname ("KBUILD_HOST_CPU", val, o_default, 0);
   if (!envvar2)
-    define_variable_cname ("BUILD_PLATFORM_CPU", val, o_default, 0);
+    define_variable_cname ("BUILD_PLATFORM_CPU", "$(KBUILD_HOST_CPU)", o_default, 1);
 
   /* The host kernel version. */
 # if defined(WINDOWS32)
