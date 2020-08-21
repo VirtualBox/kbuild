@@ -1,4 +1,4 @@
-# $Id: header.kmk 3419 2020-08-21 11:11:10Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3423 2020-08-21 11:49:39Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3419 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3423 $  )
 
 
 #
@@ -234,9 +234,10 @@ ifndef KBUILD_TYPE
 else ifdef BUILD_TYPE
  ifneq ($(KBUILD_TYPE),$(BUILD_TYPE))
   ifeq ($(origin KBUILD_TYPE):$(origin BUILD_TYPE),environment:command line)
+   $(warning kBuild: Please use KBUILD_TYPE instead of BUILD_TYPE on the command line!)
    KBUILD_TYPE := $(BUILD_TYPE)
   else ifneq ($(origin KBUILD_TYPE):$(origin BUILD_TYPE),command line:environment)
-   $(error kBuild: KBUILD_TYPE and BUILD_TYPE disagree.)
+   $(error kBuild: KBUILD_TYPE (command line) and BUILD_TYPE (env) disagree.)
   endif
  endif
 endif
@@ -251,21 +252,6 @@ else
  ifneq (.$(words $(KBUILD_TYPE)).$(KBUILD_TYPE).,.1.$(strip $(KBUILD_TYPE)).)
   $(error kBuild: The KBUILD_TYPE value '$(KBUILD_TYPE)' contains spaces/tabs!)
  endif
-endif
-
-
-#
-# Host platform legacy
-# kmk deals with this, so this is only temporary until I've rebuilt everything.
-#
-ifndef KBUILD_HOST
- KBUILD_HOST := $(BUILD_PLATFORM)
-endif
-ifndef KBUILD_HOST_ARCH
- KBUILD_HOST_ARCH := $(BUILD_PLATFORM_ARCH)
-endif
-ifndef KBUILD_HOST_CPU
- KBUILD_HOST_CPU := $(BUILD_PLATFORM_CPU)
 endif
 
 
@@ -314,6 +300,7 @@ ifndef KBUILD_TARGET
 else ifdef BUILD_TARGET
  ifneq ($(KBUILD_TARGET),$(BUILD_TARGET))
   ifeq ($(origin KBUILD_TARGET):$(origin BUILD_TARGET),environment:command line)
+   $(warning kBuild: Please use KBUILD_TARGET instead of BUILD_TARGET on the command line!)
    KBUILD_TARGET := $(BUILD_TARGET)
   else ifneq ($(origin KBUILD_TARGET):$(origin BUILD_TARGET),command line:environment)
    $(error kBuild: KBUILD_TARGET and BUILD_TARGET disagree)
@@ -329,6 +316,7 @@ ifndef KBUILD_TARGET_ARCH
 else ifdef BUILD_TARGET_ARCH
  ifneq ($(KBUILD_TARGET_ARCH),$(BUILD_TARGET_ARCH))
   ifeq ($(origin KBUILD_TARGET_ARCH):$(origin BUILD_TARGET_ARCH),environment:command line)
+   $(warning kBuild: Please use KBUILD_TARGET_ARCH instead of BUILD_TARGET_ARCH on the command line!)
    KBUILD_TARGET_ARCH := $(BUILD_TARGET_ARCH)
   else ifneq ($(origin KBUILD_TARGET_ARCH):$(origin BUILD_TARGET_ARCH),command line:environment)
    $(error kBuild: KBUILD_TARGET_ARCH and BUILD_TARGET_ARCH disagree)
@@ -344,6 +332,7 @@ ifndef KBUILD_TARGET_CPU
 else ifdef BUILD_TARGET_CPU
  ifneq ($(KBUILD_TARGET_CPU),$(BUILD_TARGET_CPU))
   ifeq ($(origin KBUILD_TARGET_CPU):$(origin BUILD_TARGET_CPU),environment:command line)
+   $(warning kBuild: Please use KBUILD_TARGET_CPU instead of BUILD_TARGET_CPU on the command line!)
    KBUILD_TARGET_CPU := $(BUILD_TARGET_CPU)
   else ifneq ($(origin KBUILD_TARGET_CPU):$(origin BUILD_TARGET_CPU),command line:environment)
    $(error kBuild: KBUILD_TARGET_CPU and BUILD_TARGET_CPU disagree)
