@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3409 2020-08-13 09:49:06Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3427 2020-08-21 13:12:34Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -267,9 +267,12 @@ else if1of ($(KBUILD_TARGET), win nt)
    	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcpmt.lib
   else
    TEMPLATE_BIN_CFLAGS         += -MD
-   TEMPLATE_BIN_LIBS            = \
-   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
-   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
+   TEMPLATE_BIN_LIBS.amd64      = \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.amd64)_LIB)/oldnames.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.amd64)_LIB)/msvcrt.lib
+   TEMPLATE_BIN_LIBS.x86        = \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.x86)_LIB)/oldnames.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.x86)_LIB)/msvcrt.lib
   endif
  endif
 
@@ -404,9 +407,12 @@ TEMPLATE_BIN-STATIC-THREADED = Threaded command line binary
 TEMPLATE_BIN-STATIC-THREADED_EXTENDS  = BIN-THREADED
 ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
  TEMPLATE_BIN-STATIC-THREADED_CFLAGS  = $(filter-out -MD,$(TEMPLATE_BIN-THREADED_CFLAGS)) -MT
- TEMPLATE_BIN-STATIC-THREADED_LIBS    = $(filter-out %/msvcrt.lib,$(TEMPLATE_BIN-THREADED_LIBS)) \
- 	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcmt.lib \
- 	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcpmt.lib
+ TEMPLATE_BIN-STATIC-THREADED_LIBS.amd64 = $(filter-out %/msvcrt.lib,$(TEMPLATE_BIN-THREADED_LIBS.amd64)) \
+ 	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.amd64)_LIB)/libcmt.lib \
+ 	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.amd64)_LIB)/libcpmt.lib
+ TEMPLATE_BIN-STATIC-THREADED_LIBS.x86 = $(filter-out %/msvcrt.lib,$(TEMPLATE_BIN-THREADED_LIBS.x86)) \
+ 	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.x86)_LIB)/libcmt.lib \
+ 	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.x86)_LIB)/libcpmt.lib
 else
  TEMPLATE_BIN-STATIC-THREADED_CFLAGS  = $(TEMPLATE_BIN-THREADED_CFLAGS) -static
  TEMPLATE_BIN-STATIC-THREADED_LDFLAGS = $(TEMPLATE_BIN-THREADED_LDFLAGS) -static
