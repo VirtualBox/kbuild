@@ -1,4 +1,4 @@
-# $Id: WINSDK10.kmk 3320 2020-04-16 22:19:22Z knut.osmundsen@oracle.com $
+# $Id: WINSDK10.kmk 3418 2020-08-21 11:02:13Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Windows SDK v10.
 #
@@ -48,27 +48,27 @@ endif
 ifndef PATH_SDK_WINSDK10
  ifndef SDK_WINSDK10_VERSION
   PATH_SDK_WINSDK10 := $(firstfile $(foreachfile toolsdir, \
-  	$(PATH_DEVTOOLS_BLD) $(PATH_DEVTOOLS_TRG) $(PATH_DEVTOOLS)/win.x86 $(PATH_DEVTOOLS)/win.amd64 \
+  	$(KBUILD_DEVTOOLS_BLD) $(KBUILD_DEVTOOLS_TRG) $(KBUILD_DEVTOOLS)/win.x86 $(KBUILD_DEVTOOLS)/win.amd64 \
        , $(rsortfiles $(qwildcard ,$(toolsdir)/sdk/v10*/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/10.0.*))))
   ifeq ($(PATH_SDK_WINSDK10),)
    PATH_SDK_WINSDK10 := $(firstfile $(foreachfile progfilesdir,$(WINCMN_PROGRAM_FILES_LIST)\
    	,$(rsortfiles $(qwildcard ,$(progfilesdir)/Windows\ Kits/10/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/10.0.*)) ))
    ifeq ($(PATH_SDK_WINSDK10),)
     $(warning kBuild: PATH_SDK_WINSDK10 couldn't be determined!)
-    PATH_SDK_WINSDK10 := $(PATH_DEVTOOLS_BLD)/sdk/v10-not-found/Include/10.0.10240.0
+    PATH_SDK_WINSDK10 := $(KBUILD_DEVTOOLS_BLD)/sdk/v10-not-found/Include/10.0.10240.0
    endif
   endif
   SDK_WINSDK10_VERSION := $(qnotdir ,$(PATH_SDK_WINSDK10))
  else
   PATH_SDK_WINSDK10 := $(firstfile $(foreachfile toolsdir, \
-  	$(PATH_DEVTOOLS_BLD) $(PATH_DEVTOOLS_TRG) $(PATH_DEVTOOLS)/win.x86 $(PATH_DEVTOOLS)/win.amd64 \
+  	$(KBUILD_DEVTOOLS_BLD) $(KBUILD_DEVTOOLS_TRG) $(KBUILD_DEVTOOLS)/win.x86 $(KBUILD_DEVTOOLS)/win.amd64 \
        , $(rsortfiles $(qwildcard ,$(toolsdir)/sdk/v10*/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/$(SDK_WINSDK10_VERSION)))))
   ifeq ($(PATH_SDK_WINSDK10),)
    PATH_SDK_WINSDK10 := $(firstfile $(foreachfile progfilesdir,$(WINCMN_PROGRAM_FILES_LIST)\
    	,$(rsortfiles $(qwildcard ,$(progfilesdir)/Windows\ Kits/10/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/$(SDK_WINSDK10_VERSION))) ))
    ifeq ($(PATH_SDK_WINSDK10),)
     $(warning kBuild: PATH_SDK_WINSDK10 couldn't be determined!)
-    PATH_SDK_WINSDK10 := $(PATH_DEVTOOLS_BLD)/sdk/v10-not-found/Include/$(SDK_WINSDK10_VERSION)
+    PATH_SDK_WINSDK10 := $(KBUILD_DEVTOOLS_BLD)/sdk/v10-not-found/Include/$(SDK_WINSDK10_VERSION)
    endif
   endif
   SDK_WINSDK10_VERSION := $(qnotdir ,$(PATH_SDK_WINSDK10))

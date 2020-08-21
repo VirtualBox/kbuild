@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 3284 2019-01-05 01:40:31Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 3418 2020-08-21 11:02:13Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -64,7 +64,7 @@ SDK_QT3 = Qt3
 #       PATH_SDK_QT3_LIB.amd64 - the Qt3 library directory for AMD64.
 #       PATH_SDK_QT3_LIB.x86   - the Qt3 library directory for X86.
 ifndef PATH_SDK_QT3
- PATH_SDK_QT3 := $(firstword $(rsort $(wildcard $(PATH_DEVTOOLS_TRG)/qt/v3*)))
+ PATH_SDK_QT3 := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_TRG)/qt/v3*)))
  ifeq ($(PATH_SDK_QT3),)
   # If target == host, try look for Qt in the various platform specific places.
   ifeq ($(KBUILD_TARGET),$(KBUILD_HOST))
@@ -189,7 +189,7 @@ ifndef PATH_SDK_QT3
   # Found it?
   ifeq ($(PATH_SDK_QT3),)
    $(warning kBuild: Couldn't find the Qt3 headers and libaries...)
-   PATH_SDK_QT3 := $(PATH_DEVTOOLS_TRG)/qt/not-found
+   PATH_SDK_QT3 := $(KBUILD_DEVTOOLS_TRG)/qt/not-found
   endif
  endif
 else
@@ -218,7 +218,7 @@ TOOL_QT3 = Qt3
 #       TOOL_QT3_BIN_SUFF - the '-qt3' bit found on debian.
 #       PATH_TOOL_QT3_BIN - the directory containing moc, uic, lrelease, lupdate and qm2ts.
 ifndef PATH_TOOL_QT3_BIN
- PATH_TOOL_QT3_BIN := $(firstword $(rsort $(wildcard $(PATH_DEVTOOLS_BLD)/qt/v3*/bin)))
+ PATH_TOOL_QT3_BIN := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_BLD)/qt/v3*/bin)))
  ifeq ($(PATH_TOOL_QT3_BIN),)
   if1of ($(KBUILD_HOST), win os2)
    # Sorry, no joy here. Check QTDIR perhaps, but for now users have to set PATH_TOOL_QT3_BIN.

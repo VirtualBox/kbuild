@@ -1,4 +1,4 @@
-# $Id: W2K3DDKAMD64.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: W2K3DDKAMD64.kmk 3418 2020-08-21 11:02:13Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Windows 2003 DDK, targeting amd64.
 #
@@ -35,22 +35,22 @@ SDK_W2K3DDKAMD64 := The Microsoft Windows 2003 DDK, targeting amd64.
 
 # SDK Specific Properties
 ifndef PATH_SDK_W2K3DDKAMD64
- PATH_SDK_W2K3DDKAMD64 := $(wildcard $(PATH_DEVTOOLS)/win.amd64/ddkwin2k3/2*)
+ PATH_SDK_W2K3DDKAMD64 := $(wildcard $(KBUILD_DEVTOOLS)/win.amd64/ddkwin2k3/2*)
  ifeq ($(PATH_SDK_W2K3DDKAMD64),)
   PATH_SDK_W2K3DDKAMD64 := $(PATH_SDK_W2K3DDK)
  endif
  ifeq ($(PATH_SDK_W2K3DDKAMD64),)
-  PATH_SDK_W2K3DDKAMD64 := $(wildcard $(PATH_DEVTOOLS)/win.x86/ddkwin2k3/2*)
+  PATH_SDK_W2K3DDKAMD64 := $(wildcard $(KBUILD_DEVTOOLS)/win.x86/ddkwin2k3/2*)
  endif
  # legacy:
  ifeq ($(PATH_SDK_W2K3DDKAMD64),)
-  PATH_SDK_W2K3DDKAMD64 := $(wildcard $(PATH_DEVTOOLS)/x86.win32/ddkwin2k3/2*)
+  PATH_SDK_W2K3DDKAMD64 := $(wildcard $(KBUILD_DEVTOOLS)/x86.win32/ddkwin2k3/2*)
  endif
  ifneq ($(PATH_SDK_W2K3DDKAMD64),)
   PATH_SDK_W2K3DDKAMD64 := $(lastword $(sort $(PATH_SDK_W2K3DDKAMD64)))
  else
   $(warning kBuild: PATH_SDK_W2K3DDKAMD64 couldn't be determined!)
-  PATH_SDK_W2K3DDKAMD64 := $(PATH_DEVTOOLS)/win.amd64/ddkwin2k3/not/found
+  PATH_SDK_W2K3DDKAMD64 := $(KBUILD_DEVTOOLS)/win.amd64/ddkwin2k3/not/found
  endif
 else
  # Resolve any fancy stuff once and for all.

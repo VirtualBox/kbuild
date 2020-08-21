@@ -1,4 +1,4 @@
-# $Id: DXSDKAMD64.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: DXSDKAMD64.kmk 3418 2020-08-21 11:02:13Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Direct X SDK, targeting AMD64.
 #
@@ -35,18 +35,18 @@ SDK_DXSDKAMD64 := The Microsoft Direct X SDK, targeting AMD64.
 
 # SDK Specific Properties
 ifndef PATH_SDK_DXSDKAMD64
- PATH_SDK_DXSDKAMD64 := $(wildcard $(PATH_DEVTOOLS)/win.amd64/dxsdk/2*)
+ PATH_SDK_DXSDKAMD64 := $(wildcard $(KBUILD_DEVTOOLS)/win.amd64/dxsdk/2*)
  ifeq ($(PATH_SDK_DXSDKAMD64),)
   PATH_SDK_DXSDKAMD64 := $(PATH_SDK_DXSDK)
  endif
  ifeq ($(PATH_SDK_DXSDKAMD64),)
-  PATH_SDK_DXSDKAMD64 := $(wildcard $(PATH_DEVTOOLS)/win.x86/dxsdk/2*)
+  PATH_SDK_DXSDKAMD64 := $(wildcard $(KBUILD_DEVTOOLS)/win.x86/dxsdk/2*)
  endif
  ifneq ($(PATH_SDK_DXSDKAMD64),)
   PATH_SDK_DXSDKAMD64 := $(lastword $(sort $(PATH_SDK_DXSDKAMD64)))
  else
   $(warning kBuild: PATH_SDK_DXSDKAMD64 couldn't be determined!)
-  PATH_SDK_DXSDKAMD64 := $(PATH_DEVTOOLS)/win.amd64/dxsdk/not/found
+  PATH_SDK_DXSDKAMD64 := $(KBUILD_DEVTOOLS)/win.amd64/dxsdk/not/found
  endif
 else
  # Resolve any fancy stuff once and for all.
