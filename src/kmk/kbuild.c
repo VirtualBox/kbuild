@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 3415 2020-08-20 23:43:33Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 3425 2020-08-21 12:45:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -1518,6 +1518,72 @@ kbuild_put_sdks(struct kbuild_sdks *pSdks)
     free(pSdks->pa);
 }
 
+/** Per variable struct used by kbuild_collect_source_prop and helpers. */
+struct kbuild_collect_variable
+{
+    struct variable    *pVar;
+    unsigned int        cchExp;
+    char               *pszExp;
+};
+
+/**
+ * Helper for kbuild_collect_source_prop. 
+ *  
+ * Frees up any memory we've allocated for the variable values. 
+ */
+static struct variable *
+kbuild_collect_source_prop_create_var(size_t cchTotal, int cVars, struct kbuild_collect_variable *paVars, int iDirection,
+                                      const char *pszVarName, size_t cchVarName, enum variable_origin enmVarOrigin)
+{
+    char *pszResult;
+    struct variable *pVar;
+    if (!cVars || !cchTotal)
+    {
+        pszResult = xmalloc(1);
+        *pszResult = '\0';
+    }
+    else
+    {
+        int iVar;
+        char *psz = pszResult = xmalloc(cchTotal + 1);
+        if (iDirection == 1)
+        {
+            for (iVar = 0; iVar < cVars; iVar++)
+            {
+                my_memcpy(psz, paVars[iVar].pszExp, paVars[iVar].cchExp);
+                psz += paVars[iVar].cchExp;
+                *psz++ = ' ';
+                if (paVars[iVar].pszExp != paVars[iVar].pVar->value)
+                    free(paVars[iVar].pszExp);
+            }
+        }
+        else
+        {
+            iVar = cVars;
+            while (iVar-- > 0)
+            {
+                my_memcpy(psz, paVars[iVar].pszExp, paVars[iVar].cchExp);
+                psz += paVars[iVar].cchExp;
+                *psz++ = ' ';
+                if (paVars[iVar].pszExp != paVars[iVar].pVar->value)
+                    free(paVars[iVar].pszExp);
+            }
+
+        }
+        assert(psz != pszResult);
+        assert(cchTotal == (size_t)(psz - pszResult));
+        psz[-1] = '\0';
+        cchTotal--;
+
+    }
+    if (enmVarOrigin == o_local)
+        pVar = define_variable_vl(pszVarName, cchVarName, pszResult, cchTotal,
+                                  0 /* take pszResult */ , enmVarOrigin, 0 /* !recursive */);
+    else
+        pVar = define_variable_vl_global(pszVarName, cchVarName, pszResult, cchTotal,
+                                         0 /* take pszResult */ , enmVarOrigin, 0 /* !recursive */, NILF);
+    return pVar;
+}
 
 /* this kind of stuff:
 
@@ -1657,13 +1723,8 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     unsigned iSdk, iSdkEnd;
     int cVars, iVar;
     size_t cchTotal, cchBuf;
-    char *pszResult, *pszBuf, *psz, *psz2, *psz3;
-    struct
-    {
-        struct variable    *pVar;
-        unsigned int        cchExp;
-        char               *pszExp;
-    } *paVars;
+    char *pszBuf, *psz, *psz2, *psz3;
+    struct kbuild_collect_variable *paVars;
 
     assert(iDirection == 1 || iDirection == -1);
 
@@ -1679,7 +1740,8 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
            + pBldTrg->value_length + 1
            + pBldTrgArch->value_length + 1
            + pBldTrgCpu->value_length + 1
-           + pBldType->value_length + 1;
+           + pBldType->value_length + 1
+           + sizeof("_2_");
     pszBuf = xmalloc(cchBuf);
 
     /*
@@ -1688,7 +1750,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
      * The compiler will get a heart attack when it sees this code ... ;-)
      */
     cVars = 12 * (pSdks->c + 5);
-    paVars = alloca(cVars * sizeof(paVars[0]));
+    paVars = (struct kbuild_collect_variable *)alloca(cVars * sizeof(paVars[0]));
 
     iVar = 0;
     cchTotal = 0;
@@ -1772,54 +1834,89 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
        DO_SINGLE_PSZ3_VARIATION(); \
     } while (0)
 
-    /* the tool (lowest priority). */
-    psz = pszBuf;
-    ADD_CSTR("TOOL_");
-    ADD_VAR(pTool);
-    ADD_CH('_');
-    DO_DOUBLE_PSZ2_VARIATION();
-
-
-    /* the global sdks. */
-    iSdkEnd = iDirection == 1 ? pSdks->iGlobal + pSdks->cGlobal : pSdks->iGlobal - 1;
-    for (iSdk = iDirection == 1 ? pSdks->iGlobal : pSdks->iGlobal + pSdks->cGlobal - 1;
-         iSdk != iSdkEnd;
-         iSdk += iDirection)
-    {
-        struct variable *pSdk = &pSdks->pa[iSdk];
-        psz = pszBuf;
-        ADD_CSTR("SDK_");
-        ADD_VAR(pSdk);
-        ADD_CH('_');
-        DO_DOUBLE_PSZ2_VARIATION();
-    }
-
-    /* the globals. */
-    psz = pszBuf;
-    DO_DOUBLE_PSZ2_VARIATION();
-
-    /* the target sdks. */
-/** @todo these can be cached in a type specific _2_ variable   */
-    iSdkEnd = iDirection == 1 ? pSdks->iTarget + pSdks->cTarget : pSdks->iTarget - 1;
-    for (iSdk = iDirection == 1 ? pSdks->iTarget : pSdks->iTarget + pSdks->cTarget - 1;
-         iSdk != iSdkEnd;
-         iSdk += iDirection)
-    {
-        struct variable *pSdk = &pSdks->pa[iSdk];
-        psz = pszBuf;
-        ADD_CSTR("SDK_");
-        ADD_VAR(pSdk);
-        ADD_CH('_');
-        DO_DOUBLE_PSZ2_VARIATION();
-    }
-
-
-    /* the target. */
-/** @todo these can be cached in a type specific _2_ variable   */
+    /*
+     * The first bunch part may be cached on the target already, check that first:
+     */
     psz = pszBuf;
     ADD_VAR(pTarget);
+    ADD_CSTR("_2_");
+    ADD_VAR(pType);
+    ADD_STR(pszProp, cchProp);
     ADD_CH('_');
-    DO_DOUBLE_PSZ2_VARIATION();
+    ADD_VAR(pBldType);
+    *psz = '\0';
+    pVar = kbuild_lookup_variable_n(pszBuf, psz - pszBuf);
+    if (pVar)
+        assert(iVar == 0);
+    else
+    {
+        /* the tool (lowest priority). */
+        psz = pszBuf;
+        ADD_CSTR("TOOL_");
+        ADD_VAR(pTool);
+        ADD_CH('_');
+        DO_DOUBLE_PSZ2_VARIATION();
+
+        /* the global sdks. */
+        iSdkEnd = iDirection == 1 ? pSdks->iGlobal + pSdks->cGlobal : pSdks->iGlobal - 1;
+        for (iSdk = iDirection == 1 ? pSdks->iGlobal : pSdks->iGlobal + pSdks->cGlobal - 1;
+             iSdk != iSdkEnd;
+             iSdk += iDirection)
+        {
+            struct variable *pSdk = &pSdks->pa[iSdk];
+            psz = pszBuf;
+            ADD_CSTR("SDK_");
+            ADD_VAR(pSdk);
+            ADD_CH('_');
+            DO_DOUBLE_PSZ2_VARIATION();
+        }
+
+        /* the globals. */
+        psz = pszBuf;
+        DO_DOUBLE_PSZ2_VARIATION();
+
+        /* the target sdks. */
+        iSdkEnd = iDirection == 1 ? pSdks->iTarget + pSdks->cTarget : pSdks->iTarget - 1;
+        for (iSdk = iDirection == 1 ? pSdks->iTarget : pSdks->iTarget + pSdks->cTarget - 1;
+             iSdk != iSdkEnd;
+             iSdk += iDirection)
+        {
+            struct variable *pSdk = &pSdks->pa[iSdk];
+            psz = pszBuf;
+            ADD_CSTR("SDK_");
+            ADD_VAR(pSdk);
+            ADD_CH('_');
+            DO_DOUBLE_PSZ2_VARIATION();
+        }
+
+        /* the target. */
+        psz = pszBuf;
+        ADD_VAR(pTarget);
+        ADD_CH('_');
+        DO_DOUBLE_PSZ2_VARIATION();
+
+        /*
+         * Cache the result thus far (frees up anything we might've allocated above).
+         */
+        psz = pszBuf;
+        ADD_VAR(pTarget);
+        ADD_CSTR("_2_");
+        ADD_VAR(pType);
+        ADD_STR(pszProp, cchProp);
+        ADD_CH('_');
+        ADD_VAR(pBldType);
+        *psz = '\0';
+        assert(iVar <= cVars);
+        pVar = kbuild_collect_source_prop_create_var(cchTotal, iVar, paVars, iDirection, pszBuf, psz - pszBuf, o_file);
+        assert(pVar);
+    }
+
+    /* Now we use the cached target variable. */
+    paVars[0].pVar   = pVar;
+    paVars[0].pszExp = pVar->value;
+    paVars[0].cchExp = pVar->value_length;
+    cchTotal         = paVars[0].cchExp + 1;
+    iVar = 1;
 
     /* the source sdks. */
     iSdkEnd = iDirection == 1 ? pSdks->iSource + pSdks->cSource : pSdks->iSource - 1;
@@ -1865,52 +1962,11 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
 
     free(pszBuf);
 
-    assert(iVar <= cVars);
-    cVars = iVar;
-
     /*
-     * Construct the result value.
+     * Construct the result value (frees up anything we might've allocated above).
      */
-    if (!cVars || !cchTotal)
-        pVar = define_variable_vl(pszVarName, cchVarName, "", 0,
-                                  1 /* duplicate value */ , o_local, 0 /* !recursive */);
-    else
-    {
-        psz = pszResult = xmalloc(cchTotal + 1);
-        if (iDirection == 1)
-        {
-            for (iVar = 0; iVar < cVars; iVar++)
-            {
-                my_memcpy(psz, paVars[iVar].pszExp, paVars[iVar].cchExp);
-                psz += paVars[iVar].cchExp;
-                *psz++ = ' ';
-                if (paVars[iVar].pszExp != paVars[iVar].pVar->value)
-                    free(paVars[iVar].pszExp);
-            }
-        }
-        else
-        {
-            iVar = cVars;
-            while (iVar-- > 0)
-            {
-                my_memcpy(psz, paVars[iVar].pszExp, paVars[iVar].cchExp);
-                psz += paVars[iVar].cchExp;
-                *psz++ = ' ';
-                if (paVars[iVar].pszExp != paVars[iVar].pVar->value)
-                    free(paVars[iVar].pszExp);
-            }
-
-        }
-        assert(psz != pszResult);
-        assert(cchTotal == (size_t)(psz - pszResult));
-        psz[-1] = '\0';
-        cchTotal--;
-
-        pVar = define_variable_vl(pszVarName, cchVarName, pszResult, cchTotal,
-                                  0 /* take pszResult */ , o_local, 0 /* !recursive */);
-    }
-
-    return pVar;
+    assert(iVar <= cVars);
+    return kbuild_collect_source_prop_create_var(cchTotal, iVar, paVars, iDirection, pszVarName, cchVarName, o_local);
 
 #undef ADD_VAR
 #undef ADD_STR
