@@ -44,7 +44,8 @@ void scopyn(const char *, char *, ssize_t);
 int prefix(const char *, const char *);
 int number(struct shinstance *, const char *);
 int is_number(const char *);
-#if !defined(RT_OS_FREEBSD) && !defined(RT_OS_NETBSD) && !defined(RT_OS_OPENBSD) && !defined(RT_OS_OS2)
+#if !defined(RT_OS_FREEBSD) && !defined(RT_OS_NETBSD) && !defined(RT_OS_OPENBSD) && !defined(RT_OS_OS2) \
+ && /* newer darwin: */ !defined(strlcpy)
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif
 
