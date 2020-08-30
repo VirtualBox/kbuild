@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3427 2020-08-21 13:12:34Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3430 2020-08-30 17:14:06Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -293,10 +293,10 @@ else # !os2, !win, !nt
    endif
   endif
   ifndef KBUILD_MACOSX_WHATEVER_MODE
-   if $(KBUILD_MACOSX_TARGET_VERSION) == 4
+   if $(KBUILD_MACOSX_TARGET_VERSION) <= 4
     TOOL_GCC4MACHO_SUFFIX	        = -4.0
     TOOL_GXX4MACHO_SUFFIX		= -4.0
-   else if $(KBUILD_MACOSX_TARGET_VERSION) >= 5
+   else if $(KBUILD_MACOSX_TARGET_VERSION) <= 9 # dunno which exactly.
     TOOL_GCC4MACHO_SUFFIX	        = -4.2
     TOOL_GXX4MACHO_SUFFIX		= -4.2
    endif
@@ -304,6 +304,9 @@ else # !os2, !win, !nt
     KBUILD_MACOSX_SDK            := /Developer/SDKs/MacOSX10.$(KBUILD_MACOSX_TARGET_VERSION)$(if-expr $(KBUILD_MACOSX_TARGET_VERSION)==4,u,).sdk
     ifeq ($(wildcard $(KBUILD_MACOSX_SDK)),)
      KBUILD_MACOSX_SDK           := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform$(KBUILD_MACOSX_SDK)
+    endif
+    ifeq ($(wildcard $(KBUILD_MACOSX_SDK)),)
+     KBUILD_MACOSX_SDK           := /Library/Developer/CommandLineTools/SDKs/MacOSX10.$(KBUILD_MACOSX_TARGET_VERSION)$(if-expr $(KBUILD_MACOSX_TARGET_VERSION)==4,u,).sdk
     endif
    endif
    ifeq ($(wildcard $(KBUILD_MACOSX_SDK)),)
