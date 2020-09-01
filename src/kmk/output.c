@@ -171,6 +171,12 @@ static void membuf_dump (struct output *out)
       if (sem)
         release_semaphore (sem);
 
+# ifdef KMK
+      if (!out->dont_truncate)
+        { /* likely */ }
+      else return;
+# endif
+
       /* Free the segments and reset the state. */
       while ((seg = out->out.head_seg))
         {
@@ -922,6 +928,11 @@ output_dump (struct output *out)
       if (sem)
         release_semaphore (sem);
 
+# ifdef KMK
+      if (!out->dont_truncate)
+        { /* likely */ }
+      else return;
+# endif
       /* Truncate and reset the output, in case we use it again.  */
       if (out->out != OUTPUT_NONE)
         {
@@ -1061,6 +1072,9 @@ output_init (struct output *out)
       out->out = out->err = OUTPUT_NONE;
 #endif
       out->syncout = !!output_sync;
+#ifdef KMK
+      out->dont_truncate = 0;
+#endif
       return;
     }
 

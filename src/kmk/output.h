@@ -59,6 +59,9 @@ struct output
     int err;
 #endif
     unsigned int syncout:1;     /* True if we want to synchronize output.  */
+#ifdef KMK
+    unsigned int dont_truncate:1; /* For die_with_child_output repeat.  */
+#endif
  };
 
 extern struct output *output_context;
