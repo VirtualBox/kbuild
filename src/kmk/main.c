@@ -4350,11 +4350,16 @@ clean_jobserver (int status)
 /* Exit with STATUS, cleaning up as necessary.  */
 
 void
+#ifdef KMK
+die_with_job_output (int status, struct output *out)
+#else
 die (int status)
+#endif
 {
   static char dying = 0;
 #ifdef KMK
   static char need_2nd_error = 0;
+  static char need_2nd_error_output = 0;
 #endif
 
   if (!dying)
@@ -4372,7 +4377,12 @@ die (int status)
           && (   job_slots_used > 0
               || print_data_base_flag
               || print_stats_flag))
-        need_2nd_error = 1;
+        {
+          need_2nd_error = 1;
+          need_2nd_error_output = job_slots_used > 2
+                               && out == NULL
+                               && out != &make_sync;
+        }
 #endif /* KMK */
 
       /* Wait for children to die.  */
@@ -4448,7 +4458,21 @@ die (int status)
      failure again before exiting. */
   if (need_2nd_error != 0)
     ON (error, NILF, _("*** Exiting with status %d"), status);
+  if (out)
+  {
+      out->dont_truncate = 0;
+      if (need_2nd_error_output)
+        output_dump (out);
+      output_close (out);
+  }
 #endif
 
   exit (status);
 }
+
+#ifdef KMK
+void die(int status)
+{
+    die_with_job_output (status, NULL);
+}
+#endif

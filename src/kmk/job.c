@@ -1057,6 +1057,9 @@ reap_children (int block, int err)
 
 #ifndef NO_OUTPUT_SYNC
       /* Synchronize any remaining parallel output.  */
+# ifdef KMK
+      c->output.dont_truncate = !err && child_failed && !dontcare && !keep_going_flag && !handling_fatal_signal;
+# endif
       output_dump (&c->output);
 #endif
 
@@ -1091,16 +1094,30 @@ reap_children (int block, int err)
       else
         lastc->next = c->next;
 
+#ifdef KMK /* Repeat the error  */
+      /* If the job failed, and the -k flag was not given, die,
+         unless we are already in the process of dying.  */
+      if (!err && child_failed && !dontcare && !keep_going_flag &&
+          /* fatal_error_signal will die with the right signal.  */
+          !handling_fatal_signal)
+        {
+          unblock_sigs ();
+          die_with_job_output (child_failed, &c->output);
+        }
+#endif
+
       free_child (c);
 
       unblock_sigs ();
 
+#ifndef KMK /* See above. */
       /* If the job failed, and the -k flag was not given, die,
          unless we are already in the process of dying.  */
       if (!err && child_failed && !dontcare && !keep_going_flag &&
           /* fatal_error_signal will die with the right signal.  */
           !handling_fatal_signal)
         die (child_failed);
+#endif
 
       /* Only block for one child.  */
       block = 0;
