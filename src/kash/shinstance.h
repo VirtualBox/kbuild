@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 3409 2020-08-13 09:49:06Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 3434 2020-09-02 20:19:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -179,7 +179,7 @@ struct shinstance
     int                 loopnest;       /**< current loop nesting level */
 
     /* eval.c */
-    int                 vforked;
+    int                 vforked; /** @todo remove this */
 
     /* expand.c */
     char               *expdest;        /**< output of current string */

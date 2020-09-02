@@ -767,7 +767,234 @@ parse_command_args(shinstance *psh, int argc, char **argv, int *use_syspath)
 	return sv_argc - argc;
 }
 
+
+/*
+ * The split up evalcommand code:
+ *      evalcommand_out, evalcommand_parent, evalcommand_doit, evalcommand_child
+ */
 /*int vforked = 0;*/
+
+/* Both child and parent exits thru here. */
+STATIC void
+evalcommand_out(shinstance *psh, int flags, char *lastarg, struct stackmark *smarkp)
+{
+	if (lastarg)
+		/* dsl: I think this is intended to be used to support
+		 * '_' in 'vi' command mode during line editing...
+		 * However I implemented that within libedit itself.
+		 */
+		setvar(psh, "_", lastarg, 0);
+	popstackmark(psh, smarkp);
+
+	if (eflag(psh) && psh->exitstatus && !(flags & EV_TESTED))
+		exitshell(psh, psh->exitstatus);
+}
+
+
+/* Called if we forkshell(). */
+STATIC void
+evalcommand_parent(shinstance *psh, int flags, char *lastarg, struct stackmark *smarkp,
+		   int mode, struct job *jp, int pip[2], struct backcmd *backcmd)
+{
+	if (mode == FORK_FG) {	/* argument to fork */
+		psh->exitstatus = waitforjob(psh, jp);
+	} else if (mode == FORK_NOJOB) {
+		backcmd->fd = pip[0];
+		shfile_close(&psh->fdtab, pip[1]);
+		backcmd->jp = jp;
+	}
+	FORCEINTON;
+
+	evalcommand_out(psh, flags, lastarg, smarkp);
+}
+
+struct evalcommanddoit
+{
+	struct cmdentry cmdentry;
+	char *lastarg;
+	const char *path;
+	struct backcmd *backcmd;
+	int flags;
+	int argc;
+	char **argv;
+	struct arglist varlist;
+	struct stackmark smark;
+};
+
+STATIC void
+evalcommand_doit(shinstance *psh, union node *cmd, struct evalcommanddoit *args)
+{
+	struct jmploc jmploc;
+	struct jmploc *volatile savehandler;
+	struct localvar *volatile savelocalvars;
+
+	/* This is the child process if a fork occurred. */
+	/* Execute the command. */
+	switch (args->cmdentry.cmdtype) {
+		case CMDFUNCTION: {
+			volatile struct shparam saveparam;
+#ifdef DEBUG
+			trputs(psh, "Shell function:  ");  trargs(psh, args->argv);
+#endif
+			redirect(psh, cmd->ncmd.redirect, REDIR_PUSH);
+			saveparam = psh->shellparam;
+			psh->shellparam.malloc = 0;
+			psh->shellparam.reset = 1;
+			psh->shellparam.nparam = args->argc - 1;
+			psh->shellparam.p = args->argv + 1;
+			psh->shellparam.optnext = NULL;
+			INTOFF;
+			savelocalvars = psh->localvars;
+			psh->localvars = NULL;
+			INTON;
+			if (setjmp(jmploc.loc)) {
+				if (psh->exception == EXSHELLPROC) {
+					freeparam(psh, (volatile struct shparam *)
+						&saveparam);
+				} else {
+					freeparam(psh, &psh->shellparam);
+					psh->shellparam = saveparam;
+				}
+				poplocalvars(psh);
+				psh->localvars = savelocalvars;
+				psh->handler = savehandler;
+				longjmp(psh->handler->loc, 1);
+			}
+			savehandler = psh->handler;
+			psh->handler = &jmploc;
+			listmklocal(psh, args->varlist.list, 0);
+			/* stop shell blowing its stack */
+			if (++psh->funcnest > 1000)
+				error(psh, "too many nested function calls");
+			evaltree(psh, args->cmdentry.u.func, args->flags & EV_TESTED);
+			psh->funcnest--;
+			INTOFF;
+			poplocalvars(psh);
+			psh->localvars = savelocalvars;
+			freeparam(psh, &psh->shellparam);
+			psh->shellparam = saveparam;
+			psh->handler = savehandler;
+			popredir(psh);
+			INTON;
+			if (psh->evalskip == SKIPFUNC) {
+				psh->evalskip = 0;
+				psh->skipcount = 0;
+			}
+			if (args->flags & EV_EXIT)
+				exitshell(psh, psh->exitstatus);
+			break;
+		}
+
+		case CMDBUILTIN:
+		case CMDSPLBLTIN: {
+			volatile int temp_path = 0;
+			char *volatile savecmdname;
+			volatile int e;
+			int mode;
+#ifdef DEBUG
+			trputs(psh, "builtin command:  ");  trargs(psh, args->argv);
+#endif
+			mode = (args->cmdentry.u.bltin == execcmd) ? 0 : REDIR_PUSH;
+			if (args->flags == EV_BACKCMD) {
+				psh->memout.nleft = 0;
+				psh->memout.nextc = psh->memout.buf;
+				psh->memout.bufsize = 64;
+				mode |= REDIR_BACKQ;
+			}
+			e = -1;
+			savehandler = psh->handler;
+			savecmdname = psh->commandname;
+			psh->handler = &jmploc;
+			if (!setjmp(jmploc.loc)) {
+				/* We need to ensure the command hash table isn't
+				 * corruped by temporary PATH assignments.
+				 * However we must ensure the 'local' command works!
+				 */
+				if (args->path != pathval(psh) && (args->cmdentry.u.bltin == hashcmd ||
+					args->cmdentry.u.bltin == typecmd)) {
+					savelocalvars = psh->localvars;
+					psh->localvars = 0;
+					mklocal(psh, args->path - 5 /* PATH= */, 0);
+					temp_path = 1;
+				} else
+					temp_path = 0;
+				redirect(psh, cmd->ncmd.redirect, mode);
+
+				/* exec is a special builtin, but needs this list... */
+				psh->cmdenviron = args->varlist.list;
+				/* we must check 'readonly' flag for all builtins */
+				listsetvar(psh, args->varlist.list,
+					args->cmdentry.cmdtype == CMDSPLBLTIN ? 0 : VNOSET);
+				psh->commandname = args->argv[0];
+				/* initialize nextopt */
+				psh->argptr = args->argv + 1;
+				psh->optptr = NULL;
+				/* and getopt */
+#if 0 /** @todo fix getop usage! */
+#if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
+				optreset = 1;
+				optind = 1;
+#else
+				optind = 0; /* init */
+#endif
+#endif
+
+				psh->exitstatus = args->cmdentry.u.bltin(psh, args->argc, args->argv);
+			} else {
+				e = psh->exception;
+				psh->exitstatus = e == EXINT ? SIGINT + 128 :
+						e == EXEXEC ? psh->exerrno : 2;
+			}
+			psh->handler = savehandler;
+			output_flushall(psh);
+			psh->out1 = &psh->output;
+			psh->out2 = &psh->errout;
+			freestdout(psh);
+			if (temp_path) {
+				poplocalvars(psh);
+				psh->localvars = savelocalvars;
+			}
+			psh->cmdenviron = NULL;
+			if (e != EXSHELLPROC) {
+				psh->commandname = savecmdname;
+				if (args->flags & EV_EXIT)
+					exitshell(psh, psh->exitstatus);
+			}
+			if (e != -1) {
+				if ((e != EXERROR && e != EXEXEC)
+					|| args->cmdentry.cmdtype == CMDSPLBLTIN)
+					exraise(psh, e);
+				FORCEINTON;
+			}
+			if (args->cmdentry.u.bltin != execcmd)
+				popredir(psh);
+			if (args->flags == EV_BACKCMD) {
+				args->backcmd->buf = psh->memout.buf;
+				args->backcmd->nleft = (int)(psh->memout.nextc - psh->memout.buf);
+				psh->memout.buf = NULL;
+			}
+			break;
+		}
+
+		default: {
+			struct strlist *sp;
+			char **envp;
+#ifdef DEBUG
+			trputs(psh, "normal command:  ");  trargs(psh, args->argv);
+#endif
+			clearredir(psh, psh->vforked);
+			redirect(psh, cmd->ncmd.redirect, psh->vforked ? REDIR_VFORK : 0);
+			if (!psh->vforked)
+				for (sp = args->varlist.list ; sp ; sp = sp->next)
+					setvareq(psh, sp->text, VEXPORT|VSTACK);
+			envp = environment(psh);
+			shellexec(psh, args->argv, envp, args->path, args->cmdentry.u.index, psh->vforked);
+			break;
+		}
+	}
+
+	evalcommand_out(psh, args->flags, args->lastarg, &args->smark);
+}
 
 /*
  * Execute a simple command.
@@ -776,42 +1003,20 @@ parse_command_args(shinstance *psh, int argc, char **argv, int *use_syspath)
 STATIC void
 evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd)
 {
-	struct stackmark smark;
-	union node *argp;
-	struct arglist arglist;
-	struct arglist varlist;
+	struct evalcommanddoit args;
 	char **argv;
 	int argc;
-	char **envp;
+
+	union node *argp;
 	int numvars;
+	struct arglist arglist;
 	struct strlist *sp;
-	int mode = 0;
-	int pip[2];
-	struct cmdentry cmdentry;
-	struct job *jp;
-	struct jmploc jmploc;
-	struct jmploc *volatile savehandler;
-	char *volatile savecmdname;
-	volatile struct shparam saveparam;
-	struct localvar *volatile savelocalvars;
-	volatile int e;
-	char *lastarg;
 	const char *path = pathval(psh);
-	volatile int temp_path;
-#if __GNUC__
-	/* Try avoid longjmp clobbering */
-	(void) &argv;
-	(void) &argc;
-	(void) &lastarg;
-	(void) &flags;
-	(void) &path;
-	(void) &mode;
-#endif
 
 	psh->vforked = 0;
 	/* First expand the arguments. */
 	TRACE((psh, "evalcommand(0x%lx, %d) called\n", (long)cmd, flags));
-	setstackmark(psh, &smark);
+	setstackmark(psh, &args.smark);
 	psh->back_exitstatus = 0;
 
 	arglist.lastp = &arglist.list;
@@ -834,31 +1039,32 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	expredir(psh, cmd->ncmd.redirect);
 
 	/* Now do the initial 'name=value' ones we skipped above */
-	varlist.lastp = &varlist.list;
+	args.varlist.lastp = &args.varlist.list;
 	for (argp = cmd->ncmd.args ; numvars > 0 && argp ; argp = argp->narg.next, numvars--)
-		expandarg(psh, argp, &varlist, EXP_VARTILDE);
-	*varlist.lastp = NULL;
+		expandarg(psh, argp, &args.varlist, EXP_VARTILDE);
+	*args.varlist.lastp = NULL;
 
 	argc = 0;
 	for (sp = arglist.list ; sp ; sp = sp->next)
 		argc++;
-	argv = stalloc(psh, sizeof (char *) * (argc + 1));
+	args.argc = argc;
+	args.argv = argv = stalloc(psh, sizeof (char *) * (argc + 1));
 
 	for (sp = arglist.list ; sp ; sp = sp->next) {
 		TRACE((psh, "evalcommand arg: %s\n", sp->text));
 		*argv++ = sp->text;
 	}
 	*argv = NULL;
-	lastarg = NULL;
+	args.lastarg = NULL;
 	if (iflag(psh) && psh->funcnest == 0 && argc > 0)
-		lastarg = argv[-1];
+		args.lastarg = argv[-1];
 	argv -= argc;
 
 	/* Print the command if xflag is set. */
 	if (xflag(psh)) {
 		char sep = 0;
 		out2str(psh, ps4val(psh));
-		for (sp = varlist.list ; sp ; sp = sp->next) {
+		for (sp = args.varlist.list ; sp ; sp = sp->next) {
 			if (sep != 0)
 				outc(sep, &psh->errout);
 			out2str(psh, sp->text);
@@ -876,8 +1082,8 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 
 	/* Now locate the command. */
 	if (argc == 0) {
-		cmdentry.cmdtype = CMDSPLBLTIN;
-		cmdentry.u.bltin = bltincmd;
+		args.cmdentry.cmdtype = CMDSPLBLTIN;
+		args.cmdentry.u.bltin = bltincmd;
 	} else {
 		static const char PATH[] = "PATH=";
 		int cmd_flags = DO_ERR;
@@ -886,28 +1092,29 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 		 * Modify the command lookup path, if a PATH= assignment
 		 * is present
 		 */
-		for (sp = varlist.list; sp; sp = sp->next)
+		for (sp = args.varlist.list; sp; sp = sp->next)
 			if (strncmp(sp->text, PATH, sizeof(PATH) - 1) == 0)
 				path = sp->text + sizeof(PATH) - 1;
 
 		do {
 			int argsused, use_syspath;
-			find_command(psh, argv[0], &cmdentry, cmd_flags, path);
-			if (cmdentry.cmdtype == CMDUNKNOWN) {
+			find_command(psh, argv[0], &args.cmdentry, cmd_flags, path);
+			if (args.cmdentry.cmdtype == CMDUNKNOWN) {
 				psh->exitstatus = 127;
 				flushout(&psh->errout);
-				goto out;
+				evalcommand_out(psh, flags, args.lastarg, &args.smark);
+				return;
 			}
 
 			/* implement the 'command' builtin here */
-			if (cmdentry.cmdtype != CMDBUILTIN ||
-			    cmdentry.u.bltin != bltincmd)
+			if (args.cmdentry.cmdtype != CMDBUILTIN ||
+			    args.cmdentry.u.bltin != bltincmd)
 				break;
 			cmd_flags |= DO_NOFUNC;
 			argsused = parse_command_args(psh, argc, argv, &use_syspath);
 			if (argsused == 0) {
 				/* use 'type' builting to display info */
-				cmdentry.u.bltin = typecmd;
+				args.cmdentry.u.bltin = typecmd;
 				break;
 			}
 			argc -= argsused;
@@ -915,19 +1122,22 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 			if (use_syspath)
 				path = syspath(psh) + 5;
 		} while (argc != 0);
-		if (cmdentry.cmdtype == CMDSPLBLTIN && cmd_flags & DO_NOFUNC)
+		if (args.cmdentry.cmdtype == CMDSPLBLTIN && cmd_flags & DO_NOFUNC)
 			/* posix mandates that 'command <splbltin>' act as if
 			   <splbltin> was a normal builtin */
-			cmdentry.cmdtype = CMDBUILTIN;
+			args.cmdentry.cmdtype = CMDBUILTIN;
 	}
 
 	/* Fork off a child process if necessary. */
 	if (cmd->ncmd.backgnd
-	 || (cmdentry.cmdtype == CMDNORMAL && (flags & EV_EXIT) == 0)
-	 || ((flags & EV_BACKCMD) != 0
-	    && ((cmdentry.cmdtype != CMDBUILTIN && cmdentry.cmdtype != CMDSPLBLTIN)
-		 || cmdentry.u.bltin == dotcmd
-		 || cmdentry.u.bltin == evalcmd))) {
+	 || (args.cmdentry.cmdtype == CMDNORMAL && (flags & EV_EXIT) == 0)
+	 || (  (flags & EV_BACKCMD) != 0
+	    && (  (args.cmdentry.cmdtype != CMDBUILTIN && args.cmdentry.cmdtype != CMDSPLBLTIN)
+		   || args.cmdentry.u.bltin == dotcmd
+		   || args.cmdentry.u.bltin == evalcmd))) {
+		struct job *jp;
+		int pip[2];
+		int mode;
 		INTOFF;
 		jp = makejob(psh, cmd, 1);
 		mode = cmd->ncmd.backgnd;
@@ -936,68 +1146,11 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 			if (sh_pipe(psh, pip) < 0)
 				error(psh, "Pipe call failed");
 		}
-#ifdef DO_SHAREDVFORK
-		/* It is essential that if DO_SHAREDVFORK is defined that the
-		 * child's address space is actually shared with the parent as
-		 * we rely on this.
-		 */
-		if (cmdentry.cmdtype == CMDNORMAL) {
-			pid_t	pid;
-
-			savelocalvars = psh->localvars;
-			psh->localvars = NULL;
-			psh->vforked = 1;
-			switch (pid = vfork()) {
-			case -1:
-				TRACE((psh, "Vfork failed, errno=%d\n", errno));
-				INTON;
-				error(psh, "Cannot vfork");
-				break;
-			case 0:
-				/* Make sure that exceptions only unwind to
-				 * after the vfork(2)
-				 */
-				if (setjmp(jmploc.loc)) {
-					if (psh->exception == EXSHELLPROC) {
-						/* We can't progress with the vfork,
-						 * so, set vforked = 2 so the parent
-						 * knows, and _exit();
-						 */
-						psh->vforked = 2;
-						sh__exit(psh, 0);
-					} else {
-						sh__exit(psh, psh->exerrno);
-					}
-				}
-				savehandler = psh->handler;
-				psh->handler = &jmploc;
-				listmklocal(psh, varlist.list, VEXPORT | VNOFUNC);
-				forkchild(psh, jp, cmd, mode, psh->vforked);
-				break;
-			default:
-				psh->handler = savehandler;	/* restore from vfork(2) */
-				poplocalvars(psh);
-				psh->localvars = savelocalvars;
-				if (psh->vforked == 2) {
-					psh->vforked = 0;
-
-					(void)sh_waitpid(psh, pid, NULL, 0);
-					/* We need to progress in a normal fork fashion */
-					goto normal_fork;
-				}
-				psh->vforked = 0;
-				forkparent(psh, jp, cmd, mode, pid);
-				goto parent;
-			}
-		} else {
-normal_fork:
-#endif
-			if (forkshell(psh, jp, cmd, mode) != 0)
-				goto parent;	/* at end of routine */
-			FORCEINTON;
-#ifdef DO_SHAREDVFORK
+		if (forkshell(psh, jp, cmd, mode) != 0) {
+			evalcommand_parent(psh, flags, args.lastarg, &args.smark, mode, jp, pip, backcmd);
+			return;	/* at end of routine */
 		}
-#endif
+
 		if (flags & EV_BACKCMD) {
 			if (!psh->vforked) {
 				FORCEINTON;
@@ -1008,185 +1161,18 @@ normal_fork:
 			}
 		}
 		flags |= EV_EXIT;
+
+		args.backcmd = backcmd;
+		args.flags = flags;
+		args.path = path;
+		evalcommand_doit(psh, cmd, &args);
 	}
-
-	/* This is the child process if a fork occurred. */
-	/* Execute the command. */
-	switch (cmdentry.cmdtype) {
-	case CMDFUNCTION:
-#ifdef DEBUG
-		trputs(psh, "Shell function:  ");  trargs(psh, argv);
-#endif
-		redirect(psh, cmd->ncmd.redirect, REDIR_PUSH);
-		saveparam = psh->shellparam;
-		psh->shellparam.malloc = 0;
-		psh->shellparam.reset = 1;
-		psh->shellparam.nparam = argc - 1;
-		psh->shellparam.p = argv + 1;
-		psh->shellparam.optnext = NULL;
-		INTOFF;
-		savelocalvars = psh->localvars;
-		psh->localvars = NULL;
-		INTON;
-		if (setjmp(jmploc.loc)) {
-			if (psh->exception == EXSHELLPROC) {
-				freeparam(psh, (volatile struct shparam *)
-				    &saveparam);
-			} else {
-				freeparam(psh, &psh->shellparam);
-				psh->shellparam = saveparam;
-			}
-			poplocalvars(psh);
-			psh->localvars = savelocalvars;
-			psh->handler = savehandler;
-			longjmp(psh->handler->loc, 1);
-		}
-		savehandler = psh->handler;
-		psh->handler = &jmploc;
-		listmklocal(psh, varlist.list, 0);
-		/* stop shell blowing its stack */
-		if (++psh->funcnest > 1000)
-			error(psh, "too many nested function calls");
-		evaltree(psh, cmdentry.u.func, flags & EV_TESTED);
-		psh->funcnest--;
-		INTOFF;
-		poplocalvars(psh);
-		psh->localvars = savelocalvars;
-		freeparam(psh, &psh->shellparam);
-		psh->shellparam = saveparam;
-		psh->handler = savehandler;
-		popredir(psh);
-		INTON;
-		if (psh->evalskip == SKIPFUNC) {
-			psh->evalskip = 0;
-			psh->skipcount = 0;
-		}
-		if (flags & EV_EXIT)
-			exitshell(psh, psh->exitstatus);
-		break;
-
-	case CMDBUILTIN:
-	case CMDSPLBLTIN:
-#ifdef DEBUG
-		trputs(psh, "builtin command:  ");  trargs(psh, argv);
-#endif
-		mode = (cmdentry.u.bltin == execcmd) ? 0 : REDIR_PUSH;
-		if (flags == EV_BACKCMD) {
-			psh->memout.nleft = 0;
-			psh->memout.nextc = psh->memout.buf;
-			psh->memout.bufsize = 64;
-			mode |= REDIR_BACKQ;
-		}
-		e = -1;
-		savehandler = psh->handler;
-		savecmdname = psh->commandname;
-		psh->handler = &jmploc;
-		if (!setjmp(jmploc.loc)) {
-			/* We need to ensure the command hash table isn't
-			 * corruped by temporary PATH assignments.
-			 * However we must ensure the 'local' command works!
-			 */
-			if (path != pathval(psh) && (cmdentry.u.bltin == hashcmd ||
-			    cmdentry.u.bltin == typecmd)) {
-				savelocalvars = psh->localvars;
-				psh->localvars = 0;
-				mklocal(psh, path - 5 /* PATH= */, 0);
-				temp_path = 1;
-			} else
-				temp_path = 0;
-			redirect(psh, cmd->ncmd.redirect, mode);
-
-			/* exec is a special builtin, but needs this list... */
-			psh->cmdenviron = varlist.list;
-			/* we must check 'readonly' flag for all builtins */
-			listsetvar(psh, varlist.list,
-				cmdentry.cmdtype == CMDSPLBLTIN ? 0 : VNOSET);
-			psh->commandname = argv[0];
-			/* initialize nextopt */
-			psh->argptr = argv + 1;
-			psh->optptr = NULL;
-			/* and getopt */
-#if 0 /** @todo fix getop usage! */
-#if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
-			optreset = 1;
-			optind = 1;
-#else
-			optind = 0; /* init */
-#endif
-#endif
-
-			psh->exitstatus = cmdentry.u.bltin(psh, argc, argv);
-		} else {
-			e = psh->exception;
-			psh->exitstatus = e == EXINT ? SIGINT + 128 :
-					e == EXEXEC ? psh->exerrno : 2;
-		}
-		psh->handler = savehandler;
-		output_flushall(psh);
-		psh->out1 = &psh->output;
-		psh->out2 = &psh->errout;
-		freestdout(psh);
-		if (temp_path) {
-			poplocalvars(psh);
-			psh->localvars = savelocalvars;
-		}
-		psh->cmdenviron = NULL;
-		if (e != EXSHELLPROC) {
-			psh->commandname = savecmdname;
-			if (flags & EV_EXIT)
-				exitshell(psh, psh->exitstatus);
-		}
-		if (e != -1) {
-			if ((e != EXERROR && e != EXEXEC)
-			    || cmdentry.cmdtype == CMDSPLBLTIN)
-				exraise(psh, e);
-			FORCEINTON;
-		}
-		if (cmdentry.u.bltin != execcmd)
-			popredir(psh);
-		if (flags == EV_BACKCMD) {
-			backcmd->buf = psh->memout.buf;
-			backcmd->nleft = (int)(psh->memout.nextc - psh->memout.buf);
-			psh->memout.buf = NULL;
-		}
-		break;
-
-	default:
-#ifdef DEBUG
-		trputs(psh, "normal command:  ");  trargs(psh, argv);
-#endif
-		clearredir(psh, psh->vforked);
-		redirect(psh, cmd->ncmd.redirect, psh->vforked ? REDIR_VFORK : 0);
-		if (!psh->vforked)
-			for (sp = varlist.list ; sp ; sp = sp->next)
-				setvareq(psh, sp->text, VEXPORT|VSTACK);
-		envp = environment(psh);
-		shellexec(psh, argv, envp, path, cmdentry.u.index, psh->vforked);
-		break;
+	else {
+		args.backcmd = backcmd;
+		args.flags = flags;
+		args.path = path;
+		evalcommand_doit(psh, cmd, &args);
 	}
-	goto out;
-
-parent:	/* parent process gets here (if we forked) */
-	if (mode == FORK_FG) {	/* argument to fork */
-		psh->exitstatus = waitforjob(psh, jp);
-	} else if (mode == FORK_NOJOB) {
-		backcmd->fd = pip[0];
-		shfile_close(&psh->fdtab, pip[1]);
-		backcmd->jp = jp;
-	}
-	FORCEINTON;
-
-out:
-	if (lastarg)
-		/* dsl: I think this is intended to be used to support
-		 * '_' in 'vi' command mode during line editing...
-		 * However I implemented that within libedit itself.
-		 */
-		setvar(psh, "_", lastarg, 0);
-	popstackmark(psh, &smark);
-
-	if (eflag(psh) && psh->exitstatus && !(flags & EV_TESTED))
-		exitshell(psh, psh->exitstatus);
 }
 
 
