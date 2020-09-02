@@ -57,6 +57,6 @@ void setinputfd(struct shinstance *, int, int);
 void setinputstring(struct shinstance *, char *, int);
 void popfile(struct shinstance *);
 void popallfiles(struct shinstance *);
-void closescript(struct shinstance *, int);
+void closescript(struct shinstance *);
 
 #define pgetc_macro(psh)	(--(psh)->parsenleft >= 0? *(psh)->parsenextc++ : preadbuffer(psh))

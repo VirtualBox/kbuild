@@ -564,10 +564,8 @@ popallfiles(shinstance *psh)
  */
 
 void
-closescript(shinstance *psh, int vforked)
+closescript(shinstance *psh)
 {
-	if (vforked)
-		return;
 	popallfiles(psh);
 	if (psh->parsefile->fd > 0) {
 		shfile_close(&psh->fdtab, psh->parsefile->fd);

@@ -275,14 +275,14 @@ initshellproc(shinstance *psh) {
 
       /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/redir.c: */
       {
-	      clearredir(psh, 0);
+	      clearredir(psh);
       }
 
       /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/trap.c: */
       {
 	      char *sm;
 
-	      clear_traps(psh, 0);
+	      clear_traps(psh);
 	      for (sm = psh->sigmode ; sm < psh->sigmode + NSIG ; sm++) {
 		      if (*sm == S_IGN)
 			      *sm = S_HARD_IGN;

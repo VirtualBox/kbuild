@@ -772,7 +772,7 @@ parse_command_args(shinstance *psh, int argc, char **argv, int *use_syspath)
  * The split up evalcommand code:
  *      evalcommand_out, evalcommand_parent, evalcommand_doit, evalcommand_child
  */
-/*int vforked = 0;*/
+/*int vforked = 0; - obsolete */
 
 /* Both child and parent exits thru here. */
 STATIC void
@@ -982,13 +982,12 @@ evalcommand_doit(shinstance *psh, union node *cmd, struct evalcommanddoit *args)
 #ifdef DEBUG
 			trputs(psh, "normal command:  ");  trargs(psh, args->argv);
 #endif
-			clearredir(psh, psh->vforked);
-			redirect(psh, cmd->ncmd.redirect, psh->vforked ? REDIR_VFORK : 0);
-			if (!psh->vforked)
-				for (sp = args->varlist.list ; sp ; sp = sp->next)
-					setvareq(psh, sp->text, VEXPORT|VSTACK);
+			clearredir(psh);
+			redirect(psh, cmd->ncmd.redirect, 0);
+			for (sp = args->varlist.list ; sp ; sp = sp->next)
+                                setvareq(psh, sp->text, VEXPORT|VSTACK);
 			envp = environment(psh);
-			shellexec(psh, args->argv, envp, args->path, args->cmdentry.u.index, psh->vforked);
+			shellexec(psh, args->argv, envp, args->path, args->cmdentry.u.index);
 			break;
 		}
 	}
@@ -1013,7 +1012,6 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	struct strlist *sp;
 	const char *path = pathval(psh);
 
-	psh->vforked = 0;
 	/* First expand the arguments. */
 	TRACE((psh, "evalcommand(0x%lx, %d) called\n", (long)cmd, flags));
 	setstackmark(psh, &args.smark);
@@ -1152,9 +1150,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 		}
 
 		if (flags & EV_BACKCMD) {
-			if (!psh->vforked) {
-				FORCEINTON;
-			}
+                        FORCEINTON;
 			shfile_close(&psh->fdtab, pip[0]);
 			if (pip[1] != 1) {
 				movefd(psh, pip[1], 1);
@@ -1303,7 +1299,7 @@ execcmd(shinstance *psh, int argc, char **argv)
 		optschanged(psh);
 		for (sp = psh->cmdenviron; sp; sp = sp->next)
 			setvareq(psh, sp->text, VEXPORT|VSTACK);
-		shellexec(psh, argv + 1, environment(psh), pathval(psh), 0, 0);
+		shellexec(psh, argv + 1, environment(psh), pathval(psh), 0);
 	}
 	return 0;
 }

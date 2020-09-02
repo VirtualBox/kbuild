@@ -70,7 +70,7 @@ struct cmdentry {
 # define __attribute__(a)
 #endif
 
-SH_NORETURN_1 void shellexec(struct shinstance *, char **, char **, const char *, int, int) SH_NORETURN_2;
+SH_NORETURN_1 void shellexec(struct shinstance *, char **, char **, const char *, int) SH_NORETURN_2;
 char *padvance(struct shinstance *, const char **, const char *);
 int hashcmd(struct shinstance *, int, char **);
 void find_command(struct shinstance *, char *, struct cmdentry *, int, const char *);

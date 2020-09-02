@@ -113,9 +113,6 @@ redirect(shinstance *psh, union node *redir, int flags)
 		memory[i] = 0;
 	memory[1] = flags & REDIR_BACKQ;
 	if (flags & REDIR_PUSH) {
-		/* We don't have to worry about REDIR_VFORK here, as
-		 * flags & REDIR_PUSH is never true if REDIR_VFORK is set.
-		 */
 		sv = ckmalloc(psh, sizeof (struct redirtab));
 		for (i = 0 ; i < 10 ; i++)
 			sv->renamed[i] = EMPTY;
@@ -173,7 +170,7 @@ openredirect(shinstance *psh, union node *redir, char memory[10], int flags)
 	int fd = redir->nfile.fd;
 	char *fname;
 	int f;
-	int oflags = O_WRONLY|O_CREAT|O_TRUNC, eflags;
+	int oflags = O_WRONLY|O_CREAT|O_TRUNC;
 
 	/*
 	 * We suppress interrupts so that we won't leave open file
@@ -185,14 +182,8 @@ openredirect(shinstance *psh, union node *redir, char memory[10], int flags)
 	switch (redir->nfile.type) {
 	case NFROM:
 		fname = redir->nfile.expfname;
-		if (flags & REDIR_VFORK)
-			eflags = O_NONBLOCK;
-		else
-			eflags = 0;
-		if ((f = shfile_open(&psh->fdtab, fname, O_RDONLY|eflags, 0)) < 0)
+		if ((f = shfile_open(&psh->fdtab, fname, O_RDONLY, 0)) < 0)
 			goto eopen;
-		if (eflags)
-			(void)shfile_fcntl(&psh->fdtab, f, F_SETFL, shfile_fcntl(&psh->fdtab, f, F_GETFL, 0) & ~eflags);
 		break;
 	case NFROMTO:
 		fname = redir->nfile.expfname;
@@ -364,7 +355,7 @@ RESET {
 }
 
 SHELLPROC {
-	clearredir(psh, 0);
+	clearredir(psh);
 }
 
 #endif
@@ -380,7 +371,7 @@ fd0_redirected_p(shinstance *psh) {
  */
 
 void
-clearredir(shinstance *psh, int vforked)
+clearredir(shinstance *psh)
 {
 	struct redirtab *rp;
 	int i;
@@ -390,8 +381,7 @@ clearredir(shinstance *psh, int vforked)
 			if (rp->renamed[i] >= 0) {
 				shfile_close(&psh->fdtab, rp->renamed[i]);
 			}
-			if (!vforked)
-				rp->renamed[i] = EMPTY;
+			rp->renamed[i] = EMPTY;
 		}
 	}
 }
