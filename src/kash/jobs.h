@@ -95,6 +95,11 @@ int jobidcmd(struct shinstance *, int, char **);
 union node;
 struct job *makejob(struct shinstance *, union node *, int);
 int forkshell(struct shinstance *, struct job *, union node *, int);
+#ifdef KASH_USE_FORKSHELL2
+int forkshell2(struct shinstance *, struct job *, union node *, int,
+	       int (*child)(struct shinstance *, void *, union node *),
+	       union node *, void *, size_t);
+#endif
 void forkchild(struct shinstance *, struct job *, union node *, int, int);
 int forkparent(struct shinstance *, struct job *, union node *, int, pid_t);
 int waitforjob(struct shinstance *, struct job *);

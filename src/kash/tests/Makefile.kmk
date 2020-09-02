@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2423 2010-10-17 23:43:35Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3433 2020-09-02 17:25:31Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash tests.
 #
@@ -44,8 +44,9 @@ KASH_TESTCASES := $(addprefix $(KASH_TEST_DIR)/,\
 	redirect-3 \
 	pipe-1 \
 	pipe-2 \
-	exec-1 \
 	)
+
+#	exec-1  - lost
 
 
 kash_tests::

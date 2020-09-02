@@ -412,6 +412,31 @@ out:
 }
 
 
+#ifdef KASH_USE_FORKSHELL2
+/*
+ * Child of evalsubshell.
+ */
+struct evalsubshellchild
+{
+    int flags;
+    int backgnd;
+};
+
+static int evalsubshell_child(shinstance *psh, union node *n, void *argp)
+{
+    struct evalsubshellchild args = *(struct evalsubshellchild *)argp;
+
+    INTON;
+    if (args.backgnd)
+	    args.flags &=~ EV_TESTED;
+    redirect(psh, n->nredir.redirect, 0);
+    /* never returns */
+    evaltree(psh, n->nredir.n, args.flags | EV_EXIT);
+    /** @todo make us return here. */
+    return 0;
+}
+#endif /* KASH_USE_FORKSHELL2 */
+
 
 /*
  * Kick off a subshell to evaluate a tree.
@@ -426,6 +451,15 @@ evalsubshell(shinstance *psh, union node *n, int flags)
 	expredir(psh, n->nredir.redirect);
 	INTOFF;
 	jp = makejob(psh, n, 1);
+#ifdef KASH_USE_FORKSHELL2
+	{
+		struct evalsubshellchild args;
+		args.flags = flags;
+		args.backgnd = backgnd;
+		forkshell2(psh, jp, n, backgnd ? FORK_BG : FORK_FG,
+			   evalsubshell_child, n, &args, sizeof(args));
+	}
+#else
 	if (forkshell(psh, jp, n, backgnd ? FORK_BG : FORK_FG) == 0) {
 		INTON;
 		if (backgnd)
@@ -434,6 +468,7 @@ evalsubshell(shinstance *psh, union node *n, int flags)
 		/* never returns */
 		evaltree(psh, n->nredir.n, flags | EV_EXIT);
 	}
+#endif
 	if (! backgnd)
 		psh->exitstatus = waitforjob(psh, jp);
 	INTON;
@@ -474,6 +509,34 @@ expredir(shinstance *psh, union node *n)
 }
 
 
+#ifdef KASH_USE_FORKSHELL2
+/*
+ * Child of evalpipe.
+ */
+struct evalpipechild
+{
+	int prevfd;
+	int pip[2];
+};
+
+static int evalpipe_child(shinstance *psh, union node *n, void *argp)
+{
+	struct evalpipechild args = *(struct evalpipechild *)argp;
+
+	if (args.prevfd > 0) {
+		movefd(psh, args.prevfd, 0);
+	}
+	if (args.pip[1] >= 0) {
+		shfile_close(&psh->fdtab, args.pip[0]);
+		if (args.pip[1] != 1) {
+			movefd(psh, args.pip[1], 1);
+		}
+	}
+	evaltree(psh, n, EV_EXIT);
+	/** @todo make it return thru here. */
+	return 0;
+}
+#endif /* KASH_USE_FORKSHELL2 */
 
 /*
  * Evaluate a pipeline.  All the processes in the pipeline are children
@@ -507,6 +570,16 @@ evalpipe(shinstance *psh, union node *n)
 				error(psh, "Pipe call failed");
 			}
 		}
+#ifdef KASH_USE_FORKSHELL2
+		{
+			struct evalpipechild args;
+			args.prevfd = prevfd;
+			args.pip[0] = pip[0];
+			args.pip[1] = pip[1];
+			forkshell2(psh, jp, lp->n, n->npipe.backgnd ? FORK_BG : FORK_FG,
+				   evalpipe_child, lp->n, &args, sizeof(args));
+		}
+#else
 		if (forkshell(psh, jp, lp->n, n->npipe.backgnd ? FORK_BG : FORK_FG) == 0) {
 			INTON;
 			if (prevfd > 0) {
@@ -520,6 +593,7 @@ evalpipe(shinstance *psh, union node *n)
 			}
 			evaltree(psh, lp->n, EV_EXIT);
 		}
+#endif
 		if (prevfd >= 0)
 			shfile_close(&psh->fdtab, prevfd);
 		prevfd = pip[0];
@@ -532,7 +606,30 @@ evalpipe(shinstance *psh, union node *n)
 	INTON;
 }
 
+#ifdef KASH_USE_FORKSHELL2
+/*
+ * evalbackcmd child.
+ */
+struct evalbackcmdchild
+{
+	int pip[2];
+};
 
+static int evalbackcmd_child(shinstance *psh, union node *n, void *argp)
+{
+	struct evalbackcmdchild args = *(struct evalbackcmdchild *)argp;
+
+	FORCEINTON;
+	shfile_close(&psh->fdtab, args.pip[0]);
+	if (args.pip[1] != 1) {
+		movefd(psh, args.pip[1], 1);
+	}
+	eflag(psh) = 0;
+	evaltree(psh, n, EV_EXIT);
+	/* NOTREACHED */ /** @todo make it return here to simplify thread handling (no need for setjmp). */
+	return 0;
+}
+#endif /* KASH_USE_FORKSHELL2 */
 
 /*
  * Execute a command inside back quotes.  If it's a builtin command, we
@@ -573,6 +670,15 @@ evalbackcmd(shinstance *psh, union node *n, struct backcmd *result)
 		if (sh_pipe(psh, pip) < 0)
 			error(psh, "Pipe call failed");
 		jp = makejob(psh, n, 1);
+#ifdef KASH_USE_FORKSHELL2
+		{
+			struct evalbackcmdchild args;
+			args.pip[0] = pip[0];
+			args.pip[1] = pip[1];
+			forkshell2(psh, jp, n, FORK_NOJOB,
+				   evalbackcmd_child, n, &args, sizeof(args));
+		}
+#else
 		if (forkshell(psh, jp, n, FORK_NOJOB) == 0) {
 			FORCEINTON;
 			shfile_close(&psh->fdtab, pip[0]);
@@ -583,6 +689,7 @@ evalbackcmd(shinstance *psh, union node *n, struct backcmd *result)
 			evaltree(psh, n, EV_EXIT);
 			/* NOTREACHED */
 		}
+#endif
 		shfile_close(&psh->fdtab, pip[1]);
 		result->fd = pip[0];
 		result->jp = jp;
