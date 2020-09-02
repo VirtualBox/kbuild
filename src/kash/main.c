@@ -240,7 +240,7 @@ state3:
 		unsigned i;
 
 		for (i = 0; i < SIGSSIZE; i++)
-		    setsignal(psh, sigs[i], 0);
+		    setsignal(psh, sigs[i]);
 	}
 
 	if (psh->minusc)

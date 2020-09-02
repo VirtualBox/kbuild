@@ -37,9 +37,9 @@
 /*extern int pendingsigs;*/
 
 int trapcmd(struct shinstance *, int, char **);
-void clear_traps(struct shinstance *, int);
-void setsignal(struct shinstance *, int, int);
-void ignoresig(struct shinstance *, int, int);
+void clear_traps(struct shinstance *);
+void setsignal(struct shinstance *, int);
+void ignoresig(struct shinstance *, int);
 void onsig(struct shinstance *, int);
 void dotrap(struct shinstance *);
 void setinteractive(struct shinstance *, int);

@@ -85,7 +85,7 @@ STATIC void cmdlist(shinstance *, union node *, int);
 STATIC void cmdputs(shinstance *, const char *);
 #ifdef KASH_USE_FORKSHELL2
 static int forkparent(shinstance *psh, struct job *jp, union node *n, int mode, pid_t pid);
-static void forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked);
+static void forkchild(shinstance *psh, struct job *jp, union node *n, int mode);
 #endif
 
 
@@ -148,9 +148,9 @@ out:
 			}
 		} while (0);
 
-		setsignal(psh, SIGTSTP, 0);
-		setsignal(psh, SIGTTOU, 0);
-		setsignal(psh, SIGTTIN, 0);
+		setsignal(psh, SIGTSTP);
+		setsignal(psh, SIGTTOU);
+		setsignal(psh, SIGTTIN);
 		if (sh_getpgid(psh, 0) != psh->rootpid && sh_setpgid(psh, 0, psh->rootpid) == -1)
 			error(psh, "Cannot set process group (%s) at %d",
 			    sh_strerror(psh, errno), __LINE__);
@@ -166,9 +166,9 @@ out:
 			    sh_strerror(psh, errno), __LINE__);
 		shfile_close(&psh->fdtab, psh->ttyfd);
 		psh->ttyfd = -1;
-		setsignal(psh, SIGTSTP, 0);
-		setsignal(psh, SIGTTOU, 0);
-		setsignal(psh, SIGTTIN, 0);
+		setsignal(psh, SIGTSTP);
+		setsignal(psh, SIGTTOU);
+		setsignal(psh, SIGTTIN);
 	}
 	psh->jobctl = on;
 }
@@ -797,7 +797,7 @@ forkshell(shinstance *psh, struct job *jp, union node *n, int mode)
 		error(psh, "Cannot fork");
 		return -1; /* won't get here */
 	case 0:
-		forkchild(psh, jp, n, mode, 0);
+		forkchild(psh, jp, n, mode);
 		return 0;
 	default:
 		return forkparent(psh, jp, n, mode, pid);
@@ -816,7 +816,7 @@ int forkshell2(struct shinstance *psh, struct job *jp, union node *n, int mode,
 	{
 		/* child */
 		(void)arglen;
-		forkchild(psh, jp, n, mode, 0);
+		forkchild(psh, jp, n, mode);
 		sh_exit(psh, child(psh, nchild, argp));
 		return 0;
 	}
@@ -865,7 +865,7 @@ forkparent(shinstance *psh, struct job *jp, union node *n, int mode, pid_t pid)
 static
 #endif
 void
-forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked)
+forkchild(shinstance *psh, struct job *jp, union node *n, int mode)
 {
 	int wasroot;
 	int pgrp;
@@ -874,14 +874,12 @@ forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked)
 
 	wasroot = psh->rootshell;
 	TRACE((psh, "Child shell %d\n", sh_getpid(psh)));
-	if (!vforked)
-		psh->rootshell = 0;
+	psh->rootshell = 0;
 
-	closescript(psh, vforked);
-	clear_traps(psh, vforked);
+	closescript(psh);
+	clear_traps(psh);
 #if JOBS
-	if (!vforked)
-		psh->jobctl = 0;		/* do job control only in root shell */
+	psh->jobctl = 0;		/* do job control only in root shell */
 	if (wasroot && mode != FORK_NOJOB && mflag(psh)) {
 		if (jp == NULL || jp->nprocs == 0)
 			pgrp = sh_getpid(psh);
@@ -895,11 +893,11 @@ forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked)
 				error(psh, "Cannot set tty process group (%s) at %d",
 				    sh_strerror(psh, errno), __LINE__);
 		}
-		setsignal(psh, SIGTSTP, vforked);
-		setsignal(psh, SIGTTOU, vforked);
+		setsignal(psh, SIGTSTP);
+		setsignal(psh, SIGTTOU);
 	} else if (mode == FORK_BG) {
-		ignoresig(psh, SIGINT, vforked);
-		ignoresig(psh, SIGQUIT, vforked);
+		ignoresig(psh, SIGINT);
+		ignoresig(psh, SIGQUIT);
 		if ((jp == NULL || jp->nprocs == 0) &&
 		    ! fd0_redirected_p(psh)) {
 			shfile_close(&psh->fdtab, 0);
@@ -909,8 +907,8 @@ forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked)
 	}
 #else
 	if (mode == FORK_BG) {
-		ignoresig(psh, SIGINT, vforked);
-		ignoresig(psh, SIGQUIT, vforked);
+		ignoresig(psh, SIGINT);
+		ignoresig(psh, SIGQUIT);
 		if ((jp == NULL || jp->nprocs == 0) &&
 		    ! fd0_redirected_p(psh)) {
 			shfile_close(&psh->fdtab, 0);
@@ -920,13 +918,12 @@ forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked)
 	}
 #endif
 	if (wasroot && iflag(psh)) {
-		setsignal(psh, SIGINT, vforked);
-		setsignal(psh, SIGQUIT, vforked);
-		setsignal(psh, SIGTERM, vforked);
+		setsignal(psh, SIGINT);
+		setsignal(psh, SIGQUIT);
+		setsignal(psh, SIGTERM);
 	}
 
-	if (!vforked)
-		psh->jobs_invalid = 1;
+	psh->jobs_invalid = 1;
 }
 
 /*

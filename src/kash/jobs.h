@@ -100,7 +100,7 @@ int forkshell2(struct shinstance *, struct job *, union node *, int,
 	       union node *, void *, size_t);
 #else
 int forkshell(struct shinstance *, struct job *, union node *, int);
-void forkchild(struct shinstance *, struct job *, union node *, int, int);
+void forkchild(struct shinstance *, struct job *, union node *, int);
 int forkparent(struct shinstance *, struct job *, union node *, int, pid_t);
 #endif
 int waitforjob(struct shinstance *, struct job *);

@@ -98,7 +98,7 @@ __RCSID("$NetBSD: exec.c,v 1.37 2003/08/07 09:05:31 agc Exp $");
 //int exerrno = 0;			/* Last exec error */
 
 
-STATIC void tryexec(shinstance *, char *, char **, char **, int, int);
+STATIC void tryexec(shinstance *, char *, char **, char **, int);
 STATIC void execinterp(shinstance *, char **, char **);
 STATIC void printentry(shinstance *, struct tblentry *, int);
 STATIC void clearcmdentry(shinstance *, int);
@@ -117,7 +117,7 @@ extern char *const parsekwd[];
  */
 
 SH_NORETURN_1 void
-shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx, int vforked)
+shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx)
 {
 	char *cmdname;
 	int e;
@@ -143,7 +143,7 @@ shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx, 
 	if (strchr(argv0, '/') != NULL) {
 		cmdname = stalloc(psh, argv0len + 5);
 		strcpy(cmdname, argv0);
-		tryexec(psh, cmdname, argv, envp, vforked, has_ext);
+		tryexec(psh, cmdname, argv, envp, has_ext);
 		TRACE((psh, "shellexec: cmdname=%s\n", cmdname));
 		stunalloc(psh, cmdname);
 		e = errno;
@@ -164,7 +164,7 @@ shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx, 
 		e = ENOENT;
 		while ((cmdname = padvance(psh, &path, argv0)) != NULL) {
 			if (--idx < 0 && psh->pathopt == NULL) {
-				tryexec(psh, cmdname, argv, envp, vforked, has_ext);
+				tryexec(psh, cmdname, argv, envp, has_ext);
 				if (errno != ENOENT && errno != ENOTDIR)
 					e = errno;
 			}
@@ -184,15 +184,15 @@ shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx, 
 		psh->exerrno = 2;
 		break;
 	}
-	TRACE((psh, "shellexec failed for '%s', errno %d, vforked %d, suppressint %d\n",
-		argv[0], e, vforked, psh->suppressint ));
+	TRACE((psh, "shellexec failed for '%s', errno %d, suppressint %d\n",
+		argv[0], e, psh->suppressint ));
 	exerror(psh, EXEXEC, "%s: %s", argv[0], errmsg(psh, e, E_EXEC));
 	/* NOTREACHED */
 }
 
 
 STATIC void
-tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int vforked, int has_ext)
+tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int has_ext)
 {
 	int e;
 #ifdef EXEC_HASH_BANG_SCRIPT
@@ -219,13 +219,6 @@ tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int vforked, int h
 #endif
 	e = errno;
 	if (e == ENOEXEC) {
-		if (vforked) {
-			/* We are currently vfork(2)ed, so raise an
-			 * exception, and evalcommand will try again
-			 * with a normal fork(2).
-			 */
-			exraise(psh, EXSHELLPROC);
-		}
 		initshellproc(psh);
 		setinputfile(psh, cmd, 0);
 		psh->commandname = psh->arg0 = savestr(psh, argv[0]);
@@ -346,7 +339,7 @@ bad:		  error(psh, "Bad #! line");
 	while ((*ap2++ = *ap++))
 	    /* nothing*/;
 	TRACE((psh, "hash bang '%s'\n", new[0]));
-	shellexec(psh, new, envp, pathval(psh), 0, 0);
+	shellexec(psh, new, envp, pathval(psh), 0);
 	/* NOTREACHED */
 }
 

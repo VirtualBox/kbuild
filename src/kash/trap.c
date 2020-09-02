@@ -186,7 +186,7 @@ trapcmd(shinstance *psh, int argc, char **argv)
 		psh->trap[signo] = action;
 
 		if (signo != 0)
-			setsignal(psh, signo, 0);
+			setsignal(psh, signo);
 		INTON;
 		ap++;
 	}
@@ -202,19 +202,17 @@ trapcmd(shinstance *psh, int argc, char **argv)
  */
 
 void
-clear_traps(shinstance *psh, int vforked)
+clear_traps(shinstance *psh)
 {
 	char **tp;
 
 	for (tp = psh->trap ; tp <= &psh->trap[NSIG] ; tp++) {
 		if (*tp && **tp) {	/* trap not NULL or SIG_IGN */
 			INTOFF;
-			if (!vforked) {
-				ckfree(psh, *tp);
-				*tp = NULL;
-			}
+                        ckfree(psh, *tp);
+                        *tp = NULL;
 			if (tp != &psh->trap[0])
-				setsignal(psh, (int)(tp - psh->trap), vforked);
+				setsignal(psh, (int)(tp - psh->trap));
 			INTON;
 		}
 	}
@@ -228,7 +226,7 @@ clear_traps(shinstance *psh, int vforked)
  */
 
 void
-setsignal(shinstance *psh, int signo, int vforked)
+setsignal(shinstance *psh, int signo)
 {
 	int action;
 	shsig_t sigact = SH_SIG_DFL;
@@ -240,7 +238,7 @@ setsignal(shinstance *psh, int signo, int vforked)
 		action = S_CATCH;
 	else
 		action = S_IGN;
-	if (psh->rootshell && !vforked && action == S_DFL) {
+	if (psh->rootshell && action == S_DFL) {
 		switch (signo) {
 		case SIGINT:
 			if (iflag(psh) || psh->minusc || sflag(psh) == 0)
@@ -297,8 +295,7 @@ setsignal(shinstance *psh, int signo, int vforked)
 		case S_CATCH:  	sigact = onsig;		break;
 		case S_IGN:	sigact = SH_SIG_IGN;	break;
 	}
-	if (!vforked)
-		*t = action;
+        *t = action;
 	sh_siginterrupt(psh, signo, 1);
 	sh_signal(psh, signo, sigact);
 }
@@ -322,13 +319,12 @@ getsigaction(shinstance *psh, int signo, shsig_t *sigact)
  */
 
 void
-ignoresig(shinstance *psh, int signo, int vforked)
+ignoresig(shinstance *psh, int signo)
 {
 	if (psh->sigmode[signo - 1] != S_IGN && psh->sigmode[signo - 1] != S_HARD_IGN) {
 		sh_signal(psh, signo, SH_SIG_IGN);
 	}
-	if (!vforked)
-		psh->sigmode[signo - 1] = S_HARD_IGN;
+	psh->sigmode[signo - 1] = S_HARD_IGN;
 }
 
 
@@ -339,7 +335,7 @@ INCLUDE "trap.h"
 SHELLPROC {
 	char *sm;
 
-	clear_traps(psh, 0);
+	clear_traps(psh);
 	for (sm = psh->sigmode ; sm < psh->sigmode + NSIG ; sm++) {
 		if (*sm == S_IGN)
 			*sm = S_HARD_IGN;
@@ -408,9 +404,9 @@ setinteractive(shinstance *psh, int on)
 
 	if (on == is_interactive)
 		return;
-	setsignal(psh, SIGINT, 0);
-	setsignal(psh, SIGQUIT, 0);
-	setsignal(psh, SIGTERM, 0);
+	setsignal(psh, SIGINT);
+	setsignal(psh, SIGQUIT);
+	setsignal(psh, SIGTERM);
 	is_interactive = on;
 }
 
