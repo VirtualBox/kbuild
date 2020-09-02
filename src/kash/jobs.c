@@ -83,6 +83,10 @@ STATIC int waitproc(shinstance *, int, struct job *, int *);
 STATIC void cmdtxt(shinstance *, union node *);
 STATIC void cmdlist(shinstance *, union node *, int);
 STATIC void cmdputs(shinstance *, const char *);
+#ifdef KASH_USE_FORKSHELL2
+static int forkparent(shinstance *psh, struct job *jp, union node *n, int mode, pid_t pid);
+static void forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked);
+#endif
 
 
 /*
@@ -779,6 +783,7 @@ makejob(shinstance *psh, union node *node, int nprocs)
  * in a pipeline).
  */
 
+#ifndef KASH_USE_FORKSHELL2
 int
 forkshell(shinstance *psh, struct job *jp, union node *n, int mode)
 {
@@ -798,7 +803,7 @@ forkshell(shinstance *psh, struct job *jp, union node *n, int mode)
 		return forkparent(psh, jp, n, mode, pid);
 	}
 }
-
+#else /* KASH_USE_FORKSHELL2 */
 int forkshell2(struct shinstance *psh, struct job *jp, union node *n, int mode,
 	       int (*child)(struct shinstance *, void *, union node *),
 	       union node *nchild, void *argp, size_t arglen)
@@ -824,7 +829,11 @@ int forkshell2(struct shinstance *psh, struct job *jp, union node *n, int mode,
 	error(psh, "Cannot fork");
 	return -1; /* won't get here */
 }
+#endif
 
+#ifdef KASH_USE_FORKSHELL2
+static
+#endif
 int
 forkparent(shinstance *psh, struct job *jp, union node *n, int mode, pid_t pid)
 {
@@ -852,6 +861,9 @@ forkparent(shinstance *psh, struct job *jp, union node *n, int mode, pid_t pid)
 	return pid;
 }
 
+#ifdef KASH_USE_FORKSHELL2
+static
+#endif
 void
 forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked)
 {
