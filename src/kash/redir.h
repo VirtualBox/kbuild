@@ -37,7 +37,6 @@
 /* flags passed to redirect */
 #define REDIR_PUSH 01		/* save previous values of file descriptors */
 #define REDIR_BACKQ 02		/* save the command output in memory */
-//#define REDIR_VFORK 04		/* running under vfork(2), be careful */
 
 union node;
 void redirect(struct shinstance *, union node *, int);
