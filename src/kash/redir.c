@@ -242,6 +242,32 @@ eopen:
 	error(psh, "cannot open %s: %s", fname, errmsg(psh, errno, E_OPEN));
 }
 
+#ifdef KASH_USE_FORKSHELL2
+struct openherechild
+{
+	int pip[2];
+	size_t len;
+};
+static int openhere_child(shinstance *psh, union node *n, void *argp)
+{
+	struct openherechild args = *(struct openherechild *)argp;
+
+	shfile_close(&psh->fdtab, args.pip[0]);
+	sh_signal(psh, SIGINT, SH_SIG_IGN);
+	sh_signal(psh, SIGQUIT, SH_SIG_IGN);
+	sh_signal(psh, SIGHUP, SH_SIG_IGN);
+# ifdef SIGTSTP
+	sh_signal(psh, SIGTSTP, SH_SIG_IGN);
+# endif
+	sh_signal(psh, SIGPIPE, SH_SIG_DFL);
+	if (n->type == NHERE)
+		xwrite(psh, args.pip[1], n->nhere.doc->narg.text, args.len);
+	else
+		expandhere(psh, n->nhere.doc, args.pip[1]);
+	return 0;
+}
+
+#endif /* KASH_USE_FORKSHELL2*/
 
 /*
  * Handle here documents.  Normally we fork off a process to write the
@@ -264,6 +290,16 @@ openhere(shinstance *psh, union node *redir)
 			goto out;
 		}
 	}
+#ifdef KASH_USE_FORKSHELL2
+	{
+		struct openherechild args;
+		args.pip[0] = pip[0];
+		args.pip[1] = pip[1];
+		args.len = len;
+		forkshell2(psh, (struct job *)NULL, (union node *)NULL, FORK_NOJOB,
+			   openhere_child, redir, &args, sizeof(args));
+	}
+#else
 	if (forkshell(psh, (struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) {
 		shfile_close(&psh->fdtab, pip[0]);
 		sh_signal(psh, SIGINT, SH_SIG_IGN);
@@ -279,6 +315,7 @@ openhere(shinstance *psh, union node *redir)
 			expandhere(psh, redir->nhere.doc, pip[1]);
 		sh__exit(psh, 0);
 	}
+#endif
 out:
 	shfile_close(&psh->fdtab, pip[1]);
 	return pip[0];

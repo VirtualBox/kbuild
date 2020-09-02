@@ -799,6 +799,32 @@ forkshell(shinstance *psh, struct job *jp, union node *n, int mode)
 	}
 }
 
+int forkshell2(struct shinstance *psh, struct job *jp, union node *n, int mode,
+	       int (*child)(struct shinstance *, void *, union node *),
+	       union node *nchild, void *argp, size_t arglen)
+{
+	pid_t pid;
+
+	TRACE((psh, "forkshell2(%%%d, %p, %d, %p, %p, %p, %d) called\n", jp - psh->jobtab, n, mode, child, nchild, argp, (int)arglen));
+	pid = sh_fork(psh);
+	if (pid == 0)
+	{
+		/* child */
+		(void)arglen;
+		forkchild(psh, jp, n, mode, 0);
+		sh_exit(psh, child(psh, nchild, argp));
+		return 0;
+	}
+
+	/* parent */
+	if (pid != -1)
+		return forkparent(psh, jp, n, mode, pid);
+	TRACE((psh, "Fork failed, errno=%d\n", errno));
+	INTON;
+	error(psh, "Cannot fork");
+	return -1; /* won't get here */
+}
+
 int
 forkparent(shinstance *psh, struct job *jp, union node *n, int mode, pid_t pid)
 {
