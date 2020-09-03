@@ -1196,8 +1196,11 @@ checkend: {
  */
 
 parseredir: {
-	char fd = *out;
 	union node *np;
+	char fd = *out;
+	char dummy[   sizeof(struct nfile) >= sizeof(struct ndup)
+	           && sizeof(struct nfile) >= sizeof(struct nhere) ? 1 : 0];
+	(void)dummy;
 
 	np = (union node *)stalloc(psh, sizeof (struct nfile));
 	if (c == '>') {
@@ -1217,10 +1220,6 @@ parseredir: {
 		np->nfile.fd = 0;
 		switch (c = pgetc(psh)) {
 		case '<':
-			if (sizeof (struct nfile) != sizeof (struct nhere)) {
-				np = (union node *)stalloc(psh, sizeof (struct nhere));
-				np->nfile.fd = 0;
-			}
 			np->type = NHERE;
 			psh->heredoc = (struct heredoc *)stalloc(psh, sizeof (struct heredoc));
 			psh->heredoc->here = np;
@@ -1416,7 +1415,7 @@ parsebackq: {
 				goto done;
 
 			case '\\':
-                                if ((pc = pgetc(psh)) == '\n') {
+				if ((pc = pgetc(psh)) == '\n') {
 					psh->plinno++;
 					if (psh->doprompt)
 						setprompt(psh, 2);
@@ -1430,9 +1429,8 @@ parsebackq: {
 					 */
 					continue;
 				}
-                                if (pc != '\\' && pc != '`' && pc != '$'
-                                    && (!ISDBLQUOTE() || pc != '"'))
-                                        STPUTC(psh, '\\', pout);
+				if (pc != '\\' && pc != '`' && pc != '$' && (!ISDBLQUOTE() || pc != '"'))
+					STPUTC(psh, '\\', pout);
 				break;
 
 			case '\n':
@@ -1778,3 +1776,161 @@ getprompt(shinstance *psh, void *unused)
 		return "<internal prompt error>";
 	}
 }
+
+/*
+ * Helper to copyparsetree.
+ */
+static struct nodelist *
+copynodelist(shinstance *psh, struct nodelist *src)
+{
+	struct nodelist *ret = NULL;
+	if (src) {
+		struct nodelist **ppnext = &ret;
+		while (src) {
+			struct nodelist *dst = stalloc(psh, sizeof(*dst));
+			dst->next = NULL;
+			*ppnext = dst;
+			ppnext = &dst->next;
+			dst->n = copyparsetree(psh, src->n);
+		}
+	}
+	return ret;
+}
+
+/*
+ * Duplicates a node tree.
+ *
+ * Note! This could probably be generated from nodelist.
+ */
+union node *
+copyparsetree(shinstance *psh, union node *src)
+{
+	/** @todo Try avoid recursion for one of the sub-nodes, esp. when there
+	 *  	  is a list like 'next' one. */
+	union node *ret;
+	if (src) {
+		int const type = src->type;
+		switch (type) {
+			case NSEMI:
+			case NAND:
+			case NOR:
+			case NWHILE:
+			case NUNTIL:
+				ret = (union node *)stalloc(psh, sizeof(src->nbinary));
+				ret->nbinary.type = type;
+				ret->nbinary.ch1  = copyparsetree(psh, src->nbinary.ch1);
+				ret->nbinary.ch2  = copyparsetree(psh, src->nbinary.ch2);
+				break;
+
+			case NCMD:
+				ret = (union node *)stalloc(psh, sizeof(src->ncmd));
+				ret->ncmd.type     = NCMD;
+				ret->ncmd.backgnd  = src->ncmd.backgnd;
+				ret->ncmd.args     = copyparsetree(psh, src->ncmd.args);
+				ret->ncmd.redirect = copyparsetree(psh, src->ncmd.redirect);
+				break;
+
+			case NPIPE:
+				ret = (union node *)stalloc(psh, sizeof(src->npipe));
+				ret->npipe.type     = NPIPE;
+				ret->npipe.backgnd  = src->ncmd.backgnd;
+				ret->npipe.cmdlist  = copynodelist(psh, src->npipe.cmdlist);
+				break;
+
+			case NREDIR:
+			case NBACKGND:
+			case NSUBSHELL:
+				ret = (union node *)stalloc(psh, sizeof(src->nredir));
+				ret->nredir.type     = type;
+				ret->nredir.n        = copyparsetree(psh, src->nredir.n);
+				ret->nredir.redirect = copyparsetree(psh, src->nredir.redirect);
+				break;
+
+			case NIF:
+				ret = (union node *)stalloc(psh, sizeof(src->nif));
+				ret->nif.type        = NIF;
+				ret->nif.test        = copyparsetree(psh, src->nif.test);
+				ret->nif.ifpart      = copyparsetree(psh, src->nif.ifpart);
+				ret->nif.elsepart    = copyparsetree(psh, src->nif.elsepart);
+				break;
+
+			case NFOR:
+				ret = (union node *)stalloc(psh, sizeof(src->nfor));
+				ret->nfor.type       = NFOR;
+				ret->nfor.args       = copyparsetree(psh, src->nfor.args);
+				ret->nfor.body       = copyparsetree(psh, src->nfor.body);
+				ret->nfor.var        = stsavestr(psh, src->nfor.var);
+				break;
+
+			case NCASE:
+				ret = (union node *)stalloc(psh, sizeof(src->ncase));
+				ret->ncase.type      = NCASE;
+				ret->ncase.expr      = copyparsetree(psh, src->ncase.expr);
+				ret->ncase.cases     = copyparsetree(psh, src->ncase.cases);
+				break;
+
+			case NCLIST:
+				ret = (union node *)stalloc(psh, sizeof(src->nclist));
+				ret->nclist.type     = NCLIST;
+				ret->nclist.next     = copyparsetree(psh, src->nclist.next);
+				ret->nclist.pattern  = copyparsetree(psh, src->nclist.pattern);
+				ret->nclist.body     = copyparsetree(psh, src->nclist.body);
+				break;
+
+			case NDEFUN:
+			case NARG:
+				ret = (union node *)stalloc(psh, sizeof(src->narg));
+				ret->narg.type       = type;
+				ret->narg.next       = copyparsetree(psh, src->narg.next);
+				ret->narg.text       = stsavestr(psh, src->narg.text);
+				ret->narg.backquote  = copynodelist(psh, src->narg.backquote);
+				break;
+
+			case NTO:
+			case NCLOBBER:
+			case NFROM:
+			case NFROMTO:
+			case NAPPEND:
+				ret = (union node *)stalloc(psh, sizeof(src->nfile));
+				ret->nfile.type      = type;
+				ret->nfile.fd        = src->nfile.fd;
+				ret->nfile.next      = copyparsetree(psh, src->nfile.next);
+				ret->nfile.fname     = copyparsetree(psh, src->nfile.fname);
+				ret->nfile.expfname  = stsavestr(psh, src->nfile.expfname);
+				break;
+
+			case NTOFD:
+			case NFROMFD:
+				ret = (union node *)stalloc(psh, sizeof(src->ndup));
+				ret->ndup.type       = type;
+				ret->ndup.fd         = src->ndup.fd;
+				ret->ndup.next       = copyparsetree(psh, src->ndup.next);
+				ret->ndup.dupfd      = src->ndup.dupfd;
+				ret->ndup.vname      = copyparsetree(psh, src->ndup.vname);
+				break;
+
+			case NHERE:
+			case NXHERE:
+				ret = (union node *)stalloc(psh, sizeof(src->nhere));
+				ret->nhere.type      = type;
+				ret->nhere.fd        = src->nhere.fd;
+				ret->nhere.next      = copyparsetree(psh, src->nhere.next);
+				ret->nhere.doc       = copyparsetree(psh, src->nhere.doc);
+				break;
+
+			case NNOT:
+				ret = (union node *)stalloc(psh, sizeof(src->nnot));
+				ret->nnot.type      = NNOT;
+				ret->nnot.com       = copyparsetree(psh, src->nnot.com);
+				break;
+
+			default:
+				error(psh, "Unknown node type: %d (node=%p)", src->type, src);
+				return NULL;
+		}
+	} else {
+		ret = NULL;
+	}
+	return ret;
+}
+

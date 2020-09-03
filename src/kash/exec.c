@@ -149,7 +149,7 @@ shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx)
 		e = errno;
 	} else {
 		/* Before we search the PATH, transform kmk_builtin_% to kmk_% so we don't
-		   need to be too careful mixing internal and external kmk command. */
+		   need to be too careful mixing internal and external kmk commands. */
 		if (   argv0len > 12
 		    && argv0len < 42
 		    && strncmp(argv0, "kmk_builtin_", 12) == 0

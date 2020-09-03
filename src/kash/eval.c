@@ -457,7 +457,7 @@ evalsubshell(shinstance *psh, union node *n, int flags)
 		args.flags = flags;
 		args.backgnd = backgnd;
 		forkshell2(psh, jp, n, backgnd ? FORK_BG : FORK_FG,
-			   evalsubshell_child, n, &args, sizeof(args));
+			   evalsubshell_child, n, &args, sizeof(args), NULL);
 	}
 #else
 	if (forkshell(psh, jp, n, backgnd ? FORK_BG : FORK_FG) == 0) {
@@ -577,7 +577,7 @@ evalpipe(shinstance *psh, union node *n)
 			args.pip[0] = pip[0];
 			args.pip[1] = pip[1];
 			forkshell2(psh, jp, lp->n, n->npipe.backgnd ? FORK_BG : FORK_FG,
-				   evalpipe_child, lp->n, &args, sizeof(args));
+				   evalpipe_child, lp->n, &args, sizeof(args), NULL);
 		}
 #else
 		if (forkshell(psh, jp, lp->n, n->npipe.backgnd ? FORK_BG : FORK_FG) == 0) {
@@ -676,7 +676,7 @@ evalbackcmd(shinstance *psh, union node *n, struct backcmd *result)
 			args.pip[0] = pip[0];
 			args.pip[1] = pip[1];
 			forkshell2(psh, jp, n, FORK_NOJOB,
-				   evalbackcmd_child, n, &args, sizeof(args));
+				   evalbackcmd_child, n, &args, sizeof(args), NULL);
 		}
 #else
 		if (forkshell(psh, jp, n, FORK_NOJOB) == 0) {
@@ -810,15 +810,19 @@ evalcommand_parent(shinstance *psh, int flags, char *lastarg, struct stackmark *
 
 struct evalcommanddoit
 {
-	struct cmdentry cmdentry;
-	char *lastarg;
-	const char *path;
+	struct stackmark smark;
+
 	struct backcmd *backcmd;
 	int flags;
 	int argc;
 	char **argv;
+	char *lastarg;
 	struct arglist varlist;
-	struct stackmark smark;
+	const char *path;
+	struct cmdentry cmdentry;
+
+	/* for child stuff only: */
+	int pip[2];
 };
 
 STATIC void
@@ -995,6 +999,74 @@ evalcommand_doit(shinstance *psh, union node *cmd, struct evalcommanddoit *args)
 	evalcommand_out(psh, args->flags, args->lastarg, &args->smark);
 }
 
+/* child callback. */
+static int evalcommand_child(shinstance *psh, union node *cmd, void *argp)
+{
+	struct evalcommanddoit *args = (struct evalcommanddoit *)argp;
+
+	if (args->flags & EV_BACKCMD) {
+		FORCEINTON;
+		shfile_close(&psh->fdtab, args->pip[0]);
+		if (args->pip[1] != 1) {
+			movefd(psh, args->pip[1], 1);
+		}
+	}
+	args->flags |= EV_EXIT;
+
+	evalcommand_doit(psh, cmd, args);
+	/* not reached */  /** @todo make it return here */
+	return 0;
+}
+
+/* Copies data in the argument structure from parent to child. */
+static void evalcommand_setup_child(shinstance *pshchild, shinstance *pshparent, void *argp)
+{
+	struct evalcommanddoit *args = (struct evalcommanddoit *)argp;
+	char **argv;
+	char **srcargv;
+	struct strlist *sp;
+	int argc, i;
+
+	setstackmark(pshchild, &args->smark);
+
+	/* copy arguments. */
+	srcargv = args->argv;
+	argc = args->argc;
+	args->argv = argv = stalloc(pshchild, sizeof(char *) * (argc + 1));
+	for (i = 0; i < argc; i++)
+		argv[i] = stsavestr(pshchild, srcargv[i]);
+	argv[argc] = NULL;
+	if (args->lastarg)
+		args->lastarg = argv[argc - 1];
+
+	/* copy variable list, checking for the 'path'. */
+	sp = args->varlist.list;
+	args->varlist.list = NULL;
+	args->varlist.lastp = &args->varlist.list;
+	for (; sp; sp = sp->next) {
+		struct strlist *snew = (struct strlist *)stalloc(pshchild, sizeof(*snew));
+		char *text;
+		snew->next = NULL;
+		snew->text = text = stsavestr(pshchild, sp->text);
+
+		if (&text[5] == args->path)
+			args->path = &text[sizeof("PATH=") - 1];
+
+		*args->varlist.lastp = snew;
+		args->varlist.lastp = &snew->next;
+	}
+
+	if (args->path == pathval(pshparent))
+		args->path = pathval(pshchild);
+
+	/* back tick command should be ignored in this codepath
+	   (flags != EV_BACKCMD as EV_EXIT is ORed in). */
+
+	/* If cmdentry references an internal function, we must duplicates it's nodes. */
+	if (args->cmdentry.cmdtype == CMDFUNCTION)
+		args->cmdentry.u.func = copyparsetree(pshchild, args->cmdentry.u.func); /** @todo isn't this duplicated already? */
+}
+
 /*
  * Execute a simple command.
  */
@@ -1134,36 +1206,36 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 		   || args.cmdentry.u.bltin == dotcmd
 		   || args.cmdentry.u.bltin == evalcmd))) {
 		struct job *jp;
-		int pip[2];
 		int mode;
+
 		INTOFF;
 		jp = makejob(psh, cmd, 1);
 		mode = cmd->ncmd.backgnd;
+		args.pip[0] = -1;
+		args.pip[1] = -1;
 		if (flags & EV_BACKCMD) {
 			mode = FORK_NOJOB;
-			if (sh_pipe(psh, pip) < 0)
+			if (sh_pipe(psh, args.pip) < 0)
 				error(psh, "Pipe call failed");
 		}
-		if (forkshell(psh, jp, cmd, mode) != 0) {
-			evalcommand_parent(psh, flags, args.lastarg, &args.smark, mode, jp, pip, backcmd);
-			return;	/* at end of routine */
-		}
-
-		if (flags & EV_BACKCMD) {
-                        FORCEINTON;
-			shfile_close(&psh->fdtab, pip[0]);
-			if (pip[1] != 1) {
-				movefd(psh, pip[1], 1);
-			}
-		}
-		flags |= EV_EXIT;
 
 		args.backcmd = backcmd;
 		args.flags = flags;
 		args.path = path;
-		evalcommand_doit(psh, cmd, &args);
-	}
-	else {
+#ifdef KASH_USE_FORKSHELL2
+		forkshell2(psh, jp, cmd, mode, evalcommand_child, cmd,
+		           &args, sizeof(args), evalcommand_setup_child);
+		evalcommand_parent(psh, flags, args.lastarg, &args.smark, mode, jp,
+						   args.pip, backcmd);
+#else
+		if (forkshell(psh, jp, cmd, mode) != 0) {
+			evalcommand_parent(psh, flags, args.lastarg, &args.smark, mode, jp,
+							   args.pip, backcmd);
+			return;	/* at end of routine */
+		}
+		evalcommand_child(psh, cmd, &args);
+#endif
+	} else {
 		args.backcmd = backcmd;
 		args.flags = flags;
 		args.path = path;
@@ -1187,7 +1259,7 @@ prehash(shinstance *psh, union node *n)
 	if (n->type == NCMD && n->ncmd.args)
 		if (goodname(n->ncmd.args->narg.text))
 			find_command(psh, n->ncmd.args->narg.text, &entry, 0,
-				     pathval(psh));
+				         pathval(psh));
 }
 
 

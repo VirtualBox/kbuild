@@ -148,6 +148,18 @@ stalloc(shinstance *psh, size_t nbytes)
 }
 
 
+char *
+stsavestr(struct shinstance *psh, const char *src)
+{
+	if (src) {
+		size_t size = strlen(src) + 1;
+		char *dst = (char *)stalloc(psh, size);
+		return (char *)memcpy(dst, src, size);
+	}
+	return NULL;
+}
+
+
 void
 stunalloc(shinstance *psh, pointer p)
 {
