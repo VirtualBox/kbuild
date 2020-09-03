@@ -51,6 +51,7 @@ pointer ckmalloc(struct shinstance *, size_t);
 pointer ckrealloc(struct shinstance *, pointer, size_t);
 char *savestr(struct shinstance *, const char *);
 pointer stalloc(struct shinstance *, size_t);
+char *stsavestr(struct shinstance *, const char *);
 void stunalloc(struct shinstance *, pointer);
 void setstackmark(struct shinstance *, struct stackmark *);
 void popstackmark(struct shinstance *, struct stackmark *);

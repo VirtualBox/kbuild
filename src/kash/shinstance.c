@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3409 2020-08-13 09:49:06Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3437 2020-09-03 13:52:14Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -240,7 +240,7 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv, cha
     psh = sh_calloc(NULL, sizeof(*psh), 1);
     if (psh)
     {
-        /* Init it enought for sh_destroy() to not get upset */
+        /* Init it enough for sh_destroy() to not get upset */
           /* ... */
 
         /* Call the basic initializers. */

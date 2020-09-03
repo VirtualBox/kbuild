@@ -97,7 +97,8 @@ struct job *makejob(struct shinstance *, union node *, int);
 #ifdef KASH_USE_FORKSHELL2
 int forkshell2(struct shinstance *, struct job *, union node *, int,
 	       int (*child)(struct shinstance *, void *, union node *),
-	       union node *, void *, size_t);
+	       union node *, void *, size_t,
+	       void (*setupchild)(struct shinstance *, struct shinstance *, void *));
 #else
 int forkshell(struct shinstance *, struct job *, union node *, int);
 void forkchild(struct shinstance *, struct job *, union node *, int);

@@ -288,7 +288,7 @@ openhere(shinstance *psh, union node *redir)
 		args.pip[1] = pip[1];
 		args.len = len;
 		forkshell2(psh, (struct job *)NULL, (union node *)NULL, FORK_NOJOB,
-			   openhere_child, redir, &args, sizeof(args));
+			   openhere_child, redir, &args, sizeof(args), NULL);
 	}
 #else
 	if (forkshell(psh, (struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) {

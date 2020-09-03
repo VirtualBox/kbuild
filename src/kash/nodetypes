@@ -117,16 +117,16 @@ NFROM nfile			# fd< fname
 NFROMTO nfile			# fd<> fname
 NAPPEND nfile			# fd>> fname
 	type	  int
-	next	  nodeptr		# next redirection in list
-	fd	  int			# file descriptor being redirected
+	fd	  int			# file descriptor being redirected (must match ndup)
+	next	  nodeptr		# next redirection in list         (must match ndup)
 	fname	  nodeptr		# file name, in a NARG node
 	expfname  temp	char *expfname	# actual file name
 
 NTOFD ndup			# fd<&dupfd
 NFROMFD ndup			# fd>&dupfd
 	type	  int
-	next	  nodeptr		# next redirection in list
-	fd	  int			# file descriptor being redirected
+	fd	  int			# file descriptor being redirected (must match nfile)
+	next	  nodeptr		# next redirection in list         (must match nfile)
 	dupfd	  int			# file descriptor to duplicate
 	vname	  nodeptr		# file name if fd>&$var
 
@@ -134,8 +134,8 @@ NFROMFD ndup			# fd>&dupfd
 NHERE nhere			# fd<<\!
 NXHERE nhere			# fd<<!
 	type	  int
-	next	  nodeptr		# next redirection in list
-	fd	  int			# file descriptor being redirected
+	fd	  int			# file descriptor being redirected (must match nfile)
+	next	  nodeptr		# next redirection in list         (must match nfile)
 	doc	  nodeptr		# input to command (NARG node)
 
 NNOT nnot			# ! command  (actually pipeline)

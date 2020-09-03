@@ -806,7 +806,8 @@ forkshell(shinstance *psh, struct job *jp, union node *n, int mode)
 #else /* KASH_USE_FORKSHELL2 */
 int forkshell2(struct shinstance *psh, struct job *jp, union node *n, int mode,
 	       int (*child)(struct shinstance *, void *, union node *),
-	       union node *nchild, void *argp, size_t arglen)
+	       union node *nchild, void *argp, size_t arglen,
+	       void (*setupchild)(struct shinstance *, struct shinstance *, void *))
 {
 	pid_t pid;
 
@@ -815,7 +816,6 @@ int forkshell2(struct shinstance *psh, struct job *jp, union node *n, int mode,
 	if (pid == 0)
 	{
 		/* child */
-		(void)arglen;
 		forkchild(psh, jp, n, mode);
 		sh_exit(psh, child(psh, nchild, argp));
 		return 0;
@@ -826,6 +826,8 @@ int forkshell2(struct shinstance *psh, struct job *jp, union node *n, int mode,
 		return forkparent(psh, jp, n, mode, pid);
 	TRACE((psh, "Fork failed, errno=%d\n", errno));
 	INTON;
+	(void)arglen;
+	(void)setupchild;
 	error(psh, "Cannot fork");
 	return -1; /* won't get here */
 }

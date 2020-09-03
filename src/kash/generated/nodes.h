@@ -101,8 +101,8 @@ struct narg {
 
 struct nfile {
       int type;
-      union node *next;
       int fd;
+      union node *next;
       union node *fname;
       char *expfname;
 };
@@ -110,8 +110,8 @@ struct nfile {
 
 struct ndup {
       int type;
-      union node *next;
       int fd;
+      union node *next;
       int dupfd;
       union node *vname;
 };
@@ -119,8 +119,8 @@ struct ndup {
 
 struct nhere {
       int type;
-      union node *next;
       int fd;
+      union node *next;
       union node *doc;
 };
 
