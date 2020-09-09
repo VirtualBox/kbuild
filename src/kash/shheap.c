@@ -1,4 +1,4 @@
-/* $Id: shheap.c 2416 2010-09-14 00:30:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shheap.c 3438 2020-09-09 20:01:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell memory heap methods.
  */
@@ -34,7 +34,7 @@
 #include <assert.h>
 #include "shinstance.h"
 
-#if K_OS == K_OS_WINDOWS
+#if K_OS == K_OS_WINDOWS && defined(SH_FORKED_MODE)
 # define SHHEAP_IN_USE
 #endif
 

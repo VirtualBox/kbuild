@@ -60,6 +60,42 @@ STATIC void setalias(shinstance *, char *, char *);
 STATIC int unalias(shinstance *, char *);
 STATIC struct alias **hashalias(shinstance *, char *);
 
+#ifndef SH_FORKED_MODE
+void
+subshellinitalias(shinstance *psh, shinstance *inherit)
+{
+    unsigned i;
+    unsigned left = inherit->aliases;
+    if (left == 0)
+	return;
+    for (i = 0; i < K_ELEMENTS(inherit->atab); i++)
+    {
+	struct alias const *asrc = inherit->atab[i];
+	if (asrc)
+	{
+	    struct alias **ppdst = &psh->atab[i];
+	    do
+	    {
+		if (*asrc->name)
+		{
+		    struct alias *dst = (struct alias *)ckmalloc(psh, sizeof(*dst));
+		    dst->name = savestr(psh, asrc->name);
+		    dst->val = savestr(psh, asrc->val);
+		    dst->flag = asrc->flag;
+		    *ppdst = dst;
+		    ppdst = &dst->next;
+		}
+		left--;
+		asrc = asrc->next;
+	    } while (asrc);
+	    *ppdst = NULL;
+	    if (left == 0)
+		break;
+	}
+    }
+}
+#endif /* !SH_FORKED_MODE */
+
 STATIC
 void
 setalias(shinstance *psh, char *name, char *val)
@@ -110,6 +146,7 @@ setalias(shinstance *psh, char *name, char *val)
 #endif
 	ap->next = *app;
 	*app = ap;
+	psh->aliases++;
 	INTON;
 }
 
@@ -137,6 +174,7 @@ unalias(shinstance *psh, char *name)
 				ckfree(psh, ap->name);
 				ckfree(psh, ap->val);
 				ckfree(psh, ap);
+				psh->aliases--;
 				INTON;
 			}
 			return (0);

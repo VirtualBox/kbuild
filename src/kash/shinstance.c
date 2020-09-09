@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3437 2020-09-03 13:52:14Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3438 2020-09-09 20:01:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -39,9 +39,16 @@
 #endif
 #include "shinstance.h"
 
+#include "alias.h"
+#include "memalloc.h"
+#include "shell.h"
+#include "trap.h"
+
 #if K_OS == K_OS_WINDOWS
 # include <Windows.h>
+# ifdef SH_FORKED_MODE
 extern pid_t shfork_do(shinstance *psh); /* shforkA-win.asm */
+# endif
 #endif
 
 
@@ -173,6 +180,7 @@ static void sh_int_unlink(shinstance *psh)
  */
 static void sh_destroy(shinstance *psh)
 {
+/** @todo finish this...   */
     memset(psh, 0, sizeof(*psh));
     sh_free(NULL, psh);
 }
@@ -220,19 +228,18 @@ static int sh_clone_string_vector(shinstance *psh, char ***dstp, char **src)
 }
 
 /**
- * Creates a root shell instance.
+ * Creates a shell instance, caller must link it.
  *
- * @param   inherit     The shell to inherit from. If NULL inherit from environment and such.
- * @param   argc        The argument count.
+ * @param   inherit     The shell to inherit from, or NULL if root.
  * @param   argv        The argument vector.
  * @param   envp        The environment vector.
+ * @param   parentfdtab File table to inherit from, NULL if root.
  *
  * @returns pointer to root shell on success, NULL on failure.
  */
-shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv, char **envp)
+static shinstance *sh_create_shell_common(char **argv, char **envp, shfdtab *parentfdtab)
 {
     shinstance *psh;
-    int i;
 
     /*
      * The allocations.
@@ -240,33 +247,43 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv, cha
     psh = sh_calloc(NULL, sizeof(*psh), 1);
     if (psh)
     {
-        /* Init it enough for sh_destroy() to not get upset */
-          /* ... */
+        /* Init it enough for sh_destroy() to not get upset: */
+        /* ... */
 
         /* Call the basic initializers. */
         if (    !sh_clone_string_vector(psh, &psh->shenviron, envp)
-            &&  !sh_clone_string_vector(psh, &psh->argptr, argv)
-            &&  !shfile_init(&psh->fdtab, inherit ? &inherit->fdtab : NULL))
+            &&  !sh_clone_string_vector(psh, &psh->orgargv, argv)
+            &&  !shfile_init(&psh->fdtab, parentfdtab))
         {
-            /* the special stuff. */
+            unsigned i;
+
+            /*
+             * The special stuff.
+             */
 #ifdef _MSC_VER
-            psh->pid = _getpid();
+            psh->pgid = psh->pid = _getpid();
 #else
             psh->pid = getpid();
+            psh->pgid = getpgid();
 #endif
+
             /*sh_sigemptyset(&psh->sigrestartset);*/
-            for (i = 0; i < NSIG; i++)
+            for (i = 0; i < K_ELEMENTS(psh->sigactions); i++)
                 psh->sigactions[i].sh_handler = SH_SIG_UNK;
-            if (inherit)
-                psh->sigmask = psh->sigmask;
-            else
-            {
 #if defined(_MSC_VER)
-                sh_sigemptyset(&psh->sigmask);
+            sh_sigemptyset(&psh->sigmask);
 #else
-                sigprocmask(SIG_SETMASK, NULL, &psh->sigmask);
+            sigprocmask(SIG_SETMASK, NULL, &psh->sigmask);
 #endif
-            }
+
+            /*
+             * State initialization.
+             */
+            /* cd.c */
+            psh->getpwd_first = 1;
+
+            /* exec */
+            psh->builtinloc = -1;
 
             /* memalloc.c */
             psh->stacknleft = MINSIZE;
@@ -302,9 +319,6 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv, cha
 
             /* show.c */
             psh->tracefd = -1;
-
-            /* link it. */
-            sh_int_link(psh);
             return psh;
         }
 
@@ -312,6 +326,143 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv, cha
     }
     return NULL;
 }
+
+/**
+ * Creates the root shell instance.
+ *
+ * @param   argv        The argument vector.
+ * @param   envp        The environment vector.
+ *
+ * @returns pointer to root shell on success, NULL on failure.
+ */
+shinstance *sh_create_root_shell(char **argv, char **envp)
+{
+    shinstance *psh = sh_create_shell_common(argv, envp, NULL /*parentfdtab*/);
+    if (psh)
+    {
+        sh_int_link(psh);
+        return psh;
+    }
+    return NULL;
+}
+
+#ifndef SH_FORKED_MODE
+
+/**
+ * Does the inherting from the parent shell instance.
+ */
+static void sh_inherit_from_parent(shinstance *psh, shinstance *inherit)
+{
+    /*
+     * Do the rest of the inheriting.
+     */
+    psh->parent = inherit;
+    psh->pgid = inherit->pgid;
+
+    psh->sigmask = psh->sigmask;
+    /** @todo sigactions?   */
+    /// @todo suppressint?
+
+    /* alises: */
+    subshellinitalias(psh, inherit);
+
+    /* cd.c */
+    psh->getpwd_first = inherit->getpwd_first;
+    if (inherit->curdir)
+        psh->curdir = savestr(psh, inherit->curdir);
+    if (inherit->prevdir)
+        psh->prevdir = savestr(psh, inherit->prevdir);
+
+    /* eval.h */
+    /* psh->commandname - see subshellinitoptions */
+    psh->exitstatus  = inherit->exitstatus;          /// @todo ??
+    psh->back_exitstatus = inherit->back_exitstatus; /// @todo ??
+    psh->funcnest = inherit->funcnest;
+    psh->evalskip = inherit->evalskip;               /// @todo ??
+    psh->skipcount = inherit->skipcount;             /// @todo ??
+
+    /* exec.c */
+    subshellinitexec(psh, inherit);
+
+    /* input.h/input.c - only for the parser and anyway forkchild calls closescript(). */
+
+    /* jobs.h - should backgndpid be -1 in subshells? */
+
+    /* jobs.c -    */
+    psh->jobctl = inherit->jobctl;  /// @todo ??
+    psh->initialpgrp = inherit->initialpgrp;
+    psh->ttyfd = inherit->ttyfd;
+    /** @todo copy jobtab so the 'jobs' command can be run in a subshell.
+     *  Better, make it follow the parent chain and skip the copying.  Will
+     *  require some kind of job locking. */
+
+    /* mail.c - nothing (for now at least) */
+
+    /* main.h */
+    psh->rootpid = inherit->rootpid;
+    psh->psh_rootshell = inherit->psh_rootshell;
+
+    /* memalloc.h / memalloc.c - nothing. */
+
+    /* myhistedit.h  */ /** @todo copy history? Do we need to care? */
+
+    /* output.h */ /** @todo not sure this is possible/relevant for subshells */
+    psh->output.fd = inherit->output.fd;
+    psh->errout.fd = inherit->errout.fd;
+    if (inherit->out1 == &inherit->memout)
+        psh->out1 = &psh->memout;
+    if (inherit->out2 == &inherit->memout)
+        psh->out2 = &psh->memout;
+
+    /* options.h */
+    subshellinitoptions(psh, inherit);
+
+    /* parse.h/parse.c */
+    psh->whichprompt = inherit->whichprompt;
+    /* tokpushback, doprompt and needprompt shouldn't really matter, parsecmd resets thems. */
+    /* The rest are internal to the parser, as I see them, and can be ignored. */
+
+    /* redir.c - we shouldn't sub-shell with redirlist as non-NULL, I think.  */
+    assert(inherit->redirlist == NULL);
+    assert(inherit->fd0_redirected == 0); /* (follows from redirlist == NULL) */
+
+    /* show.c */
+    psh->tracefd = inherit->tracefd;
+
+    /* trap.h / trap.c */ /** @todo we don't carry pendingsigs to the subshell, right? */
+    subshellinittrap(psh, inherit);
+
+    /* var.h */
+    subshellinitvar(psh, inherit);
+}
+
+/**
+ * Creates a child shell instance.
+ *
+ * @param   inherit     The shell to inherit from.
+ *
+ * @returns pointer to root shell on success, NULL on failure.
+ */
+shinstance *sh_create_child_shell(shinstance *inherit)
+{
+    shinstance *psh = sh_create_shell_common(inherit->orgargv, inherit->shenviron, &inherit->fdtab);
+    if (psh)
+    {
+        /* Fake a pid for the child: */
+        static unsigned volatile s_cShells = 0;
+        int const iSubShell = ++s_cShells;
+        psh->pid = SHPID_MAKE(SHPID_GET_PID(inherit->pid), iSubShell);
+
+        sh_inherit_from_parent(psh, inherit);
+
+        /* link it */
+        sh_int_link(psh);
+        return psh;
+    }
+    return NULL;
+}
+
+#endif /* !SH_FORKED_MODE */
 
 /** getenv() */
 char *sh_getenv(shinstance *psh, const char *var)
@@ -776,7 +927,7 @@ void sh_raise_sigint(shinstance *psh)
     TRACE2((psh, "sh_raise(SIGINT) returns\n"));
 }
 
-int sh_kill(shinstance *psh, pid_t pid, int signo)
+int sh_kill(shinstance *psh, shpid pid, int signo)
 {
     shinstance *pshDst;
     shmtxtmp tmp;
@@ -792,7 +943,7 @@ int sh_kill(shinstance *psh, pid_t pid, int signo)
     {
         if (pshDst->pid == pid)
         {
-            TRACE2((psh, "sh_kill(%d, %d): pshDst=%p\n", pid, signo, pshDst));
+            TRACE2((psh, "sh_kill(%" SHPID_PRI ", %d): pshDst=%p\n", pid, signo, pshDst));
             sh_sig_do_signal(psh, pshDst, signo, 1 /* locked */);
 
             shmtx_leave(&g_sh_mtx, &tmp);
@@ -806,55 +957,72 @@ int sh_kill(shinstance *psh, pid_t pid, int signo)
     /*
      * Some other process, call kill where possible
      */
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef _MSC_VER
     errno = ENOSYS;
     rc = -1;
-# else
+#elif defined(SH_FORKED_MODE)
 /*    fprintf(stderr, "kill(%d, %d)\n", pid, signo);*/
     rc = kill(pid, signo);
-# endif
-
 #else
+# error "PORT ME?"
 #endif
 
     TRACE2((psh, "sh_kill(%d, %d) -> %d [%d]\n", pid, signo, rc, errno));
     return rc;
 }
 
-int sh_killpg(shinstance *psh, pid_t pgid, int signo)
+int sh_killpg(shinstance *psh, shpid pgid, int signo)
 {
+    shinstance *pshDst;
+    shmtxtmp tmp;
     int rc;
 
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+    /*
+     * Self or any of the subshells?
+     */
+    shmtx_enter(&g_sh_mtx, &tmp);
+
+    pshDst = g_sh_tail;
+    while (pshDst != NULL)
+    {
+        if (pshDst->pgid == pgid)
+        {
+            TRACE2((psh, "sh_killpg(%" SHPID_PRI ", %d): pshDst=%p\n", pgid, signo, pshDst));
+            sh_sig_do_signal(psh, pshDst, signo, 1 /* locked */);
+
+            shmtx_leave(&g_sh_mtx, &tmp);
+            return 0;
+        }
+        pshDst = pshDst->prev;
+    }
+
+    shmtx_leave(&g_sh_mtx, &tmp);
+
+#ifdef _MSC_VER
     errno = ENOSYS;
     rc = -1;
-# else
+#elif defined(SH_FORKED_MODE)
     //fprintf(stderr, "killpg(%d, %d)\n", pgid, signo);
     rc = killpg(pgid, signo);
-# endif
-
 #else
+# error "PORTME?"
 #endif
 
-    TRACE2((psh, "sh_killpg(%d, %d) -> %d [%d]\n", pgid, signo, rc, errno));
+    TRACE2((psh, "sh_killpg(%" SHPID_PRI ", %d) -> %d [%d]\n", pgid, signo, rc, errno));
     (void)psh;
     return rc;
 }
 
 clock_t sh_times(shinstance *psh, shtms *tmsp)
 {
-#if defined(SH_FORKED_MODE)
-    (void)psh;
-# ifdef _MSC_VER
+#ifdef _MSC_VER
     errno = ENOSYS;
     return (clock_t)-1;
-# else
+#elif defined(SH_FORKED_MODE)
+    (void)psh;
     return times(tmsp);
-# endif
-
 #else
+# error "PORTME"
 #endif
 }
 
@@ -872,11 +1040,12 @@ int sh_sysconf_clk_tck(void)
  *
  * @returns 0 on success, on failure -1 and errno set to ENOMEM.
  *
- * @param   psh     The shell instance.
- * @param   pid     The child pid.
- * @param   hChild  Windows child handle.
+ * @param   psh         The shell instance.
+ * @param   pid         The child pid.
+ * @param   hChild      Windows child handle.
+ * @param   fProcess    Set if process, clear if thread.
  */
-int sh_add_child(shinstance *psh, pid_t pid, void *hChild)
+int sh_add_child(shinstance *psh, shpid pid, void *hChild, KBOOL fProcess)
 {
     /* get a free table entry. */
     int i = psh->num_children++;
@@ -897,9 +1066,14 @@ int sh_add_child(shinstance *psh, pid_t pid, void *hChild)
 #if K_OS == K_OS_WINDOWS
     psh->children[i].hChild = hChild;
 #endif
-    (void)hChild;
+#ifndef SH_FORKED_MODE
+    psh->children[i].fProcess = fProcess;
+#endif
+    (void)hChild; (void)fProcess;
     return 0;
 }
+
+#ifdef SH_FORKED_MODE
 
 pid_t sh_fork(shinstance *psh)
 {
@@ -937,10 +1111,74 @@ pid_t sh_fork(shinstance *psh)
     return pid;
 }
 
-/** waitpid() */
-pid_t sh_waitpid(shinstance *psh, pid_t pid, int *statusp, int flags)
+#else  /* !SH_FORKED_MODE */
+
+# ifdef _MSC_VER
+/** Thread wrapper procedure. */
+static unsigned __stdcall sh_thread_wrapper(void *user)
 {
-    pid_t pidret;
+    shinstance *psh = (shinstance *)user;
+    int iExit;
+
+    /* Update the TID and PID (racing sh_thread_start) */
+    DWORD tid = GetCurrentThreadId();
+    shpid pid = GetCurrentProcessId();
+
+    pid = SHPID_MAKE(pid, tid);
+    psh->pid = pid;
+    psh->tid = tid;
+
+    /* Set the TLS entry before we try TRACE or TRACE2. */
+    shthread_set_shell(psh);
+
+    TRACE2((psh, "sh_thread_wrapper: enter\n"));
+    iExit = psh->thread(psh, psh->threadarg);
+/** @todo do shell cleanup. */
+    TRACE2((psh, "sh_thread_wrapper: quits - iExit=%d\n", iExit));
+
+    _endthreadex(iExit);
+    return iExit;
+}
+# else
+#  error "PORTME"
+# endif
+
+/**
+ * Starts a sub-shell thread.
+ */
+shpid sh_thread_start(shinstance *pshparent, shinstance *pshchild, int (*thread)(shinstance *, void *), void *arg)
+{
+# ifdef _MSC_VER
+    unsigned tid = 0;
+    uintptr_t hThread;
+    shpid pid;
+
+    pshchild->thread    = thread;
+    pshchild->threadarg = arg;
+    hThread = _beginthreadex(NULL /*security*/, 0 /*stack_size*/, sh_thread_wrapper, pshchild, 0 /*initflags*/, &tid);
+    if (hThread == -1)
+        return -errno;
+
+    pid = SHPID_MAKE(SHPID_GET_PID(pshparent->pid), tid);
+    pshchild->pid = pid;
+    pshchild->tid = tid;
+
+    if (sh_add_child(pshparent, pid, (void *)hThread, K_FALSE) != 0) {
+        return -ENOMEM;
+    }
+    return pid;
+
+# else
+#  error "PORTME"
+# endif
+}
+
+#endif /* !SH_FORKED_MODE */
+
+/** waitpid() */
+shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
+{
+    shpid   pidret;
 #if K_OS == K_OS_WINDOWS //&& defined(SH_FORKED_MODE)
     DWORD   dwRet;
     HANDLE  hChild = INVALID_HANDLE_VALUE;
@@ -1014,7 +1252,11 @@ pid_t sh_waitpid(shinstance *psh, pid_t pid, int *statusp, int flags)
         if (hChild != INVALID_HANDLE_VALUE)
         {
             DWORD dwExitCode = 127;
+#ifndef SH_FORKED_MODE
+            if (psh->children[i].fProcess ? GetExitCodeProcess(hChild, &dwExitCode) : GetExitCodeThread(hChild, &dwExitCode))
+#else
             if (GetExitCodeProcess(hChild, &dwExitCode))
+#endif
             {
                 pidret = psh->children[i].pid;
                 if (dwExitCode && !W_EXITCODE(dwExitCode, 0))
@@ -1045,7 +1287,7 @@ pid_t sh_waitpid(shinstance *psh, pid_t pid, int *statusp, int flags)
 #else
 #endif
 
-    TRACE2((psh, "waitpid(%d, %p, %#x) -> %d [%d] *statusp=%#x (rc=%d)\n", pid, statusp, flags,
+    TRACE2((psh, "waitpid(%" SHPID_PRI ", %p, %#x) -> %" SHPID_PRI " [%d] *statusp=%#x (rc=%d)\n", pid, statusp, flags,
             pidret, errno, *statusp, WEXITSTATUS(*statusp)));
     (void)psh;
     return pidret;
@@ -1281,14 +1523,10 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
 
 uid_t sh_getuid(shinstance *psh)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef _MSC_VER
     uid_t uid = 0;
-# else
-    uid_t uid = getuid();
-# endif
-
 #else
+    uid_t uid = getuid();
 #endif
 
     TRACE2((psh, "sh_getuid() -> %d [%d]\n", uid, errno));
@@ -1298,14 +1536,10 @@ uid_t sh_getuid(shinstance *psh)
 
 uid_t sh_geteuid(shinstance *psh)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef _MSC_VER
     uid_t euid = 0;
-# else
-    uid_t euid = geteuid();
-# endif
-
 #else
+    uid_t euid = geteuid();
 #endif
 
     TRACE2((psh, "sh_geteuid() -> %d [%d]\n", euid, errno));
@@ -1315,14 +1549,10 @@ uid_t sh_geteuid(shinstance *psh)
 
 gid_t sh_getgid(shinstance *psh)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef _MSC_VER
     gid_t gid = 0;
-# else
-    gid_t gid = getgid();
-# endif
-
 #else
+    gid_t gid = getgid();
 #endif
 
     TRACE2((psh, "sh_getgid() -> %d [%d]\n", gid, errno));
@@ -1332,14 +1562,10 @@ gid_t sh_getgid(shinstance *psh)
 
 gid_t sh_getegid(shinstance *psh)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef _MSC_VER
     gid_t egid = 0;
-# else
-    gid_t egid = getegid();
-# endif
-
 #else
+    gid_t egid = getegid();
 #endif
 
     TRACE2((psh, "sh_getegid() -> %d [%d]\n", egid, errno));
@@ -1347,127 +1573,124 @@ gid_t sh_getegid(shinstance *psh)
     return egid;
 }
 
-pid_t sh_getpid(shinstance *psh)
+shpid sh_getpid(shinstance *psh)
 {
-    pid_t pid;
-
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
-    pid = _getpid();
-# else
-    pid = getpid();
-# endif
-#else
-#endif
-
-    (void)psh;
-    return pid;
+    return psh->pid;
 }
 
-pid_t sh_getpgrp(shinstance *psh)
+shpid sh_getpgrp(shinstance *psh)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
-    pid_t pgrp = _getpid();
-# else
-    pid_t pgrp = getpgrp();
-# endif
-
-#else
+    shpid pgid = psh->pgid;
+#ifndef _MSC_VER
+    assert(pgid == getpgrp());
 #endif
 
-    TRACE2((psh, "sh_getpgrp() -> %d [%d]\n", pgrp, errno));
-    (void)psh;
-    return pgrp;
-}
-
-pid_t sh_getpgid(shinstance *psh, pid_t pid)
-{
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
-    pid_t pgid = pid;
-# else
-    pid_t pgid = getpgid(pid);
-# endif
-
-#else
-#endif
-
-    TRACE2((psh, "sh_getpgid(%d) -> %d [%d]\n", pid, pgid, errno));
-    (void)psh;
+    TRACE2((psh, "sh_getpgrp() -> %" SHPID_PRI " [%d]\n", pgid, errno));
     return pgid;
 }
 
-int sh_setpgid(shinstance *psh, pid_t pid, pid_t pgid)
+/**
+ * @param   pid     Should always be zero, i.e. referring to the current shell
+ *                  process.
+ */
+shpid sh_getpgid(shinstance *psh, shpid pid)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
-    int rc = -1;
-    errno = ENOSYS;
-# else
-    int rc = setpgid(pid, pgid);
-# endif
-
-#else
+    shpid pgid;
+    if (pid == 0 || psh->pid == pid)
+    {
+        shpid pgid = psh->pgid;
+#ifndef _MSC_VER
+        assert(pgid == getpgrp());
 #endif
+    }
+    else
+    {
+        assert(0);
+        errno = ESRCH;
+        pgid = -1;
+    }
 
-    TRACE2((psh, "sh_setpgid(%d, %d) -> %d [%d]\n", pid, pgid, rc, errno));
+    TRACE2((psh, "sh_getpgid(%" SHPID_PRI ") -> %" SHPID_PRI " [%d]\n", pid, pgid, errno));
+    return pgid;
+}
+
+/**
+ *
+ * @param   pid     The pid to modify.  This is always 0, except when forkparent
+ *                  calls to group a newly created child.  Though, we might
+ *                  almost safely ignore it in that case as the child will also
+ *                  perform the operation.
+ * @param   pgid    The process group to assign @a pid to.
+ */
+int sh_setpgid(shinstance *psh, shpid pid, shpid pgid)
+{
+#if defined(SH_FORKED_MODE) && !defined(_MSC_VER)
+    int rc = setpgid(pid, pgid);
+    TRACE2((psh, "sh_setpgid(%" SHPID_PRI ", %" SHPID_PRI ") -> %d [%d]\n", pid, pgid, rc, errno));
     (void)psh;
+#else
+    int rc = 0;
+    if (pid == 0 || psh->pid == pid)
+    {
+        TRACE2((psh, "sh_setpgid(self,): %" SHPID_PRI " -> %" SHPID_PRI "\n", psh->pgid, pgid));
+        psh->pgid = pgid;
+    }
+    else
+    {
+        /** @todo fixme   */
+        rc = -1;
+        errno = ENOSYS;
+    }
+#endif
     return rc;
 }
 
-pid_t sh_tcgetpgrp(shinstance *psh, int fd)
+shpid sh_tcgetpgrp(shinstance *psh, int fd)
 {
-    pid_t pgrp;
+    shpid pgrp;
 
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef _MSC_VER
     pgrp = -1;
     errno = ENOSYS;
-# else
+#elif defined(SH_FORKED_MODE)
     pgrp = tcgetpgrp(fd);
-# endif
-
 #else
+# error "PORT ME"
 #endif
 
-    TRACE2((psh, "sh_tcgetpgrp(%d) -> %d [%d]\n", fd, pgrp, errno));
+    TRACE2((psh, "sh_tcgetpgrp(%d) -> %" SHPID_PRI " [%d]\n", fd, pgrp, errno));
     (void)psh;
     return pgrp;
 }
 
-int sh_tcsetpgrp(shinstance *psh, int fd, pid_t pgrp)
+int sh_tcsetpgrp(shinstance *psh, int fd, shpid pgrp)
 {
     int rc;
-    TRACE2((psh, "sh_tcsetpgrp(%d, %d)\n", fd, pgrp));
+    TRACE2((psh, "sh_tcsetpgrp(%d, %" SHPID_PRI ")\n", fd, pgrp));
 
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef _MSC_VER
     rc = -1;
     errno = ENOSYS;
-# else
+#elif defined(SH_FORKED_MODE)
     rc = tcsetpgrp(fd, pgrp);
-# endif
-
 #else
+# error "PORT ME"
 #endif
 
-    TRACE2((psh, "sh_tcsetpgrp(%d, %d) -> %d [%d]\n", fd, pgrp, rc, errno));
+    TRACE2((psh, "sh_tcsetpgrp(%d, %" SHPID_PRI ") -> %d [%d]\n", fd, pgrp, rc, errno));
     (void)psh;
     return rc;
 }
 
 int sh_getrlimit(shinstance *psh, int resid, shrlimit *limp)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef _MSC_VER
     int rc = -1;
     errno = ENOSYS;
-# else
+#elif defined(SH_FORKED_MODE)
     int rc = getrlimit(resid, limp);
-# endif
-
 #else
+# error "PORT ME"
     /* returned the stored limit */
 #endif
 
@@ -1479,15 +1702,13 @@ int sh_getrlimit(shinstance *psh, int resid, shrlimit *limp)
 
 int sh_setrlimit(shinstance *psh, int resid, const shrlimit *limp)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef _MSC_VER
     int rc = -1;
     errno = ENOSYS;
-# else
+#elif defined(SH_FORKED_MODE)
     int rc = setrlimit(resid, limp);
-# endif
-
 #else
+# error "PORT ME"
     /* if max(shell) < limp; then setrlimit; fi
        if success; then store limit for later retrival and maxing. */
 

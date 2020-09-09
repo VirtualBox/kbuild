@@ -1,4 +1,4 @@
-/* $Id: shtypes.h 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
+/* $Id: shtypes.h 3438 2020-09-09 20:01:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * Wrapper for missing types and such.
  */
@@ -129,6 +129,21 @@ typedef struct shsigaction
 # define SH_NORETURN_1
 # define SH_NORETURN_2 __attribute__((__noreturn__))
 #endif
+
+/** @name Extra wide pid_t so we can safely add a sub-pid to the top.
+ * @{ */
+#ifndef SH_FORKED_MODE
+typedef KI64 shpid;
+# define SHPID_MAKE(pid, tid)       ((shpid)(KU32)(pid) | (shpid)(KU32)(tid) << 32)
+# define SHPID_GET_PID(shpid)       ((pid_t)(KU32)(shpid))
+# define SHPID_GET_TID(shpid)       ((pid_t)((shpid) >> 32))
+# define SHPID_PRI                  KI64_PRI
+#else
+typedef pid_t shpid;
+# define SHPID_GET_PID(shpid)       (shpid)
+# define SHPID_PRI                  KI32_PRI
+#endif
+/** @}  */
 
 #endif
 

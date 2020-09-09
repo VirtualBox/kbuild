@@ -41,6 +41,8 @@
 #define FORK_BG 1
 #define FORK_NOJOB 2
 
+#define FORK_JUST_IO 4          /* forking I/O subprocess/thread (here doc). */
+
 /* mode flags for showjob(s) */
 #define	SHOW_PGID	0x01	/* only show pgid - for jobs -p */
 #define	SHOW_MULTILINE	0x02	/* one line per process */
@@ -60,7 +62,7 @@
 #define	MAXCMDTEXT	200
 
 struct procstat {
-	pid_t	pid;		/* process id */
+	shpid	pid;		/* process id */
  	int	status;		/* last process status from wait() */
  	char	cmd[MAXCMDTEXT];/* text of command being run */
 };
@@ -69,7 +71,7 @@ struct job {
 	struct procstat ps0;	/* status of process */
 	struct procstat *ps;	/* status or processes when more than one */
 	int	nprocs;		/* number of processes */
-	pid_t	pgrp;		/* process group of this job */
+	shpid	pgrp;		/* process group of this job */ /**< @todo is job:pgrp used anywhere? */
 	char	state;
 #define	JOBRUNNING	0	/* at least one proc running */
 #define	JOBSTOPPED	1	/* all procs are stopped */
@@ -95,19 +97,17 @@ int jobidcmd(struct shinstance *, int, char **);
 union node;
 struct job *makejob(struct shinstance *, union node *, int);
 #ifdef KASH_USE_FORKSHELL2
-int forkshell2(struct shinstance *, struct job *, union node *, int,
-	       int (*child)(struct shinstance *, void *, union node *),
-	       union node *, void *, size_t,
-	       void (*setupchild)(struct shinstance *, struct shinstance *, void *));
+shpid forkshell2(struct shinstance *, struct job *, union node *, int,
+                 int (*child)(struct shinstance *, void *, union node *),
+                 union node *, void *, size_t,
+                 void (*setupchild)(struct shinstance *, struct shinstance *, void *));
 #else
-int forkshell(struct shinstance *, struct job *, union node *, int);
-void forkchild(struct shinstance *, struct job *, union node *, int);
-int forkparent(struct shinstance *, struct job *, union node *, int, pid_t);
+shpid forkshell(struct shinstance *, struct job *, union node *, int);
 #endif
 int waitforjob(struct shinstance *, struct job *);
 int stoppedjobs(struct shinstance *);
 void commandtext(struct shinstance *, struct procstat *, union node *);
-int getjobpgrp(struct shinstance *, const char *);
+shpid getjobpgrp(struct shinstance *, const char *);
 
 #if ! JOBS
 #define setjobctl(psh, on)	/* do nothing */

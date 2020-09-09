@@ -245,7 +245,7 @@ int shfork_body(shinstance *psh, void *stack_ptr)
             {
                 if (ResumeThread(ProcInfo.hThread) != (DWORD)-1)
                 {
-                    rc = sh_add_child(psh, ProcInfo.dwProcessId, ProcInfo.hProcess);
+                    rc = sh_add_child(psh, ProcInfo.dwProcessId, ProcInfo.hProcess, K_TRUE);
                     if (!rc)
                         rc = (int)ProcInfo.dwProcessId;
                 }

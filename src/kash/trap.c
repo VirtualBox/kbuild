@@ -79,6 +79,24 @@ __RCSID("$NetBSD: trap.c,v 1.31 2005/01/11 19:38:57 christos Exp $");
 
 static int getsigaction(shinstance *, int, shsig_t *);
 
+#ifndef SH_FORKED_MODE
+void
+subshellinittrap(shinstance *psh, shinstance *inherit)
+{
+	/* The forkchild calls clear_traps(), we have to emulate that here. */
+	unsigned i;
+	memcpy(psh->sigmode, inherit->sigmode, sizeof(psh->sigmode));
+	for (i = 0; i < K_ELEMENTS(inherit->trap); i++) {
+		const char *src = inherit->trap[i];
+		if (!src) {
+		} else if (i > 0) {
+			setsignal(psh, i);
+		}
+	}
+}
+#endif
+
+
 /*
  * return the signal number described by `p' (as a number or a name)
  * or -1 if it isn't one
@@ -209,8 +227,8 @@ clear_traps(shinstance *psh)
 	for (tp = psh->trap ; tp <= &psh->trap[NSIG] ; tp++) {
 		if (*tp && **tp) {	/* trap not NULL or SIG_IGN */
 			INTOFF;
-                        ckfree(psh, *tp);
-                        *tp = NULL;
+			ckfree(psh, *tp);
+			*tp = NULL;
 			if (tp != &psh->trap[0])
 				setsignal(psh, (int)(tp - psh->trap));
 			INTON;
@@ -416,13 +434,13 @@ setinteractive(shinstance *psh, int on)
  * Called to exit the shell.
  */
 
-SH_NORETURN_1 void
-exitshell(shinstance *psh, int status)
+int
+exitshell2(shinstance *psh, int status)
 {
 	struct jmploc loc1, loc2;
 	char *p;
 
-	TRACE((psh, "pid %d, exitshell(%d)\n", sh_getpid(psh), status));
+	TRACE((psh, "pid %" SHPID_PRI ", exitshell(%d)\n", sh_getpid(psh), status));
 	if (setjmp(loc1.loc)) {
 		goto l1;
 	}
@@ -434,11 +452,20 @@ exitshell(shinstance *psh, int status)
 		psh->trap[0] = NULL;
 		evalstring(psh, p, 0);
 	}
-l1:   psh->handler = &loc2;			/* probably unnecessary */
+l1:
+	psh->handler = &loc2;			/* probably unnecessary */
 	output_flushall(psh);
 #if JOBS
 	setjobctl(psh, 0);
 #endif
-l2: sh__exit(psh, status);
+l2:
+	return status;
+}
+
+SH_NORETURN_1 void
+exitshell(shinstance *psh, int status)
+{
+	sh__exit(psh, exitshell2(psh, status));
 	/* NOTREACHED */
 }
+

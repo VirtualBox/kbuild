@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 3435 2020-09-02 20:30:54Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 3438 2020-09-09 20:01:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -64,9 +64,12 @@
  */
 typedef struct shchild
 {
-    pid_t       pid;                    /**< The pid. */
+    shpid       pid;                    /**< The pid. */
 #if K_OS == K_OS_WINDOWS
     void       *hChild;                 /**< The process handle. */
+#endif
+#ifndef SH_FORKED_MODE
+    KBOOL       fProcess;               /**< Set if process, clear if internal thread. */
 #endif
 } shchild;
 
@@ -139,18 +142,24 @@ struct shinstance
     struct shinstance  *next;           /**< The next shell instance. */
     struct shinstance  *prev;           /**< The previous shell instance. */
     struct shinstance  *parent;         /**< The parent shell instance. */
-    pid_t               pid;            /**< The (fake) process id of this shell instance. */
+    shpid               pid;            /**< The (fake) process id of this shell instance. */
     shtid               tid;            /**< The thread identifier of the thread for this shell. */
+    shpid               pgid;           /**< Process group ID. */
     shfdtab             fdtab;          /**< The file descriptor table. */
     shsigaction_t       sigactions[NSIG]; /**< The signal actions registered with this shell instance. */
     shsigset_t          sigmask;        /**< Our signal mask. */
     char              **shenviron;      /**< The environment vector. */
     int                 num_children;   /**< Number of children in the array. */
     shchild            *children;       /**< The child array. */
+#ifndef SH_FORKED_MODE
+    int (*thread)(struct shinstance *, void *); /**< The thread procedure. */
+    void               *threadarg;      /**< The thread argument. */
+#endif
 
     /* alias.c */
 #define ATABSIZE 39
     struct alias       *atab[ATABSIZE];
+    unsigned            aliases;        /**< Number of active aliases. */
 
     /* cd.c */
     char               *curdir;         /**< current working directory */
@@ -177,6 +186,7 @@ struct shinstance
     int                 evalskip;       /**< set if we are skipping commands */
     int                 skipcount;      /**< number of levels to skip */
     int                 loopnest;       /**< current loop nesting level */
+    int                 commandnamemalloc; /**< Set if commandname is malloc'ed (only subshells). */
 
     /* expand.c */
     char               *expdest;        /**< output of current string */
@@ -209,14 +219,14 @@ struct shinstance
 #endif
 
     /* jobs.h */
-    pid_t               backgndpid/* = -1 */;   /**< pid of last background process */
+    shpid               backgndpid/* = -1 */;   /**< pid of last background process */
     int                 job_warning;    /**< user was warned about stopped jobs */
 
     /* jobs.c */
     struct job         *jobtab;         /**< array of jobs */
     int                 njobs;          /**< size of array */
     int                 jobs_invalid;   /**< set in child */
-    int                 initialpgrp;    /**< pgrp of shell on invocation */
+    shpid               initialpgrp;    /**< pgrp of shell on invocation */
     int                 curjob/* = -1*/;/**< current job */
     int                 ttyfd/* = -1*/;
     int                 jobctl;         /**< job control enabled / disabled */
@@ -230,7 +240,7 @@ struct shinstance
     time_t              mailtime[MAXMBOXES]; /**< times of mailboxes */
 
     /* main.h */
-    int                 rootpid;        /**< pid of main shell. */
+    shpid               rootpid;        /**< pid of main shell. */
     int                 rootshell;      /**< true if we aren't a child of the main shell. */
     struct shinstance  *psh_rootshell;  /**< The root shell pointer. (!rootshell) */
 
@@ -271,6 +281,8 @@ struct shinstance
     char              **argptr;         /**< argument list for builtin commands */
     char               *optionarg;      /**< set by nextopt */
     char               *optptr;         /**< used by nextopt */
+    char              **orgargv;        /**< The original argument vector (for cleanup). */
+    int                 arg0malloc;     /**< Indicates whether arg0 was allocated or is part of orgargv. */
 
     /* parse.h */
     int                 tokpushback;
@@ -345,7 +357,8 @@ struct shinstance
 };
 
 
-extern shinstance *sh_create_root_shell(shinstance *, int, char **, char **);
+extern shinstance *sh_create_root_shell(char **, char **);
+extern shinstance *sh_create_child_shell(shinstance *);
 
 /* environment & pwd.h */
 char *sh_getenv(shinstance *, const char *);
@@ -394,8 +407,8 @@ int sh_sigismember(shsigset_t const *, int);
 int sh_sigprocmask(shinstance *, int, shsigset_t const *, shsigset_t *);
 SH_NORETURN_1 void sh_abort(shinstance *) SH_NORETURN_2;
 void sh_raise_sigint(shinstance *);
-int sh_kill(shinstance *, pid_t, int);
-int sh_killpg(shinstance *, pid_t, int);
+int sh_kill(shinstance *, shpid, int);
+int sh_killpg(shinstance *, shpid, int);
 
 /* times */
 #include <time.h>
@@ -415,7 +428,7 @@ clock_t sh_times(shinstance *, shtms *);
 int sh_sysconf_clk_tck(void);
 
 /* wait / process */
-int sh_add_child(shinstance *psh, pid_t pid, void *hChild);
+int sh_add_child(shinstance *psh, shpid pid, void *hChild, KBOOL fProcess);
 #ifdef _MSC_VER
 #   include <process.h>
 #   define WNOHANG         1       /* Don't hang in wait. */
@@ -441,22 +454,26 @@ int sh_add_child(shinstance *psh, pid_t pid, void *hChild);
 #       define WCOREDUMP(x) WIFCORED(x)
 #   endif
 #endif
-pid_t sh_fork(shinstance *);
-pid_t sh_waitpid(shinstance *, pid_t, int *, int);
+#ifdef SH_FORKED_MODE
+shpid sh_fork(shinstance *);
+#else
+shpid sh_thread_start(shinstance *pshparent, shinstance *pshchild, int (*thread)(shinstance *, void *), void *arg);
+#endif
+shpid sh_waitpid(shinstance *, shpid, int *, int);
 SH_NORETURN_1 void sh__exit(shinstance *, int) SH_NORETURN_2;
 int sh_execve(shinstance *, const char *, const char * const*, const char * const *);
 uid_t sh_getuid(shinstance *);
 uid_t sh_geteuid(shinstance *);
 gid_t sh_getgid(shinstance *);
 gid_t sh_getegid(shinstance *);
-pid_t sh_getpid(shinstance *);
-pid_t sh_getpgrp(shinstance *);
-pid_t sh_getpgid(shinstance *, pid_t);
-int sh_setpgid(shinstance *, pid_t, pid_t);
+shpid sh_getpid(shinstance *);
+shpid sh_getpgrp(shinstance *);
+shpid sh_getpgid(shinstance *, shpid);
+int sh_setpgid(shinstance *, shpid, shpid);
 
 /* tc* */
-pid_t sh_tcgetpgrp(shinstance *, int);
-int sh_tcsetpgrp(shinstance *, int, pid_t);
+shpid sh_tcgetpgrp(shinstance *, int);
+int sh_tcsetpgrp(shinstance *, int, shpid);
 
 /* sys/resource.h */
 #ifdef _MSC_VER

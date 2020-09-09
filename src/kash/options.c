@@ -40,6 +40,7 @@ __RCSID("$NetBSD: options.c,v 1.38 2005/03/20 21:38:17 dsl Exp $");
 #endif /* not lint */
 #endif
 
+#include <assert.h>
 #include <stdlib.h>
 
 #include "shell.h"
@@ -76,6 +77,105 @@ STATIC void minus_o(shinstance *, char *, int);
 STATIC void setoption(shinstance *, int, int);
 STATIC int getopts(shinstance *, char *, char *, char **, char ***, char **);
 
+#ifndef SH_FORKED_MODE
+void
+subshellinitoptions(shinstance *psh, shinstance *inherit)
+{
+    unsigned i;
+    int left;
+    const char *arg;
+    memcpy(&psh->optlist[0], &inherit->optlist[0], sizeof(psh->optlist));
+
+    /** @todo opimize: skip this when executing builtins. */
+    /* Whether the subshell uses argptr/shellparam/arg0 or replaces them depends
+       on whether the shell will execute a builtin command or not.
+
+       orgargv is already set by the shinstance.c core code, scan the original
+       again and update arg0, shellparm, argptr and optptr. */
+
+    /* arg0 is either something from orgargv, or in the EXSHELLPROC case a
+       separate allocation that we need to dupe here. The (new) arg0malloc
+       flag indicates which. */
+    i = 0;
+    psh->arg0malloc = inherit->arg0malloc;
+    if (inherit->arg0malloc) {
+	psh->arg0 = savestr(psh, inherit->arg0);
+    } else {
+	while ((arg = inherit->orgargv[i]) != NULL) {
+	    if (inherit->arg0 == arg) {
+		psh->arg0 = psh->orgargv[i];
+		break;
+	    }
+	    i++;
+	}
+	assert(psh->arg0 != NULL);
+    }
+
+    /* eval.h's commandname is same as arg0 when set unless we're doing a dot-include. */
+    if (inherit->commandname) {
+	if (inherit->commandname == inherit->arg0) {
+	    psh->commandname = psh->arg0;
+	} else {
+	    psh->commandname = savestr(psh, inherit->commandname);
+	    psh->commandnamemalloc = 1;
+	}
+    }
+
+    /* shellparam is either pointing right after arg0 in orgargv, though it may
+       also be a separately allocated thing (see setparam), or pointing to the
+       arguments of a shell function we're executing (see eval.c).  All in all,
+       it's simpler if we just copy the whole darn thing, ASSUMING no
+       modifications will be made that are needed to be visible elsewhere.
+       */
+    psh->shellparam.malloc = 1;
+    psh->shellparam.reset  = inherit->shellparam.reset;
+    psh->shellparam.nparam = left = inherit->shellparam.nparam;
+    assert(left >= 0);
+    psh->shellparam.p = (char **)ckmalloc(psh, left + 1);
+    psh->shellparam.p[left] = NULL;
+    while (left-- > 0) {
+	arg = inherit->shellparam.p[left];
+	psh->shellparam.p[left] = savestr(psh, arg);
+    }
+
+    /* The shellparam.optnext member is either NULL or points to a 'p' entry. */
+    if (inherit->shellparam.optnext) {
+	size_t idx = (size_t)(inherit->shellparam.optnext - inherit->shellparam.p);
+	assert(idx <= inherit->shellparam.nparam);
+	if (idx <= inherit->shellparam.nparam)
+	    psh->shellparam.optnext = &psh->shellparam.p[idx];
+    }
+
+    /* The shellparam.optptr member is either NULL or points within argument
+       prior to shellparam.optnext.  We can leave it as NULL if at the EOS. */
+    if (inherit->shellparam.optptr && *inherit->shellparam.optptr != '\0') {
+	intptr_t idx;
+	if (!inherit->shellparam.optnext || inherit->shellparam.optnext == inherit->shellparam.p)
+	    idx = (intptr_t)(inherit->shellparam.nparam - 1);
+	else {
+	    idx = (intptr_t)(inherit->shellparam.optnext - inherit->shellparam.p - 1);
+	    if (idx > inherit->shellparam.nparam)
+		idx = inherit->shellparam.nparam - 1;
+	}
+	while (idx >= 0) {
+	    size_t arglen, off;
+	    arg = inherit->shellparam.p[idx];
+	    arglen = strlen(arg);
+	    off = (size_t)(inherit->shellparam.optptr - arg);
+	    if (off < arglen) {
+		psh->shellparam.optptr = psh->shellparam.p[idx] + off;
+		break;
+	    }
+	    off--;
+	}
+	assert(psh->shellparam.optptr != NULL);
+    }
+
+    /* minusc:    only used in main.c, so not applicable to subshells. */
+    /* optionarg: only used by callers of nextopt, so not relevant when forking subhells. */
+}
+#endif /* SH_FORKED_MODE */
+
 
 /*
  * Process the shell command line arguments.
@@ -104,6 +204,8 @@ procargs(shinstance *psh, int argc, char **argv)
 #if DEBUG == 2
 	debug(psh) = 1;
 #endif
+	psh->commandnamemalloc = 0;
+	psh->arg0malloc = 0;
 	psh->arg0 = argv[0];
 	if (sflag(psh) == 0 && psh->minusc == NULL) {
 		psh->commandname = argv[0];

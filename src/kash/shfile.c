@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3240 2018-12-25 20:47:49Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3438 2020-09-09 20:01:39Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -636,13 +636,15 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
     {
 #ifdef SHFILE_IN_USE
         /* Get CWD with unix slashes. */
-        char buf[SHFILE_MAX_PATH];
-        if (getcwd(buf, sizeof(buf)))
+        if (!inherit)
         {
-            shfile_fix_slashes(buf);
-
-            pfdtab->cwd = sh_strdup(NULL, buf);
-            if (!inherit)
+            char buf[SHFILE_MAX_PATH];
+            if (getcwd(buf, sizeof(buf)))
+            {
+                shfile_fix_slashes(buf);
+                pfdtab->cwd = sh_strdup(NULL, buf);
+            }
+            if (pfdtab->cwd)
             {
 # if K_OS == K_OS_WINDOWS
                 static const struct
@@ -816,14 +818,92 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
 # endif
             }
             else
-            {
-                /** @todo */
-                errno = ENOSYS;
                 rc = -1;
-            }
         }
         else
-            rc = -1;
+        {
+            /*
+             * Inherit from parent shell's file table.
+             */
+            shfile const *src;
+            shfile       *dst;
+            shmtxtmp      tmp;
+            unsigned      fdcount;
+            unsigned      fd;
+
+            shmtx_enter(&inherit->mtx, &tmp);
+
+            /* allocate table and cwd: */
+            fdcount = inherit->size;
+            pfdtab->tab = dst = (shfile *)(fdcount ? sh_calloc(NULL, sizeof(pfdtab->tab[0]), fdcount) : NULL);
+            pfdtab->cwd = sh_strdup(NULL, inherit->cwd);
+            if (   pfdtab->cwd
+                && (pfdtab->tab || fdcount == 0))
+            {
+                /* duplicate table entries: */
+                for (fd = 0, src = inherit->tab; fd < fdcount; fd++, src++, dst++)
+                    if (src->fd == -1)
+                        dst->native = dst->fd = -1;
+                    else
+                    {
+# ifdef SH_FORKED_MODE
+                        KBOOL const cox = !!(src->shflags & SHFILE_FLAGS_CLOSE_ON_EXEC);
+# else
+                        KBOOL const cox = !!(src->shflags & SHFILE_FLAGS_CLOSE_ON_EXEC); /// @todo K_TRUE
+# endif
+                        *dst = *src;
+# if K_OS == K_OS_WINDOWS
+                        if (DuplicateHandle(GetCurrentProcess(),
+                                            (HANDLE)src->native,
+                                            GetCurrentProcess(),
+                                            (HANDLE *)&dst->native,
+                                            0,
+                                            cox ? FALSE : TRUE /* bInheritHandle */,
+                                            DUPLICATE_SAME_ACCESS))
+                            TRACE2((NULL, "shfile_init: %d (%#x, %#x) %p (was %p)\n",
+                                    dst->fd, dst->oflags, dst->shflags, dst->native, src->native));
+                        else
+                        {
+                            dst->native = (intptr_t)INVALID_HANDLE_VALUE;
+                            rc = shfile_dos2errno(GetLastError());
+                            TRACE2((NULL, "shfile_init: %d (%#x, %#x) %p - failed %d / %u!\n",
+                                    dst->fd, dst->oflags, dst->shflags, src->native, rc, GetLastError()));
+                            break;
+                        }
+
+# elif K_OS == K_OS_LINUX /* 2.6.27 / glibc 2.9 */ || K_OS == K_OS_FREEBSD /* 10.0 */ || K_OS == K_OS_NETBSD /* 6.0 */
+                        dst->native = dup3(src->native, -1, cox ? O_CLOEXEC : 0);
+# else
+                        if (cox)
+                        {
+#  ifndef SH_FORKED_MODE
+                            shmtxtmp tmp2;
+                            shmtx_enter(&global_exec_something, &tmp)
+#  endif
+                            dst->native = dup2(src->native, -1);
+                            if (dst->native >= 0)
+                                rc = fcntl(dst->native, F_SETFD, FD_CLOEXEC);
+#  ifndef SH_FORKED_MODE
+                            shmtx_leave(&global_exec_something, &tmp)
+#  endif
+                            if (rc != 0)
+                                break;
+                        }
+                        else
+                            dst->native = dup2(src->native, -1);
+                        if (dst->native < 0)
+                        {
+                            rc = -1;
+                            break;
+                        }
+# endif
+                    }
+            }
+            else
+                rc = -1;
+            pfdtab->size = fd;
+            shmtx_leave(&inherit->mtx, &tmp);
+        }   /* inherit != NULL */
 #endif
     }
     return rc;
@@ -832,7 +912,7 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
 #if K_OS == K_OS_WINDOWS && defined(SHFILE_IN_USE)
 
 /**
- * Changes the inheritability of a file descriptro, taking console handles into
+ * Changes the inheritability of a file descriptor, taking console handles into
  * account.
  *
  * @note    This MAY change the native handle for the entry.

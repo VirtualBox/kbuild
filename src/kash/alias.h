@@ -43,6 +43,9 @@ struct alias {
 	int flag;
 };
 
+#ifndef SH_FORKED_MODE
+void subshellinitalias(shinstance *, shinstance *);
+#endif
 struct alias *lookupalias(struct shinstance *, char *, int);
 char *get_alias_text(struct shinstance *, char *);
 int aliascmd(struct shinstance *, int, char **);
