@@ -40,6 +40,7 @@ __RCSID("$NetBSD: var.c,v 1.36 2004/10/06 10:23:43 enami Exp $");
 #endif /* not lint */
 #endif
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -269,6 +270,81 @@ initvar(shinstance *psh)
 		psh->vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
 }
+
+
+#ifndef SH_FORKED_MODE
+/*
+ * This routine is called to copy variable state from parent to child shell.
+ */
+void
+subshellinitvar(shinstance *psh, shinstance *inherit)
+{
+	unsigned i;
+	for (i = 0; i < K_ELEMENTS(inherit->vartab); i++) {
+		struct var const *vsrc = inherit->vartab[i];
+		if (!vsrc) {
+		} else {
+			struct var **ppdst = &psh->vartab[i];
+			do
+			{
+				struct var *dst;
+				if (!(vsrc->flags & VSTRFIXED)) {
+					dst = (struct var *)ckmalloc(psh, sizeof(*dst));
+				} else {
+					/* VSTRFIXED is used when the structure is a fixed allocation in
+					   the shinstance structure, so scan those to find which it is: */
+					size_t            left     = ((struct var *)&inherit->vartab[0] - &inherit->vatty);
+					struct var const *fixedsrc = &inherit->vatty;
+					dst = &psh->vatty;
+					while (left-- > 0)
+						if (vsrc != fixedsrc) {
+							fixedsrc++;
+							dst++;
+						} else
+							break;
+					assert(left < 256 /*whatever, just no rollover*/);
+				}
+				*dst = *vsrc;
+
+				if (!(vsrc->flags & VTEXTFIXED)) {
+					dst->text = savestr(psh, vsrc->text);
+					dst->flags &= ~VSTACK;
+				}
+
+				*ppdst = dst;
+				ppdst = &dst->next;
+
+				vsrc = vsrc->next;
+			} while (vsrc);
+			*ppdst = NULL;
+		}
+	}
+
+	/** @todo We don't always need to copy local variables. */
+	if (inherit->localvars) {
+		struct localvar const *vsrc  = inherit->localvars;
+		struct localvar      **ppdst = &psh->localvars;
+		do
+		{
+			struct localvar *dst = ckmalloc(psh, sizeof(*dst));
+
+			dst->flags = vsrc->flags & ~VSTACK;
+			if (vsrc->flags & VTEXTFIXED)
+				dst->text = savestr(psh, vsrc->text);
+			else
+				dst->text = vsrc->text;
+
+			dst->vp = find_var(psh, vsrc->vp->text, NULL, NULL);
+			assert(dst->vp);
+
+			*ppdst = dst;
+			ppdst = &dst->next;
+
+			vsrc = vsrc->next;
+		} while (vsrc);
+	}
+}
+#endif /* !SH_FORKED_MODE */
 
 /*
  * Safe version of setvar, returns 1 on success 0 on failure.

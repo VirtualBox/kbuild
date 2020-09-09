@@ -126,6 +126,9 @@ extern struct var vhistsize;
 #define mpathset(psh)	(((psh)->vmpath.flags & VUNSET) == 0)
 
 void initvar(struct shinstance *);
+#ifndef SH_FORKED_MODE
+void subshellinitvar(shinstance *, shinstance *);
+#endif
 void setvar(struct shinstance *, const char *, const char *, int);
 void setvareq(struct shinstance *, char *, int);
 struct strlist;

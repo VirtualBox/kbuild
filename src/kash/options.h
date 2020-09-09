@@ -129,6 +129,9 @@ extern const struct optent ro_optlist[];
 /*extern char *optionarg;*/		/* set by nextopt */
 /*extern char *optptr;*/		/* used by nextopt */
 
+#ifndef SH_FORKED_MODE
+void subshellinitoptions(struct shinstance *, struct shinstance *);
+#endif
 void procargs(struct shinstance *, int, char **);
 void optschanged(struct shinstance *);
 void setparam(struct shinstance *, char **);

@@ -355,6 +355,12 @@ doformat(struct output *dest, const char *f, va_list ap)
 			isquad++;
 			f++;
 		}
+#ifdef _MSC_VER  /* for SHPID_PRI / KI64_PRI */
+		else if (*f == 'I' && f[1] == '6' && f[2] == '4') {
+			isquad++;
+			f += 3;
+		}
+#endif
 		digit = digit_upper;
 		switch (*f) {
 		case 'd':

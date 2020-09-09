@@ -224,7 +224,7 @@ evaltree(shinstance *psh, union node *n, int flags)
 #ifndef SMALL
 	psh->displayhist = 1;	/* show history substitutions done with fc */
 #endif
-	TRACE((psh, "pid %d, evaltree(%p: %d, %d) called\n",
+	TRACE((psh, "pid %" SHPID_PRI ", evaltree(%p: %d, %d) called\n",
 	       sh_getpid(psh), n, n->type, flags));
 	switch (n->type) {
 	case NSEMI:
@@ -457,7 +457,7 @@ evalsubshell(shinstance *psh, union node *n, int flags)
 		args.flags = flags;
 		args.backgnd = backgnd;
 		forkshell2(psh, jp, n, backgnd ? FORK_BG : FORK_FG,
-			   evalsubshell_child, n, &args, sizeof(args), NULL);
+		           evalsubshell_child, n, &args, sizeof(args), NULL);
 	}
 #else
 	if (forkshell(psh, jp, n, backgnd ? FORK_BG : FORK_FG) == 0) {
@@ -577,7 +577,7 @@ evalpipe(shinstance *psh, union node *n)
 			args.pip[0] = pip[0];
 			args.pip[1] = pip[1];
 			forkshell2(psh, jp, lp->n, n->npipe.backgnd ? FORK_BG : FORK_FG,
-				   evalpipe_child, lp->n, &args, sizeof(args), NULL);
+			           evalpipe_child, lp->n, &args, sizeof(args), NULL);
 		}
 #else
 		if (forkshell(psh, jp, lp->n, n->npipe.backgnd ? FORK_BG : FORK_FG) == 0) {
@@ -676,7 +676,7 @@ evalbackcmd(shinstance *psh, union node *n, struct backcmd *result)
 			args.pip[0] = pip[0];
 			args.pip[1] = pip[1];
 			forkshell2(psh, jp, n, FORK_NOJOB,
-				   evalbackcmd_child, n, &args, sizeof(args), NULL);
+			           evalbackcmd_child, n, &args, sizeof(args), NULL);
 		}
 #else
 		if (forkshell(psh, jp, n, FORK_NOJOB) == 0) {
@@ -893,6 +893,7 @@ evalcommand_doit(shinstance *psh, union node *cmd, struct evalcommanddoit *args)
 		case CMDSPLBLTIN: {
 			volatile int temp_path = 0;
 			char *volatile savecmdname;
+			int volatile savecmdnamemalloc;
 			volatile int e;
 			int mode;
 #ifdef DEBUG
@@ -908,6 +909,7 @@ evalcommand_doit(shinstance *psh, union node *cmd, struct evalcommanddoit *args)
 			e = -1;
 			savehandler = psh->handler;
 			savecmdname = psh->commandname;
+			savecmdnamemalloc = psh->commandnamemalloc;
 			psh->handler = &jmploc;
 			if (!setjmp(jmploc.loc)) {
 				/* We need to ensure the command hash table isn't
@@ -929,6 +931,7 @@ evalcommand_doit(shinstance *psh, union node *cmd, struct evalcommanddoit *args)
 				/* we must check 'readonly' flag for all builtins */
 				listsetvar(psh, args->varlist.list,
 					args->cmdentry.cmdtype == CMDSPLBLTIN ? 0 : VNOSET);
+				psh->commandnamemalloc = 0;
 				psh->commandname = args->argv[0];
 				/* initialize nextopt */
 				psh->argptr = args->argv + 1;
@@ -961,9 +964,12 @@ evalcommand_doit(shinstance *psh, union node *cmd, struct evalcommanddoit *args)
 			psh->cmdenviron = NULL;
 			if (e != EXSHELLPROC) {
 				psh->commandname = savecmdname;
+				psh->commandnamemalloc = savecmdnamemalloc;
 				if (args->flags & EV_EXIT)
 					exitshell(psh, psh->exitstatus);
 			}
+			if (savecmdnamemalloc)
+				sh_free(psh, savecmdname);
 			if (e != -1) {
 				if ((e != EXERROR && e != EXEXEC)
 					|| args->cmdentry.cmdtype == CMDSPLBLTIN)

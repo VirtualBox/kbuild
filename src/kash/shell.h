@@ -93,4 +93,10 @@ extern char nullstr[1];		/* null string */
 
 #include "shtypes.h"
 
+#ifndef SH_FORKED_MODE
+# ifndef KASH_USE_FORKSHELL2
+#  define KASH_USE_FORKSHELL2
+# endif
+#endif
+
 #endif

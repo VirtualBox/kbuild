@@ -64,7 +64,6 @@ struct arglist {
 union node;
 void expandhere(struct shinstance *, union node *, int);
 void expandarg(struct shinstance *, union node *, struct arglist *, int);
-void expari(struct shinstance *, int);
 int patmatch(struct shinstance *, char *, char *, int);
 void rmescapes(struct shinstance *, char *);
 int casematch(struct shinstance *, union node *, char *);

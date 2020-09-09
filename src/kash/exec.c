@@ -44,6 +44,7 @@ __RCSID("$NetBSD: exec.c,v 1.37 2003/08/07 09:05:31 agc Exp $");
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 /*
  * When commands are first encountered, they are entered in a hash table.
@@ -110,6 +111,54 @@ STATIC int stat_pc_exec_exts(shinstance *, char *fullname, struct stat *st, int 
 
 
 extern char *const parsekwd[];
+
+#ifndef SH_FORKED_MODE
+void
+subshellinitexec(shinstance *psh, shinstance *inherit)
+{
+    unsigned i;
+    for (i = 0; i < K_ELEMENTS(inherit->cmdtable); i++) {
+	struct tblentry const *csrc = inherit->cmdtable[i];
+	if (!csrc) {
+	} else {
+	    struct tblentry **ppdst = &psh->cmdtable[i];
+	    do
+	    {
+		size_t const namesize = strlen(csrc->cmdname) + 1;
+		size_t const entrysize = offsetof(struct tblentry, cmdname) + namesize;
+		struct tblentry *dst = (struct tblentry *)ckmalloc(psh, entrysize);
+		memcpy(dst->cmdname, csrc->cmdname, namesize);
+		dst->rehash = csrc->rehash;
+		dst->cmdtype = csrc->cmdtype;
+
+		dst->param.func = NULL;
+		switch (csrc->cmdtype) {
+		case CMDUNKNOWN:
+		case CMDNORMAL:
+		    dst->param.index = csrc->param.index;
+		    break;
+		case CMDFUNCTION:
+		    dst->param.func = copyfunc(psh, csrc->param.func); /** @todo optimize function allocations */
+		    break;
+		case CMDBUILTIN:
+		case CMDSPLBLTIN:
+		    dst->param.bltin = csrc->param.bltin;
+		    break;
+		}
+
+		*ppdst = dst;
+		ppdst = &dst->next;
+
+		csrc = csrc->next;
+	    } while (csrc);
+	    *ppdst = NULL;
+	}
+    }
+
+    psh->builtinloc = inherit->builtinloc;
+}
+#endif /* SH_FORKED_MODE */
+
 
 /*
  * Exec a program.  Never returns.  If you change this routine, you may
@@ -221,7 +270,14 @@ tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int has_ext)
 	if (e == ENOEXEC) {
 		initshellproc(psh);
 		setinputfile(psh, cmd, 0);
+		if (psh->commandnamemalloc) {
+		    sh_free(psh, psh->commandname);
+		    psh->commandnamemalloc = 0;
+		}
+		if (psh->arg0malloc)
+		    sh_free(psh, psh->arg0);
 		psh->commandname = psh->arg0 = savestr(psh, argv[0]);
+		psh->arg0malloc = 1;
 #ifdef EXEC_HASH_BANG_SCRIPT
 		pgetc(psh); pungetc(psh);		/* fill up input buffer */
 		p = psh->parsenextc;

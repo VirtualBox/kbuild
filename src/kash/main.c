@@ -44,6 +44,7 @@ __RCSID("$NetBSD: main.c,v 1.48 2003/09/14 12:09:29 jmmv Exp $");
 #endif /* not lint */
 #endif
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -100,7 +101,7 @@ STATIC int version(const char *argv0);
  */
 
 int
-#if K_OS == K_OS_WINDOWS
+#if K_OS == K_OS_WINDOWS && defined(SH_FORKED_MODE)
 real_main(int argc, char **argv, char **envp)
 #else
 main(int argc, char **argv, char **envp)
@@ -129,11 +130,11 @@ main(int argc, char **argv, char **envp)
 	/*
 	 * Create the root shell instance.
 	 */
-	psh = sh_create_root_shell(NULL, argc, argv, envp);
+	psh = sh_create_root_shell(argv, envp);
 	if (!psh)
 		return 2;
 	shthread_set_shell(psh);
-	shell_main(psh, argc, psh->argptr);
+	shell_main(psh, argc, psh->orgargv);
 	/* Not reached. */
 	return 89;
 }
@@ -405,6 +406,8 @@ dotcmd(struct shinstance *psh, int argc, char **argv)
 	psh->exitstatus = 0;
 
 	if (argc >= 2) {		/* That's what SVR2 does */
+		char * const savedcommandname = psh->commandname;
+		int const savedcommandnamemalloc = psh->commandnamemalloc;
 		char *fullname;
 		struct stackmark smark;
 
@@ -412,8 +415,11 @@ dotcmd(struct shinstance *psh, int argc, char **argv)
 		fullname = find_dot_file(psh, argv[1]);
 		setinputfile(psh, fullname, 1);
 		psh->commandname = fullname;
+		psh->commandnamemalloc = 0;
 		cmdloop(psh, 0);
 		popfile(psh);
+		psh->commandname = savedcommandname;
+		psh->commandnamemalloc = savedcommandnamemalloc;
 		popstackmark(psh, &smark);
 	}
 	return psh->exitstatus;

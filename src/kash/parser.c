@@ -616,7 +616,7 @@ makename(shinstance *psh)
 }
 
 void fixredir(shinstance *psh, union node *n, const char *text, int err)
-	{
+{
 	TRACE((psh, "Fix redir %s %d\n", text, err));
 	if (!err)
 		n->ndup.vname = NULL;

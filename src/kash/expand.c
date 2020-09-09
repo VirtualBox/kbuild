@@ -88,6 +88,7 @@ __RCSID("$NetBSD: expand.c,v 1.71 2005/06/01 15:41:19 lukem Exp $");
 //struct arglist exparg;		/* holds expanded arg list */
 
 STATIC void argstr(shinstance *, char *, int);
+STATIC void expari(shinstance *, int);
 STATIC char *exptilde(shinstance *, char *, int);
 STATIC void expbackq(shinstance *, union node *, int, int);
 STATIC int subevalvar(shinstance *, char *, char *, int, int, int, int);
@@ -105,6 +106,7 @@ STATIC struct strlist *expsort(struct strlist *);
 STATIC struct strlist *msort(struct strlist *, int);
 STATIC int pmatch(char *, char *, int);
 STATIC char *cvtnum(shinstance *, int, char *);
+STATIC char *cvtnum64(shinstance *, KI64, char *);
 
 /*
  * Expand shell variables and backquotes inside a here document.
@@ -342,7 +344,7 @@ removerecordregions(shinstance *psh, int endoff)
  * Expand arithmetic expression.  Backup to start of expression,
  * evaluate, place result in (backed up) result, adjust string position.
  */
-void
+STATIC void
 expari(shinstance *psh, int flag)
 {
 	char *p, *start;
@@ -868,19 +870,29 @@ varvalue(shinstance *psh, char *name, int quoted, int subtype, int flag)
 
 	switch (*name) {
 	case '$':
+#ifndef SH_FORKED_MODE
+		psh->expdest = cvtnum64(psh, psh->rootpid, psh->expdest);
+		break;
+#else
 		num = psh->rootpid;
 		goto numvar;
+#endif
 	case '?':
 		num = psh->exitstatus;
 		goto numvar;
 	case '#':
 		num = psh->shellparam.nparam;
-		goto numvar;
-	case '!':
-		num = psh->backgndpid;
 numvar:
 		psh->expdest = cvtnum(psh, num, psh->expdest);
 		break;
+	case '!':
+#ifndef SH_FORKED_MODE
+		psh->expdest = cvtnum64(psh, psh->backgndpid, psh->expdest);
+		break;
+#else
+		num = psh->backgndpid;
+		goto numvar;
+#endif
 	case '-':
 		for (i = 0; psh->optlist[i].name; i++) {
 			if (psh->optlist[i].val)
@@ -1541,6 +1553,27 @@ casematch(shinstance *psh, union node *pattern, char *val)
 
 STATIC char *
 cvtnum(shinstance *psh, int num, char *buf)
+{
+	char temp[32];
+	int neg = num < 0;
+	char *p = temp + 31;
+
+	temp[31] = '\0';
+
+	do {
+		*--p = num % 10 + '0';
+	} while ((num /= 10) != 0);
+
+	if (neg)
+		*--p = '-';
+
+	while (*p)
+		STPUTC(psh, *p++, buf);
+	return buf;
+}
+
+STATIC char *
+cvtnum64(shinstance *psh, KI64 num, char *buf)
 {
 	char temp[32];
 	int neg = num < 0;
