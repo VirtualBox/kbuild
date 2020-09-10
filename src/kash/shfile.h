@@ -1,4 +1,4 @@
-/* $Id: shfile.h 3439 2020-09-10 00:47:29Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 3444 2020-09-10 14:08:18Z knut.osmundsen@oracle.com $ */
 /** @file
  * File management.
  */
@@ -111,6 +111,7 @@ typedef struct shfile
  * @{
  */
 #define SHFILE_FLAGS_CLOSE_ON_EXEC      0x0001
+#define SHFILE_FLAGS_TRACE              0x0002  /**< The 'trace' file, keep open after execve. */
 #define SHFILE_FLAGS_TYPE_MASK          0x00f0
 #define SHFILE_FLAGS_FILE               0x0000
 #define SHFILE_FLAGS_PIPE               0x0010
@@ -153,6 +154,7 @@ char *shfile_getcwd(shfdtab *, char *, int);
 int shfile_access(shfdtab *, const char *, int);
 int shfile_isatty(shfdtab *, int);
 int shfile_cloexec(shfdtab *, int, int);
+int shfile_set_trace(shfdtab *, int);
 int shfile_ioctl(shfdtab *, int, unsigned long, void *);
 #if defined(_MSC_VER) || defined(__OS2__)
 # define TIOCGWINSZ         0x4201

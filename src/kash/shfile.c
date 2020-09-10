@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3439 2020-09-10 00:47:29Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3444 2020-09-10 14:08:18Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -239,6 +239,8 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsi
      */
     if (fdMin >= SHFILE_MAX)
     {
+        TRACE2((NULL, "shfile_insert: fdMin=%d is out of bounds; native=%p\n", fdMin, native));
+        shfile_native_close(native, oflags);
         errno = EMFILE;
         return -1;
     }
@@ -246,6 +248,7 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsi
     if (fcntl((int)native, F_SETFD, fcntl((int)native, F_GETFD, 0) | FD_CLOEXEC) == -1)
     {
         int e = errno;
+        TRACE2((NULL, "shfile_insert: F_SETFD failed %d; native=%p\n", e, native));
         close((int)native);
         errno = e;
         return -1;
@@ -276,6 +279,7 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsi
         pfdtab->tab[fd].oflags = oflags;
         pfdtab->tab[fd].shflags = shflags;
         pfdtab->tab[fd].native = native;
+        TRACE2((NULL, "shfile_insert: #%d: native=%p oflags=%#x shflags=%#x\n", fd, native, oflags, shflags));
     }
     else
         shfile_native_close(native, oflags);
@@ -846,10 +850,12 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                         dst->native = dst->fd = -1;
                     else
                     {
-# ifdef SH_FORKED_MODE
+# if K_OS == K_OS_WINDOWS
+#  ifdef SH_FORKED_MODE
                         KBOOL const cox = !!(src->shflags & SHFILE_FLAGS_CLOSE_ON_EXEC);
-# else
-                        KBOOL const cox = !!(src->shflags & SHFILE_FLAGS_CLOSE_ON_EXEC); /// @todo K_TRUE
+#  else
+                        KBOOL const cox = K_TRUE;
+#  endif
 # endif
                         *dst = *src;
 # if K_OS == K_OS_WINDOWS
@@ -858,7 +864,7 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                                             GetCurrentProcess(),
                                             (HANDLE *)&dst->native,
                                             0,
-                                            cox ? FALSE : TRUE /* bInheritHandle */,
+                                            FALSE /* bInheritHandle */,
                                             DUPLICATE_SAME_ACCESS))
                             TRACE2((NULL, "shfile_init: %d (%#x, %#x) %p (was %p)\n",
                                     dst->fd, dst->oflags, dst->shflags, dst->native, src->native));
@@ -1053,7 +1059,7 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
  *
  * @returns Pointer to CRT data if prepare is 1, NULL if prepare is 0.
  * @param   pfdtab  The file descriptor table.
- * @param   prepare Which call, 1 if before and 0 if after.
+ * @param   prepare Which call, 1 if before, 0 if after and success, -1 if after on failure.
  * @param   sizep   Where to store the size of the returned data.
  * @param   hndls   Where to store the three standard handles.
  */
@@ -1073,7 +1079,7 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
     while (count > 3 && pfdtab->tab[count - 1].fd == -1)
         count--;
 
-    if (prepare)
+    if (prepare > 0)
     {
         size_t      cbData = sizeof(int) + count * (1 + sizeof(HANDLE));
         uint8_t    *pbData = sh_malloc(shthread_get_shell(), cbData);
@@ -1126,15 +1132,29 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
     }
     else
     {
+        shfile *file = pfdtab->tab;
         assert(!hndls);
         assert(!sizep);
         i = count;
-        while (i-- > 0)
-        {
-            if (    pfdtab->tab[i].fd == i
-                &&  !(pfdtab->tab[i].shflags & SHFILE_FLAGS_CLOSE_ON_EXEC))
-                shfile_set_inherit_win(&pfdtab->tab[i], 0);
-        }
+        if (prepare == 0)
+            for (i = 0; i < count; i++, file++)
+            {
+                if (   file->fd == i
+                    && !(file->shflags & SHFILE_FLAGS_TRACE))
+                {
+                    shfile_native_close(file->native, file->oflags);
+
+                    file->fd = -1;
+                    file->oflags = 0;
+                    file->shflags = 0;
+                    file->native = -1;
+                }
+            }
+        else
+            for (i = 0; i < count; i++, file++)
+                if (    file->fd == i
+                    &&  !(file->shflags & SHFILE_FLAGS_CLOSE_ON_EXEC))
+                    shfile_set_inherit_win(file, 0);
         pvRet = NULL;
     }
 
@@ -1944,6 +1964,31 @@ int shfile_cloexec(shfdtab *pfdtab, int fd, int closeit)
 #endif
 
     TRACE2((NULL, "shfile_cloexec(%d, %d) -> %d [%d]\n", fd, closeit, rc, errno));
+    return rc;
+}
+
+/**
+ * Sets the SHFILE_FLAGS_TRACE flag.
+ */
+int shfile_set_trace(shfdtab *pfdtab, int fd)
+{
+    int         rc;
+#ifdef SHFILE_IN_USE
+    shmtxtmp    tmp;
+    shfile     *file = shfile_get(pfdtab, fd, &tmp);
+    if (file)
+    {
+        file->shflags |= SHFILE_FLAGS_TRACE;
+        shfile_put(pfdtab, file, &tmp);
+        rc = 0;
+    }
+    else
+        rc = -1;
+#else
+    rc = 0;
+#endif
+
+    TRACE2((NULL, "shfile_set_trace(%d) -> %d\n", fd, rc));
     return rc;
 }
 

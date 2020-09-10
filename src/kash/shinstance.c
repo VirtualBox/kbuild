@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3442 2020-09-10 12:06:29Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3444 2020-09-10 14:08:18Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -43,6 +43,7 @@
 #include "alias.h"
 #include "error.h"
 #include "memalloc.h"
+#include "redir.h"
 #include "shell.h"
 #include "trap.h"
 
@@ -1840,7 +1841,7 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
                            &StrtInfo,
                            &ProcInfo);
 
-        shfile_exec_win(&psh->fdtab, 0 /* done */, NULL, NULL);
+        shfile_exec_win(&psh->fdtab, rc ? 0 /* done */ : -1 /* done but failed */, NULL, NULL);
 #ifndef SH_FORKED_MODE
         shmtx_leave(&g_sh_exec_mtx, &tmp);
 #endif
