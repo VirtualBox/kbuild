@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3438 2020-09-09 20:01:39Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3439 2020-09-10 00:47:29Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -98,16 +98,16 @@
 typedef struct
 {
     ULONG           Attributes;
-	ACCESS_MASK     GrantedAccess;
-	ULONG           HandleCount;
-	ULONG           PointerCount;
-	ULONG           PagedPoolUsage;
-	ULONG           NonPagedPoolUsage;
-	ULONG           Reserved[3];
-	ULONG           NameInformationLength;
-	ULONG           TypeInformationLength;
-	ULONG           SecurityDescriptorLength;
-	LARGE_INTEGER   CreateTime;
+    ACCESS_MASK     GrantedAccess;
+    ULONG           HandleCount;
+    ULONG           PointerCount;
+    ULONG           PagedPoolUsage;
+    ULONG           NonPagedPoolUsage;
+    ULONG           Reserved[3];
+    ULONG           NameInformationLength;
+    ULONG           TypeInformationLength;
+    ULONG           SecurityDescriptorLength;
+    LARGE_INTEGER   CreateTime;
 } MY_OBJECT_BASIC_INFORMATION;
 
 #if 0
@@ -909,6 +909,47 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
     return rc;
 }
 
+/**
+ * Deletes the file descriptor table.
+ *
+ * Safe to call more than once.
+ */
+void shfile_uninit(shfdtab *pfdtab)
+{
+    if (!pfdtab)
+        return;
+
+    if (pfdtab->tab)
+    {
+        unsigned left = pfdtab->size;
+        struct shfile *pfd = pfdtab->tab;
+        while (left-- > 0)
+        {
+            if (pfd->fd != -1)
+            {
+#if K_OS == K_OS_WINDOWS
+                BOOL rc = CloseHandle((HANDLE)pfd->native);
+                assert(rc == TRUE); K_NOREF(rc);
+#else
+                int rc = close((int)pfd->native);
+                assert(rc == 0); K_NOREF(rc);
+#endif
+                pfd->fd     = -1;
+                pfd->native = -1;
+            }
+            pfd++;
+        }
+
+        sh_free(NULL, pfdtab->tab);
+        pfdtab->tab = NULL;
+    }
+
+    shmtx_delete(&pfdtab->mtx);
+
+    sh_free(NULL, pfdtab->cwd);
+    pfdtab->cwd = NULL;
+}
+
 #if K_OS == K_OS_WINDOWS && defined(SHFILE_IN_USE)
 
 /**
@@ -955,6 +996,7 @@ static HANDLE shfile_set_inherit_win(shfile *pfd, int set)
     return hFile;
 }
 
+# ifdef SH_FORKED_MODE
 /**
  * Helper for shfork.
  *
@@ -999,6 +1041,7 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
 
     shmtx_leave(&pfdtab->mtx, &tmp);
 }
+# endif /* SH_FORKED_MODE */
 
 /**
  * Helper for sh_execve.

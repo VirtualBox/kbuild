@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3438 2020-09-09 20:01:39Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3439 2020-09-10 00:47:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -25,9 +25,10 @@
  *
  */
 
-/*******************************************************************************
-*   Header Files                                                               *
-*******************************************************************************/
+
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -40,6 +41,7 @@
 #include "shinstance.h"
 
 #include "alias.h"
+#include "error.h"
 #include "memalloc.h"
 #include "shell.h"
 #include "trap.h"
@@ -52,9 +54,18 @@ extern pid_t shfork_do(shinstance *psh); /* shforkA-win.asm */
 #endif
 
 
-/*******************************************************************************
-*   Global Variables                                                           *
-*******************************************************************************/
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
+#ifndef SH_FORKED_MODE
+/** Used by sh__exit/sh_thread_wrapper for passing zero via longjmp.  */
+# define SH_EXIT_ZERO    0x0d15ea5e
+#endif
+
+
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
 /** The mutex protecting the the globals and some shell instance members (sigs). */
 static shmtx        g_sh_mtx;
 /** The root shell instance. */
@@ -92,27 +103,64 @@ struct shsigstate
 
 
 
+/** Magic mutex value (final u64).
+ * This is used to detect whether the mutex has been initialized or not,
+ * allowing shmtx_delete to be called more than once without doing harm.
+ * @internal */
+#define SHMTX_MAGIC        KU64_C(0x8888000019641018) /**< Charles Stross */
+/** Index into shmtx::au64 of the SHMTX_MAGIC value.
+ * @internal */
+#define SHMTX_MAGIC_IDX    (sizeof(shmtx) / sizeof(KU64) - 1)
+
 int shmtx_init(shmtx *pmtx)
 {
+#if K_OS == K_OS_WINDOWS
+    typedef int mtxsizecheck[sizeof(CRITICAL_SECTION) + sizeof(KU64) <= sizeof(*pmtx) ? 2 : 0];
+    InitializeCriticalSection((CRITICAL_SECTION *)pmtx);
+#else
     pmtx->b[0] = 0;
+#endif
+    pmtx->au64[SHMTX_MAGIC_IDX] = SHMTX_MAGIC;
     return 0;
 }
 
+/**
+ * Safe to call more than once.
+ */
 void shmtx_delete(shmtx *pmtx)
 {
-    pmtx->b[0] = 0;
+    if (pmtx->au64[SHMTX_MAGIC_IDX] != SHMTX_MAGIC)
+    {
+#if K_OS == K_OS_WINDOWS
+        DeleteCriticalSection((CRITICAL_SECTION *)pmtx);
+#else
+        pmtx->b[0] = 0;
+#endif
+        pmtx->au64[SHMTX_MAGIC_IDX] = ~SHMTX_MAGIC;
+    }
 }
 
 void shmtx_enter(shmtx *pmtx, shmtxtmp *ptmp)
 {
+#if K_OS == K_OS_WINDOWS
+    EnterCriticalSection((CRITICAL_SECTION *)pmtx);
+    ptmp->i = 0x42;
+#else
     pmtx->b[0] = 0;
     ptmp->i = 0;
+#endif
 }
 
 void shmtx_leave(shmtx *pmtx, shmtxtmp *ptmp)
 {
+#if K_OS == K_OS_WINDOWS
+    assert(ptmp->i == 0x42);
+    LeaveCriticalSection((CRITICAL_SECTION *)pmtx);
+    ptmp->i = 0x21;
+#else
     pmtx->b[0] = 0;
     ptmp->i = 432;
+#endif
 }
 
 /**
@@ -138,10 +186,11 @@ static void sh_int_link(shinstance *psh)
 
     g_num_shells++;
 
+    psh->linked = 1;
+
     shmtx_leave(&g_sh_mtx, &tmp);
 }
 
-#if 0
 /**
  * Unlink the shell instance.
  *
@@ -149,27 +198,61 @@ static void sh_int_link(shinstance *psh)
  */
 static void sh_int_unlink(shinstance *psh)
 {
-    shmtxtmp tmp;
-    shmtx_enter(&g_sh_mtx, &tmp);
+    if (psh->linked)
+    {
+        shinstance *pshcur;
+        shmtxtmp tmp;
+        shmtx_enter(&g_sh_mtx, &tmp);
 
-    g_num_shells--;
+        g_num_shells--;
 
-    if (g_sh_tail == psh)
-        g_sh_tail = psh->prev;
-    else
-        psh->next->prev = psh->prev;
+        if (g_sh_tail == psh)
+            g_sh_tail = psh->prev;
+        else
+            psh->next->prev = psh->prev;
 
-    if (g_sh_head == psh)
-        g_sh_head = psh->next;
-    else
-        psh->prev->next = psh->next;
+        if (g_sh_head == psh)
+            g_sh_head = psh->next;
+        else
+            psh->prev->next = psh->next;
 
-    if (g_sh_root == psh)
-        g_sh_root = 0;
+        if (g_sh_root == psh)
+            g_sh_root = NULL;
 
-    shmtx_leave(&g_sh_mtx, &tmp);
+        /* Orphan children: */
+        for (pshcur = g_sh_head; pshcur; pshcur = pshcur->next)
+            if (pshcur->parent == psh)
+                pshcur->parent = NULL;
+
+        shmtx_leave(&g_sh_mtx, &tmp);
+    }
 }
-#endif
+
+/**
+ * Frees a string vector like environ or argv.
+ *
+ * @param   psh     The shell to associate the deallocations with.
+ * @param   vecp    Pointer to the vector pointer.
+ */
+static void sh_free_string_vector(shinstance *psh, char ***vecp)
+{
+    char **vec = *vecp;
+    if (vec)
+    {
+        char *str;
+        size_t i = 0;
+        while ((str = vec[i]) != NULL)
+        {
+            sh_free(psh, str);
+            vec[i] = NULL;
+            i++;
+        }
+
+        sh_free(psh, vec);
+        *vecp = NULL;
+    }
+}
+
 
 /**
  * Destroys the shell instance.
@@ -177,9 +260,224 @@ static void sh_int_unlink(shinstance *psh)
  * This will work on partially initialized instances (because I'm lazy).
  *
  * @param   psh     The shell instance to be destroyed.
+ * @note    invalidate thread arguments.
  */
 static void sh_destroy(shinstance *psh)
 {
+    unsigned left, i;
+
+    sh_int_unlink(psh);
+    shfile_uninit(&psh->fdtab);
+    sh_free_string_vector(psh, &psh->shenviron);
+
+    /** @todo children. */
+    sh_free(psh, psh->threadarg);
+    psh->threadarg = NULL;
+
+    /* alias.c */
+    left = psh->aliases;
+    if (left > 0)
+        for (i = 0; i < K_ELEMENTS(psh->atab); i++)
+        {
+            struct alias *cur = psh->atab[i];
+            if (cur)
+            {
+                do
+                {
+                    struct alias *next = cur->next;
+                    sh_free(psh, cur->val);
+                    sh_free(psh, cur->name);
+                    sh_free(psh, cur);
+                    cur = next;
+                    left--;
+                } while (cur);
+                psh->atab[i] = NULL;
+                if (!left)
+                    break;
+            }
+        }
+
+    /* cd.c */
+    sh_free(psh, psh->curdir);
+    psh->curdir = NULL;
+    sh_free(psh, psh->prevdir);
+    psh->prevdir = NULL;
+    psh->cdcomppath = NULL; /* stalloc */
+
+    /* eval.h */
+    if (psh->commandnamemalloc)
+        sh_free(psh, psh->commandname);
+    psh->commandname = NULL;
+    psh->cmdenviron = NULL;
+
+#if 0
+    /* expand.c */
+    char               *expdest;        /**< output of current string */
+    struct nodelist    *argbackq;       /**< list of back quote expressions */
+    struct ifsregion    ifsfirst;       /**< first struct in list of ifs regions */
+    struct ifsregion   *ifslastp;       /**< last struct in list */
+    struct arglist      exparg;         /**< holds expanded arg list */
+    char               *expdir;         /**< Used by expandmeta. */
+
+    /* exec.h */
+    const char         *pathopt;        /**< set by padvance */
+
+    /* exec.c */
+    struct tblentry    *cmdtable[CMDTABLESIZE];
+    int                 builtinloc/* = -1*/;    /**< index in path of %builtin, or -1 */
+
+    /* input.h */
+    int                 plinno/* = 1 */;/**< input line number */
+    int                 parsenleft;     /**< number of characters left in input buffer */
+    char               *parsenextc;     /**< next character in input buffer */
+    int                 init_editline/* = 0 */;     /**< 0 == not setup, 1 == OK, -1 == failed */
+
+    /* input.c */
+    int                 parselleft;     /**< copy of parsefile->lleft */
+    struct parsefile    basepf;         /**< top level input file */
+    char                basebuf[BUFSIZ];/**< buffer for top level input file */
+    struct parsefile   *parsefile/* = &basepf*/;    /**< current input file */
+#ifndef SMALL
+    EditLine           *el;             /**< cookie for editline package */
+#endif
+
+    /* jobs.h */
+    shpid               backgndpid/* = -1 */;   /**< pid of last background process */
+    int                 job_warning;    /**< user was warned about stopped jobs */
+
+    /* jobs.c */
+    struct job         *jobtab;         /**< array of jobs */
+    int                 njobs;          /**< size of array */
+    int                 jobs_invalid;   /**< set in child */
+    shpid               initialpgrp;    /**< pgrp of shell on invocation */
+    int                 curjob/* = -1*/;/**< current job */
+    int                 ttyfd/* = -1*/;
+    int                 jobctl;         /**< job control enabled / disabled */
+    char               *cmdnextc;
+    int                 cmdnleft;
+
+
+    /* mail.c */
+#define MAXMBOXES 10
+    int                 nmboxes;        /**< number of mailboxes */
+    time_t              mailtime[MAXMBOXES]; /**< times of mailboxes */
+
+    /* main.h */
+    shpid               rootpid;        /**< pid of main shell. */
+    int                 rootshell;      /**< true if we aren't a child of the main shell. */
+    struct shinstance  *psh_rootshell;  /**< The root shell pointer. (!rootshell) */
+
+    /* memalloc.h */
+    char               *stacknxt/* = stackbase.space*/;
+    int                 stacknleft/* = MINSIZE*/;
+    int                 sstrnleft;
+    int                 herefd/* = -1 */;
+
+    /* memalloc.c */
+    struct stack_block  stackbase;
+    struct stack_block *stackp/* = &stackbase*/;
+    struct stackmark   *markp;
+
+    /* myhistedit.h */
+    int                 displayhist;
+#ifndef SMALL
+    History            *hist;
+    EditLine           *el;
+#endif
+
+    /* output.h */
+    struct output       output;
+    struct output       errout;
+    struct output       memout;
+    struct output      *out1;
+    struct output      *out2;
+
+    /* output.c */
+#define OUTBUFSIZ BUFSIZ
+#define MEM_OUT -3                      /**< output to dynamically allocated memory */
+
+    /* options.h */
+    struct optent       optlist[NOPTS];
+    char               *minusc;         /**< argument to -c option */
+    char               *arg0;           /**< $0 */
+    struct shparam      shellparam;     /**< $@ */
+    char              **argptr;         /**< argument list for builtin commands */
+    char               *optionarg;      /**< set by nextopt */
+    char               *optptr;         /**< used by nextopt */
+    char              **orgargv;        /**< The original argument vector (for cleanup). */
+    int                 arg0malloc;     /**< Indicates whether arg0 was allocated or is part of orgargv. */
+
+    /* parse.h */
+    int                 tokpushback;
+    int                 whichprompt;    /**< 1 == PS1, 2 == PS2 */
+
+    /* parser.c */
+    int                 noalias/* = 0*/;/**< when set, don't handle aliases */
+    struct heredoc     *heredoclist;    /**< list of here documents to read */
+    int                 parsebackquote; /**< nonzero if we are inside backquotes */
+    int                 doprompt;       /**< if set, prompt the user */
+    int                 needprompt;     /**< true if interactive and at start of line */
+    int                 lasttoken;      /**< last token read */
+    char               *wordtext;       /**< text of last word returned by readtoken */
+    int                 checkkwd;       /**< 1 == check for kwds, 2 == also eat newlines */
+    struct nodelist    *backquotelist;
+    union node         *redirnode;
+    struct heredoc     *heredoc;
+    int                 quoteflag;      /**< set if (part of) last token was quoted */
+    int                 startlinno;     /**< line # where last token started */
+
+    /* redir.c */
+    struct redirtab    *redirlist;
+    int                 fd0_redirected/* = 0*/;
+
+    /* show.c */
+    char                tracebuf[1024];
+    size_t              tracepos;
+    int                 tracefd;
+
+    /* trap.h */
+    int                 pendingsigs;    /**< indicates some signal received */
+
+    /* trap.c */
+    char                gotsig[NSIG];   /**< indicates specified signal received */
+    char               *trap[NSIG+1];   /**< trap handler commands */
+    char                sigmode[NSIG];  /**< current value of signal */
+
+    /* var.h */
+    struct localvar    *localvars;
+    struct var          vatty;
+    struct var          vifs;
+    struct var          vmail;
+    struct var          vmpath;
+    struct var          vpath;
+#ifdef _MSC_VER
+    struct var          vpath2;
+#endif
+    struct var          vps1;
+    struct var          vps2;
+    struct var          vps4;
+#ifndef SMALL
+    struct var          vterm;
+    struct var          vhistsize;
+#endif
+    struct var          voptind;
+#ifdef PC_OS2_LIBPATHS
+    struct var          libpath_vars[4];
+#endif
+#ifdef SMALL
+# define VTABSIZE 39
+#else
+# define VTABSIZE 517
+#endif
+    struct var         *vartab[VTABSIZE];
+
+    /* builtins.h */
+
+    /* bltin/test.c */
+    char              **t_wp;
+    struct t_op const  *t_wp_op;
+#endif
+
 /** @todo finish this...   */
     memset(psh, 0, sizeof(*psh));
     sh_free(NULL, psh);
@@ -195,36 +493,36 @@ static void sh_destroy(shinstance *psh)
  */
 static int sh_clone_string_vector(shinstance *psh, char ***dstp, char **src)
 {
-   char **dst;
-   size_t items;
+    char **dst;
+    size_t items;
 
-   /* count first */
-   items = 0;
-   while (src[items])
-       items++;
+    /* count first */
+    items = 0;
+    while (src[items])
+        items++;
 
-   /* alloc clone array. */
-   *dstp = dst = sh_malloc(psh, sizeof(*dst) * (items + 1));
-   if (!dst)
-       return -1;
+    /* alloc clone array. */
+    *dstp = dst = sh_malloc(psh, sizeof(*dst) * (items + 1));
+    if (!dst)
+        return -1;
 
-   /* copy the items */
-   dst[items] = NULL;
-   while (items-- > 0)
-   {
-       dst[items] = sh_strdup(psh, src[items]);
-       if (!dst[items])
-       {
-           /* allocation error, clean up. */
-           while (dst[++items])
-               sh_free(psh, dst[items]);
-           sh_free(psh, dst);
-           errno = ENOMEM;
-           return -1;
-       }
-   }
+    /* copy the items */
+    dst[items] = NULL;
+    while (items-- > 0)
+    {
+        dst[items] = sh_strdup(psh, src[items]);
+        if (!dst[items])
+        {
+            /* allocation error, clean up. */
+            while (dst[++items])
+                sh_free(psh, dst[items]);
+            sh_free(psh, dst);
+            errno = ENOMEM;
+            return -1;
+        }
+    }
 
-   return 0;
+    return 0;
 }
 
 /**
@@ -337,7 +635,12 @@ static shinstance *sh_create_shell_common(char **argv, char **envp, shfdtab *par
  */
 shinstance *sh_create_root_shell(char **argv, char **envp)
 {
-    shinstance *psh = sh_create_shell_common(argv, envp, NULL /*parentfdtab*/);
+    shinstance *psh;
+
+    assert(g_sh_mtx.au64[SHMTX_MAGIC_IDX] != SHMTX_MAGIC);
+    shmtx_init(&g_sh_mtx);
+
+    psh = sh_create_shell_common(argv, envp, NULL /*parentfdtab*/);
     if (psh)
     {
         sh_int_link(psh);
@@ -1048,7 +1351,7 @@ int sh_sysconf_clk_tck(void)
 int sh_add_child(shinstance *psh, shpid pid, void *hChild, KBOOL fProcess)
 {
     /* get a free table entry. */
-    int i = psh->num_children++;
+    unsigned i = psh->num_children++;
     if (!(i % 32))
     {
         void *ptr = sh_realloc(psh, psh->children, sizeof(*psh->children) * (i + 32));
@@ -1117,7 +1420,9 @@ pid_t sh_fork(shinstance *psh)
 /** Thread wrapper procedure. */
 static unsigned __stdcall sh_thread_wrapper(void *user)
 {
+    shinstance * volatile volpsh = (shinstance *)user;
     shinstance *psh = (shinstance *)user;
+    struct jmploc exitjmp;
     int iExit;
 
     /* Update the TID and PID (racing sh_thread_start) */
@@ -1132,10 +1437,25 @@ static unsigned __stdcall sh_thread_wrapper(void *user)
     shthread_set_shell(psh);
 
     TRACE2((psh, "sh_thread_wrapper: enter\n"));
-    iExit = psh->thread(psh, psh->threadarg);
-/** @todo do shell cleanup. */
-    TRACE2((psh, "sh_thread_wrapper: quits - iExit=%d\n", iExit));
+    if ((iExit = setjmp(exitjmp.loc)) == 0)
+    {
+        psh->exitjmp = &exitjmp;
+        iExit = psh->thread(psh, psh->threadarg);
+        TRACE2((psh, "sh_thread_wrapper: thread proc returns %d (%#x)\n", iExit, iExit));
+    }
+    else
+    {
+        psh = volpsh; /* paranoia */
+        psh->exitjmp = NULL;
+        TRACE2((psh, "sh_thread_wrapper: longjmp: iExit=%d (%#x)\n", iExit, iExit));
+        if (iExit == SH_EXIT_ZERO)
+            iExit = 0;
+    }
 
+    /* destroy the shell instance and exit the thread. */
+    TRACE2((psh, "sh_thread_wrapper: quits - iExit=%d\n", iExit));
+    sh_destroy(psh);
+    shthread_set_shell(NULL);
     _endthreadex(iExit);
     return iExit;
 }
@@ -1178,11 +1498,11 @@ shpid sh_thread_start(shinstance *pshparent, shinstance *pshchild, int (*thread)
 /** waitpid() */
 shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
 {
-    shpid   pidret;
+    shpid       pidret;
 #if K_OS == K_OS_WINDOWS //&& defined(SH_FORKED_MODE)
-    DWORD   dwRet;
-    HANDLE  hChild = INVALID_HANDLE_VALUE;
-    int     i;
+    DWORD       dwRet;
+    HANDLE      hChild = INVALID_HANDLE_VALUE;
+    unsigned    i;
 
     *statusp = 0;
     pidret = -1;
@@ -1203,7 +1523,7 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
                 hChild = psh->children[i].hChild;
             else if (dwRet == WAIT_TIMEOUT)
             {
-                i = -1; /* don't try close anything */
+                i = ~0; /* don't try close anything */
                 pidret = 0;
             }
             else
@@ -1221,33 +1541,32 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
                                        FALSE,
                                        flags & WNOHANG ? 0 : INFINITE);
         i = dwRet - WAIT_OBJECT_0;
-        if ((unsigned)i < (unsigned)psh->num_children)
+        if (i < psh->num_children)
         {
             hChild = psh->children[i].hChild;
         }
         else if (dwRet == WAIT_TIMEOUT)
         {
-            i = -1; /* don't try close anything */
+            i = ~0; /* don't try close anything */
             pidret = 0;
         }
         else
         {
-            i = -1; /* don't try close anything */
+            i = ~0; /* don't try close anything */
             errno = EINVAL;
         }
     }
     else
     {
         fprintf(stderr, "panic! too many children!\n");
-        i = -1;
+        i = ~0;
         *(char *)1 = '\0'; /** @todo implement this! */
     }
 
     /*
      * Close the handle, and if we succeeded collect the exit code first.
      */
-    if (    i >= 0
-        &&  i < psh->num_children)
+    if (i < psh->num_children)
     {
         if (hChild != INVALID_HANDLE_VALUE)
         {
@@ -1296,12 +1615,43 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
 SH_NORETURN_1 void sh__exit(shinstance *psh, int rc)
 {
     TRACE2((psh, "sh__exit(%d)\n", rc));
-    (void)psh;
 
 #if defined(SH_FORKED_MODE)
     _exit(rc);
+    (void)psh;
 
 #else
+    psh->exitstatus = rc;
+
+    /*
+     * If we're a thread, jump to the sh_thread_wrapper and make a clean exit.
+     */
+    if (psh->thread)
+    {
+        if (psh->exitjmp)
+            longjmp(psh->exitjmp->loc, !rc ? SH_EXIT_ZERO : rc);
+        else
+        {
+            static char const s_msg[] = "fatal error in sh__exit: exitjmp is NULL!\n";
+            shfile_write(&psh->fdtab, 2, s_msg, sizeof(s_msg) - 1);
+            _exit(rc);
+        }
+    }
+
+    /*
+     * The main thread will typically have to stick around till all subshell
+     * threads have been stopped.  We must tear down this shell instance as
+     * much as possible before doing this, though, as subshells could be
+     * waiting for pipes and such to be closed before they're willing to exit.
+     */
+    if (g_num_shells > 1)
+    {
+        TRACE2((psh, "sh__exit: %u shells around, must wait...\n", g_num_shells));
+        shfile_uninit(&psh->fdtab);
+        sh_int_unlink(psh);
+    }
+
+    _exit(rc);
 #endif
 }
 

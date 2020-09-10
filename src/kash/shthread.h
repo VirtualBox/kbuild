@@ -1,4 +1,4 @@
-/* $Id: shthread.h 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: shthread.h 3439 2020-09-10 00:47:29Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Shell thread methods.
@@ -32,6 +32,8 @@
 typedef struct shmtx
 {
     char b[64];
+    KU64 au64[64/sizeof(KU64)];
+    void *aptrs[64/sizeof(void *)];
 } shmtx;
 
 typedef struct shmtxtmp { int i; } shmtxtmp;
