@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3439 2020-09-10 00:47:29Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3441 2020-09-10 11:54:53Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -66,6 +66,10 @@ extern pid_t shfork_do(shinstance *psh); /* shforkA-win.asm */
 /*********************************************************************************************************************************
 *   Global Variables                                                                                                             *
 *********************************************************************************************************************************/
+#ifndef SH_FORKED_MODE
+/** Mutex serializing exec/spawn to prevent unwanted file inherting. */
+static shmtx        g_sh_exec_mtx;
+#endif
 /** The mutex protecting the the globals and some shell instance members (sigs). */
 static shmtx        g_sh_mtx;
 /** The root shell instance. */
@@ -639,6 +643,9 @@ shinstance *sh_create_root_shell(char **argv, char **envp)
 
     assert(g_sh_mtx.au64[SHMTX_MAGIC_IDX] != SHMTX_MAGIC);
     shmtx_init(&g_sh_mtx);
+#ifndef SH_FORKED_MODE
+    shmtx_init(&g_sh_exec_mtx);
+#endif
 
     psh = sh_create_shell_common(argv, envp, NULL /*parentfdtab*/);
     if (psh)
@@ -784,6 +791,7 @@ char *sh_getenv(shinstance *psh, const char *var)
         if (    !strncmp(item, var, len)
             &&  item[len] == '=')
             return (char *)item + len + 1;
+        i++;
     }
 
     return NULL;
@@ -1649,6 +1657,7 @@ SH_NORETURN_1 void sh__exit(shinstance *psh, int rc)
         TRACE2((psh, "sh__exit: %u shells around, must wait...\n", g_num_shells));
         shfile_uninit(&psh->fdtab);
         sh_int_unlink(psh);
+        /** @todo    */
     }
 
     _exit(rc);
@@ -1697,6 +1706,9 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
         /*
          * This ain't quite straight forward on Windows...
          */
+#ifndef SH_FORKED_MODE
+        shmtxtmp tmp;
+#endif
         PROCESS_INFORMATION ProcInfo;
         STARTUPINFO StrtInfo;
         intptr_t hndls[3];
@@ -1808,6 +1820,9 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
         StrtInfo.cb = sizeof(StrtInfo);
 
         /* File handles. */
+#ifndef SH_FORKED_MODE
+        shmtx_enter(&g_sh_exec_mtx, &tmp);
+#endif
         StrtInfo.dwFlags   |= STARTF_USESTDHANDLES;
         StrtInfo.lpReserved2 = shfile_exec_win(&psh->fdtab, 1 /* prepare */, &StrtInfo.cbReserved2, hndls);
         StrtInfo.hStdInput  = (HANDLE)hndls[0];
@@ -1815,16 +1830,22 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
         StrtInfo.hStdError  = (HANDLE)hndls[2];
 
         /* Get going... */
-        if (CreateProcess(exe,
-                          cmdline,
-                          NULL,         /* pProcessAttributes */
-                          NULL,         /* pThreadAttributes */
-                          TRUE,         /* bInheritHandles */
-                          0,            /* dwCreationFlags */
-                          envblock,
-                          cwd,
-                          &StrtInfo,
-                          &ProcInfo))
+        rc = CreateProcess(exe,
+                           cmdline,
+                           NULL,         /* pProcessAttributes */
+                           NULL,         /* pThreadAttributes */
+                           TRUE,         /* bInheritHandles */
+                           0,            /* dwCreationFlags */
+                           envblock,
+                           cwd,
+                           &StrtInfo,
+                           &ProcInfo);
+
+        shfile_exec_win(&psh->fdtab, 0 /* done */, NULL, NULL);
+#ifndef SH_FORKED_MODE
+        shmtx_leave(&g_sh_exec_mtx, &tmp);
+#endif
+        if (rc)
         {
             DWORD dwErr;
             DWORD dwExitCode;
@@ -1836,8 +1857,11 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
             if (GetExitCodeProcess(ProcInfo.hProcess, &dwExitCode))
             {
                 CloseHandle(ProcInfo.hProcess);
-                _exit(dwExitCode);
+                sh__exit(psh, dwExitCode);
             }
+            TRACE2((psh, "sh_execve: GetExitCodeProcess failed: %u\n", GetLastError()));
+            assert(0);
+            CloseHandle(ProcInfo.hProcess);
             errno = EINVAL;
         }
         else
@@ -1856,7 +1880,6 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
             TRACE2((psh, "sh_execve: dwErr=%d -> errno=%d\n", dwErr, errno));
         }
 
-        shfile_exec_win(&psh->fdtab, 0 /* done */, NULL, NULL);
     }
     rc = -1;
 
