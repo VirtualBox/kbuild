@@ -199,6 +199,7 @@ while IFS=; read -r line; do
 				nodelist ) fn="copynodelist(";;
 				string ) fn="nodesavestr(";;
 				int ) fn=;;
+				temp )  echo "	    new->$f = 0;";;
 				* ) continue;;
 				esac
 				f="$struct.$name"
