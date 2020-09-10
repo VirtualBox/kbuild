@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 3438 2020-09-09 20:01:39Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 3439 2020-09-10 00:47:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -149,11 +149,13 @@ struct shinstance
     shsigaction_t       sigactions[NSIG]; /**< The signal actions registered with this shell instance. */
     shsigset_t          sigmask;        /**< Our signal mask. */
     char              **shenviron;      /**< The environment vector. */
-    int                 num_children;   /**< Number of children in the array. */
+    int                 linked;         /**< Set if we're still linked. */
+    unsigned            num_children;   /**< Number of children in the array. */
     shchild            *children;       /**< The child array. */
 #ifndef SH_FORKED_MODE
     int (*thread)(struct shinstance *, void *); /**< The thread procedure. */
     void               *threadarg;      /**< The thread argument. */
+    struct jmploc      *exitjmp;        /**< Long jump target in sh_thread_wrapper for use by sh__exit. */
 #endif
 
     /* alias.c */
@@ -164,7 +166,7 @@ struct shinstance
     /* cd.c */
     char               *curdir;         /**< current working directory */
     char               *prevdir;        /**< previous working directory */
-    char               *cdcomppath;
+    char               *cdcomppath;     /**< (stalloc) */
     int                 getpwd_first;   /**< static in getpwd. (initialized to 1!) */
 
     /* error.h */
@@ -181,7 +183,7 @@ struct shinstance
     char               *commandname;    /**< currently executing command */
     int                 exitstatus;     /**< exit status of last command */
     int                 back_exitstatus;/**< exit status of backquoted command */
-    struct strlist     *cmdenviron;     /**< environment for builtin command */
+    struct strlist     *cmdenviron;     /**< environment for builtin command (varlist from evalcommand()) */
     int                 funcnest;       /**< depth of function calls */
     int                 evalskip;       /**< set if we are skipping commands */
     int                 skipcount;      /**< number of levels to skip */
@@ -353,7 +355,6 @@ struct shinstance
     /* bltin/test.c */
     char              **t_wp;
     struct t_op const  *t_wp_op;
-
 };
 
 

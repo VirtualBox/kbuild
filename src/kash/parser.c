@@ -1896,6 +1896,7 @@ copyparsetree(shinstance *psh, union node *src)
 				ret->nfile.fd        = src->nfile.fd;
 				ret->nfile.next      = copyparsetree(psh, src->nfile.next);
 				ret->nfile.fname     = copyparsetree(psh, src->nfile.fname);
+				/** @todo complicated, we should copy it in some contexts but no all. sigh.  */
 				ret->nfile.expfname  = stsavestr(psh, src->nfile.expfname);
 				break;
 
