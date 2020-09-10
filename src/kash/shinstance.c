@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3441 2020-09-10 11:54:53Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3442 2020-09-10 12:06:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -732,9 +732,8 @@ static void sh_inherit_from_parent(shinstance *psh, shinstance *inherit)
     /* tokpushback, doprompt and needprompt shouldn't really matter, parsecmd resets thems. */
     /* The rest are internal to the parser, as I see them, and can be ignored. */
 
-    /* redir.c - we shouldn't sub-shell with redirlist as non-NULL, I think.  */
-    assert(inherit->redirlist == NULL);
-    assert(inherit->fd0_redirected == 0); /* (follows from redirlist == NULL) */
+    /* redir.c */
+    subshellinitredir(psh, inherit);
 
     /* show.c */
     psh->tracefd = inherit->tracefd;

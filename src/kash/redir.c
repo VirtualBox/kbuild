@@ -91,6 +91,32 @@ STATIC void openredirect(shinstance *, union node *, char[10], int);
 STATIC int openhere(shinstance *, union node *);
 
 
+#ifndef SH_FORKED_MODE
+void
+subshellinitredir(shinstance *psh, shinstance *inherit)
+{
+    /* We can have a redirlist here if we're handling backtick while expanding
+       arguments, just copy it even if the subshell probably doesn't need it. */
+    struct redirtab *src = inherit->redirlist;
+    if (src)
+    {
+        struct redirtab **dstp = &psh->redirlist;
+	do
+	{
+	    struct redirtab *dst = ckmalloc(psh, sizeof(dst));
+	    memcpy(dst->renamed, src->renamed, sizeof(dst->renamed));
+	    *dstp = dst;
+	    dstp = &dst->next;
+	    src = src->next;
+	} while (src);
+	*dstp = NULL;
+
+        psh->fd0_redirected = inherit->fd0_redirected;
+    }
+}
+#endif /* !SH_FORKED_MODE */
+
+
 /*
  * Process a list of redirection commands.  If the REDIR_PUSH flag is set,
  * old file descriptors are stashed away so that the redirection can be

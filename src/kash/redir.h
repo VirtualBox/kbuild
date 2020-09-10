@@ -39,6 +39,9 @@
 #define REDIR_BACKQ 02		/* save the command output in memory */
 
 union node;
+#ifndef SH_FORKED_MODE
+void subshellinitredir(shinstance *, shinstance *);
+#endif
 void redirect(struct shinstance *, union node *, int);
 void popredir(struct shinstance *);
 int fd0_redirected_p(struct shinstance *);
