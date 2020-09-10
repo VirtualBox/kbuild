@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3444 2020-09-10 14:08:18Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3446 2020-09-10 20:48:14Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -107,15 +107,6 @@ struct shsigstate
 }                   g_sig_state[NSIG];
 
 
-
-/** Magic mutex value (final u64).
- * This is used to detect whether the mutex has been initialized or not,
- * allowing shmtx_delete to be called more than once without doing harm.
- * @internal */
-#define SHMTX_MAGIC        KU64_C(0x8888000019641018) /**< Charles Stross */
-/** Index into shmtx::au64 of the SHMTX_MAGIC value.
- * @internal */
-#define SHMTX_MAGIC_IDX    (sizeof(shmtx) / sizeof(KU64) - 1)
 
 int shmtx_init(shmtx *pmtx)
 {
