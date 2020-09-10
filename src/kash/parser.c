@@ -1203,6 +1203,7 @@ parseredir: {
 	(void)dummy;
 
 	np = (union node *)stalloc(psh, sizeof (struct nfile));
+	np->nfile.expfname = NULL;
 	if (c == '>') {
 		np->nfile.fd = 1;
 		c = pgetc(psh);
@@ -1792,6 +1793,7 @@ copynodelist(shinstance *psh, struct nodelist *src)
 			*ppnext = dst;
 			ppnext = &dst->next;
 			dst->n = copyparsetree(psh, src->n);
+			src = src->next;
 		}
 	}
 	return ret;
