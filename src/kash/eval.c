@@ -103,6 +103,7 @@ STATIC void evalfor(shinstance *, union node *, int);
 STATIC void evalcase(shinstance *, union node *, int);
 STATIC void evalsubshell(shinstance *, union node *, int);
 STATIC void expredir(shinstance *, union node *);
+STATIC void expredircleanup(shinstance *, union node *);
 STATIC void evalpipe(shinstance *, union node *);
 STATIC void evalcommand(shinstance *, union node *, int, struct backcmd *);
 STATIC void prehash(shinstance *, union node *);
@@ -250,6 +251,7 @@ evaltree(shinstance *psh, union node *n, int flags)
 		redirect(psh, n->nredir.redirect, REDIR_PUSH);
 		evaltree(psh, n->nredir.n, flags);
 		popredir(psh);
+		expredircleanup(psh, n->nredir.redirect);
 		break;
 	case NSUBSHELL:
 		evalsubshell(psh, n, flags);
@@ -472,6 +474,7 @@ evalsubshell(shinstance *psh, union node *n, int flags)
 	if (! backgnd)
 		psh->exitstatus = waitforjob(psh, jp);
 	INTON;
+	expredircleanup(psh, n->nredir.redirect);
 }
 
 
@@ -503,6 +506,24 @@ expredir(shinstance *psh, union node *n)
 				expandarg(psh, redir->ndup.vname, &fn, EXP_FULL | EXP_TILDE);
 				fixredir(psh, redir, fn.list->text, 1);
 			}
+			break;
+		}
+	}
+}
+
+STATIC void
+expredircleanup(shinstance *psh, union node *n)
+{
+	for (; n ; n = n->nfile.next) {
+		struct arglist fn;
+		fn.lastp = &fn.list;
+		switch (n->type) {
+		case NFROMTO:
+		case NFROM:
+		case NTO:
+		case NCLOBBER:
+		case NAPPEND:
+			n->nfile.expfname = NULL;
 			break;
 		}
 	}
@@ -1237,6 +1258,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 		if (forkshell(psh, jp, cmd, mode) != 0) {
 			evalcommand_parent(psh, flags, args.lastarg, &args.smark, mode, jp,
 							   args.pip, backcmd);
+			expredircleanup(psh, cmd->ncmd.redirect);
 			return;	/* at end of routine */
 		}
 		evalcommand_child(psh, cmd, &args);
@@ -1247,6 +1269,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 		args.path = path;
 		evalcommand_doit(psh, cmd, &args);
 	}
+	expredircleanup(psh, cmd->ncmd.redirect);
 }
 
 
