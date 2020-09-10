@@ -103,7 +103,7 @@ subshellinitredir(shinstance *psh, shinstance *inherit)
         struct redirtab **dstp = &psh->redirlist;
 	do
 	{
-	    struct redirtab *dst = ckmalloc(psh, sizeof(dst));
+	    struct redirtab *dst = ckmalloc(psh, sizeof(*dst));
 	    memcpy(dst->renamed, src->renamed, sizeof(dst->renamed));
 	    *dstp = dst;
 	    dstp = &dst->next;
@@ -313,7 +313,7 @@ openhere(shinstance *psh, union node *redir)
 		args.pip[0] = pip[0];
 		args.pip[1] = pip[1];
 		args.len = len;
-		forkshell2(psh, (struct job *)NULL, (union node *)NULL,
+		forkshell2(psh, (struct job *)NULL, redir,
 			   FORK_NOJOB | FORK_JUST_IO,
 			   openhere_child, redir, &args, sizeof(args), NULL);
 	}

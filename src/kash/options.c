@@ -131,7 +131,7 @@ subshellinitoptions(shinstance *psh, shinstance *inherit)
     psh->shellparam.reset  = inherit->shellparam.reset;
     psh->shellparam.nparam = left = inherit->shellparam.nparam;
     assert(left >= 0);
-    psh->shellparam.p = (char **)ckmalloc(psh, left + 1);
+    psh->shellparam.p = (char **)ckmalloc(psh, (left + 1) * sizeof(psh->shellparam.p[0]));
     psh->shellparam.p[left] = NULL;
     while (left-- > 0) {
 	arg = inherit->shellparam.p[left];
