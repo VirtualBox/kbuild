@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3446 2020-09-10 20:48:14Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3447 2020-09-11 13:22:14Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -49,6 +49,7 @@
 
 #if K_OS == K_OS_WINDOWS
 # include <Windows.h>
+# include "nt/nt_child_inject_standard_handles.h"
 # ifdef SH_FORKED_MODE
 extern pid_t shfork_do(shinstance *psh); /* shforkA-win.asm */
 # endif
@@ -69,7 +70,7 @@ extern pid_t shfork_do(shinstance *psh); /* shforkA-win.asm */
 *********************************************************************************************************************************/
 #ifndef SH_FORKED_MODE
 /** Mutex serializing exec/spawn to prevent unwanted file inherting. */
-static shmtx        g_sh_exec_mtx;
+shmtx               g_sh_exec_inherit_mtx;
 #endif
 /** The mutex protecting the the globals and some shell instance members (sigs). */
 static shmtx        g_sh_mtx;
@@ -81,6 +82,14 @@ static shinstance  *g_sh_head;
 static shinstance  *g_sh_tail;
 /** The number of shells. */
 static int volatile g_num_shells;
+/* Statistics: Number of subshells spawned. */
+static KU64             g_stat_subshells = 0;
+/* Statistics: Number of program exec'ed. */
+static KU64 volatile    g_stat_execs = 0;
+#if K_OS == K_OS_WINDOWS
+/* Statistics: Number of serialized exec calls. */
+static KU64 volatile    g_stat_execs_serialized = 0;
+#endif
 /** Per signal state for determining a common denominator.
  * @remarks defaults and unmasked actions aren't counted. */
 struct shsigstate
@@ -171,6 +180,8 @@ static void sh_int_link(shinstance *psh)
 
     if (psh->rootshell)
         g_sh_root = psh;
+    else
+        g_stat_subshells++;
 
     psh->next = NULL;
     psh->prev = g_sh_tail;
@@ -636,7 +647,7 @@ shinstance *sh_create_root_shell(char **argv, char **envp)
     assert(g_sh_mtx.au64[SHMTX_MAGIC_IDX] != SHMTX_MAGIC);
     shmtx_init(&g_sh_mtx);
 #ifndef SH_FORKED_MODE
-    shmtx_init(&g_sh_exec_mtx);
+    shmtx_init(&g_sh_exec_inherit_mtx);
 #endif
 
     psh = sh_create_shell_common(argv, envp, NULL /*parentfdtab*/);
@@ -1659,6 +1670,8 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
 {
     int rc;
 
+    g_stat_execs++;
+
 #ifdef DEBUG
     /* log it all */
     TRACE2((psh, "sh_execve(%p:{%s}, %p, %p}\n", exe, exe, argv, envp));
@@ -1697,12 +1710,9 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
         /*
          * This ain't quite straight forward on Windows...
          */
-#ifndef SH_FORKED_MODE
-        shmtxtmp tmp;
-#endif
         PROCESS_INFORMATION ProcInfo;
         STARTUPINFO StrtInfo;
-        intptr_t hndls[3];
+        shfdexecwin fdinfo;
         char *cwd = shfile_getcwd(&psh->fdtab, NULL, 0);
         char *cmdline;
         size_t cmdline_size;
@@ -1811,66 +1821,110 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
         StrtInfo.cb = sizeof(StrtInfo);
 
         /* File handles. */
-#ifndef SH_FORKED_MODE
-        shmtx_enter(&g_sh_exec_mtx, &tmp);
-#endif
-        StrtInfo.dwFlags   |= STARTF_USESTDHANDLES;
-        StrtInfo.lpReserved2 = shfile_exec_win(&psh->fdtab, 1 /* prepare */, &StrtInfo.cbReserved2, hndls);
-        StrtInfo.hStdInput  = (HANDLE)hndls[0];
-        StrtInfo.hStdOutput = (HANDLE)hndls[1];
-        StrtInfo.hStdError  = (HANDLE)hndls[2];
+        fdinfo.strtinfo = &StrtInfo;
+        shfile_exec_win(&psh->fdtab, 1 /* prepare */, &fdinfo);
+        TRACE2((psh, "sh_execve: inherithandles=%d replacehandles={%d,%d,%d} handles={%p,%p,%p} suspended=%d Reserved2=%p LB %#x\n",
+                fdinfo.inherithandles, fdinfo.replacehandles[0], fdinfo.replacehandles[1], fdinfo.replacehandles[2],
+                fdinfo.handles[0], fdinfo.handles[1], fdinfo.handles[3], fdinfo.startsuspended,
+                StrtInfo.lpReserved2, StrtInfo.cbReserved2));
+        if (!fdinfo.inherithandles)
+        {
+            StrtInfo.dwFlags |= STARTF_USESTDHANDLES;
+            StrtInfo.hStdInput  = INVALID_HANDLE_VALUE;
+            StrtInfo.hStdOutput = INVALID_HANDLE_VALUE;
+            StrtInfo.hStdError  = INVALID_HANDLE_VALUE;
+        }
+        else
+        {
+            StrtInfo.dwFlags |= STARTF_USESTDHANDLES;
+            StrtInfo.hStdInput  = (HANDLE)fdinfo.handles[0];
+            StrtInfo.hStdOutput = (HANDLE)fdinfo.handles[1];
+            StrtInfo.hStdError  = (HANDLE)fdinfo.handles[2];
+            g_stat_execs_serialized++;
+        }
 
         /* Get going... */
-        rc = CreateProcess(exe,
-                           cmdline,
-                           NULL,         /* pProcessAttributes */
-                           NULL,         /* pThreadAttributes */
-                           TRUE,         /* bInheritHandles */
-                           0,            /* dwCreationFlags */
-                           envblock,
-                           cwd,
-                           &StrtInfo,
-                           &ProcInfo);
-
-        shfile_exec_win(&psh->fdtab, rc ? 0 /* done */ : -1 /* done but failed */, NULL, NULL);
-#ifndef SH_FORKED_MODE
-        shmtx_leave(&g_sh_exec_mtx, &tmp);
-#endif
+        rc = CreateProcessA(exe,
+                            cmdline,
+                            NULL,         /* pProcessAttributes */
+                            NULL,         /* pThreadAttributes */
+                            fdinfo.inherithandles,
+                            fdinfo.startsuspended ? CREATE_SUSPENDED : 0,
+                            envblock,
+                            cwd,
+                            &StrtInfo,
+                            &ProcInfo);
         if (rc)
         {
             DWORD dwErr;
             DWORD dwExitCode;
 
-            CloseHandle(ProcInfo.hThread);
-            dwErr = WaitForSingleObject(ProcInfo.hProcess, INFINITE);
-            assert(dwErr == WAIT_OBJECT_0);
-
-            if (GetExitCodeProcess(ProcInfo.hProcess, &dwExitCode))
+            if (fdinfo.startsuspended)
             {
-                CloseHandle(ProcInfo.hProcess);
-                sh__exit(psh, dwExitCode);
+                char errmsg[512];
+                rc = nt_child_inject_standard_handles(ProcInfo.hProcess, fdinfo.replacehandles, (HANDLE*)&fdinfo.handles[0],
+                                                      errmsg, sizeof(errmsg));
+                if (!rc)
+                {
+                    rc = ResumeThread(ProcInfo.hThread);
+                    if (!rc)
+                        TRACE2((psh, "sh_execve: ResumeThread failed: %u -> errno=ENXIO\n", GetLastError()));
+                }
+                else
+                {
+                    TRACE2((psh, "sh_execve: nt_child_inject_standard_handles failed: %d -> errno=ENXIO; %s\n", rc, errmsg));
+                    rc = FALSE;
+                }
+                errno = ENXIO;
             }
-            TRACE2((psh, "sh_execve: GetExitCodeProcess failed: %u\n", GetLastError()));
-            assert(0);
+
+            shfile_exec_win(&psh->fdtab, rc ? 0 /* done */ : -1 /* done but failed */, &fdinfo);
+
+            CloseHandle(ProcInfo.hThread);
+            ProcInfo.hThread = INVALID_HANDLE_VALUE;
+            if (rc)
+            {
+                /*
+                 * Wait for it and forward the exit code.
+                 */
+                dwErr = WaitForSingleObject(ProcInfo.hProcess, INFINITE);
+                assert(dwErr == WAIT_OBJECT_0);
+
+                if (GetExitCodeProcess(ProcInfo.hProcess, &dwExitCode))
+                {
+#ifndef SH_FORKED_MODE
+                    /** @todo signal the end of this subshell now, we can do the cleaning up
+                     *        after the parent shell has resumed. */
+#endif
+                    CloseHandle(ProcInfo.hProcess);
+                    ProcInfo.hProcess = INVALID_HANDLE_VALUE;
+                    sh__exit(psh, dwExitCode);
+                }
+
+                /* this shouldn't happen... */
+                TRACE2((psh, "sh_execve: GetExitCodeProcess failed: %u\n", GetLastError()));
+                assert(0);
+                errno = EINVAL;
+            }
+            TerminateProcess(ProcInfo.hProcess, 0x40000015);
             CloseHandle(ProcInfo.hProcess);
-            errno = EINVAL;
         }
         else
         {
             DWORD dwErr = GetLastError();
+
+            shfile_exec_win(&psh->fdtab, -1 /* done but failed */, &fdinfo);
+
             switch (dwErr)
             {
                 case ERROR_FILE_NOT_FOUND:          errno = ENOENT; break;
                 case ERROR_PATH_NOT_FOUND:          errno = ENOENT; break;
                 case ERROR_BAD_EXE_FORMAT:          errno = ENOEXEC; break;
                 case ERROR_INVALID_EXE_SIGNATURE:   errno = ENOEXEC; break;
-                default:
-                    errno = EINVAL;
-                    break;
+                default:                            errno = EINVAL; break;
             }
             TRACE2((psh, "sh_execve: dwErr=%d -> errno=%d\n", dwErr, errno));
         }
-
     }
     rc = -1;
 

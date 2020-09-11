@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 3439 2020-09-10 00:47:29Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 3447 2020-09-11 13:22:14Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -58,6 +58,8 @@
 # define strcasecmp stricmp
 # define strncasecmp strnicmp
 #endif
+
+extern shmtx g_sh_exec_inherit_mtx;
 
 /**
  * A child process.
