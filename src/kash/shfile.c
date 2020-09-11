@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3444 2020-09-10 14:08:18Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3447 2020-09-11 13:22:14Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -1049,6 +1049,17 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
 }
 # endif /* SH_FORKED_MODE */
 
+/** shfile_exec_win helper that make sure there are no _O_APPEND handles. */
+static KBOOL shfile_exec_win_no_append(shfdtab *pfdtab, unsigned count)
+{
+    unsigned i;
+    for (i = 0; i < count; i++)
+        if (   (pfdtab->tab[i].oflags & _O_APPEND)
+            && (pfdtab->tab[i].oflags & (_O_WRONLY | _O_RDWR)))
+            return K_FALSE;
+    return K_TRUE;
+}
+
 /**
  * Helper for sh_execve.
  *
@@ -1057,18 +1068,18 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
  * the startup info for the CRT. On the second call, after CreateProcess,
  * it will restore the handle inheritability properties.
  *
- * @returns Pointer to CRT data if prepare is 1, NULL if prepare is 0.
+ * @returns 0 on success, non-zero on failure.
  * @param   pfdtab  The file descriptor table.
  * @param   prepare Which call, 1 if before, 0 if after and success, -1 if after on failure.
- * @param   sizep   Where to store the size of the returned data.
- * @param   hndls   Where to store the three standard handles.
+ * @param   info    The info structure.
  */
-void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intptr_t *hndls)
+int shfile_exec_win(shfdtab *pfdtab, int prepare, shfdexecwin *info)
 {
-    void       *pvRet;
-    shmtxtmp    tmp;
-    unsigned    count;
-    unsigned    i;
+    STARTUPINFOA   *strtinfo = (STARTUPINFOA *)info->strtinfo;
+    int             rc = 0;
+    shmtxtmp        tmp;
+    unsigned        count;
+    unsigned        i;
 
     shmtx_enter(&pfdtab->mtx, &tmp);
     TRACE2((NULL, "shfile_exec_win: prepare=%p\n", prepare));
@@ -1076,43 +1087,64 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
     count  = pfdtab->size < (0x10000-4) / (1 + sizeof(HANDLE))
            ? pfdtab->size
            : (0x10000-4) / (1 + sizeof(HANDLE));
-    while (count > 3 && pfdtab->tab[count - 1].fd == -1)
+    while (   count > 3
+           && (   pfdtab->tab[count - 1].fd == -1
+               || (pfdtab->tab[count - 1].shflags & SHFILE_FLAGS_CLOSE_ON_EXEC)))
         count--;
 
     if (prepare > 0)
     {
-        size_t      cbData = sizeof(int) + count * (1 + sizeof(HANDLE));
-        uint8_t    *pbData = sh_malloc(shthread_get_shell(), cbData);
-        uint8_t    *paf = pbData + sizeof(int);
-        HANDLE     *pah = (HANDLE *)(paf + count);
-
-        *(int *)pbData = count;
-
-        i = count;
-        while (i-- > 0)
+        if (count <= 3 && shfile_exec_win_no_append(pfdtab, count))
         {
-            if (    pfdtab->tab[i].fd == i
-                &&  !(pfdtab->tab[i].shflags & SHFILE_FLAGS_CLOSE_ON_EXEC))
+            info->inherithandles  = 0;
+            info->startsuspended  = 1;
+            strtinfo->cbReserved2 = 0;
+            strtinfo->lpReserved2 = NULL;
+        }
+        else
+        {
+            size_t      cbData = sizeof(int) + count * (1 + sizeof(HANDLE));
+            uint8_t    *pbData = sh_malloc(shthread_get_shell(), cbData);
+            uint8_t    *paf = pbData + sizeof(int);
+            HANDLE     *pah = (HANDLE *)(paf + count);
+
+            info->inherithandles  = 1;
+            info->startsuspended  = 0;
+            strtinfo->cbReserved2 = (unsigned short)cbData;
+            strtinfo->lpReserved2 = pbData;
+
+            shmtx_leave(&pfdtab->mtx, &tmp); /* should be harmless as this isn't really necessary at all. */
+            shmtx_enter(&g_sh_exec_inherit_mtx, &info->tmp);
+            shmtx_enter(&pfdtab->mtx, &tmp);
+
+            *(int *)pbData = count;
+
+            i = count;
+            while (i-- > 0)
             {
-                HANDLE hFile = shfile_set_inherit_win(&pfdtab->tab[i], 1);
-                TRACE2((NULL, "  #%d: native=%#x oflags=%#x shflags=%#x\n",
-                        i, hFile, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags));
-                paf[i] = FOPEN;
-                if (pfdtab->tab[i].oflags & _O_APPEND)
-                    paf[i] |= FAPPEND;
-                if (pfdtab->tab[i].oflags & _O_TEXT)
-                    paf[i] |= FTEXT;
-                switch (pfdtab->tab[i].shflags & SHFILE_FLAGS_TYPE_MASK)
+                if (    pfdtab->tab[i].fd == i
+                    &&  !(pfdtab->tab[i].shflags & SHFILE_FLAGS_CLOSE_ON_EXEC))
                 {
-                    case SHFILE_FLAGS_TTY:  paf[i] |= FDEV; break;
-                    case SHFILE_FLAGS_PIPE: paf[i] |= FPIPE; break;
+                    HANDLE hFile = shfile_set_inherit_win(&pfdtab->tab[i], 1);
+                    TRACE2((NULL, "  #%d: native=%#x oflags=%#x shflags=%#x\n",
+                            i, hFile, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags));
+                    paf[i] = FOPEN;
+                    if (pfdtab->tab[i].oflags & _O_APPEND)
+                        paf[i] |= FAPPEND;
+                    if (pfdtab->tab[i].oflags & _O_TEXT)
+                        paf[i] |= FTEXT;
+                    switch (pfdtab->tab[i].shflags & SHFILE_FLAGS_TYPE_MASK)
+                    {
+                        case SHFILE_FLAGS_TTY:  paf[i] |= FDEV; break;
+                        case SHFILE_FLAGS_PIPE: paf[i] |= FPIPE; break;
+                    }
+                    pah[i] = hFile;
                 }
-                pah[i] = hFile;
-            }
-            else
-            {
-                paf[i] = 0;
-                pah[i] = INVALID_HANDLE_VALUE;
+                else
+                {
+                    paf[i] = 0;
+                    pah[i] = INVALID_HANDLE_VALUE;
+                }
             }
         }
 
@@ -1120,21 +1152,26 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
         {
             if (    i < count
                 &&  pfdtab->tab[i].fd == i)
-                hndls[i] = pfdtab->tab[i].native;
+            {
+                info->replacehandles[i] = 1;
+                info->handles[i] = pfdtab->tab[i].native;
+            }
             else
-                hndls[i] = (intptr_t)INVALID_HANDLE_VALUE;
+            {
+                info->replacehandles[i] = 0;
+                info->handles[i] = (intptr_t)INVALID_HANDLE_VALUE;
+            }
             TRACE2((NULL, "shfile_exec_win: i=%d count=%d fd=%d native=%d hndls[%d]=\n",
-                    i, count, pfdtab->tab[i].fd, pfdtab->tab[i].native, i, hndls[i]));
+                    i, count, pfdtab->tab[i].fd, pfdtab->tab[i].native, i, info->handles[i]));
         }
-
-        *sizep = (unsigned short)cbData;
-        pvRet = pbData;
     }
     else
     {
         shfile *file = pfdtab->tab;
-        assert(!hndls);
-        assert(!sizep);
+
+        sh_free(NULL, strtinfo->lpReserved2);
+        strtinfo->lpReserved2 = NULL;
+
         i = count;
         if (prepare == 0)
             for (i = 0; i < count; i++, file++)
@@ -1150,16 +1187,18 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
                     file->native = -1;
                 }
             }
-        else
+        else if (info->inherithandles)
             for (i = 0; i < count; i++, file++)
                 if (    file->fd == i
                     &&  !(file->shflags & SHFILE_FLAGS_CLOSE_ON_EXEC))
                     shfile_set_inherit_win(file, 0);
-        pvRet = NULL;
+
+        if (info->inherithandles)
+            shmtx_leave(&g_sh_exec_inherit_mtx, &info->tmp);
     }
 
     shmtx_leave(&pfdtab->mtx, &tmp);
-    return pvRet;
+    return rc;
 }
 
 #endif /* K_OS_WINDOWS */
