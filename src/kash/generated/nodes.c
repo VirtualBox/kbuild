@@ -275,7 +275,6 @@ copynode(n)
 	    new->nfile.fname = copynode(n->nfile.fname);
 	    new->nfile.fd = n->nfile.fd;
 	    new->nfile.next = copynode(n->nfile.next);
-	    new->nfile.expfname = NULL;
 	    break;
       case NTOFD:
       case NFROMFD:

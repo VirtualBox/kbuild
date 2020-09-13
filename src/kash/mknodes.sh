@@ -199,7 +199,7 @@ while IFS=; read -r line; do
 				nodelist ) fn="copynodelist(";;
 				string ) fn="nodesavestr(";;
 				int ) fn=;;
-				temp )  echo "	    new->$f = 0;";;
+				temp )  echo "unexpected 'temp' node type" >&2; exit 2;;
 				* ) continue;;
 				esac
 				f="$struct.$name"

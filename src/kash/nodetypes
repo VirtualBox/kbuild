@@ -44,7 +44,6 @@
 #	string - a pointer to a nul terminated string
 #	int - an integer
 #	other - any type that can be copied by assignment
-#	temp - a field that doesn't have to be copied when the node is copied
 # The last two types should be followed by the text of a C declaration for
 # the field.
 
@@ -120,7 +119,6 @@ NAPPEND nfile			# fd>> fname
 	fd	  int			# file descriptor being redirected (must match ndup)
 	next	  nodeptr		# next redirection in list         (must match ndup)
 	fname	  nodeptr		# file name, in a NARG node
-	expfname  temp	char *expfname	# actual file name
 
 NTOFD ndup			# fd<&dupfd
 NFROMFD ndup			# fd>&dupfd

@@ -104,7 +104,6 @@ struct nfile {
       int fd;
       union node *next;
       union node *fname;
-      char *expfname;
 };
 
 

@@ -40,6 +40,8 @@ __RCSID("$NetBSD: eval.c,v 1.84 2005/06/23 23:05:29 christos Exp $");
 #endif /* not lint */
 #endif
 
+#include <assert.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -102,8 +104,7 @@ STATIC void evalloop(shinstance *, union node *, int);
 STATIC void evalfor(shinstance *, union node *, int);
 STATIC void evalcase(shinstance *, union node *, int);
 STATIC void evalsubshell(shinstance *, union node *, int);
-STATIC void expredir(shinstance *, union node *);
-STATIC void expredircleanup(shinstance *, union node *);
+STATIC unsigned expredir(shinstance *, union node *);
 STATIC void evalpipe(shinstance *, union node *);
 STATIC void evalcommand(shinstance *, union node *, int, struct backcmd *);
 STATIC void prehash(shinstance *, union node *);
@@ -246,13 +247,14 @@ evaltree(shinstance *psh, union node *n, int flags)
 			goto out;
 		evaltree(psh, n->nbinary.ch2, flags);
 		break;
-	case NREDIR:
-		expredir(psh, n->nredir.redirect);
+	case NREDIR: {
+		unsigned const oldfnames = expredir(psh, n->nredir.redirect);
 		redirect(psh, n->nredir.redirect, REDIR_PUSH);
 		evaltree(psh, n->nredir.n, flags);
 		popredir(psh);
-		expredircleanup(psh, n->nredir.redirect);
+		expredircleanup(psh, oldfnames);
 		break;
+	}
 	case NSUBSHELL:
 		evalsubshell(psh, n, flags);
 		break;
@@ -449,8 +451,9 @@ evalsubshell(shinstance *psh, union node *n, int flags)
 {
 	struct job *jp;
 	int backgnd = (n->type == NBACKGND);
+	unsigned expfnamedepth;
 
-	expredir(psh, n->nredir.redirect);
+	expfnamedepth = expredir(psh, n->nredir.redirect);
 	INTOFF;
 	jp = makejob(psh, n, 1);
 #ifdef KASH_USE_FORKSHELL2
@@ -473,8 +476,8 @@ evalsubshell(shinstance *psh, union node *n, int flags)
 #endif
 	if (! backgnd)
 		psh->exitstatus = waitforjob(psh, jp);
+	expredircleanup(psh, expfnamedepth);
 	INTON;
-	expredircleanup(psh, n->nredir.redirect);
 }
 
 
@@ -483,12 +486,27 @@ evalsubshell(shinstance *psh, union node *n, int flags)
  * Compute the names of the files in a redirection list.
  */
 
-STATIC void
+STATIC unsigned
 expredir(shinstance *psh, union node *n)
 {
 	union node *redir;
+	redirexpfnames *expfnames;
+	unsigned i;
 
-	for (redir = n ; redir ; redir = redir->nfile.next) {
+	/* We typically end up here w/o redirections. */
+	if (!n)
+	    return !(expfnames = psh->expfnames) ? 0 : expfnames->depth + 1;
+
+	/* Prepare a table for the expanded names. */
+	i = 0;
+	for (redir = n; redir ; redir = redir->nfile.next)
+	    i++;
+	expfnames = stalloc(psh, offsetof(redirexpfnames, names) +  sizeof(expfnames->names[0]) * i);
+	expfnames->count = i;
+	TRACE2((psh, "expredir: %p: count=%u\n", expfnames, i));
+
+	/* Do the expansion. */
+	for (redir = n, i = 0 ; redir ; redir = redir->nfile.next, i++) {
 		struct arglist fn;
 		fn.lastp = &fn.list;
 		switch (redir->type) {
@@ -498,7 +516,7 @@ expredir(shinstance *psh, union node *n)
 		case NCLOBBER:
 		case NAPPEND:
 			expandarg(psh, redir->nfile.fname, &fn, EXP_TILDE | EXP_REDIR);
-			redir->nfile.expfname = fn.list->text;
+			expfnames->names[i] = fn.list->text;
 			break;
 		case NFROMFD:
 		case NTOFD:
@@ -506,27 +524,29 @@ expredir(shinstance *psh, union node *n)
 				expandarg(psh, redir->ndup.vname, &fn, EXP_FULL | EXP_TILDE);
 				fixredir(psh, redir, fn.list->text, 1);
 			}
+			expfnames->names[i] = NULL;
+			break;
+		default:
+			assert(0);
+			expfnames->names[i] = NULL;
 			break;
 		}
 	}
+	assert(i == expfnames->count);
+
+	/* Do the linking at the end, as nesting happens when we expand backtick arguments. */
+	expfnames->prev = psh->expfnames;
+	psh->expfnames = expfnames;
+	return expfnames->depth = psh->expfnames ? psh->expfnames->depth + 1 : 1;
 }
 
 STATIC void
-expredircleanup(shinstance *psh, union node *n)
+expredircleanup(shinstance *psh, unsigned depth)
 {
-	for (; n ; n = n->nfile.next) {
-		struct arglist fn;
-		fn.lastp = &fn.list;
-		switch (n->type) {
-		case NFROMTO:
-		case NFROM:
-		case NTO:
-		case NCLOBBER:
-		case NAPPEND:
-			n->nfile.expfname = NULL;
-			break;
-		}
-	}
+	redirexpfnames *expfnames = psh->expfnames;
+	assert(expfnames == NULL ? depth == 0 : expfnames->depth == depth || expfnames->depth + 1 == depth);
+	while (expfnames && expfnames->depth >= depth)
+	    expfnames = psh->expfnames = expfnames->prev;
 }
 
 
@@ -1110,6 +1130,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	struct arglist arglist;
 	struct strlist *sp;
 	const char *path = pathval(psh);
+	unsigned expfnamedepth;
 
 	/* First expand the arguments. */
 	TRACE((psh, "evalcommand(0x%lx, %d) called\n", (long)cmd, flags));
@@ -1133,7 +1154,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 		expandarg(psh, argp, &arglist, EXP_FULL | EXP_TILDE);
 	*arglist.lastp = NULL;
 
-	expredir(psh, cmd->ncmd.redirect);
+	expfnamedepth = expredir(psh, cmd->ncmd.redirect);
 
 	/* Now do the initial 'name=value' ones we skipped above */
 	args.varlist.lastp = &args.varlist.list;
@@ -1253,12 +1274,12 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 		forkshell2(psh, jp, cmd, mode, evalcommand_child, cmd,
 		           &args, sizeof(args), evalcommand_setup_child);
 		evalcommand_parent(psh, flags, args.lastarg, &args.smark, mode, jp,
-						   args.pip, backcmd);
+		                   args.pip, backcmd);
 #else
 		if (forkshell(psh, jp, cmd, mode) != 0) {
 			evalcommand_parent(psh, flags, args.lastarg, &args.smark, mode, jp,
 							   args.pip, backcmd);
-			expredircleanup(psh, cmd->ncmd.redirect);
+			expredircleanup(psh, expfnamedepth);
 			return;	/* at end of routine */
 		}
 		evalcommand_child(psh, cmd, &args);
@@ -1269,7 +1290,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 		args.path = path;
 		evalcommand_doit(psh, cmd, &args);
 	}
-	expredircleanup(psh, cmd->ncmd.redirect);
+	expredircleanup(psh, expfnamedepth);
 }
 
 
