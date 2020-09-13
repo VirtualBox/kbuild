@@ -4,9 +4,10 @@
 
 . ${KASH_TEST_DIR}/common-include.sh
 
-TMPFILE="/tmp/pipe-2.$$.tmp"
-echo piped > $TMPFILE
-$CMD_CAT $TMPFILE \
+TMPFILE1="/tmp/pipe-2a.$$.tmp"
+TMPFILE2="/tmp/pipe-2b.$$.tmp"
+echo piped > $TMPFILE1
+$CMD_CAT $TMPFILE1 \
 	| $CMD_SED -e 's/piped/abc/' \
 	| $CMD_SED -e 's/abc/def/'  \
 	| $CMD_SED -e 's/def/ghi/'  \
@@ -16,10 +17,10 @@ $CMD_CAT $TMPFILE \
 	| $CMD_SED -e 's/pqr/stu/'  \
 	| $CMD_SED -e 's/stu/vwx/'  \
 	| $CMD_SED -e 's/vwx/yz_/'  \
-	> $TMPFILE
+	> $TMPFILE2
 
-VAR=`$CMD_CAT $TMPFILE`
-$CMD_RM -f $TMPFILE
+VAR=`$CMD_CAT $TMPFILE2`
+$CMD_RM -f -- $TMPFILE1 $TMPFILE2
 if test "$VAR" != "yz_"; then
     echo "pipe-2: FAILURE - VAR=$VAR"
     exit 1
