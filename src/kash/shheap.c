@@ -1,4 +1,4 @@
-/* $Id: shheap.c 3438 2020-09-09 20:01:39Z knut.osmundsen@oracle.com $ */
+/* $Id: shheap.c 3451 2020-09-13 11:21:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell memory heap methods.
  */
@@ -383,10 +383,15 @@ static void shheap_unlink_free(shmemhdr *mem)
 void sh_free(shinstance *psh, void *ptr)
 {
 #ifdef SHHEAP_IN_USE
-    shmemhdr *mem = (shmemhdr *)ptr - 1;
+    shmemhdr *mem;
     shmemhdr *right;
     shmemhdr *left;
     shmtxtmp tmp;
+
+    if (ptr)
+        mem = (shmemhdr *)ptr - 1;
+    else
+        return;
 
     if (mem->magic != SHMEMHDR_MAGIC_USED)
     {
