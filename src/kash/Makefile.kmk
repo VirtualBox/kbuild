@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3438 2020-09-09 20:01:39Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3450 2020-09-13 11:17:43Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -130,7 +130,8 @@ kash_SOURCES.solaris = \
 kash_SOURCES.win = \
 	$(kash_0_OUTDIR)/sys_signame.c \
 	strsignal.c \
-	strlcpy.c
+	strlcpy.c \
+       ../lib/nt/nt_child_inject_standard_handles.c
 ifdef KASH_WIN_FORKED_MODE
 kash_SOURCES.win += \
 	shfork-win.c \
