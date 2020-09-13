@@ -42,8 +42,10 @@ __RCSID("$NetBSD: redir.c,v 1.29 2004/07/08 03:57:33 christos Exp $");
 
 #include <sys/types.h>
 #include <limits.h>         /* PIPE_BUF */
+#include <assert.h>
 #include <string.h>
 #include <errno.h>
+#include <stddef.h>
 #include <stdlib.h>
 
 /*
@@ -87,7 +89,7 @@ struct redirtab {
 */
 //int fd0_redirected = 0;
 
-STATIC void openredirect(shinstance *, union node *, char[10], int);
+STATIC void openredirect(shinstance *, union node *, char[10], int, const char *);
 STATIC int openhere(shinstance *, union node *);
 
 
@@ -113,6 +115,22 @@ subshellinitredir(shinstance *psh, shinstance *inherit)
 
         psh->fd0_redirected = inherit->fd0_redirected;
     }
+
+    /* Copy the expanded redirection filenames (stack), but only the last entry
+       as the subshell does not have the ability to unwind stack in the parent
+       and therefore cannot get to the earlier redirection stuff: */
+    if (inherit->expfnames)
+    {
+	redirexpfnames * const expfnamesrc = inherit->expfnames;
+	unsigned i = expfnamesrc->count;
+	redirexpfnames *dst = stalloc(psh, offsetof(redirexpfnames, names) + sizeof(dst->names[0]) * i);
+	dst->count = i;
+	dst->depth = 1;
+	dst->prev = NULL;
+	while (i-- > 0)
+	    dst->names[i] = stsavestr(psh, expfnamesrc->names[i]);
+	psh->expfnames = dst;
+    }
 }
 #endif /* !SH_FORKED_MODE */
 
@@ -134,6 +152,7 @@ redirect(shinstance *psh, union node *redir, int flags)
 	int fd;
 	int try;
 	char memory[10];	/* file descriptors to write to memory */
+	unsigned idxexpfname;
 
 	for (i = 10 ; --i >= 0 ; )
 		memory[i] = 0;
@@ -145,7 +164,9 @@ redirect(shinstance *psh, union node *redir, int flags)
 		sv->next = psh->redirlist;
 		psh->redirlist = sv;
 	}
-	for (n = redir ; n ; n = n->nfile.next) {
+	idxexpfname = 0;
+	for (n = redir, idxexpfname = 0 ; n ; n = n->nfile.next, idxexpfname++) {
+		assert(idxexpfname < psh->expfnames->count);
 		fd = n->nfile.fd;
 		try = 0;
 		if ((n->nfile.type == NTOFD || n->nfile.type == NFROMFD) &&
@@ -159,7 +180,7 @@ again:
 				switch (errno) {
 				case EBADF:
 					if (!try) {
-						openredirect(psh, n, memory, flags);
+						openredirect(psh, n, memory, flags, psh->expfnames->names[idxexpfname]);
 						try++;
 						goto again;
 					}
@@ -181,8 +202,9 @@ again:
                 if (fd == 0)
                         psh->fd0_redirected++;
 		if (!try)
-			openredirect(psh, n, memory, flags);
+			openredirect(psh, n, memory, flags, psh->expfnames->names[idxexpfname]);
 	}
+	assert(!redir || idxexpfname == psh->expfnames->count);
 	if (memory[1])
 		psh->out1 = &psh->memout;
 	if (memory[2])
@@ -191,10 +213,9 @@ again:
 
 
 STATIC void
-openredirect(shinstance *psh, union node *redir, char memory[10], int flags)
+openredirect(shinstance *psh, union node *redir, char memory[10], int flags, const char *fname)
 {
 	int fd = redir->nfile.fd;
-	char *fname;
 	int f;
 	int oflags = O_WRONLY|O_CREAT|O_TRUNC;
 
@@ -207,12 +228,10 @@ openredirect(shinstance *psh, union node *redir, char memory[10], int flags)
 	memory[fd] = 0;
 	switch (redir->nfile.type) {
 	case NFROM:
-		fname = redir->nfile.expfname;
 		if ((f = shfile_open(&psh->fdtab, fname, O_RDONLY, 0)) < 0)
 			goto eopen;
 		break;
 	case NFROMTO:
-		fname = redir->nfile.expfname;
 		if ((f = shfile_open(&psh->fdtab, fname, O_RDWR|O_CREAT|O_TRUNC, 0666)) < 0)
 			goto ecreate;
 		break;
@@ -221,12 +240,10 @@ openredirect(shinstance *psh, union node *redir, char memory[10], int flags)
 			oflags |= O_EXCL;
 		/* FALLTHROUGH */
 	case NCLOBBER:
-		fname = redir->nfile.expfname;
 		if ((f = shfile_open(&psh->fdtab, fname, oflags, 0666)) < 0)
 			goto ecreate;
 		break;
 	case NAPPEND:
-		fname = redir->nfile.expfname;
 		if ((f = shfile_open(&psh->fdtab, fname, O_WRONLY|O_CREAT|O_APPEND, 0666)) < 0)
 			goto ecreate;
 		break;

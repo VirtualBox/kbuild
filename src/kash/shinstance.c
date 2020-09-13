@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3447 2020-09-11 13:22:14Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3449 2020-09-13 11:17:09Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -436,7 +436,10 @@ static void sh_destroy(shinstance *psh)
     /* redir.c */
     struct redirtab    *redirlist;
     int                 fd0_redirected/* = 0*/;
+#endif
+    psh->expfnames = NULL; /* stack alloc */
 
+#if 0
     /* show.c */
     char                tracebuf[1024];
     size_t              tracepos;

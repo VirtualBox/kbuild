@@ -1198,12 +1198,11 @@ checkend: {
 parseredir: {
 	union node *np;
 	char fd = *out;
-	char dummy[   sizeof(struct nfile) >= sizeof(struct ndup)
-	           && sizeof(struct nfile) >= sizeof(struct nhere) ? 1 : 0];
+	char dummy[   sizeof(struct ndup) >= sizeof(struct nfile)
+	           && sizeof(struct ndup) >= sizeof(struct nhere) ? 1 : 0];
 	(void)dummy;
 
-	np = (union node *)stalloc(psh, sizeof (struct nfile));
-	np->nfile.expfname = NULL;
+	np = (union node *)stalloc(psh, sizeof (struct ndup));
 	if (c == '>') {
 		np->nfile.fd = 1;
 		c = pgetc(psh);
@@ -1898,8 +1897,6 @@ copyparsetree(shinstance *psh, union node *src)
 				ret->nfile.fd        = src->nfile.fd;
 				ret->nfile.next      = copyparsetree(psh, src->nfile.next);
 				ret->nfile.fname     = copyparsetree(psh, src->nfile.fname);
-				/** @todo complicated, we should copy it in some contexts but no all. sigh.  */
-				ret->nfile.expfname  = stsavestr(psh, src->nfile.expfname);
 				break;
 
 			case NTOFD:

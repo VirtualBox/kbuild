@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 3447 2020-09-11 13:22:14Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 3449 2020-09-13 11:17:09Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -130,6 +130,20 @@ struct ifsregion {
 	int endoff;		/* offset of end of region */
 	int inquotes;		/* search for nul bytes only */
 };
+
+/* redir.c / bird */
+/**
+ * This is a replacement for temporary node field nfile.expfname.
+ * Uses stack allocator, created by expredir(), duplicated by
+ * subshellinitredir() and popped (but not freed) by expredircleanup().
+ */
+typedef struct redirexpfnames
+{
+    struct redirexpfnames *prev;        /**< Previous record. */
+    unsigned            depth;          /**< Nesting depth. */
+    unsigned            count;          /**< Number of expanded filenames in the array. */
+    char               *names[1];       /**< Variable size. */
+} redirexpfnames;
 
 
 /**
@@ -310,6 +324,7 @@ struct shinstance
     /* redir.c */
     struct redirtab    *redirlist;
     int                 fd0_redirected/* = 0*/;
+    redirexpfnames     *expfnames;      /**< Expanded filenames for current redirection setup. */
 
     /* show.c */
     char                tracebuf[1024];

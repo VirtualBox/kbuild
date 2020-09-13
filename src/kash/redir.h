@@ -45,6 +45,8 @@ void subshellinitredir(shinstance *, shinstance *);
 void redirect(struct shinstance *, union node *, int);
 void popredir(struct shinstance *);
 int fd0_redirected_p(struct shinstance *);
+struct redirexpfnames;
+void expredircleanup(shinstance *, unsigned);
 void clearredir(struct shinstance *);
 int copyfd(struct shinstance *, int, int);
 int movefd(struct shinstance *, int, int);
