@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3447 2020-09-11 13:22:14Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3451 2020-09-13 11:21:43Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -1113,9 +1113,11 @@ int shfile_exec_win(shfdtab *pfdtab, int prepare, shfdexecwin *info)
             strtinfo->cbReserved2 = (unsigned short)cbData;
             strtinfo->lpReserved2 = pbData;
 
+# ifndef SH_FORKED_MODE
             shmtx_leave(&pfdtab->mtx, &tmp); /* should be harmless as this isn't really necessary at all. */
             shmtx_enter(&g_sh_exec_inherit_mtx, &info->tmp);
             shmtx_enter(&pfdtab->mtx, &tmp);
+# endif
 
             *(int *)pbData = count;
 
@@ -1193,8 +1195,10 @@ int shfile_exec_win(shfdtab *pfdtab, int prepare, shfdexecwin *info)
                     &&  !(file->shflags & SHFILE_FLAGS_CLOSE_ON_EXEC))
                     shfile_set_inherit_win(file, 0);
 
+# ifndef SH_FORKED_MODE
         if (info->inherithandles)
             shmtx_leave(&g_sh_exec_inherit_mtx, &info->tmp);
+# endif
     }
 
     shmtx_leave(&pfdtab->mtx, &tmp);

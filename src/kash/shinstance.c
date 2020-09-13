@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3449 2020-09-13 11:17:09Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3451 2020-09-13 11:21:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -277,9 +277,11 @@ static void sh_destroy(shinstance *psh)
     shfile_uninit(&psh->fdtab);
     sh_free_string_vector(psh, &psh->shenviron);
 
+#ifndef SH_FORKED_MODE
     /** @todo children. */
     sh_free(psh, psh->threadarg);
     psh->threadarg = NULL;
+#endif
 
     /* alias.c */
     left = psh->aliases;

@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 3450 2020-09-13 11:17:43Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3451 2020-09-13 11:21:43Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
 
 #
-# Copyright (c) 2005-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2005-2020 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 #
 # This file is part of kBuild.
 #
