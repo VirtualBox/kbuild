@@ -527,7 +527,7 @@ expredir(shinstance *psh, union node *n)
 			expfnames->names[i] = NULL;
 			break;
 		default:
-			assert(0);
+			assert(redir->type == NHERE || redir->type == NXHERE);
 			expfnames->names[i] = NULL;
 			break;
 		}
