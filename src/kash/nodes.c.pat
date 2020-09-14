@@ -46,6 +46,7 @@
 #include "mystring.h"
 #include "shinstance.h"
 
+#ifndef KASH_SEPARATE_PARSER_ALLOCATOR
 
 size_t  funcblocksize;		/* size of structures in function */
 size_t  funcstringsize;		/* size of strings in node */
@@ -61,6 +62,7 @@ STATIC union node *copynode(union node *);
 STATIC struct nodelist *copynodelist(struct nodelist *);
 STATIC char *nodesavestr(char *);
 
+#endif /* !KASH_SEPARATE_PARSER_ALLOCATOR */
 
 
 /*
@@ -72,6 +74,13 @@ copyfunc(psh, n)
     struct shinstance *psh;
 	union node *n;
 {
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	if (n != NULL) {
+		unsigned refs = pstackretain(n->pblock);
+		TRACE2((psh, "copyfunc: %p - %u refs\n", n->pblock, refs)); K_NOREF(refs);
+	}
+	return n;
+#else
 	if (n == NULL)
 		return NULL;
 	funcblocksize = 0;
@@ -80,9 +89,10 @@ copyfunc(psh, n)
 	funcblock = ckmalloc(psh, funcblocksize + funcstringsize);
 	funcstring = (char *) funcblock + funcblocksize;
 	return copynode(n);
+#endif
 }
 
-
+#ifndef KASH_SEPARATE_PARSER_ALLOCATOR
 
 STATIC void
 calcsize(n)
@@ -153,6 +163,7 @@ nodesavestr(s)
 	return rtn;
 }
 
+#endif /* !KASH_SEPARATE_PARSER_ALLOCATOR */
 
 
 /*
@@ -164,6 +175,11 @@ freefunc(psh, n)
         shinstance *psh;
 	union node *n;
 {
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	if (n)
+		pstackrelease(psh, n->pblock, "freefunc");
+#else
 	if (n)
 		ckfree(psh, n);
+#endif
 }

@@ -72,11 +72,15 @@ done
 
 echo
 
+## @todo inconsistent indentation here.
 IFS=' '
 for struct in $struct_list; do
 	echo
 	echo
 	echo "struct $struct {"
+        echo "#ifdef KASH_SEPARATE_PARSER_ALLOCATOR"
+        echo "	struct pstack_block *pblock;"
+        echo "#endif"
 	field=0
 	while
 		eval line=\"\$field_${struct}_$field\"
@@ -93,7 +97,7 @@ for struct in $struct_list; do
 		int ) type="int ";;
 		* ) name=; shift 2; type="$*";;
 		esac
-		echo "      $type$name;"
+		echo "	$type$name;"
 	done
 	echo "};"
 done
@@ -101,9 +105,19 @@ done
 echo
 echo
 echo "union node {"
-echo "      int type;"
+echo "#ifdef KASH_SEPARATE_PARSER_ALLOCATOR"
+echo "# ifdef __GNUC__"
+echo "	__extension__"
+echo "# endif"
+echo "	struct {"
+echo "		struct pstack_block *pblock;"
+echo "		int type;"
+echo "	};"
+echo "#else"
+echo "	int type;"
+echo "#endif"
 for struct in $struct_list; do
-	echo "      struct $struct $struct;"
+	echo "	struct $struct $struct;"
 done
 echo "};"
 echo

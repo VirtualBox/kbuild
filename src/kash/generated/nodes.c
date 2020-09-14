@@ -50,6 +50,7 @@
 #include "mystring.h"
 #include "shinstance.h"
 
+#ifndef KASH_SEPARATE_PARSER_ALLOCATOR
 
 size_t  funcblocksize;		/* size of structures in function */
 size_t  funcstringsize;		/* size of strings in node */
@@ -92,6 +93,7 @@ STATIC union node *copynode(union node *);
 STATIC struct nodelist *copynodelist(struct nodelist *);
 STATIC char *nodesavestr(char *);
 
+#endif /* !KASH_SEPARATE_PARSER_ALLOCATOR */
 
 
 /*
@@ -103,6 +105,13 @@ copyfunc(psh, n)
     struct shinstance *psh;
 	union node *n;
 {
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	if (n != NULL) {
+		unsigned refs = pstackretain(n->pblock);
+		TRACE2((psh, "copyfunc: %p - %u refs\n", n->pblock, refs)); K_NOREF(refs);
+	}
+	return n;
+#else
 	if (n == NULL)
 		return NULL;
 	funcblocksize = 0;
@@ -111,9 +120,10 @@ copyfunc(psh, n)
 	funcblock = ckmalloc(psh, funcblocksize + funcstringsize);
 	funcstring = (char *) funcblock + funcblocksize;
 	return copynode(n);
+#endif
 }
 
-
+#ifndef KASH_SEPARATE_PARSER_ALLOCATOR
 
 STATIC void
 calcsize(n)
@@ -273,21 +283,21 @@ copynode(n)
       case NFROMTO:
       case NAPPEND:
 	    new->nfile.fname = copynode(n->nfile.fname);
-	    new->nfile.fd = n->nfile.fd;
 	    new->nfile.next = copynode(n->nfile.next);
+	    new->nfile.fd = n->nfile.fd;
 	    break;
       case NTOFD:
       case NFROMFD:
 	    new->ndup.vname = copynode(n->ndup.vname);
 	    new->ndup.dupfd = n->ndup.dupfd;
-	    new->ndup.fd = n->ndup.fd;
 	    new->ndup.next = copynode(n->ndup.next);
+	    new->ndup.fd = n->ndup.fd;
 	    break;
       case NHERE:
       case NXHERE:
 	    new->nhere.doc = copynode(n->nhere.doc);
-	    new->nhere.fd = n->nhere.fd;
 	    new->nhere.next = copynode(n->nhere.next);
+	    new->nhere.fd = n->nhere.fd;
 	    break;
       case NNOT:
 	    new->nnot.com = copynode(n->nnot.com);
@@ -334,6 +344,7 @@ nodesavestr(s)
 	return rtn;
 }
 
+#endif /* !KASH_SEPARATE_PARSER_ALLOCATOR */
 
 
 /*
@@ -342,9 +353,14 @@ nodesavestr(s)
 
 void
 freefunc(psh, n)
-    shinstance *psh;
+        shinstance *psh;
 	union node *n;
 {
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	if (n)
+		pstackrelease(psh, n->pblock, "freefunc");
+#else
 	if (n)
 		ckfree(psh, n);
+#endif
 }

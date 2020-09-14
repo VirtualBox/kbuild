@@ -1111,7 +1111,7 @@ static void evalcommand_setup_child(shinstance *pshchild, shinstance *pshparent,
 	/* back tick command should be ignored in this codepath
 	   (flags != EV_BACKCMD as EV_EXIT is ORed in). */
 
-	/* If cmdentry references an internal function, we must duplicates it's nodes. */
+	/* If cmdentry references an internal function, we must duplicates (reference) it's nodes. */
 	if (args->cmdentry.cmdtype == CMDFUNCTION)
 		args->cmdentry.u.func = copyparsetree(pshchild, args->cmdentry.u.func); /** @todo isn't this duplicated already? */
 }
