@@ -206,25 +206,7 @@ popstackmark(shinstance *psh, struct stackmark *mark)
 	psh->stacknleft = mark->stacknleft;
 
 #ifdef KASH_SEPARATE_PARSER_ALLOCATOR
-	assert(mark->pstacksize <= psh->pstacksize);
-	while (mark->pstacksize < psh->pstacksize) {
-		unsigned idx = --psh->pstacksize;
-		pstack_block *psk = psh->pstack[idx];
-		psh->pstack[idx] = NULL;
-		if (psh->curpstack == psk)
-		    psh->curpstack = idx > 0 ? psh->pstack[idx - 1] : NULL;
-		pstackrelease(psh, psk);
-	}
-
-# ifndef NDEBUG
-	if (psh->curpstack) {
-		unsigned i;
-		for (i = 0; i < psh->pstacksize; i++)
-			if (psh->curpstack == psh->pstack[i])
-				break;
-		assert(i < psh->pstacksize);
-	}
-# endif
+	pstackpop(psh, mark->pstacksize);
 #endif
 	INTON;
 }
@@ -381,19 +363,12 @@ ungrabstackstr(shinstance *psh, char *s, char *p)
  */
 #ifdef KASH_SEPARATE_PARSER_ALLOCATOR
 
-unsigned pstackretain(pstack_block *pst)
-{
-	unsigned refs = sh_atomic_inc(&pst->refs);
-	assert(refs > 1);
-	assert(refs < 256 /* bogus, but useful */);
-	return refs;
-}
-
-unsigned pstackrelease(shinstance *psh, pstack_block *pst)
+unsigned pstackrelease(shinstance *psh, pstack_block *pst, const char *caller)
 {
 	unsigned refs;
 	if (pst) {
 		refs = sh_atomic_dec(&pst->refs);
+		TRACE2((NULL, "pstackrelease: %p - %u refs (%s)\n", pst, refs, caller)); K_NOREF(caller);
 		if (refs == 0) {
 			shinstance * const psh = shthread_get_shell();
 			struct stack_block *top;
@@ -406,6 +381,7 @@ unsigned pstackrelease(shinstance *psh, pstack_block *pst)
 			}
 			pst->nextbyte = NULL;
 			pst->top = NULL;
+			/** @todo push into an alloc cache rather than freeing it */
 			sh_free(psh, pst);
 		}
 	} else
@@ -413,11 +389,64 @@ unsigned pstackrelease(shinstance *psh, pstack_block *pst)
 	return refs;
 }
 
-pstack_block *pstackpush(shinstance *psh)
+void pstackpop(shinstance *psh, unsigned target)
+{
+	assert(target <= psh->pstacksize);
+	while (target < psh->pstacksize) {
+		unsigned idx = --psh->pstacksize;
+		pstack_block *psk = psh->pstack[idx];
+		psh->pstack[idx] = NULL;
+		if (psh->curpstack == psk)
+		    psh->curpstack = idx > 0 ? psh->pstack[idx - 1] : NULL;
+		pstackrelease(psh, psk, "popstackmark");
+	}
+
+# ifndef NDEBUG
+	if (psh->curpstack) {
+		unsigned i;
+		for (i = 0; i < psh->pstacksize; i++)
+			if (psh->curpstack == psh->pstack[i])
+				break;
+		assert(i < psh->pstacksize);
+	}
+# endif
+}
+
+
+unsigned pstackretain(pstack_block *pst)
+{
+	unsigned refs = sh_atomic_inc(&pst->refs);
+	assert(refs > 1);
+	assert(refs < 256 /* bogus, but useful */);
+	return refs;
+}
+
+K_INLINE void pstackpush(shinstance *psh, pstack_block *pst)
+{
+	unsigned i = psh->pstacksize;
+	if (i + 1 < psh->pstackalloced) {
+		/* likely, except for the first time */
+	} else {
+		psh->pstack = (pstack_block **)ckrealloc(psh, psh->pstack, sizeof(psh->pstack[0]) * (i + 32));
+		memset(&psh->pstack[i], 0, sizeof(psh->pstack[0]) * 32);
+	}
+	psh->pstack[i] = pst;
+	psh->pstacksize = i + 1;
+}
+
+/* Does not make it current! */
+unsigned pstackretainpush(shinstance *psh, pstack_block *pst)
+{
+	unsigned refs = pstackretain(pst);
+	pstackpush(psh, pst);
+	TRACE2((psh, "pstackretainpush: %p - entry %u - %u refs\n", pst, psh->pstacksize - 1, refs));
+	return refs;
+}
+
+pstack_block *pstackallocpush(shinstance *psh)
 {
 	size_t const blocksize = offsetof(pstack_block, first.space) + MINSIZE;
 	pstack_block *pst;
-	unsigned i;
 
 	INTOFF;
 
@@ -442,20 +471,13 @@ pstack_block *pstackpush(shinstance *psh)
 	pst->first.prev        = NULL;
 
 	/*
-	 * Push it onto the stack.
+	 * Push it onto the stack and make it current.
 	 */
-	i = psh->pstacksize;
-	if (i + 1 < psh->pstackalloced) {
-		/* likely, except for the first time */
-	} else {
-		psh->pstack = (pstack_block **)ckrealloc(psh, psh->pstack, sizeof(psh->pstack[0]) * (i + 32));
-		memset(&psh->pstack[i], 0, sizeof(psh->pstack[0]) * 32);
-	}
-	psh->pstack[i] = pst;
-	psh->pstacksize = i + 1;
+	pstackpush(psh, pst);
 	psh->curpstack = pst;
 
 	INTON;
+	TRACE2((psh, "pstackallocpush: %p - entry %u\n", pst, psh->pstacksize - 1));
 	return pst;
 }
 
@@ -564,9 +586,11 @@ void *pstalloc(struct shinstance *psh, size_t nbytes)
 union node *pstallocnode(struct shinstance *psh, size_t nbytes)
 {
 #ifdef KASH_SEPARATE_PARSER_ALLOCATOR
-	pstack_block *pst = psh->curpstack;
+	pstack_block * const pst = psh->curpstack;
+	union node * const ret = (union node *)pstallocint(psh, pst, nbytes);
 	pst->nodesalloced++;
-	return (union node *)pstallocint(psh, pst, nbytes);
+	ret->pblock = pst;
+	return ret;
 #else
 	return (union node *)pstalloc(psh, nbytes);
 #endif

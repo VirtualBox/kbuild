@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3454 2020-09-14 11:58:47Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3458 2020-09-14 21:46:32Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -920,7 +920,7 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
  *
  * Safe to call more than once.
  */
-void shfile_uninit(shfdtab *pfdtab)
+void shfile_uninit(shfdtab *pfdtab, int tracefd)
 {
     if (!pfdtab)
         return;
@@ -929,22 +929,33 @@ void shfile_uninit(shfdtab *pfdtab)
     {
         unsigned left = pfdtab->size;
         struct shfile *pfd = pfdtab->tab;
+        unsigned tracefdfound = 0;
         while (left-- > 0)
         {
             if (pfd->fd != -1)
             {
+                if (pfd->fd != tracefd)
+                {
 #if K_OS == K_OS_WINDOWS
-                BOOL rc = CloseHandle((HANDLE)pfd->native);
-                assert(rc == TRUE); K_NOREF(rc);
+                    BOOL rc = CloseHandle((HANDLE)pfd->native);
+                    assert(rc == TRUE); K_NOREF(rc);
 #else
-                int rc = close((int)pfd->native);
-                assert(rc == 0); K_NOREF(rc);
+                    int rc = close((int)pfd->native);
+                    assert(rc == 0); K_NOREF(rc);
 #endif
-                pfd->fd     = -1;
-                pfd->native = -1;
+                    pfd->fd     = -1;
+                    pfd->native = -1;
+                }
+                else
+                    tracefdfound++; /* there is only the one */
             }
             pfd++;
         }
+
+        if (!tracefdfound)
+        { /* likely */ }
+        else
+            return;
 
         sh_free(NULL, pfdtab->tab);
         pfdtab->tab = NULL;

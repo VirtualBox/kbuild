@@ -32,119 +32,168 @@
 
 
 struct nbinary {
-      int type;
-      union node *ch1;
-      union node *ch2;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	union node *ch1;
+	union node *ch2;
 };
 
 
 struct ncmd {
-      int type;
-      int backgnd;
-      union node *args;
-      union node *redirect;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	int backgnd;
+	union node *args;
+	union node *redirect;
 };
 
 
 struct npipe {
-      int type;
-      int backgnd;
-      struct nodelist *cmdlist;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	int backgnd;
+	struct nodelist *cmdlist;
 };
 
 
 struct nredir {
-      int type;
-      union node *n;
-      union node *redirect;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	union node *n;
+	union node *redirect;
 };
 
 
 struct nif {
-      int type;
-      union node *test;
-      union node *ifpart;
-      union node *elsepart;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	union node *test;
+	union node *ifpart;
+	union node *elsepart;
 };
 
 
 struct nfor {
-      int type;
-      union node *args;
-      union node *body;
-      char *var;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	union node *args;
+	union node *body;
+	char *var;
 };
 
 
 struct ncase {
-      int type;
-      union node *expr;
-      union node *cases;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	union node *expr;
+	union node *cases;
 };
 
 
 struct nclist {
-      int type;
-      union node *next;
-      union node *pattern;
-      union node *body;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	union node *next;
+	union node *pattern;
+	union node *body;
 };
 
 
 struct narg {
-      int type;
-      union node *next;
-      char *text;
-      struct nodelist *backquote;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	union node *next;
+	char *text;
+	struct nodelist *backquote;
 };
 
 
 struct nfile {
-      int type;
-      int fd;
-      union node *next;
-      union node *fname;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	int fd;
+	union node *next;
+	union node *fname;
 };
 
 
 struct ndup {
-      int type;
-      int fd;
-      union node *next;
-      int dupfd;
-      union node *vname;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	int fd;
+	union node *next;
+	int dupfd;
+	union node *vname;
 };
 
 
 struct nhere {
-      int type;
-      int fd;
-      union node *next;
-      union node *doc;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	int fd;
+	union node *next;
+	union node *doc;
 };
 
 
 struct nnot {
-      int type;
-      union node *com;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	struct pstack_block *pblock;
+#endif
+	int type;
+	union node *com;
 };
 
 
 union node {
-      int type;
-      struct nbinary nbinary;
-      struct ncmd ncmd;
-      struct npipe npipe;
-      struct nredir nredir;
-      struct nif nif;
-      struct nfor nfor;
-      struct ncase ncase;
-      struct nclist nclist;
-      struct narg narg;
-      struct nfile nfile;
-      struct ndup ndup;
-      struct nhere nhere;
-      struct nnot nnot;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+# ifdef __GNUC__
+	__extension__
+# endif
+	struct {
+		struct pstack_block *pblock;
+		int type;
+	};
+#else
+	int type;
+#endif
+	struct nbinary nbinary;
+	struct ncmd ncmd;
+	struct npipe npipe;
+	struct nredir nredir;
+	struct nif nif;
+	struct nfor nfor;
+	struct ncase ncase;
+	struct nclist nclist;
+	struct narg narg;
+	struct nfile nfile;
+	struct ndup ndup;
+	struct nhere nhere;
+	struct nnot nnot;
 };
 
 

@@ -135,7 +135,7 @@ parsecmd(shinstance *psh, int interact)
 
 	TRACE2((psh, "parsecmd(%d)\n", interact));
 #ifdef KASH_SEPARATE_PARSER_ALLOCATOR
-	pstackpush(psh);
+	pstackallocpush(psh);
 #endif
 	psh->tokpushback = 0;
 	psh->doprompt = interact;
@@ -1787,6 +1787,8 @@ getprompt(shinstance *psh, void *unused)
 	}
 }
 
+#ifndef KASH_SEPARATE_PARSER_ALLOCATOR
+
 static union node *copyparsetreeint(shinstance *psh, union node *src);
 
 /*
@@ -1946,11 +1948,16 @@ copyparsetreeint(shinstance *psh, union node *src)
 	return ret;
 }
 
+#endif
+
 union node *copyparsetree(shinstance *psh, union node *src)
 {
 #ifdef KASH_SEPARATE_PARSER_ALLOCATOR
-	pstackpush(psh);
-#endif
+	K_NOREF(psh);
+	pstackretainpush(psh, src->pblock);
+	return src;
+#else
 	return copyparsetreeint(psh, src);
+#endif
 }
 

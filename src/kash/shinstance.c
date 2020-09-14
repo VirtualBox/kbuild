@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3451 2020-09-13 11:21:43Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3458 2020-09-14 21:46:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -43,6 +43,7 @@
 #include "alias.h"
 #include "error.h"
 #include "memalloc.h"
+#include "nodes.h"
 #include "redir.h"
 #include "shell.h"
 #include "trap.h"
@@ -273,8 +274,10 @@ static void sh_destroy(shinstance *psh)
 {
     unsigned left, i;
 
+    INTOFF;
+
     sh_int_unlink(psh);
-    shfile_uninit(&psh->fdtab);
+    shfile_uninit(&psh->fdtab, psh->tracefd);
     sh_free_string_vector(psh, &psh->shenviron);
 
 #ifndef SH_FORKED_MODE
@@ -327,14 +330,31 @@ static void sh_destroy(shinstance *psh)
     struct ifsregion   *ifslastp;       /**< last struct in list */
     struct arglist      exparg;         /**< holds expanded arg list */
     char               *expdir;         /**< Used by expandmeta. */
+#endif
 
-    /* exec.h */
-    const char         *pathopt;        /**< set by padvance */
+    /* exec.h/exec.c */
+    psh->pathopt = NULL;
+    for (i = 0; i < CMDTABLESIZE; i++)
+    {
+        struct tblentry *cur = psh->cmdtable[i];
+        if (cur)
+        {
+            do
+            {
+                struct tblentry *next = cur->next;
+                if (cur->cmdtype == CMDFUNCTION)
+                {
+                    freefunc(psh, cur->param.func);
+                    cur->param.func = NULL;
+                }
+                sh_free(psh, cur);
+                cur = next;
+            } while (cur);
+            psh->cmdtable[i] = NULL;
+        }
+    }
 
-    /* exec.c */
-    struct tblentry    *cmdtable[CMDTABLESIZE];
-    int                 builtinloc/* = -1*/;    /**< index in path of %builtin, or -1 */
-
+#if 0
     /* input.h */
     int                 plinno/* = 1 */;/**< input line number */
     int                 parsenleft;     /**< number of characters left in input buffer */
@@ -381,11 +401,6 @@ static void sh_destroy(shinstance *psh)
     int                 stacknleft/* = MINSIZE*/;
     int                 sstrnleft;
     int                 herefd/* = -1 */;
-
-    /* memalloc.c */
-    struct stack_block  stackbase;
-    struct stack_block *stackp/* = &stackbase*/;
-    struct stackmark   *markp;
 
     /* myhistedit.h */
     int                 displayhist;
@@ -490,7 +505,35 @@ static void sh_destroy(shinstance *psh)
     struct t_op const  *t_wp_op;
 #endif
 
-/** @todo finish this...   */
+    /*
+     * memalloc.c: Make sure we've gotten rid of all the stack memory.
+     */
+    if (psh->stackp != &psh->stackbase && psh->stackp)
+    {
+        struct stack_block *stackp = psh->stackp;
+        do
+        {
+            psh->stackp = stackp->prev;
+            sh_free(psh, stackp);
+        } while ((stackp = psh->stackp) != &psh->stackbase && stackp);
+    }
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR //bp msvcr100!_wassert
+    if (psh->pstack)
+    {
+        if (psh->pstacksize > 0)
+            pstackpop(psh, 0);
+        sh_free(psh, psh->pstack);
+        psh->pstack = NULL;
+    }
+#endif
+    psh->markp = NULL;
+
+
+    /*
+     * Finally get rid of tracefd and then free the shell:
+     */
+    shfile_uninit(&psh->fdtab, -1);
+
     memset(psh, 0, sizeof(*psh));
     sh_free(NULL, psh);
 }
@@ -672,6 +715,16 @@ shinstance *sh_create_root_shell(char **argv, char **envp)
 static void sh_inherit_from_parent(shinstance *psh, shinstance *inherit)
 {
     /*
+     * Make sure we can use TRACE/TRACE2 for logging here.
+     */
+#ifdef DEBUG
+    /* show.c */
+    psh->tracefd = inherit->tracefd;
+    /* options.c */
+    debug(psh) = debug(inherit);
+#endif
+
+    /*
      * Do the rest of the inheriting.
      */
     psh->parent = inherit;
@@ -742,9 +795,6 @@ static void sh_inherit_from_parent(shinstance *psh, shinstance *inherit)
 
     /* redir.c */
     subshellinitredir(psh, inherit);
-
-    /* show.c */
-    psh->tracefd = inherit->tracefd;
 
     /* trap.h / trap.c */ /** @todo we don't carry pendingsigs to the subshell, right? */
     subshellinittrap(psh, inherit);
@@ -1662,7 +1712,7 @@ SH_NORETURN_1 void sh__exit(shinstance *psh, int rc)
     if (g_num_shells > 1)
     {
         TRACE2((psh, "sh__exit: %u shells around, must wait...\n", g_num_shells));
-        shfile_uninit(&psh->fdtab);
+        shfile_uninit(&psh->fdtab, psh->tracefd);
         sh_int_unlink(psh);
         /** @todo    */
     }

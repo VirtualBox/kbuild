@@ -89,8 +89,10 @@ void ungrabstackstr(struct shinstance *, char *, char *);
 #ifdef KASH_SEPARATE_PARSER_ALLOCATOR
 struct pstack_block;
 unsigned pstackretain(struct pstack_block *);
-unsigned pstackrelease(struct shinstance *, struct pstack_block *);
-struct pstack_block *pstackpush(struct shinstance *);
+void pstackpop(struct shinstance *, unsigned);
+unsigned pstackrelease(struct shinstance *, struct pstack_block *, const char *);
+unsigned pstackretainpush(struct shinstance *, struct pstack_block *);
+struct pstack_block *pstackallocpush(struct shinstance *);
 #endif
 void *pstalloc(struct shinstance *, size_t);
 union node;
