@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3451 2020-09-13 11:21:43Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3457 2020-09-14 17:34:28Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -35,7 +35,7 @@ PROGRAMS += kash
 kash_TEMPLATE = BIN-THREADED
 kash_NAME = kmk_ash
 kash_ASTOOL = YASM
-kash_DEFS = lint SHELL SMALL
+kash_DEFS = lint SHELL SMALL #KASH_SEPARATE_PARSER_ALLOCATOR
 if "$(KBUILD_TARGET)" != "win" || defined(KASH_WIN_FORKED_MODE)
 kash_DEFS += SH_FORKED_MODE
 endif

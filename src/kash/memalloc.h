@@ -38,6 +38,9 @@ struct stackmark {
 	struct stack_block *stackp;
 	char *stacknxt;
 	int stacknleft;
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+        unsigned pstacksize;
+#endif
 	struct stackmark *marknext;
 };
 
@@ -83,23 +86,59 @@ void ungrabstackstr(struct shinstance *, char *, char *);
  * the exclusive use of the parser, so that parsetrees can be shared with
  * subshells by simple reference counting.
  * @{ */
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+struct pstack_block;
+unsigned pstackretain(struct pstack_block *);
+unsigned pstackrelease(struct shinstance *, struct pstack_block *);
+struct pstack_block *pstackpush(struct shinstance *);
+#endif
 void *pstalloc(struct shinstance *, size_t);
 union node;
 union node *pstallocnode(struct shinstance *, size_t);
 struct nodelist;
 struct nodelist *pstalloclist(struct shinstance *);
 char *pstsavestr(struct shinstance *, const char *); /* was: stsavestr */
-#define PSTARTSTACKSTR(psh, p)      do { (p) = (psh)->stacknxt; (psh)->sstrnleft = (psh)->stacknleft; } while (0)
 char *pstmakestrspace(struct shinstance *, size_t, char *); /* was: makestrspace / growstackstr */
-#define PSTCHECKSTRSPACE(psh, n, p) do { if ((psh)->sstrnleft >= (n)) {/*likely*/} \
-                                         else { (p) = pstmakestrspace(psh, (n), (p)); assert((psh)->sstrnleft >= (n)); } } while (0)
-#define PSTUPUTC(psh, c, p)         do { assert((psh)->sstrnleft > 0); --(psh)->sstrnleft; *(p)++ = (c); } while (0)
 char *pstputcgrow(struct shinstance *, char *, char);
-#define PSTPUTC(psh, c, p)          do { if (--(psh)->sstrnleft >= 0) *(p)++ = (c); else (p) = pstputcgrow(psh, (p), (c)); } while (0)
-#define PSTPUTSTRN(psh, str, n, p)  do { if ((psh)->sstrnleft >= (n)) {/*likely?*/} else (p) = pstmakestrspace(psh, (n), (p)); \
-                                         memcpy((p), (str), (n)); (psh)->sstrnleft -= (n); (p) += (n); } while (0)
-#define PSTBLOCK(psh)               ((psh)->stacknxt)
 char *pstgrabstr(struct shinstance *, char *); /* was: grabstackstr / grabstackblock*/
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+# define PSTBLOCK(psh)               ((psh)->curpstack->nextbyte)
+# define PSTARTSTACKSTR(psh, p) do { \
+        pstack_block *pstmacro = (psh)->curpstack; \
+        pstmacro->strleft = pstmacro->avail; \
+        (p) = pstmacro->nextbyte; \
+    } while (0)
+# define PSTCHECKSTRSPACE(psh, n, p) do { \
+        if ((psh)->curpstack->strleft >= (n)) {/*likely*/} \
+        else { (p) = pstmakestrspace(psh, (n), (p)); assert((psh)->curpstack->strleft >= (n)); } \
+    } while (0)
+# define PSTUPUTC(psh, c, p) do { \
+        assert((psh)->curpstack->strleft > 0); \
+        (psh)->curpstack->strleft -= 1; \
+        *(p)++ = (c); \
+    } while (0)
+# define PSTPUTC(psh, c, p) do { \
+        if ((ssize_t)--(psh)->curpstack->strleft >= 0) *(p)++ = (c); \
+        else (p) = pstputcgrow(psh, (p), (c)); \
+    } while (0)
+# define PSTPUTSTRN(psh, str, n, p) do { \
+        pstack_block *pstmacro = (psh)->curpstack; \
+        if (pstmacro->strleft >= (n)) {/*likely?*/} \
+        else (p) = pstmakestrspace(psh, (n), (p)); \
+        pstmacro->strleft -= (n); \
+        memcpy((p), (str), (n)); \
+        (p) += (n); \
+    } while (0)
+#else
+# define PSTBLOCK(psh)               ((psh)->stacknxt)
+# define PSTARTSTACKSTR(psh, p)      do { (p) = (psh)->stacknxt; (psh)->sstrnleft = (psh)->stacknleft; } while (0)
+# define PSTCHECKSTRSPACE(psh, n, p) do { if ((psh)->sstrnleft >= (n)) {/*likely*/} \
+                                         else { (p) = pstmakestrspace(psh, (n), (p)); assert((psh)->sstrnleft >= (n)); } } while (0)
+# define PSTUPUTC(psh, c, p)         do { assert((psh)->sstrnleft > 0); --(psh)->sstrnleft; *(p)++ = (c); } while (0)
+# define PSTPUTC(psh, c, p)          do { if (--(psh)->sstrnleft >= 0) *(p)++ = (c); else (p) = pstputcgrow(psh, (p), (c)); } while (0)
+# define PSTPUTSTRN(psh, str, n, p)  do { if ((psh)->sstrnleft >= (n)) {/*likely?*/} else (p) = pstmakestrspace(psh, (n), (p)); \
+                                         memcpy((p), (str), (n)); (psh)->sstrnleft -= (n); (p) += (n); } while (0)
+#endif
 /** @} */
 
 

@@ -132,8 +132,11 @@ parsecmd(shinstance *psh, int interact)
 {
 	union node *ret;
 	int t;
-	TRACE2((psh, "parsecmd(%d)\n", interact));
 
+	TRACE2((psh, "parsecmd(%d)\n", interact));
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	pstackpush(psh);
+#endif
 	psh->tokpushback = 0;
 	psh->doprompt = interact;
 	if (psh->doprompt)
@@ -1784,8 +1787,10 @@ getprompt(shinstance *psh, void *unused)
 	}
 }
 
+static union node *copyparsetreeint(shinstance *psh, union node *src);
+
 /*
- * Helper to copyparsetree.
+ * Helper to copyparsetreeint.
  */
 static struct nodelist *
 copynodelist(shinstance *psh, struct nodelist *src)
@@ -1798,7 +1803,7 @@ copynodelist(shinstance *psh, struct nodelist *src)
 			dst->next = NULL;
 			*ppnext = dst;
 			ppnext = &dst->next;
-			dst->n = copyparsetree(psh, src->n);
+			dst->n = copyparsetreeint(psh, src->n);
 			src = src->next;
 		}
 	}
@@ -1810,8 +1815,8 @@ copynodelist(shinstance *psh, struct nodelist *src)
  *
  * Note! This could probably be generated from nodelist.
  */
-union node *
-copyparsetree(shinstance *psh, union node *src)
+static union node *
+copyparsetreeint(shinstance *psh, union node *src)
 {
 	/** @todo Try avoid recursion for one of the sub-nodes, esp. when there
 	 *  	  is a list like 'next' one. */
@@ -1826,16 +1831,16 @@ copyparsetree(shinstance *psh, union node *src)
 			case NUNTIL:
 				ret = pstallocnode(psh, sizeof(src->nbinary));
 				ret->nbinary.type = type;
-				ret->nbinary.ch1  = copyparsetree(psh, src->nbinary.ch1);
-				ret->nbinary.ch2  = copyparsetree(psh, src->nbinary.ch2);
+				ret->nbinary.ch1  = copyparsetreeint(psh, src->nbinary.ch1);
+				ret->nbinary.ch2  = copyparsetreeint(psh, src->nbinary.ch2);
 				break;
 
 			case NCMD:
 				ret = pstallocnode(psh, sizeof(src->ncmd));
 				ret->ncmd.type     = NCMD;
 				ret->ncmd.backgnd  = src->ncmd.backgnd;
-				ret->ncmd.args     = copyparsetree(psh, src->ncmd.args);
-				ret->ncmd.redirect = copyparsetree(psh, src->ncmd.redirect);
+				ret->ncmd.args     = copyparsetreeint(psh, src->ncmd.args);
+				ret->ncmd.redirect = copyparsetreeint(psh, src->ncmd.redirect);
 				break;
 
 			case NPIPE:
@@ -1850,46 +1855,46 @@ copyparsetree(shinstance *psh, union node *src)
 			case NSUBSHELL:
 				ret = pstallocnode(psh, sizeof(src->nredir));
 				ret->nredir.type     = type;
-				ret->nredir.n        = copyparsetree(psh, src->nredir.n);
-				ret->nredir.redirect = copyparsetree(psh, src->nredir.redirect);
+				ret->nredir.n        = copyparsetreeint(psh, src->nredir.n);
+				ret->nredir.redirect = copyparsetreeint(psh, src->nredir.redirect);
 				break;
 
 			case NIF:
 				ret = pstallocnode(psh, sizeof(src->nif));
 				ret->nif.type        = NIF;
-				ret->nif.test        = copyparsetree(psh, src->nif.test);
-				ret->nif.ifpart      = copyparsetree(psh, src->nif.ifpart);
-				ret->nif.elsepart    = copyparsetree(psh, src->nif.elsepart);
+				ret->nif.test        = copyparsetreeint(psh, src->nif.test);
+				ret->nif.ifpart      = copyparsetreeint(psh, src->nif.ifpart);
+				ret->nif.elsepart    = copyparsetreeint(psh, src->nif.elsepart);
 				break;
 
 			case NFOR:
 				ret = pstallocnode(psh, sizeof(src->nfor));
 				ret->nfor.type       = NFOR;
-				ret->nfor.args       = copyparsetree(psh, src->nfor.args);
-				ret->nfor.body       = copyparsetree(psh, src->nfor.body);
+				ret->nfor.args       = copyparsetreeint(psh, src->nfor.args);
+				ret->nfor.body       = copyparsetreeint(psh, src->nfor.body);
 				ret->nfor.var        = pstsavestr(psh, src->nfor.var);
 				break;
 
 			case NCASE:
 				ret = pstallocnode(psh, sizeof(src->ncase));
 				ret->ncase.type      = NCASE;
-				ret->ncase.expr      = copyparsetree(psh, src->ncase.expr);
-				ret->ncase.cases     = copyparsetree(psh, src->ncase.cases);
+				ret->ncase.expr      = copyparsetreeint(psh, src->ncase.expr);
+				ret->ncase.cases     = copyparsetreeint(psh, src->ncase.cases);
 				break;
 
 			case NCLIST:
 				ret = pstallocnode(psh, sizeof(src->nclist));
 				ret->nclist.type     = NCLIST;
-				ret->nclist.next     = copyparsetree(psh, src->nclist.next);
-				ret->nclist.pattern  = copyparsetree(psh, src->nclist.pattern);
-				ret->nclist.body     = copyparsetree(psh, src->nclist.body);
+				ret->nclist.next     = copyparsetreeint(psh, src->nclist.next);
+				ret->nclist.pattern  = copyparsetreeint(psh, src->nclist.pattern);
+				ret->nclist.body     = copyparsetreeint(psh, src->nclist.body);
 				break;
 
 			case NDEFUN:
 			case NARG:
 				ret = pstallocnode(psh, sizeof(src->narg));
 				ret->narg.type       = type;
-				ret->narg.next       = copyparsetree(psh, src->narg.next);
+				ret->narg.next       = copyparsetreeint(psh, src->narg.next);
 				ret->narg.text       = pstsavestr(psh, src->narg.text);
 				ret->narg.backquote  = copynodelist(psh, src->narg.backquote);
 				break;
@@ -1902,8 +1907,8 @@ copyparsetree(shinstance *psh, union node *src)
 				ret = pstallocnode(psh, sizeof(src->nfile));
 				ret->nfile.type      = type;
 				ret->nfile.fd        = src->nfile.fd;
-				ret->nfile.next      = copyparsetree(psh, src->nfile.next);
-				ret->nfile.fname     = copyparsetree(psh, src->nfile.fname);
+				ret->nfile.next      = copyparsetreeint(psh, src->nfile.next);
+				ret->nfile.fname     = copyparsetreeint(psh, src->nfile.fname);
 				break;
 
 			case NTOFD:
@@ -1911,9 +1916,9 @@ copyparsetree(shinstance *psh, union node *src)
 				ret = pstallocnode(psh, sizeof(src->ndup));
 				ret->ndup.type       = type;
 				ret->ndup.fd         = src->ndup.fd;
-				ret->ndup.next       = copyparsetree(psh, src->ndup.next);
+				ret->ndup.next       = copyparsetreeint(psh, src->ndup.next);
 				ret->ndup.dupfd      = src->ndup.dupfd;
-				ret->ndup.vname      = copyparsetree(psh, src->ndup.vname);
+				ret->ndup.vname      = copyparsetreeint(psh, src->ndup.vname);
 				break;
 
 			case NHERE:
@@ -1921,14 +1926,14 @@ copyparsetree(shinstance *psh, union node *src)
 				ret = pstallocnode(psh, sizeof(src->nhere));
 				ret->nhere.type      = type;
 				ret->nhere.fd        = src->nhere.fd;
-				ret->nhere.next      = copyparsetree(psh, src->nhere.next);
-				ret->nhere.doc       = copyparsetree(psh, src->nhere.doc);
+				ret->nhere.next      = copyparsetreeint(psh, src->nhere.next);
+				ret->nhere.doc       = copyparsetreeint(psh, src->nhere.doc);
 				break;
 
 			case NNOT:
 				ret = pstallocnode(psh, sizeof(src->nnot));
 				ret->nnot.type      = NNOT;
-				ret->nnot.com       = copyparsetree(psh, src->nnot.com);
+				ret->nnot.com       = copyparsetreeint(psh, src->nnot.com);
 				break;
 
 			default:
@@ -1939,5 +1944,13 @@ copyparsetree(shinstance *psh, union node *src)
 		ret = NULL;
 	}
 	return ret;
+}
+
+union node *copyparsetree(shinstance *psh, union node *src)
+{
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	pstackpush(psh);
+#endif
+	return copyparsetreeint(psh, src);
 }
 

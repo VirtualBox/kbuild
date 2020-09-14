@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 3451 2020-09-13 11:21:43Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 3457 2020-09-14 17:34:28Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -83,6 +83,41 @@ struct stack_block {
 	struct stack_block *prev;
 	char space[MINSIZE];
 };
+
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+/** Parser stack allocator block.
+ * These are reference counted so they can be shared between the parent and
+ * child shells.  They are also using as an alternative to copying function
+ * definitions, here the final goal is to automatically emit separate
+ * pstack_blocks for function while parsing to make it more flexible. */
+typedef struct pstack_block {
+    /** Pointer to the next unallocated byte (= stacknxt). */
+    char               *nextbyte;
+    /** Number of bytes available in the current stack block (= stacknleft). */
+    size_t              avail;
+    /* Number of chars left for string data (PSTPUTC, PSTUPUTC, et al) (= sstrnleft). */
+    size_t              strleft;
+    /** Top of the allocation stack (nextbyte points within this). */
+    struct stack_block *top;
+    /** Size of the top stack element (user space only). */
+    size_t              topsize;
+    /** @name statistics
+     * @{ */
+    size_t              allocations;
+    size_t              bytesalloced;
+    size_t              nodesalloced;
+    size_t              entriesalloced;
+    size_t              strbytesalloced;
+    size_t              blocks;
+    size_t              fragmentation;
+    /** @} */
+    /** Reference counter. */
+    unsigned volatile   refs;
+    unsigned            padding;
+    /** The first stack block. */
+    struct stack_block  first;
+} pstack_block;
+#endif
 
 /* input.c */
 struct strpush {
@@ -274,6 +309,13 @@ struct shinstance
     struct stack_block  stackbase;
     struct stack_block *stackp/* = &stackbase*/;
     struct stackmark   *markp;
+
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+    pstack_block       *curpstack;      /**< The pstack entry we're currently allocating from (NULL when not in parse.c). */
+    pstack_block      **pstack;         /**< Stack of parsed stuff. */
+    unsigned            pstacksize;     /**< Number of entries in pstack. */
+    unsigned            pstackalloced;  /**< The allocated size of pstack. */
+#endif
 
     /* myhistedit.h */
     int                 displayhist;
