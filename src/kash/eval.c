@@ -817,7 +817,7 @@ parse_command_args(shinstance *psh, int argc, char **argv, int *use_syspath)
 
 /* Both child and parent exits thru here. */
 STATIC void
-evalcommand_out(shinstance *psh, int flags, char *lastarg, struct stackmark *smarkp)
+evalcommand_out(shinstance *psh, int flags, char *lastarg, unsigned expfnamedepth, struct stackmark *smarkp)
 {
 	if (lastarg)
 		/* dsl: I think this is intended to be used to support
@@ -825,6 +825,7 @@ evalcommand_out(shinstance *psh, int flags, char *lastarg, struct stackmark *sma
 		 * However I implemented that within libedit itself.
 		 */
 		setvar(psh, "_", lastarg, 0);
+	expredircleanup(psh, expfnamedepth);
 	popstackmark(psh, smarkp);
 
 	if (eflag(psh) && psh->exitstatus && !(flags & EV_TESTED))
@@ -834,7 +835,7 @@ evalcommand_out(shinstance *psh, int flags, char *lastarg, struct stackmark *sma
 
 /* Called if we forkshell(). */
 STATIC void
-evalcommand_parent(shinstance *psh, int flags, char *lastarg, struct stackmark *smarkp,
+evalcommand_parent(shinstance *psh, int flags, char *lastarg, unsigned expfnamedepth, struct stackmark *smarkp,
 		   int mode, struct job *jp, int pip[2], struct backcmd *backcmd)
 {
 	if (mode == FORK_FG) {	/* argument to fork */
@@ -846,12 +847,13 @@ evalcommand_parent(shinstance *psh, int flags, char *lastarg, struct stackmark *
 	}
 	FORCEINTON;
 
-	evalcommand_out(psh, flags, lastarg, smarkp);
+	evalcommand_out(psh, flags, lastarg, expfnamedepth, smarkp);
 }
 
 struct evalcommanddoit
 {
 	struct stackmark smark;
+	unsigned expfnamedepth;
 
 	struct backcmd *backcmd;
 	int flags;
@@ -1043,7 +1045,7 @@ evalcommand_doit(shinstance *psh, union node *cmd, struct evalcommanddoit *args)
 		}
 	}
 
-	evalcommand_out(psh, args->flags, args->lastarg, &args->smark);
+	evalcommand_out(psh, args->flags, args->lastarg, args->expfnamedepth, &args->smark);
 }
 
 /* child callback. */
@@ -1130,7 +1132,6 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	struct arglist arglist;
 	struct strlist *sp;
 	const char *path = pathval(psh);
-	unsigned expfnamedepth;
 
 	/* First expand the arguments. */
 	TRACE((psh, "evalcommand(0x%lx, %d) called\n", (long)cmd, flags));
@@ -1154,7 +1155,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 		expandarg(psh, argp, &arglist, EXP_FULL | EXP_TILDE);
 	*arglist.lastp = NULL;
 
-	expfnamedepth = expredir(psh, cmd->ncmd.redirect);
+	args.expfnamedepth = expredir(psh, cmd->ncmd.redirect);
 
 	/* Now do the initial 'name=value' ones we skipped above */
 	args.varlist.lastp = &args.varlist.list;
@@ -1220,7 +1221,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 			if (args.cmdentry.cmdtype == CMDUNKNOWN) {
 				psh->exitstatus = 127;
 				flushout(&psh->errout);
-				evalcommand_out(psh, flags, args.lastarg, &args.smark);
+				evalcommand_out(psh, flags, args.lastarg, args.expfnamedepth, &args.smark);
 				return;
 			}
 
@@ -1273,13 +1274,12 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 #ifdef KASH_USE_FORKSHELL2
 		forkshell2(psh, jp, cmd, mode, evalcommand_child, cmd,
 		           &args, sizeof(args), evalcommand_setup_child);
-		evalcommand_parent(psh, flags, args.lastarg, &args.smark, mode, jp,
-		                   args.pip, backcmd);
+		evalcommand_parent(psh, flags, args.lastarg, args.expfnamedepth,
+				   &args.smark, mode, jp, args.pip, backcmd);
 #else
 		if (forkshell(psh, jp, cmd, mode) != 0) {
-			evalcommand_parent(psh, flags, args.lastarg, &args.smark, mode, jp,
-							   args.pip, backcmd);
-			expredircleanup(psh, expfnamedepth);
+			evalcommand_parent(psh, flags, args.lastarg, args.expfnamedepth,
+			                   &args.smark, mode, jp, args.pip, backcmd);
 			return;	/* at end of routine */
 		}
 		evalcommand_child(psh, cmd, &args);
@@ -1290,7 +1290,6 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 		args.path = path;
 		evalcommand_doit(psh, cmd, &args);
 	}
-	expredircleanup(psh, expfnamedepth);
 }
 
 
