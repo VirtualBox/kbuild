@@ -1,4 +1,4 @@
-/* $Id: shthread.h 3448 2020-09-13 11:15:59Z knut.osmundsen@oracle.com $ */
+/* $Id: shthread.h 3457 2020-09-14 17:34:28Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Shell thread methods.
@@ -63,7 +63,7 @@ K_INLINE unsigned sh_atomic_inc(KU32 volatile *valuep)
 #ifdef _MSC_VER
     return _InterlockedIncrement((long *)valuep);
 #else
-    return __sync_fetch_and_add(valuep, 1);
+    return __sync_add_and_fetch(valuep, 1);
 #endif
 }
 
@@ -72,7 +72,7 @@ K_INLINE unsigned sh_atomic_dec(unsigned volatile *valuep)
 #ifdef _MSC_VER
     return _InterlockedDecrement((long *)valuep);
 #else
-    return __sync_fetch_and_sub(valuep, 1);
+    return __sync_sub_and_fetch(valuep, 1);
 #endif
 }
 
