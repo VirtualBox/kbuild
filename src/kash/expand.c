@@ -44,6 +44,7 @@ __RCSID("$NetBSD: expand.c,v 1.71 2005/06/01 15:41:19 lukem Exp $");
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 /*
  * Routines to expand arguments to commands.  We have to deal with

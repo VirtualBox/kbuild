@@ -41,6 +41,7 @@ __RCSID("$NetBSD: memalloc.c,v 1.28 2003/08/07 09:05:34 agc Exp $");
 #endif
 
 #include <stdlib.h>
+#include <assert.h>
 
 #include "shell.h"
 #include "output.h"
@@ -49,6 +50,7 @@ __RCSID("$NetBSD: memalloc.c,v 1.28 2003/08/07 09:05:34 agc Exp $");
 #include "machdep.h"
 #include "mystring.h"
 #include "shinstance.h"
+#include "nodes.h"
 
 /*
  * Like malloc, but returns an error when out of space.
@@ -309,11 +311,110 @@ makestrspace(shinstance *psh)
 	return stackblock(psh) + len;
 }
 
+
+/*
+ * Got better control having a dedicated function for this.
+ *
+ * Was: #define grabstackstr(psh, p)   stalloc((psh), stackblocksize(psh) - (psh)->sstrnleft)
+ */
+char *
+grabstackstr(shinstance *psh, char *end)
+{
+	char * const pstart = stackblock(psh);
+	size_t nbytes = (size_t)(end - pstart);
+
+	assert((uintptr_t)end >= (uintptr_t)pstart);
+	/*assert(end[-1] == '\0'); - not if it's followed by ungrabstrackstr(), sigh. */
+	assert(SHELL_ALIGN((uintptr_t)pstart) == (uintptr_t)pstart);
+	assert(stackblocksize(psh) - psh->sstrnleft >= nbytes);
+
+	nbytes = SHELL_ALIGN(nbytes);
+	psh->stacknxt += nbytes;
+	psh->stacknleft -= (int)nbytes;
+	assert(psh->stacknleft >= 0);
+
+	return pstart;
+}
+
 void
 ungrabstackstr(shinstance *psh, char *s, char *p)
 {
+	assert((size_t)(psh->stacknxt - p) <= SHELL_SIZE);
+	assert((uintptr_t)s >= (uintptr_t)&psh->stackp->space[0]);
+	assert((uintptr_t)p >= (uintptr_t)s);
+
 	psh->stacknleft += (int)(psh->stacknxt - s);
 	psh->stacknxt = s;
 	psh->sstrnleft = (int)(psh->stacknleft - (p - s));
 
 }
+
+
+/*
+ * Parser stack allocator.
+ */
+void *pstalloc(struct shinstance *psh, size_t nbytes)
+{
+	return stalloc(psh, nbytes);
+}
+
+union node *pstallocnode(struct shinstance *psh, size_t nbytes)
+{
+	return (union node *)pstalloc(psh, nbytes);
+}
+
+struct nodelist *pstalloclist(struct shinstance *psh)
+{
+	return (struct nodelist *)pstalloc(psh, sizeof(struct nodelist));
+}
+
+char *pstsavestr(struct shinstance *psh, const char *str)
+{
+	if (str) {
+		size_t nbytes = strlen(str) + 1;
+		return (char *)memcpy(pstalloc(psh, nbytes), str, nbytes);
+	}
+	return NULL;
+}
+
+char *pstmakestrspace(struct shinstance *psh, size_t minbytes, char *end)
+{
+	size_t const len = end - stackblock(psh);
+	assert(stackblocksize(psh) - psh->sstrnleft == len);
+TRACE2((psh, "pstmakestrspace: len=%u minbytes=%u (=> %u)\n", len, minbytes, len + minbytes));
+	minbytes += len;
+	while (stackblocksize(psh) < minbytes)
+		growstackblock(psh);
+	psh->sstrnleft = (int)(stackblocksize(psh) - len);
+	return (char *)stackblock(psh) + len;
+}
+
+/* PSTPUTC helper */
+char *pstputcgrow(shinstance *psh, char *end, char c)
+{
+	psh->sstrnleft++; /* PSTPUTC() already incremented it. */
+	end = pstmakestrspace(psh, 1, end);
+	assert(psh->sstrnleft > 0);
+	psh->sstrnleft--;
+	*end++ = c;
+	return end;
+}
+
+
+char *pstgrabstr(struct shinstance *psh, char *end)
+{
+	char * const pstart = stackblock(psh);
+	size_t nbytes = (size_t)(end - pstart);
+
+	assert((uintptr_t)end > (uintptr_t)pstart);
+	assert(end[-1] == '\0');
+	assert(SHELL_ALIGN((uintptr_t)pstart) == (uintptr_t)pstart);
+	assert(stackblocksize(psh) - psh->sstrnleft >= nbytes);
+
+	nbytes = SHELL_ALIGN(nbytes); /** @todo don't align strings, align the other allocations. */
+	psh->stacknxt += nbytes;
+	psh->stacknleft -= (int)nbytes;
+
+	return pstart;
+}
+
