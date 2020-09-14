@@ -50,6 +50,9 @@ extern int herefd;*/
 pointer ckmalloc(struct shinstance *, size_t);
 pointer ckrealloc(struct shinstance *, pointer, size_t);
 char *savestr(struct shinstance *, const char *);
+#define ckfree(psh, p)  sh_free(psh, (pointer)(p))
+
+#ifndef SH_MEMALLOC_NO_STACK
 pointer stalloc(struct shinstance *, size_t);
 char *stsavestr(struct shinstance *, const char *);
 void stunalloc(struct shinstance *, pointer);
@@ -59,20 +62,44 @@ void growstackblock(struct shinstance *);
 void grabstackblock(struct shinstance *, int);
 char *growstackstr(struct shinstance *);
 char *makestrspace(struct shinstance *);
+char *grabstackstr(struct shinstance *, char *); /* was #define using stalloc */
 void ungrabstackstr(struct shinstance *, char *, char *);
-
-
 
 #define stackblock(psh)             (psh)->stacknxt
 #define stackblocksize(psh)         (psh)->stacknleft
 #define STARTSTACKSTR(psh, p)       p = stackblock(psh), (psh)->sstrnleft = stackblocksize(psh)
 #define STPUTC(psh, c, p)           (--(psh)->sstrnleft >= 0? (*p++ = (c)) : (p = growstackstr(psh), *p++ = (c)))
 #define CHECKSTRSPACE(psh, n, p)    { if ((psh)->sstrnleft < n) p = makestrspace(psh); }
-#define USTPUTC(psh, c, p)          (--(psh)->sstrnleft, *p++ = (c))
+#define USTPUTC(psh, c, p)          do { assert((psh)->sstrnleft > 0); \
+                                         assert(p - (char *)stackblock(psh) == stackblocksize(psh) - (psh)->sstrnleft); \
+                                         --(psh)->sstrnleft; *p++ = (c); } while (0)
 #define STACKSTRNUL(psh, p)         ((psh)->sstrnleft == 0? (p = growstackstr(psh), *p = '\0') : (*p = '\0'))
 #define STUNPUTC(psh, p)            (++(psh)->sstrnleft, --p)
-#define STTOPC(psh, p)	            p[-1]
 #define STADJUST(psh, amount, p)    (p += (amount), (psh)->sstrnleft -= (amount))
-#define grabstackstr(psh, p)        stalloc((psh), stackblocksize(psh) - (psh)->sstrnleft)
+#endif /* SH_MEMALLOC_NO_STACK */
 
-#define ckfree(psh, p)	            sh_free(psh, (pointer)(p))
+/** @name Stack allocator for parser.
+ * This is a stripped down version of the general stack allocator interface for
+ * the exclusive use of the parser, so that parsetrees can be shared with
+ * subshells by simple reference counting.
+ * @{ */
+void *pstalloc(struct shinstance *, size_t);
+union node;
+union node *pstallocnode(struct shinstance *, size_t);
+struct nodelist;
+struct nodelist *pstalloclist(struct shinstance *);
+char *pstsavestr(struct shinstance *, const char *); /* was: stsavestr */
+#define PSTARTSTACKSTR(psh, p)      do { (p) = (psh)->stacknxt; (psh)->sstrnleft = (psh)->stacknleft; } while (0)
+char *pstmakestrspace(struct shinstance *, size_t, char *); /* was: makestrspace / growstackstr */
+#define PSTCHECKSTRSPACE(psh, n, p) do { if ((psh)->sstrnleft >= (n)) {/*likely*/} \
+                                         else { (p) = pstmakestrspace(psh, (n), (p)); assert((psh)->sstrnleft >= (n)); } } while (0)
+#define PSTUPUTC(psh, c, p)         do { assert((psh)->sstrnleft > 0); --(psh)->sstrnleft; *(p)++ = (c); } while (0)
+char *pstputcgrow(struct shinstance *, char *, char);
+#define PSTPUTC(psh, c, p)          do { if (--(psh)->sstrnleft >= 0) *(p)++ = (c); else (p) = pstputcgrow(psh, (p), (c)); } while (0)
+#define PSTPUTSTRN(psh, str, n, p)  do { if ((psh)->sstrnleft >= (n)) {/*likely?*/} else (p) = pstmakestrspace(psh, (n), (p)); \
+                                         memcpy((p), (str), (n)); (psh)->sstrnleft -= (n); (p) += (n); } while (0)
+#define PSTBLOCK(psh)               ((psh)->stacknxt)
+char *pstgrabstr(struct shinstance *, char *); /* was: grabstackstr / grabstackblock*/
+/** @} */
+
+
