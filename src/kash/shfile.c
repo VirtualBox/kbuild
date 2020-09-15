@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3466 2020-09-15 21:28:37Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3469 2020-09-15 23:47:57Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -2157,18 +2157,24 @@ int shfile_stat(shfdtab *pfdtab, const char *path, struct stat *pst)
     if (!rc)
     {
 # if K_OS == K_OS_WINDOWS
+#  if 1
+        rc = birdStatFollowLink(abspath, pst);
+#  else
         int dir_slash = shfile_trailing_slash_hack(abspath);
         rc = stat(abspath, pst); /** @todo re-implement stat. */
         if (!rc && dir_slash && !S_ISDIR(pst->st_mode))
         {
             rc = -1;
             errno = ENOTDIR;
-        }
+
+       }
+#  endif
 # else
         rc = stat(abspath, pst);
 # endif
     }
-    TRACE2((NULL, "shfile_stat(,%s,) -> %d [%d]\n", path, rc, errno));
+    TRACE2((NULL, "shfile_stat(,%s,) -> %d [%d] st_size=%llu st_mode=%o\n",
+            path, rc, errno, (unsigned long long)pst->st_size, pst->st_mode));
     return rc;
 #else
     return stat(path, pst);
@@ -2185,6 +2191,9 @@ int shfile_lstat(shfdtab *pfdtab, const char *path, struct stat *pst)
     if (!rc)
     {
 # if K_OS == K_OS_WINDOWS
+#  if 1
+        rc = birdStatOnLink(abspath, pst);
+#  else
         int dir_slash = shfile_trailing_slash_hack(abspath);
         rc = stat(abspath, pst); /** @todo re-implement stat. */
         if (!rc && dir_slash && !S_ISDIR(pst->st_mode))
@@ -2192,6 +2201,7 @@ int shfile_lstat(shfdtab *pfdtab, const char *path, struct stat *pst)
             rc = -1;
             errno = ENOTDIR;
         }
+#  endif
 # else
         rc = lstat(abspath, pst);
 # endif
@@ -2199,7 +2209,8 @@ int shfile_lstat(shfdtab *pfdtab, const char *path, struct stat *pst)
 #else
     rc = stat(path, pst);
 #endif
-    TRACE2((NULL, "shfile_stat(,%s,) -> %d [%d]\n", path, rc, errno));
+    TRACE2((NULL, "shfile_lstat(,%s,) -> %d [%d] st_size=%llu st_mode=%o\n",
+            path, rc, errno, (unsigned long long)pst->st_size, pst->st_mode));
     return rc;
 }
 
