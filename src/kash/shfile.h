@@ -1,4 +1,4 @@
-/* $Id: shfile.h 3458 2020-09-14 21:46:32Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 3465 2020-09-15 19:46:48Z knut.osmundsen@oracle.com $ */
 /** @file
  * File management.
  */
@@ -105,6 +105,12 @@ typedef struct shfile
     unsigned            oflags;         /**< Open flags. */
     unsigned            shflags;        /**< The shell file descriptor flags. */
     intptr_t            native;         /**< The native file descriptor number. */
+#ifdef DEBUG
+    char               *dbgname;        /**< The name of the file, if applicable, debug builds only. */
+#  define SHFILE_DBGNAME(a) a
+# else
+#  define SHFILE_DBGNAME(a) NULL
+#endif
 } shfile;
 
 /** @name shfile::shflags values.
