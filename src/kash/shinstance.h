@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 3467 2020-09-15 21:30:11Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 3468 2020-09-15 23:28:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -443,7 +443,7 @@ struct shinstance
     struct t_op const  *t_wp_op;
 };
 
-
+extern void sh_init_globals(void);
 extern shinstance *sh_create_root_shell(char **, char **);
 extern shinstance *sh_create_child_shell(shinstance *);
 
