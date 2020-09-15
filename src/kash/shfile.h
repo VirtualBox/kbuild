@@ -1,4 +1,4 @@
-/* $Id: shfile.h 3466 2020-09-15 21:28:37Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 3469 2020-09-15 23:47:57Z knut.osmundsen@oracle.com $ */
 /** @file
  * File management.
  */
@@ -93,6 +93,9 @@
 
 # define O_NONBLOCK 0 /** @todo */
 
+#endif
+#if K_OS == K_OS_WINDOWS
+# include "nt/ntstat.h"
 #endif
 
 
