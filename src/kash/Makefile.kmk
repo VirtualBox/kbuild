@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3469 2020-09-15 23:47:57Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3470 2020-09-15 23:49:56Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -26,7 +26,7 @@
 SUB_DEPTH = ../..
 include $(KBUILD_PATH)/subheader.kmk
 
-KASH_WIN_FORKED_MODE = 1
+KASH_WIN_FORKED_MODE =
 
 #
 # The program.
