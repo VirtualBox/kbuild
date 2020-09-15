@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3466 2020-09-15 21:28:37Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3467 2020-09-15 21:30:11Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -1543,7 +1543,7 @@ static void shsubshellstatus_signal_and_release(shinstance *psh, int iExit)
  * @param   hChild      Windows child wait handle (process if sts is NULL).
  * @param   sts         Subshell status structure, NULL if progress.
  */
-int sh_add_child(shinstance *psh, shpid pid, void *hChild, shsubshellstatus *sts)
+int sh_add_child(shinstance *psh, shpid pid, void *hChild, struct shsubshellstatus *sts)
 {
     /* get a free table entry. */
     unsigned i = psh->num_children++;
@@ -1788,7 +1788,7 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
         if (hChild != INVALID_HANDLE_VALUE)
         {
             DWORD dwExitCode = 127;
-#ifndef SH_FORKED_MODE
+# ifndef SH_FORKED_MODE
             if (psh->children[i].subshellstatus)
             {
                 rc = psh->children[i].subshellstatus->done;
@@ -1800,7 +1800,7 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
                 }
             }
             else
-#endif
+# endif
             if (GetExitCodeProcess(hChild, &dwExitCode))
             {
                 pidret = psh->children[i].pid;
@@ -1813,12 +1813,14 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
         }
 
         /* close and remove */
+# ifndef SH_FORKED_MODE
         if (psh->children[i].subshellstatus)
         {
             shsubshellstatus_release(psh, psh->children[i].subshellstatus);
             psh->children[i].subshellstatus = NULL;
         }
         else
+# endif
         {
             rc = CloseHandle(psh->children[i].hChild);
             assert(rc);
@@ -1828,7 +1830,9 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
         if (i < psh->num_children)
             psh->children[i] = psh->children[psh->num_children];
         psh->children[psh->num_children].hChild = NULL;
+# ifndef SH_FORKED_MODE
         psh->children[psh->num_children].subshellstatus = NULL;
+# endif
     }
 
 #elif defined(SH_FORKED_MODE)
