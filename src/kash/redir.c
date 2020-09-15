@@ -74,11 +74,6 @@ __RCSID("$NetBSD: redir.c,v 1.29 2004/07/08 03:57:33 christos Exp $");
 
 
 MKINIT
-struct redirtab {
-	struct redirtab *next;
-	short renamed[10];
-};
-
 
 //MKINIT struct redirtab *redirlist;
 
