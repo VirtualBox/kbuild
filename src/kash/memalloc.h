@@ -93,6 +93,7 @@ void pstackpop(struct shinstance *, unsigned);
 unsigned pstackrelease(struct shinstance *, struct pstack_block *, const char *);
 unsigned pstackretainpush(struct shinstance *, struct pstack_block *);
 struct pstack_block *pstackallocpush(struct shinstance *);
+void pstackmarkdone(struct pstack_block *);
 #endif
 void *pstalloc(struct shinstance *, size_t);
 union node;

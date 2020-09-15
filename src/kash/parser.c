@@ -132,11 +132,11 @@ parsecmd(shinstance *psh, int interact)
 {
 	union node *ret;
 	int t;
-
-	TRACE2((psh, "parsecmd(%d)\n", interact));
 #ifdef KASH_SEPARATE_PARSER_ALLOCATOR
-	pstackallocpush(psh);
+	pstack_block *pst = pstackallocpush(psh);
 #endif
+	TRACE2((psh, "parsecmd(%d)\n", interact));
+
 	psh->tokpushback = 0;
 	psh->doprompt = interact;
 	if (psh->doprompt)
@@ -154,6 +154,9 @@ parsecmd(shinstance *psh, int interact)
 #if 0 /*def DEBUG*/
 	TRACE2((psh, "parsecmd(%d) returns:\n", interact));
 	showtree(psh, ret);
+#endif
+#ifdef KASH_SEPARATE_PARSER_ALLOCATOR
+	pstackmarkdone(pst);
 #endif
 	return ret;
 }

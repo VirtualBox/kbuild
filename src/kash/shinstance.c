@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3460 2020-09-15 12:31:01Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3461 2020-09-15 12:55:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -540,9 +540,10 @@ static void sh_destroy(shinstance *psh)
         sh_free(psh, psh->pstack);
         psh->pstack = NULL;
     }
+    sh_free(psh, psh->freepstack);
+    psh->freepstack = NULL;
 #endif
     psh->markp = NULL;
-
 
     /*
      * Finally get rid of tracefd and then free the shell:
