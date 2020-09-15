@@ -365,8 +365,8 @@ popredir(shinstance *psh)
 
 	for (i = 0 ; i < 10 ; i++) {
 		if (rp->renamed[i] != EMPTY) {
-                        if (i == 0)
-                                psh->fd0_redirected--;
+			if (i == 0)
+				psh->fd0_redirected--;
 			if (rp->renamed[i] >= 0) {
 				movefd(psh, rp->renamed[i], i);
 			} else {
