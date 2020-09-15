@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 3459 2020-09-15 09:09:19Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 3460 2020-09-15 12:31:01Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -63,17 +63,34 @@
 extern shmtx g_sh_exec_inherit_mtx;
 #endif
 
+#ifndef SH_FORKED_MODE
+/**
+ * Subshell status.
+ */
+typedef struct shsubshellstatus
+{
+    unsigned volatile   refs;           /**< Reference counter. */
+    int volatile        status;         /**< The exit code. */
+    KBOOL volatile      done;           /**< Set if done (valid exit code). */
+    void               *towaiton;       /**< Event semaphore / whatever to wait on. */
+# if K_OS == K_OS_WINDOWS
+    uintptr_t volatile  hThread;        /**< The thread handle (child closes this). */
+# endif
+    struct shsubshellstatus *next;      /**< Next free one on the free chain. */
+} shsubshellstatus;
+#endif
+
 /**
  * A child process.
  */
 typedef struct shchild
 {
-    shpid       pid;                    /**< The pid. */
+    shpid               pid;            /**< The pid. */
 #if K_OS == K_OS_WINDOWS
-    void       *hChild;                 /**< The process handle. */
+    void               *hChild;         /**< The handle to wait on. */
 #endif
 #ifndef SH_FORKED_MODE
-    KBOOL       fProcess;               /**< Set if process, clear if internal thread. */
+    shsubshellstatus   *subshellstatus; /**< Pointer to the subshell status structure.  NULL if child process. */
 #endif
 } shchild;
 
@@ -214,6 +231,7 @@ struct shinstance
     int (*thread)(struct shinstance *, void *); /**< The thread procedure. */
     void               *threadarg;      /**< The thread argument. */
     struct jmploc      *exitjmp;        /**< Long jump target in sh_thread_wrapper for use by sh__exit. */
+    shsubshellstatus   *subshellstatus; /**< Pointer to the subshell status structure (NULL if root). */
 #endif
 
     /* alias.c */
@@ -495,7 +513,7 @@ clock_t sh_times(shinstance *, shtms *);
 int sh_sysconf_clk_tck(void);
 
 /* wait / process */
-int sh_add_child(shinstance *psh, shpid pid, void *hChild, KBOOL fProcess);
+int sh_add_child(shinstance *psh, shpid pid, void *hChild, shsubshellstatus *sts);
 #ifdef _MSC_VER
 #   include <process.h>
 #   define WNOHANG         1       /* Don't hang in wait. */
