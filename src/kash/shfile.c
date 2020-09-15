@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3458 2020-09-14 21:46:32Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3465 2020-09-15 19:46:48Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -155,23 +155,58 @@ static PFN_RtlUnicodeStringToAnsiString g_pfnRtlUnicodeStringToAnsiString = NULL
 
 #ifdef SHFILE_IN_USE
 
+# ifdef DEBUG
+# if K_OS == K_OS_WINDOWS
+static KU64 shfile_nano_ts(void)
+{
+    static KBOOL volatile s_has_factor = K_FALSE;
+    static double volatile s_factor;
+    double factor;
+    LARGE_INTEGER now;
+    if (s_has_factor)
+        factor = s_factor;
+    else
+    {
+        QueryPerformanceFrequency(&now);
+        s_factor = factor = (double)1000000000.0 / now.QuadPart;
+        s_has_factor = K_TRUE;
+    }
+    QueryPerformanceCounter(&now);
+    return (KU64)(now.QuadPart * factor);
+}
+#  endif /* K_OS_WINDOWS */
+# endif /* DEBUG */
+
 /**
  * Close the specified native handle.
  *
  * @param   native      The native file handle.
- * @param   flags       The flags in case they might come in handy later.
+ * @param   file        The file table entry if available.
  */
-static void shfile_native_close(intptr_t native, unsigned flags)
+static void shfile_native_close(intptr_t native, shfile *file)
 {
 # if K_OS == K_OS_WINDOWS
+#  ifdef DEBUG
+    KU64 ns = shfile_nano_ts();
+    BOOL fRc2 = FlushFileBuffers((HANDLE)native);
+    KU64 ns2 = shfile_nano_ts();
     BOOL fRc = CloseHandle((HANDLE)native);
-    assert(fRc); (void)fRc;
+    assert(fRc); K_NOREF(fRc);
+    ns2 -= ns;
+    ns = shfile_nano_ts() - ns;
+    if (ns > 1000000)
+        TRACE2((NULL, "shfile_native_close: %u ns (%u) %p oflags=%#x %s\n",
+                ns, ns2, native, file ? file->oflags : 0, file ? file->dbgname : NULL));
+#  else
+    BOOL fRc = CloseHandle((HANDLE)native);
+    assert(fRc); K_NOREF(fRc);
+#  endif
 # else
     int s = errno;
     close(native);
     errno = s;
 # endif
-    (void)flags;
+    K_NOREF(file);
 }
 
 /**
@@ -201,6 +236,9 @@ static int shfile_grow_tab_locked(shfdtab *pfdtab, int fdMin)
             new_tab[i].oflags = 0;
             new_tab[i].shflags = 0;
             new_tab[i].native = -1;
+# ifdef DEBUG
+            new_tab[i].dbgname = NULL;
+# endif
         }
 
         fdRet = pfdtab->size;
@@ -227,8 +265,10 @@ static int shfile_grow_tab_locked(shfdtab *pfdtab, int fdMin)
  * @param   shflags     The shell file flags.
  * @param   fdMin       The minimum file descriptor number, pass -1 if any is ok.
  * @param   who         Who we're doing this for (for logging purposes).
+ * @param   dbgname     The filename, if applicable/available.
  */
-static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsigned shflags, int fdMin, const char *who)
+static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsigned shflags, int fdMin,
+                         const char *who, const char *dbgname)
 {
     shmtxtmp tmp;
     int fd;
@@ -239,8 +279,8 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsi
      */
     if (fdMin >= SHFILE_MAX)
     {
-        TRACE2((NULL, "shfile_insert: fdMin=%d is out of bounds; native=%p\n", fdMin, native));
-        shfile_native_close(native, oflags);
+        TRACE2((NULL, "shfile_insert: fdMin=%d is out of bounds; native=%p %s\n", fdMin, native, dbgname));
+        shfile_native_close(native, NULL);
         errno = EMFILE;
         return -1;
     }
@@ -248,7 +288,7 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsi
     if (fcntl((int)native, F_SETFD, fcntl((int)native, F_GETFD, 0) | FD_CLOEXEC) == -1)
     {
         int e = errno;
-        TRACE2((NULL, "shfile_insert: F_SETFD failed %d; native=%p\n", e, native));
+        TRACE2((NULL, "shfile_insert: F_SETFD failed %d; native=%p %s\n", e, native, dbgname));
         close((int)native);
         errno = e;
         return -1;
@@ -279,10 +319,13 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsi
         pfdtab->tab[fd].oflags = oflags;
         pfdtab->tab[fd].shflags = shflags;
         pfdtab->tab[fd].native = native;
-        TRACE2((NULL, "shfile_insert: #%d: native=%p oflags=%#x shflags=%#x\n", fd, native, oflags, shflags));
+#ifdef DEBUG
+        pfdtab->tab[fd].dbgname = dbgname ? sh_strdup(NULL, dbgname) : NULL;
+#endif
+        TRACE2((NULL, "shfile_insert: #%d: native=%p oflags=%#x shflags=%#x %s\n", fd, native, oflags, shflags, dbgname));
     }
     else
-        shfile_native_close(native, oflags);
+        shfile_native_close(native, NULL);
 
     shmtx_leave(&pfdtab->mtx, &tmp);
 
@@ -307,8 +350,10 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsi
  * @param   shflags     The shell file flags.
  * @param   fdMin       The minimum file descriptor number, pass -1 if any is ok.
  * @param   who         Who we're doing this for (for logging purposes).
+ * @param   dbgname     The filename, if applicable/available.
  */
-static int shfile_copy_insert_and_close(shfdtab *pfdtab, int *pnative, unsigned oflags, unsigned shflags, int fdMin, const char *who)
+static int shfile_copy_insert_and_close(shfdtab *pfdtab, int *pnative, unsigned oflags, unsigned shflags, int fdMin,
+                                        const char *who, const char *dbgname)
 {
     int fd          = -1;
     int s           = errno;
@@ -318,7 +363,7 @@ static int shfile_copy_insert_and_close(shfdtab *pfdtab, int *pnative, unsigned 
     errno = s;
 
     if (native_copy != -1)
-        fd = shfile_insert(pfdtab, native_copy, oflags, shflags, fdMin, who);
+        fd = shfile_insert(pfdtab, native_copy, oflags, shflags, fdMin, who, dbgname);
     return fd;
 }
 # endif /* !K_OS_WINDOWS */
@@ -742,7 +787,7 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                             else
                                 fFlags2 = 0;
 
-                            fd2 = shfile_insert(pfdtab, (intptr_t)h, fFlags, fFlags2, i, "shtab_init");
+                            fd2 = shfile_insert(pfdtab, (intptr_t)h, fFlags, fFlags2, i, "shtab_init", NULL);
                             assert(fd2 == i); (void)fd2;
                             if (fd2 != i)
                                 rc = -1;
@@ -768,7 +813,7 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                                 fFlags2 = SHFILE_FLAGS_PIPE;
                             else
                                 fFlags2 = SHFILE_FLAGS_FILE;
-                            fd2 = shfile_insert(pfdtab, (intptr_t)hFile, fFlags, fFlags2, i, "shtab_init");
+                            fd2 = shfile_insert(pfdtab, (intptr_t)hFile, fFlags, fFlags2, i, "shtab_init", NULL);
                             assert(fd2 == i); (void)fd2;
                             if (fd2 != i)
                                 rc = -1;
@@ -809,7 +854,7 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                             native = fcntl(fd, F_DUPFD, SHFILE_UNIX_MIN_FD);
                             if (native == -1)
                                 native = fd;
-                            fd2 = shfile_insert(pfdtab, native, oflags, fFlags2, fd, "shtab_init");
+                            fd2 = shfile_insert(pfdtab, native, oflags, fFlags2, fd, "shtab_init", NULL);
                             assert(fd2 == fd); (void)fd2;
                             if (fd2 != fd)
                                 rc = -1;
@@ -858,6 +903,10 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
 #  endif
 # endif
                         *dst = *src;
+# ifdef DEBUG
+                        if (src->dbgname)
+                            dst->dbgname = sh_strdup(NULL, src->dbgname);
+# endif
 # if K_OS == K_OS_WINDOWS
                         if (DuplicateHandle(GetCurrentProcess(),
                                             (HANDLE)src->native,
@@ -1192,12 +1241,16 @@ int shfile_exec_win(shfdtab *pfdtab, int prepare, shfdexecwin *info)
                 if (   file->fd == i
                     && !(file->shflags & SHFILE_FLAGS_TRACE))
                 {
-                    shfile_native_close(file->native, file->oflags);
+                    shfile_native_close(file->native, file);
 
                     file->fd = -1;
                     file->oflags = 0;
                     file->shflags = 0;
                     file->native = -1;
+# ifdef DEBUG
+                    sh_free(NULL, file->dbgname);
+                    file->dbgname = NULL;
+# endif
                 }
             }
         else if (info->inherithandles)
@@ -1314,6 +1367,9 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
     fd = shfile_make_path(pfdtab, name, &absname[0]);
     if (!fd)
     {
+#  ifdef DEBUG
+        KU64 ns = shfile_nano_ts();
+#  endif
         SetLastError(0);
         hFile = CreateFileA(absname,
                             dwDesiredAccess,
@@ -1322,8 +1378,13 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
                             dwCreationDisposition,
                             dwFlagsAndAttributes,
                             NULL /* hTemplateFile */);
+#  ifdef DEBUG
+        ns = shfile_nano_ts() - ns;
+        if (ns > 1000000)
+            TRACE2((NULL, "shfile_open: %s ns hFile=%p (%d) %s\n", ns, hFile, GetLastError(), absname));
+#  endif
         if (hFile != INVALID_HANDLE_VALUE)
-            fd = shfile_insert(pfdtab, (intptr_t)hFile, flags, 0, -1, "shfile_open");
+            fd = shfile_insert(pfdtab, (intptr_t)hFile, flags, 0, -1, "shfile_open", absname);
         else
             fd = shfile_dos2errno(GetLastError());
     }
@@ -1334,7 +1395,7 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
     {
         fd = open(absname, flags, mode);
         if (fd != -1)
-            fd = shfile_copy_insert_and_close(pfdtab, &fd, flags, 0, -1, "shfile_open");
+            fd = shfile_copy_insert_and_close(pfdtab, &fd, flags, 0, -1, "shfile_open", absname);
     }
 
 # endif /* K_OS != K_OS_WINDOWS */
@@ -1363,10 +1424,10 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
     fds[1] = fds[0] = -1;
     if (CreatePipe(&hRead, &hWrite, &SecurityAttributes, 4096))
     {
-        fds[0] = shfile_insert(pfdtab, (intptr_t)hRead, O_RDONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe");
+        fds[0] = shfile_insert(pfdtab, (intptr_t)hRead, O_RDONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe", "pipe-rd");
         if (fds[0] != -1)
         {
-            fds[1] = shfile_insert(pfdtab, (intptr_t)hWrite, O_WRONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe");
+            fds[1] = shfile_insert(pfdtab, (intptr_t)hWrite, O_WRONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe", "pipe-wr");
             if (fds[1] != -1)
                 rc = 0;
         }
@@ -1377,10 +1438,10 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
     fds[1] = fds[0] = -1;
     if (!pipe(native_fds))
     {
-        fds[0] = shfile_copy_insert_and_close(pfdtab, &native_fds[0], O_RDONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe");
+        fds[0] = shfile_copy_insert_and_close(pfdtab, &native_fds[0], O_RDONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe", "pipe-rd");
         if (fds[0] != -1)
         {
-            fds[1] = shfile_copy_insert_and_close(pfdtab, &native_fds[1], O_WRONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe");
+            fds[1] = shfile_copy_insert_and_close(pfdtab, &native_fds[1], O_WRONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe", "pipe-wr");
             if (fds[1] != -1)
                 rc = 0;
         }
@@ -1458,19 +1519,25 @@ int shfile_movefd(shfdtab *pfdtab, int fdfrom, int fdto)
         if ((unsigned)fdto < pfdtab->size)
         {
             if (pfdtab->tab[fdto].fd != -1)
-                shfile_native_close(pfdtab->tab[fdto].native, pfdtab->tab[fdto].oflags);
+                shfile_native_close(pfdtab->tab[fdto].native, &pfdtab->tab[fdto]);
 
             /* setup the target. */
             pfdtab->tab[fdto].fd      = fdto;
             pfdtab->tab[fdto].oflags  = file->oflags;
             pfdtab->tab[fdto].shflags = file->shflags;
             pfdtab->tab[fdto].native  = file->native;
+# ifdef DEBUG
+            pfdtab->tab[fdto].dbgname = file->dbgname;
+# endif
 
             /* close the source. */
             file->fd        = -1;
             file->oflags    = 0;
             file->shflags   = 0;
             file->native    = -1;
+# ifdef DEBUG
+            file->dbgname   = NULL;
+# endif
 
             rc = fdto;
         }
@@ -1528,12 +1595,18 @@ int shfile_movefd_above(shfdtab *pfdtab, int fdfrom, int fdMin)
             pfdtab->tab[fdto].oflags  = file->oflags;
             pfdtab->tab[fdto].shflags = file->shflags;
             pfdtab->tab[fdto].native  = file->native;
+# ifdef DEBUG
+            pfdtab->tab[fdto].dbgname = file->dbgname;
+# endif
 
             /* close the source. */
             file->fd        = -1;
             file->oflags    = 0;
             file->shflags   = 0;
             file->native    = -1;
+# ifdef DEBUG
+            file->dbgname   = NULL;
+# endif
         }
         else
         {
@@ -1566,12 +1639,16 @@ int shfile_close(shfdtab *pfdtab, unsigned fd)
     shfile     *file = shfile_get(pfdtab, fd, &tmp);
     if (file)
     {
-        shfile_native_close(file->native, file->oflags);
+        shfile_native_close(file->native, file);
 
         file->fd = -1;
         file->oflags = 0;
         file->shflags = 0;
         file->native = -1;
+# ifdef DEBUG
+        sh_free(NULL, file->dbgname);
+        file->dbgname = NULL;
+# endif
 
         shfile_put(pfdtab, file, &tmp);
         rc = 0;
@@ -1756,13 +1833,15 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
                                     0,
                                     FALSE /* bInheritHandle */,
                                     DUPLICATE_SAME_ACCESS))
-                    rc = shfile_insert(pfdtab, (intptr_t)hNew, file->oflags, file->shflags, arg, "shfile_fcntl");
+                    rc = shfile_insert(pfdtab, (intptr_t)hNew, file->oflags, file->shflags, arg,
+                                       "shfile_fcntl", SHFILE_DBGNAME(file->dbgname));
                 else
                     rc = shfile_dos2errno(GetLastError());
 # else
                 int nativeNew = fcntl(file->native, F_DUPFD, SHFILE_UNIX_MIN_FD);
                 if (nativeNew != -1)
-                    rc = shfile_insert(pfdtab, nativeNew, file->oflags, file->shflags, arg, "shfile_fcntl");
+                    rc = shfile_insert(pfdtab, nativeNew, file->oflags, file->shflags, arg,
+                                       "shfile_fcntl", SHFILE_DBGNAME(file->dbgname));
                 else
                     rc = -1;
 # endif
