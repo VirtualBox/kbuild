@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3459 2020-09-15 09:09:19Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3460 2020-09-15 12:31:01Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -72,6 +72,10 @@ extern pid_t shfork_do(shinstance *psh); /* shforkA-win.asm */
 #ifndef SH_FORKED_MODE
 /** Mutex serializing exec/spawn to prevent unwanted file inherting. */
 shmtx               g_sh_exec_inherit_mtx;
+/** Mutex protecting g_sh_sts_free. */
+static shmtx        g_sh_sts_mtx;
+/** List of free subshell status structure (saves CreateEvent calls).  */
+static shsubshellstatus * volatile g_sh_sts_free = NULL;
 #endif
 /** The mutex protecting the the globals and some shell instance members (sigs). */
 static shmtx        g_sh_mtx;
@@ -707,6 +711,7 @@ shinstance *sh_create_root_shell(char **argv, char **envp)
     shmtx_init(&g_sh_mtx);
 #ifndef SH_FORKED_MODE
     shmtx_init(&g_sh_exec_inherit_mtx);
+    shmtx_init(&g_sh_sts_mtx);
 #endif
 
     psh = sh_create_shell_common(argv, envp, NULL /*parentfdtab*/);
@@ -1414,6 +1419,94 @@ int sh_sysconf_clk_tck(void)
 #endif
 }
 
+#ifndef SH_FORKED_MODE
+
+/**
+ * Retains a reference to a subshell status structure.
+ */
+static unsigned shsubshellstatus_retain(shsubshellstatus *sts)
+{
+    unsigned refs = sh_atomic_dec(&sts->refs);
+    assert(refs > 1);
+    assert(refs < 16);
+    return refs;
+}
+
+/**
+ * Releases a reference to a subshell status structure.
+ */
+static unsigned shsubshellstatus_release(shinstance *psh, shsubshellstatus *sts)
+{
+    unsigned refs = sh_atomic_dec(&sts->refs);
+    assert(refs < ~(unsigned)0/4);
+    if (refs == 0)
+    {
+        shmtxtmp tmp;
+        shmtx_enter(&g_sh_sts_mtx, &tmp);
+        sts->next = g_sh_sts_free;
+        g_sh_sts_free = sts;
+        shmtx_leave(&g_sh_sts_mtx, &tmp);
+    }
+    return refs;
+}
+
+/**
+ * Creates a subshell status structure.
+ */
+static shsubshellstatus *shsubshellstatus_create(shinstance *psh, int refs)
+{
+    shsubshellstatus *sts;
+
+    /* Check the free list: */
+    if (g_sh_sts_free)
+    {
+        shmtxtmp tmp;
+        shmtx_enter(&g_sh_sts_mtx, &tmp);
+        sts = g_sh_sts_free;
+        if (sts)
+            g_sh_sts_free = sts->next;
+        shmtx_leave(&g_sh_sts_mtx, &tmp);
+    }
+    else
+        sts = NULL;
+    if (sts)
+    {
+# if K_OS == K_OS_WINDOWS
+        BOOL rc = ResetEvent((HANDLE)sts->towaiton);
+        assert(rc); K_NOREF(rc);
+# endif
+    }
+    else
+    {
+        /* Create a new one: */
+        sts = (shsubshellstatus *)sh_malloc(psh, sizeof(*sts));
+        if (!sts)
+            return NULL;
+# if K_OS == K_OS_WINDOWS
+        sts->towaiton = (void *)CreateEventW(NULL /*noinherit*/, TRUE /*fManualReset*/,
+                                             FALSE /*fInitialState*/, NULL /*pszName*/);
+        if (!sts->towaiton)
+        {
+            assert(0);
+            sh_free(psh, sts);
+            return NULL;
+        }
+# endif
+    }
+
+    /* Initialize it: */
+    sts->refs     = refs;
+    sts->status   = 999999;
+    sts->done     = 0;
+    sts->next     = NULL;
+# if K_OS == K_OS_WINDOWS
+    sts->hThread  = 0;
+# endif
+    return sts;
+}
+
+#endif /* !SH_FORKED_MODE */
+
 /**
  * Adds a child to the shell
  *
@@ -1421,10 +1514,10 @@ int sh_sysconf_clk_tck(void)
  *
  * @param   psh         The shell instance.
  * @param   pid         The child pid.
- * @param   hChild      Windows child handle.
- * @param   fProcess    Set if process, clear if thread.
+ * @param   hChild      Windows child wait handle (process if sts is NULL).
+ * @param   sts         Subshell status structure, NULL if progress.
  */
-int sh_add_child(shinstance *psh, shpid pid, void *hChild, KBOOL fProcess)
+int sh_add_child(shinstance *psh, shpid pid, void *hChild, shsubshellstatus *sts)
 {
     /* get a free table entry. */
     unsigned i = psh->num_children++;
@@ -1446,9 +1539,9 @@ int sh_add_child(shinstance *psh, shpid pid, void *hChild, KBOOL fProcess)
     psh->children[i].hChild = hChild;
 #endif
 #ifndef SH_FORKED_MODE
-    psh->children[i].fProcess = fProcess;
+    psh->children[i].subshellstatus = sts;
 #endif
-    (void)hChild; (void)fProcess;
+    (void)hChild; (void)sts;
     return 0;
 }
 
@@ -1498,6 +1591,7 @@ static unsigned __stdcall sh_thread_wrapper(void *user)
 {
     shinstance * volatile volpsh = (shinstance *)user;
     shinstance *psh = (shinstance *)user;
+    shsubshellstatus *sts;
     struct jmploc exitjmp;
     int iExit;
 
@@ -1528,6 +1622,25 @@ static unsigned __stdcall sh_thread_wrapper(void *user)
             iExit = 0;
     }
 
+    /* Signal parent. */
+    sts = psh->subshellstatus;
+    if (sts)
+    {
+        BOOL rc;
+        HANDLE hThread;
+
+        sts->status = W_EXITCODE(iExit, 0);
+        sts->done   = K_TRUE;
+        rc = SetEvent((HANDLE)sts->towaiton); assert(rc); K_NOREF(rc);
+
+        hThread = (HANDLE)sts->hThread;
+        sts->hThread = 0;
+        rc = CloseHandle(hThread); assert(rc);
+
+        shsubshellstatus_release(psh, sts);
+        psh->subshellstatus = NULL;
+    }
+
     /* destroy the shell instance and exit the thread. */
     TRACE2((psh, "sh_thread_wrapper: quits - iExit=%d\n", iExit));
     sh_destroy(psh);
@@ -1545,23 +1658,41 @@ static unsigned __stdcall sh_thread_wrapper(void *user)
 shpid sh_thread_start(shinstance *pshparent, shinstance *pshchild, int (*thread)(shinstance *, void *), void *arg)
 {
 # ifdef _MSC_VER
-    unsigned tid = 0;
-    uintptr_t hThread;
     shpid pid;
 
-    pshchild->thread    = thread;
-    pshchild->threadarg = arg;
-    hThread = _beginthreadex(NULL /*security*/, 0 /*stack_size*/, sh_thread_wrapper, pshchild, 0 /*initflags*/, &tid);
-    if (hThread == -1)
-        return -errno;
+    shsubshellstatus *sts = shsubshellstatus_create(pshparent, 2);
+    pshchild->subshellstatus = sts;
+    if (sts)
+    {
+        unsigned tid = 0;
+        uintptr_t hThread;
 
-    pid = SHPID_MAKE(SHPID_GET_PID(pshparent->pid), tid);
-    pshchild->pid = pid;
-    pshchild->tid = tid;
+        pshchild->thread    = thread;
+        pshchild->threadarg = arg;
 
-    if (sh_add_child(pshparent, pid, (void *)hThread, K_FALSE) != 0) {
-        return -ENOMEM;
+        hThread = _beginthreadex(NULL /*security*/, 0 /*stack_size*/, sh_thread_wrapper, pshchild, 0 /*initflags*/, &tid);
+        sts->hThread = hThread;
+        if (hThread != -1)
+        {
+            pid = SHPID_MAKE(SHPID_GET_PID(pshparent->pid), tid);
+            pshchild->pid = pid;
+            pshchild->tid = tid;
+
+            if (sh_add_child(pshparent, pid, sts->towaiton, sts) == 0)
+            {
+                return pid;
+            }
+
+            shsubshellstatus_retain(sts);
+            pid = -ENOMEM;
+        }
+        else
+            pid = -errno;
+        shsubshellstatus_release(pshparent, sts);
+        shsubshellstatus_release(pshparent, sts);
     }
+    else
+        pid = -ENOMEM;
     return pid;
 
 # else
@@ -1644,14 +1775,24 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
      */
     if (i < psh->num_children)
     {
+        BOOL rc;
         if (hChild != INVALID_HANDLE_VALUE)
         {
             DWORD dwExitCode = 127;
 #ifndef SH_FORKED_MODE
-            if (psh->children[i].fProcess ? GetExitCodeProcess(hChild, &dwExitCode) : GetExitCodeThread(hChild, &dwExitCode))
-#else
-            if (GetExitCodeProcess(hChild, &dwExitCode))
+            if (psh->children[i].subshellstatus)
+            {
+                rc = psh->children[i].subshellstatus->done;
+                assert(rc);
+                if (rc)
+                {
+                    *statusp = psh->children[i].subshellstatus->status;
+                    pidret = psh->children[i].pid;
+                }
+            }
+            else
 #endif
+            if (GetExitCodeProcess(hChild, &dwExitCode))
             {
                 pidret = psh->children[i].pid;
                 if (dwExitCode && !W_EXITCODE(dwExitCode, 0))
@@ -1662,12 +1803,23 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
                 errno = EINVAL;
         }
 
-        /* remove and close */
-        hChild = psh->children[i].hChild;
+        /* close and remove */
+        if (psh->children[i].subshellstatus)
+        {
+            shsubshellstatus_release(psh, psh->children[i].subshellstatus);
+            psh->children[i].subshellstatus = NULL;
+        }
+        else
+        {
+            rc = CloseHandle(psh->children[i].hChild);
+            assert(rc);
+        }
+
         psh->num_children--;
         if (i < psh->num_children)
             psh->children[i] = psh->children[psh->num_children];
-        i = CloseHandle(hChild); assert(i);
+        psh->children[psh->num_children].hChild = NULL;
+        psh->children[psh->num_children].subshellstatus = NULL;
     }
 
 #elif defined(SH_FORKED_MODE)
