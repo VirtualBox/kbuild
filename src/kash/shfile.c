@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3465 2020-09-15 19:46:48Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3466 2020-09-15 21:28:37Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -142,15 +142,56 @@ typedef NTSTATUS (NTAPI * PFN_RtlUnicodeStringToAnsiString)(PANSI_STRING, PCUNIC
 #endif /* K_OS_WINDOWS */
 
 
-/*******************************************************************************
-*   Global Variables                                                           *
-*******************************************************************************/
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
 #if K_OS == K_OS_WINDOWS
 static int                              g_shfile_globals_initialized = 0;
 static PFN_NtQueryObject                g_pfnNtQueryObject = NULL;
 static PFN_NtQueryDirectoryFile         g_pfnNtQueryDirectoryFile = NULL;
 static PFN_RtlUnicodeStringToAnsiString g_pfnRtlUnicodeStringToAnsiString = NULL;
+# ifdef KASH_ASYNC_CLOSE_HANDLE
+/** Data for the asynchronous CloseHandle machinery. */
+static struct shfileasyncclose
+{
+    /** Mutex protecting the asynchronous CloseHandle stuff. */
+    shmtx                               mtx;
+    /** Handle to event that the closer-threads are waiting on. */
+    HANDLE                              evt_workers;
+    /** The ring buffer read index (for closer-threads). */
+    unsigned volatile                   idx_read;
+    /** The ring buffer write index (for shfile_native_close).
+     * When idx_read and idx_write are the same, the ring buffer is empty. */
+    unsigned volatile                   idx_write;
+    /** Number of handles currently being pending closure (handles + current
+     *  CloseHandle calls). */
+    unsigned volatile                   num_pending;
+    /** Set if the threads should terminate. */
+    KBOOL volatile                      terminate_threads;
+    /** Set if one or more shell threads have requested evt_sync to be signalled
+     * when there are no more pending requests. */
+    KBOOL volatile                      signal_sync;
+    /** Number of threads that have been spawned. */
+    KU8                                 num_threads;
+    /** Handle to event that the shell threads are waiting on to sync. */
+    HANDLE                              evt_sync;
+    /** Ring buffer containing handles to be closed. */
+    HANDLE                              handles[32];
+    /** Worker threads doing the asynchronous closing. */
+    HANDLE                              threads[8];
+} g_shfile_async_close;
+# endif
 #endif /* K_OS_WINDOWS */
+
+
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
+#ifdef SHFILE_IN_USE
+# if K_OS == K_OS_WINDOWS
+static HANDLE shfile_set_inherit_win(shfile *pfd, int set);
+# endif
+#endif
 
 
 #ifdef SHFILE_IN_USE
@@ -177,35 +218,234 @@ static KU64 shfile_nano_ts(void)
 #  endif /* K_OS_WINDOWS */
 # endif /* DEBUG */
 
+# if K_OS == K_OS_WINDOWS && defined(KASH_ASYNC_CLOSE_HANDLE)
+/**
+ * The closer thread function.
+ */
+static unsigned __stdcall shfile_async_close_handle_thread(void *ignored)
+{
+    KBOOL decrement_pending = K_FALSE;
+    while (!g_shfile_async_close.terminate_threads)
+    {
+        HANDLE toclose;
+        unsigned idx;
+        shmtxtmp tmp;
+
+        /*
+         * Grab a handle if there is one:
+         */
+        shmtx_enter(&g_shfile_async_close.mtx, &tmp);
+
+        if (decrement_pending)
+        {
+            assert(g_shfile_async_close.num_pending > 0);
+            g_shfile_async_close.num_pending -= 1;
+        }
+
+        idx = g_shfile_async_close.idx_read % K_ELEMENTS(g_shfile_async_close.handles);
+        if (idx != g_shfile_async_close.idx_write % K_ELEMENTS(g_shfile_async_close.handles))
+        {
+            assert(g_shfile_async_close.num_pending > 0);
+            toclose = g_shfile_async_close.handles[idx];
+            assert(toclose);
+            g_shfile_async_close.handles[idx] = NULL;
+            g_shfile_async_close.idx_read = (idx + 1) % K_ELEMENTS(g_shfile_async_close.handles);
+        }
+        else
+        {
+            /* Signal waiters if requested and we've reached zero pending requests. */
+            if (g_shfile_async_close.signal_sync && g_shfile_async_close.num_pending == 0)
+            {
+                BOOL rc = SetEvent(g_shfile_async_close.evt_sync);
+                assert(rc);
+                g_shfile_async_close.signal_sync = FALSE;
+            }
+            toclose = NULL;
+        }
+        shmtx_leave(&g_shfile_async_close.mtx, &tmp);
+
+        /* Do the closing if we have something to close, otherwise wait for work to arrive. */
+        if (toclose != NULL)
+        {
+            BOOL rc = CloseHandle(toclose);
+            assert(rc);
+            decrement_pending = K_TRUE;
+        }
+        else
+        {
+            DWORD dwRet = WaitForSingleObject(g_shfile_async_close.evt_workers, 10000 /*ms*/);
+            assert(dwRet == WAIT_OBJECT_0 || dwRet == WAIT_TIMEOUT);
+            decrement_pending = K_FALSE;
+        }
+    }
+
+    K_NOREF(ignored);
+    return 0;
+}
+
+/**
+ * Try submit a handle for automatic closing.
+ *
+ * @returns K_TRUE if submitted successfully, K_FALSE if not.
+ */
+static KBOOL shfile_async_close_submit(HANDLE toclose)
+{
+    KBOOL    ret;
+    unsigned idx;
+    unsigned idx_next;
+    unsigned idx_read;
+    shmtxtmp tmp;
+    shmtx_enter(&g_shfile_async_close.mtx, &tmp);
+
+    /* Get the write index and check that there is a free slot in the buffer: */
+    idx      = g_shfile_async_close.idx_write % K_ELEMENTS(g_shfile_async_close.handles);
+    idx_next = (idx + 1)                      % K_ELEMENTS(g_shfile_async_close.handles);
+    idx_read = g_shfile_async_close.idx_read  % K_ELEMENTS(g_shfile_async_close.handles);
+    if (idx_next != idx_read)
+    {
+        unsigned num_pending, num_threads;
+
+        /* Write the handle to the ring buffer: */
+        assert(g_shfile_async_close.handles[idx] == NULL);
+        g_shfile_async_close.handles[idx] = toclose;
+        g_shfile_async_close.idx_write    = idx_next;
+
+        num_pending = g_shfile_async_close.num_pending + 1;
+        g_shfile_async_close.num_pending = num_pending;
+
+        ret = SetEvent(g_shfile_async_close.evt_workers);
+        assert(ret);
+        if (ret)
+        {
+            /* If we have more pending requests than threads, create a new thread. */
+            num_threads = g_shfile_async_close.num_threads;
+            if (num_pending > num_threads && num_threads < K_ELEMENTS(g_shfile_async_close.threads))
+            {
+                unsigned tid = 0;
+                intptr_t hThread = _beginthreadex(NULL /*security*/, 0 /*stack_size*/, shfile_async_close_handle_thread,
+                                                  NULL /*arg*/, 0 /*initflags*/, &tid);
+                assert(hThread != -1);
+                if (hThread != -1)
+                {
+                    g_shfile_async_close.threads[num_threads] = (HANDLE)hThread;
+                    g_shfile_async_close.num_threads = num_threads + 1;
+                }
+                else if (num_threads == 0)
+                    ret = K_FALSE;
+            }
+        }
+
+        /* cleanup on failure. */
+        if (ret)
+        { /* likely */ }
+        else
+        {
+            g_shfile_async_close.handles[idx] = NULL;
+            g_shfile_async_close.idx_write    = idx;
+            g_shfile_async_close.num_pending  = num_pending - 1;
+        }
+    }
+    else
+        ret = K_FALSE;
+
+    shmtx_leave(&g_shfile_async_close.mtx, &tmp);
+    return ret;
+}
+
+/**
+ * Wait for all pending CloseHandle calls to complete.
+ */
+void shfile_async_close_sync(void)
+{
+    shmtxtmp tmp;
+    shmtx_enter(&g_shfile_async_close.mtx, &tmp);
+
+    if (g_shfile_async_close.num_pending > 0)
+    {
+        DWORD dwRet;
+
+/** @todo help out? */
+        if (!g_shfile_async_close.signal_sync)
+        {
+            BOOL rc = ResetEvent(g_shfile_async_close.evt_sync);
+            assert(rc); K_NOREF(rc);
+
+            g_shfile_async_close.signal_sync = K_TRUE;
+        }
+
+        shmtx_leave(&g_shfile_async_close.mtx, &tmp);
+
+        dwRet = WaitForSingleObject(g_shfile_async_close.evt_sync, 10000 /*ms*/);
+        assert(dwRet == WAIT_OBJECT_0);
+        assert(g_shfile_async_close.num_pending == 0);
+    }
+    else
+        shmtx_leave(&g_shfile_async_close.mtx, &tmp);
+}
+
+# endif /* K_OS == K_OS_WINDOWS && defined(KASH_ASYNC_CLOSE_HANDLE) */
+
 /**
  * Close the specified native handle.
  *
  * @param   native      The native file handle.
  * @param   file        The file table entry if available.
+ * @param   inheritable The inheritability of the handle on windows, K_FALSE elsewhere.
  */
-static void shfile_native_close(intptr_t native, shfile *file)
+static void shfile_native_close(intptr_t native, shfile *file, KBOOL inheritable)
 {
 # if K_OS == K_OS_WINDOWS
+#  ifdef KASH_ASYNC_CLOSE_HANDLE
+    /*
+     * CloseHandle may take several milliseconds on NTFS after we've appended
+     * a few bytes to a file.  When a script uses lots of 'echo line-text >> file'
+     * we end up executing very slowly, even if 'echo' is builtin and the statement
+     * requires no subshells to be spawned.
+     *
+     * So, detect problematic handles and do CloseHandle asynchronously.   When
+     * executing a child process, we probably will have to make sure the CloseHandle
+     * operation has completed before we let do ResumeThread on the child to make
+     * 100% sure we can't have any sharing conflicts.  Sharing conflicts are not a
+     * problem for builtin commands.
+     *
+     * If child processes are spawned using handle inheritance and the handle in
+     * question is inheritable, we will have to fix the inheriability before pushing
+     * on the async-close queue.  This shouldn't have the CloseHandle issues.
+     */
+    if (   file
+        &&    (file->shflags & (SHFILE_FLAGS_DIRTY | SHFILE_FLAGS_TYPE_MASK))
+           ==                  (SHFILE_FLAGS_DIRTY | SHFILE_FLAGS_FILE))
+    {
+        if (inheritable)
+            native = (intptr_t)shfile_set_inherit_win(file, 0);
+        if (shfile_async_close_submit((HANDLE)native))
+            return;
+    }
+
+    /*
+     * Otherwise close it right here:
+     */
+#   endif
+    {
 #  ifdef DEBUG
     KU64 ns = shfile_nano_ts();
-    BOOL fRc2 = FlushFileBuffers((HANDLE)native);
-    KU64 ns2 = shfile_nano_ts();
     BOOL fRc = CloseHandle((HANDLE)native);
     assert(fRc); K_NOREF(fRc);
-    ns2 -= ns;
     ns = shfile_nano_ts() - ns;
     if (ns > 1000000)
-        TRACE2((NULL, "shfile_native_close: %u ns (%u) %p oflags=%#x %s\n",
-                ns, ns2, native, file ? file->oflags : 0, file ? file->dbgname : NULL));
+        TRACE2((NULL, "shfile_native_close: %u ns %p oflags=%#x %s\n",
+                ns, native, file ? file->oflags : 0, file ? file->dbgname : NULL));
 #  else
     BOOL fRc = CloseHandle((HANDLE)native);
     assert(fRc); K_NOREF(fRc);
 #  endif
-# else
+    }
+
+# else  /* K_OS != K_OS_WINDOWS */
     int s = errno;
     close(native);
     errno = s;
-# endif
+# endif /* K_OS != K_OS_WINDOWS */
     K_NOREF(file);
 }
 
@@ -280,7 +520,7 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsi
     if (fdMin >= SHFILE_MAX)
     {
         TRACE2((NULL, "shfile_insert: fdMin=%d is out of bounds; native=%p %s\n", fdMin, native, dbgname));
-        shfile_native_close(native, NULL);
+        shfile_native_close(native, NULL, K_FALSE);
         errno = EMFILE;
         return -1;
     }
@@ -325,7 +565,7 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsi
         TRACE2((NULL, "shfile_insert: #%d: native=%p oflags=%#x shflags=%#x %s\n", fd, native, oflags, shflags, dbgname));
     }
     else
-        shfile_native_close(native, NULL);
+        shfile_native_close(native, NULL, K_FALSE);
 
     shmtx_leave(&pfdtab->mtx, &tmp);
 
@@ -658,6 +898,36 @@ static void shfile_init_globals(void)
         {
             /* fatal error */
         }
+
+# ifdef KASH_ASYNC_CLOSE_HANDLE
+        /*
+         * Init the async CloseHandle state.
+         */
+        shmtx_init(&g_shfile_async_close.mtx);
+        g_shfile_async_close.evt_workers = CreateEventW(NULL, FALSE /*fManualReset*/, FALSE /*fInitialState*/, NULL /*pwszName*/);
+        g_shfile_async_close.evt_sync    = CreateEventW(NULL, TRUE /*fManualReset*/, FALSE /*fInitialState*/, NULL /*pwszName*/);
+        if (   !g_shfile_async_close.evt_workers
+            || !g_shfile_async_close.evt_sync)
+        {
+            fprintf(stderr, "fatal error: CreateEventW failed: %u\n", GetLastError());
+            _exit(19);
+        }
+        g_shfile_async_close.idx_read          = 0;
+        g_shfile_async_close.idx_write         = 0;
+        g_shfile_async_close.num_pending       = 0;
+        g_shfile_async_close.terminate_threads = K_FALSE;
+        g_shfile_async_close.signal_sync       = K_FALSE;
+        g_shfile_async_close.num_threads       = 0;
+        {
+            unsigned i = K_ELEMENTS(g_shfile_async_close.handles);
+            while (i-- > 0)
+                g_shfile_async_close.handles[i] = NULL;
+            i = K_ELEMENTS(g_shfile_async_close.threads);
+            while (i-- > 0)
+                g_shfile_async_close.threads[i] = NULL;
+        }
+# endif
+
         g_shfile_globals_initialized = 1;
     }
 #endif
@@ -1169,7 +1439,11 @@ int shfile_exec_win(shfdtab *pfdtab, int prepare, shfdexecwin *info)
             HANDLE     *pah = (HANDLE *)(paf + count);
 
             info->inherithandles  = 1;
+# ifdef KASH_ASYNC_CLOSE_HANDLE
+            info->startsuspended  = g_shfile_async_close.num_pending > 0;
+# else
             info->startsuspended  = 0;
+# endif
             strtinfo->cbReserved2 = (unsigned short)cbData;
             strtinfo->lpReserved2 = pbData;
 
@@ -1241,7 +1515,7 @@ int shfile_exec_win(shfdtab *pfdtab, int prepare, shfdexecwin *info)
                 if (   file->fd == i
                     && !(file->shflags & SHFILE_FLAGS_TRACE))
                 {
-                    shfile_native_close(file->native, file);
+                    shfile_native_close(file->native, file, info->inherithandles);
 
                     file->fd = -1;
                     file->oflags = 0;
@@ -1381,7 +1655,7 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
 #  ifdef DEBUG
         ns = shfile_nano_ts() - ns;
         if (ns > 1000000)
-            TRACE2((NULL, "shfile_open: %s ns hFile=%p (%d) %s\n", ns, hFile, GetLastError(), absname));
+            TRACE2((NULL, "shfile_open: %u ns hFile=%p (%d) %s\n", ns, hFile, GetLastError(), absname));
 #  endif
         if (hFile != INVALID_HANDLE_VALUE)
             fd = shfile_insert(pfdtab, (intptr_t)hFile, flags, 0, -1, "shfile_open", absname);
@@ -1519,7 +1793,7 @@ int shfile_movefd(shfdtab *pfdtab, int fdfrom, int fdto)
         if ((unsigned)fdto < pfdtab->size)
         {
             if (pfdtab->tab[fdto].fd != -1)
-                shfile_native_close(pfdtab->tab[fdto].native, &pfdtab->tab[fdto]);
+                shfile_native_close(pfdtab->tab[fdto].native, &pfdtab->tab[fdto], K_FALSE);
 
             /* setup the target. */
             pfdtab->tab[fdto].fd      = fdto;
@@ -1639,7 +1913,7 @@ int shfile_close(shfdtab *pfdtab, unsigned fd)
     shfile     *file = shfile_get(pfdtab, fd, &tmp);
     if (file)
     {
-        shfile_native_close(file->native, file);
+        shfile_native_close(file->native, file, K_FALSE);
 
         file->fd = -1;
         file->oflags = 0;
@@ -1717,6 +1991,7 @@ long shfile_write(shfdtab *pfdtab, int fd, const void *buf, size_t len)
         rc = write(file->native, buf, len);
 # endif
 
+        file->shflags |= SHFILE_FLAGS_DIRTY; /* there should be no concurrent access, so this is safe. */
         shfile_put(pfdtab, file, &tmp);
     }
     else

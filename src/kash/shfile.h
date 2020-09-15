@@ -1,4 +1,4 @@
-/* $Id: shfile.h 3465 2020-09-15 19:46:48Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 3466 2020-09-15 21:28:37Z knut.osmundsen@oracle.com $ */
 /** @file
  * File management.
  */
@@ -123,6 +123,7 @@ typedef struct shfile
 #define SHFILE_FLAGS_PIPE               0x0010
 #define SHFILE_FLAGS_DIR                0x0020
 #define SHFILE_FLAGS_TTY                0x0030
+#define SHFILE_FLAGS_DIRTY              0x0100  /**< The file has been written to. */
 /** @} */
 
 /**
@@ -150,6 +151,9 @@ typedef struct shfdexecwin
 } shfdexecwin;
 int shfile_exec_win(shfdtab *pfdtab, int prepare, shfdexecwin *info);
 int shfile_exec_unix(shfdtab *pfdtab);
+#if K_OS == K_OS_WINDOWS && defined(KASH_ASYNC_CLOSE_HANDLE)
+void shfile_async_close_sync(void);
+#endif
 
 int shfile_open(shfdtab *, const char *, unsigned, mode_t);
 int shfile_pipe(shfdtab *, int [2]);

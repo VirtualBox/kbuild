@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3464 2020-09-15 19:44:11Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3466 2020-09-15 21:28:37Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -2090,10 +2090,16 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
             if (fdinfo.startsuspended)
             {
                 char errmsg[512];
-                rc = nt_child_inject_standard_handles(ProcInfo.hProcess, fdinfo.replacehandles, (HANDLE*)&fdinfo.handles[0],
-                                                      errmsg, sizeof(errmsg));
+                if (!fdinfo.inherithandles)
+                    rc = nt_child_inject_standard_handles(ProcInfo.hProcess, fdinfo.replacehandles,
+                                                          (HANDLE *)&fdinfo.handles[0], errmsg, sizeof(errmsg));
+                else
+                    rc = 0;
                 if (!rc)
                 {
+#  ifdef KASH_ASYNC_CLOSE_HANDLE
+                    shfile_async_close_sync();
+#  endif
                     rc = ResumeThread(ProcInfo.hThread);
                     if (!rc)
                         TRACE2((psh, "sh_execve: ResumeThread failed: %u -> errno=ENXIO\n", GetLastError()));
@@ -2120,9 +2126,9 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
 
                 if (GetExitCodeProcess(ProcInfo.hProcess, &dwExitCode))
                 {
-#ifndef SH_FORKED_MODE
+#  ifndef SH_FORKED_MODE
                     shsubshellstatus_signal_and_release(psh, (int)dwExitCode);
-#endif
+#  endif
                     CloseHandle(ProcInfo.hProcess);
                     ProcInfo.hProcess = INVALID_HANDLE_VALUE;
                     sh__exit(psh, dwExitCode);
