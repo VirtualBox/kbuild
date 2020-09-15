@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 3461 2020-09-15 12:55:26Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 3467 2020-09-15 21:30:11Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -515,7 +515,7 @@ clock_t sh_times(shinstance *, shtms *);
 int sh_sysconf_clk_tck(void);
 
 /* wait / process */
-int sh_add_child(shinstance *psh, shpid pid, void *hChild, shsubshellstatus *sts);
+int sh_add_child(shinstance *psh, shpid pid, void *hChild, struct shsubshellstatus *sts);
 #ifdef _MSC_VER
 #   include <process.h>
 #   define WNOHANG         1       /* Don't hang in wait. */
