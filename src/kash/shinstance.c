@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3461 2020-09-15 12:55:26Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3464 2020-09-15 19:44:11Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -1506,6 +1506,31 @@ static shsubshellstatus *shsubshellstatus_create(shinstance *psh, int refs)
     return sts;
 }
 
+/**
+ * If we have a subshell status structure, signal and release it.
+ */
+static void shsubshellstatus_signal_and_release(shinstance *psh, int iExit)
+{
+    shsubshellstatus *sts = psh->subshellstatus;
+    if (sts)
+    {
+        BOOL rc;
+        HANDLE hThread;
+
+        sts->status = W_EXITCODE(iExit, 0);
+        sts->done   = K_TRUE;
+        rc = SetEvent((HANDLE)sts->towaiton); assert(rc); K_NOREF(rc);
+
+        hThread = (HANDLE)sts->hThread;
+        sts->hThread = 0;
+        rc = CloseHandle(hThread); assert(rc);
+
+        shsubshellstatus_release(psh, sts);
+        psh->subshellstatus = NULL;
+    }
+}
+
+
 #endif /* !SH_FORKED_MODE */
 
 /**
@@ -1592,7 +1617,6 @@ static unsigned __stdcall sh_thread_wrapper(void *user)
 {
     shinstance * volatile volpsh = (shinstance *)user;
     shinstance *psh = (shinstance *)user;
-    shsubshellstatus *sts;
     struct jmploc exitjmp;
     int iExit;
 
@@ -1624,23 +1648,7 @@ static unsigned __stdcall sh_thread_wrapper(void *user)
     }
 
     /* Signal parent. */
-    sts = psh->subshellstatus;
-    if (sts)
-    {
-        BOOL rc;
-        HANDLE hThread;
-
-        sts->status = W_EXITCODE(iExit, 0);
-        sts->done   = K_TRUE;
-        rc = SetEvent((HANDLE)sts->towaiton); assert(rc); K_NOREF(rc);
-
-        hThread = (HANDLE)sts->hThread;
-        sts->hThread = 0;
-        rc = CloseHandle(hThread); assert(rc);
-
-        shsubshellstatus_release(psh, sts);
-        psh->subshellstatus = NULL;
-    }
+    shsubshellstatus_signal_and_release(psh, iExit);
 
     /* destroy the shell instance and exit the thread. */
     TRACE2((psh, "sh_thread_wrapper: quits - iExit=%d\n", iExit));
@@ -1841,29 +1849,30 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
     return pidret;
 }
 
-SH_NORETURN_1 void sh__exit(shinstance *psh, int rc)
+SH_NORETURN_1 void sh__exit(shinstance *psh, int iExit)
 {
-    TRACE2((psh, "sh__exit(%d)\n", rc));
+    TRACE2((psh, "sh__exit(%d)\n", iExit));
 
 #if defined(SH_FORKED_MODE)
-    _exit(rc);
+    _exit(iExit);
     (void)psh;
 
 #else
-    psh->exitstatus = rc;
+    psh->exitstatus = iExit;
 
     /*
      * If we're a thread, jump to the sh_thread_wrapper and make a clean exit.
      */
     if (psh->thread)
     {
+        shsubshellstatus_signal_and_release(psh, iExit);
         if (psh->exitjmp)
-            longjmp(psh->exitjmp->loc, !rc ? SH_EXIT_ZERO : rc);
+            longjmp(psh->exitjmp->loc, !iExit ? SH_EXIT_ZERO : iExit);
         else
         {
             static char const s_msg[] = "fatal error in sh__exit: exitjmp is NULL!\n";
             shfile_write(&psh->fdtab, 2, s_msg, sizeof(s_msg) - 1);
-            _exit(rc);
+            _exit(iExit);
         }
     }
 
@@ -1881,7 +1890,7 @@ SH_NORETURN_1 void sh__exit(shinstance *psh, int rc)
         /** @todo    */
     }
 
-    _exit(rc);
+    _exit(iExit);
 #endif
 }
 
@@ -2112,8 +2121,7 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
                 if (GetExitCodeProcess(ProcInfo.hProcess, &dwExitCode))
                 {
 #ifndef SH_FORKED_MODE
-                    /** @todo signal the end of this subshell now, we can do the cleaning up
-                     *        after the parent shell has resumed. */
+                    shsubshellstatus_signal_and_release(psh, (int)dwExitCode);
 #endif
                     CloseHandle(ProcInfo.hProcess);
                     ProcInfo.hProcess = INVALID_HANDLE_VALUE;
