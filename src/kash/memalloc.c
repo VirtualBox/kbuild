@@ -371,12 +371,11 @@ unsigned pstackrelease(shinstance *psh, pstack_block *pst, const char *caller)
 		TRACE2((NULL, "pstackrelease: %p - %u refs (%s)\n", pst, refs, caller)); K_NOREF(caller);
 		if (refs == 0) {
 			struct stack_block *top;
-			while ((top = pst->top) != &pst->first)
-			{
-			    pst->top = top->prev;
-			    assert(pst->top);
-			    top->prev = NULL;
-			    sh_free(psh, top);
+			while ((top = pst->top) != &pst->first) {
+				pst->top = top->prev;
+				assert(pst->top);
+				top->prev = NULL;
+				sh_free(psh, top);
 			}
 			pst->nextbyte = NULL;
 			pst->top = NULL;
@@ -468,8 +467,8 @@ pstack_block *pstackallocpush(shinstance *psh)
 	pst->nextbyte          = &pst->first.space[0];
 	pst->avail             = blocksize - offsetof(pstack_block, first.space);
 	pst->topsize           = blocksize - offsetof(pstack_block, first.space);
-	pst->top               = &pst->first;
 	pst->strleft           = 0;
+	pst->top               = &pst->first;
 	pst->allocations       = 0;
 	pst->bytesalloced      = 0;
 	pst->nodesalloced      = 0;
