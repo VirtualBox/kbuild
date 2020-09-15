@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3458 2020-09-14 21:46:32Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3459 2020-09-15 09:09:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -277,9 +277,12 @@ static void sh_destroy(shinstance *psh)
     INTOFF;
 
     sh_int_unlink(psh);
+
+    /* shinstance stuff: */
     shfile_uninit(&psh->fdtab, psh->tracefd);
     sh_free_string_vector(psh, &psh->shenviron);
-
+    sh_free(psh, psh->children);
+    psh->children = NULL;
 #ifndef SH_FORKED_MODE
     /** @todo children. */
     sh_free(psh, psh->threadarg);
@@ -322,15 +325,21 @@ static void sh_destroy(shinstance *psh)
     psh->commandname = NULL;
     psh->cmdenviron = NULL;
 
-#if 0
     /* expand.c */
-    char               *expdest;        /**< output of current string */
-    struct nodelist    *argbackq;       /**< list of back quote expressions */
-    struct ifsregion    ifsfirst;       /**< first struct in list of ifs regions */
-    struct ifsregion   *ifslastp;       /**< last struct in list */
-    struct arglist      exparg;         /**< holds expanded arg list */
-    char               *expdir;         /**< Used by expandmeta. */
-#endif
+    if (psh->ifsfirst.next)
+    {
+        struct ifsregion *ifsrgn = psh->ifsfirst.next;
+        psh->ifsfirst.next = NULL;
+        do
+        {
+            struct ifsregion *next = ifsrgn->next;
+            sh_free(psh, ifsrgn);
+            ifsrgn = next;
+        } while (ifsrgn);
+    }
+    psh->ifslastp = NULL;
+    sh_free(psh, psh->expdir);
+    psh->expdir = NULL;
 
     /* exec.h/exec.c */
     psh->pathopt = NULL;
@@ -391,46 +400,43 @@ static void sh_destroy(shinstance *psh)
     int                 nmboxes;        /**< number of mailboxes */
     time_t              mailtime[MAXMBOXES]; /**< times of mailboxes */
 
-    /* main.h */
-    shpid               rootpid;        /**< pid of main shell. */
-    int                 rootshell;      /**< true if we aren't a child of the main shell. */
-    struct shinstance  *psh_rootshell;  /**< The root shell pointer. (!rootshell) */
-
-    /* memalloc.h */
-    char               *stacknxt/* = stackbase.space*/;
-    int                 stacknleft/* = MINSIZE*/;
-    int                 sstrnleft;
-    int                 herefd/* = -1 */;
-
     /* myhistedit.h */
-    int                 displayhist;
 #ifndef SMALL
     History            *hist;
     EditLine           *el;
 #endif
+#endif
 
     /* output.h */
-    struct output       output;
-    struct output       errout;
-    struct output       memout;
-    struct output      *out1;
-    struct output      *out2;
-
-    /* output.c */
-#define OUTBUFSIZ BUFSIZ
-#define MEM_OUT -3                      /**< output to dynamically allocated memory */
+	if (psh->output.buf != NULL)
+    {
+        ckfree(psh, psh->output.buf);
+        psh->output.buf = NULL;
+	}
+	if (psh->errout.buf != NULL)
+    {
+        ckfree(psh, psh->errout.buf);
+        psh->errout.buf = NULL;
+	}
+	if (psh->memout.buf != NULL)
+    {
+        ckfree(psh, psh->memout.buf);
+        psh->memout.buf = NULL;
+	}
 
     /* options.h */
-    struct optent       optlist[NOPTS];
-    char               *minusc;         /**< argument to -c option */
-    char               *arg0;           /**< $0 */
-    struct shparam      shellparam;     /**< $@ */
-    char              **argptr;         /**< argument list for builtin commands */
-    char               *optionarg;      /**< set by nextopt */
-    char               *optptr;         /**< used by nextopt */
-    char              **orgargv;        /**< The original argument vector (for cleanup). */
-    int                 arg0malloc;     /**< Indicates whether arg0 was allocated or is part of orgargv. */
+    if (psh->arg0malloc)
+    {
+        sh_free(psh, psh->arg0);
+        psh->arg0 = NULL;
+    }
+    if (psh->shellparam.malloc)
+        sh_free_string_vector(psh, &psh->shellparam.p);
+    sh_free_string_vector(psh, &psh->orgargv);
+    psh->argptr = NULL;
+    psh->minusc = NULL;
 
+#if 0
     /* parse.h */
     int                 tokpushback;
     int                 whichprompt;    /**< 1 == PS1, 2 == PS2 */
@@ -449,61 +455,66 @@ static void sh_destroy(shinstance *psh)
     struct heredoc     *heredoc;
     int                 quoteflag;      /**< set if (part of) last token was quoted */
     int                 startlinno;     /**< line # where last token started */
+#endif
 
     /* redir.c */
-    struct redirtab    *redirlist;
-    int                 fd0_redirected/* = 0*/;
-#endif
+    if (psh->redirlist)
+    {
+        struct redirtab *redir = psh->redirlist;
+        psh->redirlist = NULL;
+        do
+        {
+            struct redirtab *next = redir->next;
+            sh_free(psh, redir);
+            redir = next;
+        } while (redir);
+    }
     psh->expfnames = NULL; /* stack alloc */
 
-#if 0
-    /* show.c */
-    char                tracebuf[1024];
-    size_t              tracepos;
-    int                 tracefd;
-
-    /* trap.h */
-    int                 pendingsigs;    /**< indicates some signal received */
-
     /* trap.c */
-    char                gotsig[NSIG];   /**< indicates specified signal received */
-    char               *trap[NSIG+1];   /**< trap handler commands */
-    char                sigmode[NSIG];  /**< current value of signal */
+    for (i = 0; i < K_ELEMENTS(psh->trap); i++)
+        if (!psh->trap[i])
+        { /* likely */ }
+        else
+        {
+            sh_free(psh, psh->trap[i]);
+            psh->trap[i] = NULL;
+        }
 
     /* var.h */
-    struct localvar    *localvars;
-    struct var          vatty;
-    struct var          vifs;
-    struct var          vmail;
-    struct var          vmpath;
-    struct var          vpath;
-#ifdef _MSC_VER
-    struct var          vpath2;
-#endif
-    struct var          vps1;
-    struct var          vps2;
-    struct var          vps4;
-#ifndef SMALL
-    struct var          vterm;
-    struct var          vhistsize;
-#endif
-    struct var          voptind;
-#ifdef PC_OS2_LIBPATHS
-    struct var          libpath_vars[4];
-#endif
-#ifdef SMALL
-# define VTABSIZE 39
-#else
-# define VTABSIZE 517
-#endif
-    struct var         *vartab[VTABSIZE];
+    if (psh->localvars)
+    {
+        struct localvar *lvar = psh->localvars;
+        psh->localvars = NULL;
+        do
+        {
+            struct localvar *next = lvar->next;
+			if (!(lvar->flags & VTEXTFIXED))
+                sh_free(psh, lvar->text);
+            sh_free(psh, lvar);
+            lvar = next;
+        } while (lvar);
+    }
 
-    /* builtins.h */
-
-    /* bltin/test.c */
-    char              **t_wp;
-    struct t_op const  *t_wp_op;
-#endif
+    for (i = 0; i < K_ELEMENTS(psh->vartab); i++)
+    {
+        struct var *var = psh->vartab[i];
+        if (!var)
+        { /* likely */ }
+        else
+        {
+            psh->vartab[i] = NULL;
+            do
+            {
+                struct var *next = var->next;
+                if (!(var->flags & VTEXTFIXED))
+                    sh_free(psh, var->text);
+                if (!(var->flags & VSTRFIXED))
+                    sh_free(psh, var);
+                var = next;
+            } while (var);
+        }
+    }
 
     /*
      * memalloc.c: Make sure we've gotten rid of all the stack memory.

@@ -135,11 +135,6 @@ extern void rmaliases(shinstance *psh);
 extern void deletefuncs(struct shinstance *);
 extern void hash_special_builtins(struct shinstance *);
 
-struct redirtab {
-	struct redirtab *next;
-	short renamed[10];
-};
-
 
 
 /*
