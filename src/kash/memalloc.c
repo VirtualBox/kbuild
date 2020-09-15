@@ -370,7 +370,6 @@ unsigned pstackrelease(shinstance *psh, pstack_block *pst, const char *caller)
 		refs = sh_atomic_dec(&pst->refs);
 		TRACE2((NULL, "pstackrelease: %p - %u refs (%s)\n", pst, refs, caller)); K_NOREF(caller);
 		if (refs == 0) {
-			shinstance * const psh = shthread_get_shell();
 			struct stack_block *top;
 			while ((top = pst->top) != &pst->first)
 			{
@@ -381,8 +380,11 @@ unsigned pstackrelease(shinstance *psh, pstack_block *pst, const char *caller)
 			}
 			pst->nextbyte = NULL;
 			pst->top = NULL;
-			/** @todo push into an alloc cache rather than freeing it */
-			sh_free(psh, pst);
+
+			if (!psh->freepstack)
+				psh->freepstack = pst;
+			else
+				sh_free(psh, pst);
 		}
 	} else
 		refs = 0;
@@ -394,11 +396,16 @@ void pstackpop(shinstance *psh, unsigned target)
 	assert(target <= psh->pstacksize);
 	while (target < psh->pstacksize) {
 		unsigned idx = --psh->pstacksize;
-		pstack_block *psk = psh->pstack[idx];
+		pstack_block *pst = psh->pstack[idx];
 		psh->pstack[idx] = NULL;
-		if (psh->curpstack == psk)
-		    psh->curpstack = idx > 0 ? psh->pstack[idx - 1] : NULL;
-		pstackrelease(psh, psk, "popstackmark");
+		if (psh->curpstack == pst) {
+			pstack_block *pstnext;
+			if (idx <= 0 || (pstnext = psh->pstack[idx - 1])->done)
+				psh->curpstack = NULL;
+			else
+				psh->curpstack = pstnext;
+		}
+		pstackrelease(psh, pst, "popstackmark");
 	}
 
 # ifndef NDEBUG
@@ -453,12 +460,16 @@ pstack_block *pstackallocpush(shinstance *psh)
 	/*
 	 * Allocate and initialize it.
 	 */
-	pst = (pstack_block *)ckmalloc(psh, blocksize);
+	pst = psh->freepstack;
+	if (pst)
+		psh->freepstack = NULL;
+	else
+		pst = (pstack_block *)ckmalloc(psh, blocksize);
 	pst->nextbyte          = &pst->first.space[0];
 	pst->avail             = blocksize - offsetof(pstack_block, first.space);
 	pst->topsize           = blocksize - offsetof(pstack_block, first.space);
-	pst->strleft           = 0;
 	pst->top               = &pst->first;
+	pst->strleft           = 0;
 	pst->allocations       = 0;
 	pst->bytesalloced      = 0;
 	pst->nodesalloced      = 0;
@@ -467,7 +478,7 @@ pstack_block *pstackallocpush(shinstance *psh)
 	pst->blocks            = 0;
 	pst->fragmentation     = 0;
 	pst->refs              = 1;
-	pst->padding           = 42;
+	pst->done              = K_FALSE;
 	pst->first.prev        = NULL;
 
 	/*
@@ -479,6 +490,14 @@ pstack_block *pstackallocpush(shinstance *psh)
 	INTON;
 	TRACE2((psh, "pstackallocpush: %p - entry %u\n", pst, psh->pstacksize - 1));
 	return pst;
+}
+
+/**
+ * Marks the block as done, preventing it from being marked current again.
+ */
+void pstackmarkdone(pstack_block *pst)
+{
+	pst->done = K_TRUE;
 }
 
 /**
