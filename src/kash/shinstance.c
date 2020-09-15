@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3467 2020-09-15 21:30:11Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3468 2020-09-15 23:28:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -172,6 +172,22 @@ void shmtx_leave(shmtx *pmtx, shmtxtmp *ptmp)
     ptmp->i = 432;
 #endif
 }
+
+/**
+ * Initialize globals in shinstance.c.
+ *
+ * Called when creating the rootshell and on windows after forking.
+ */
+void sh_init_globals(void)
+{
+    assert(g_sh_mtx.au64[SHMTX_MAGIC_IDX] != SHMTX_MAGIC);
+    shmtx_init(&g_sh_mtx);
+#ifndef SH_FORKED_MODE
+    shmtx_init(&g_sh_exec_inherit_mtx);
+    shmtx_init(&g_sh_sts_mtx);
+#endif
+}
+
 
 /**
  * Links the shell instance.
@@ -708,12 +724,7 @@ shinstance *sh_create_root_shell(char **argv, char **envp)
 {
     shinstance *psh;
 
-    assert(g_sh_mtx.au64[SHMTX_MAGIC_IDX] != SHMTX_MAGIC);
-    shmtx_init(&g_sh_mtx);
-#ifndef SH_FORKED_MODE
-    shmtx_init(&g_sh_exec_inherit_mtx);
-    shmtx_init(&g_sh_sts_mtx);
-#endif
+    sh_init_globals();
 
     psh = sh_create_shell_common(argv, envp, NULL /*parentfdtab*/);
     if (psh)

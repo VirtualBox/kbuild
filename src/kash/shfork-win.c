@@ -157,6 +157,7 @@ int shfork_do(shinstance *psh)
         shheap_init(pheap_head);
         setlocale(LC_ALL, "");
         init_syntax();
+        sh_init_globals();
     }
     return pid;
 }
