@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3468 2020-09-15 23:28:47Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3472 2020-09-16 21:10:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -527,7 +527,7 @@ static void sh_destroy(shinstance *psh)
             do
             {
                 struct var *next = var->next;
-                if (!(var->flags & VTEXTFIXED))
+                if (!(var->flags & (VTEXTFIXED | VSTACK)))
                     sh_free(psh, var->text);
                 if (!(var->flags & VSTRFIXED))
                     sh_free(psh, var);
