@@ -1011,7 +1011,7 @@ evalcommand_doit(shinstance *psh, union node *cmd, struct evalcommanddoit *args)
 				if (args->flags & EV_EXIT)
 					exitshell(psh, psh->exitstatus);
 			}
-			if (savecmdnamemalloc)
+			else if (savecmdnamemalloc)
 				sh_free(psh, savecmdname);
 			if (e != -1) {
 				if ((e != EXERROR && e != EXEXEC)
@@ -1040,7 +1040,8 @@ evalcommand_doit(shinstance *psh, union node *cmd, struct evalcommanddoit *args)
 			for (sp = args->varlist.list ; sp ; sp = sp->next)
                                 setvareq(psh, sp->text, VEXPORT|VSTACK);
 			envp = environment(psh);
-			shellexec(psh, args->argv, envp, args->path, args->cmdentry.u.index);
+			shellexec(psh, args->argv, envp, args->path,
+			          args->cmdentry.u.n.index, args->cmdentry.u.n.suffix);
 			break;
 		}
 	}
@@ -1420,7 +1421,7 @@ execcmd(shinstance *psh, int argc, char **argv)
 		optschanged(psh);
 		for (sp = psh->cmdenviron; sp; sp = sp->next)
 			setvareq(psh, sp->text, VEXPORT|VSTACK);
-		shellexec(psh, argv + 1, environment(psh), pathval(psh), 0);
+		shellexec(psh, argv + 1, environment(psh), pathval(psh), 0, -1);
 	}
 	return 0;
 }

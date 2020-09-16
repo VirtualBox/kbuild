@@ -45,6 +45,7 @@ __RCSID("$NetBSD: exec.c,v 1.37 2003/08/07 09:05:31 agc Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <assert.h>
 
 /*
  * When commands are first encountered, they are entered in a hash table.
@@ -97,6 +98,9 @@ __RCSID("$NetBSD: exec.c,v 1.37 2003/08/07 09:05:31 agc Exp $");
 //STATIC struct tblentry *cmdtable[CMDTABLESIZE];
 //STATIC int builtinloc = -1;		/* index in path of %builtin, or -1 */
 //int exerrno = 0;			/* Last exec error */
+#ifdef PC_EXE_EXTS
+STATIC const char * const g_exe_suffixes[] = { "", ".exe", ".cmd", ".btm", ".com" };
+#endif
 
 
 STATIC void tryexec(shinstance *, char *, char **, char **, int);
@@ -106,7 +110,7 @@ STATIC void clearcmdentry(shinstance *, int);
 STATIC struct tblentry *cmdlookup(shinstance *, const char *, int);
 STATIC void delete_cmd_entry(shinstance *);
 #ifdef PC_EXE_EXTS
-STATIC int stat_pc_exec_exts(shinstance *, char *fullname, struct stat *st, int has_ext);
+STATIC int stat_pc_exec_exts(shinstance *, char *fullname, int has_ext, int *suffixp);
 #endif
 
 
@@ -135,7 +139,8 @@ subshellinitexec(shinstance *psh, shinstance *inherit)
 		switch (csrc->cmdtype) {
 		case CMDUNKNOWN:
 		case CMDNORMAL:
-		    dst->param.index = csrc->param.index;
+		    dst->param.n.index = csrc->param.n.index;
+		    dst->param.n.suffix = csrc->param.n.suffix;
 		    break;
 		case CMDFUNCTION:
 		    dst->param.func = copyfunc(psh, csrc->param.func); /** @todo optimize function allocations */
@@ -161,12 +166,46 @@ subshellinitexec(shinstance *psh, shinstance *inherit)
 
 
 /*
+ * Check if 'path' is an absolute (starts with root) path or not.
+ */
+K_INLINE isabspath(const char *path)
+{
+#if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
+	if (path[0] == '/' || path[0] == '\\') {
+		if (   (path[1] == '/' || path[1] == '\\')
+		    && (path[2] != '/' && path[2] != '\\' && path[2]))
+			return 1;
+	} else if (path[0] && path[1] == ':' && (path[2] == '\\' || path[2] == '/') && isalpha(path[0])) {
+		return 1;
+	}
+	return 0;
+#else
+	return path[0] == '/';
+#endif
+}
+
+/*
+ * Checks if the filename include a path or not.
+ */
+K_INLINE haspath(const char *name)
+{
+#if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
+    return strchr(name, '/') != NULL
+	|| strchr(name, '\\') != NULL
+	|| (name[0] && name[1] == ':');
+#else
+    return strchr(name, '/') != NULL;
+#endif
+}
+
+
+/*
  * Exec a program.  Never returns.  If you change this routine, you may
  * have to change the find_command routine as well.
  */
 
 SH_NORETURN_1 void
-shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx)
+shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx, int suffix)
 {
 	char *cmdname;
 	int e;
@@ -188,10 +227,20 @@ shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx)
 #else
 	const int has_ext = 1;
 #endif
-	TRACE((psh, "shellexec: argv[0]=%s idx=%d\n", argv0, idx));
-	if (strchr(argv0, '/') != NULL) {
-		cmdname = stalloc(psh, argv0len + 5);
-		strcpy(cmdname, argv0);
+	TRACE((psh, "shellexec: argv[0]=%s idx=%d suffix=%d\n", argv0, idx, suffix));
+	if (haspath(argv0)) {
+#ifdef PC_EXE_EXTS
+		if (!has_ext && suffix && (unsigned)suffix < K_ELEMENTS(g_exe_suffixes)) {
+			size_t sufflen = strlen(g_exe_suffixes[suffix]);
+			cmdname = stalloc(psh, argv0len + sufflen + 1);
+			memcpy(cmdname, argv0, argv0len);
+			memcpy(cmdname + argv0len, g_exe_suffixes[suffix], sufflen + 1);
+		} else
+#endif
+		{
+			cmdname = stalloc(psh, argv0len + 5);
+			memcpy(cmdname, argv0, argv0len + 1);
+		}
 		tryexec(psh, cmdname, argv, envp, has_ext);
 		TRACE((psh, "shellexec: cmdname=%s\n", cmdname));
 		stunalloc(psh, cmdname);
@@ -213,6 +262,10 @@ shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx)
 		e = ENOENT;
 		while ((cmdname = padvance(psh, &path, argv0)) != NULL) {
 			if (--idx < 0 && psh->pathopt == NULL) {
+#ifdef PC_EXE_EXTS
+				if (!has_ext && idx == -1 && suffix && (unsigned)suffix < K_ELEMENTS(g_exe_suffixes))
+					strcat(cmdname, g_exe_suffixes[suffix]);
+#endif
 				tryexec(psh, cmdname, argv, envp, has_ext);
 				if (errno != ENOENT && errno != ENOTDIR)
 					e = errno;
@@ -249,11 +302,12 @@ tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int has_ext)
 #endif
 #ifdef PC_EXE_EXTS
         /* exploit the effect of stat_pc_exec_exts which adds the
-         * correct extentions to the file.
-         */
-        struct stat st;
-        if (!has_ext)
-            stat_pc_exec_exts(psh, cmd, &st, 0);
+         * correct extentions to the file. */
+        if (!has_ext) {
+		int suffix;
+		int isreg = stat_pc_exec_exts(psh, cmd, 0, &suffix);
+		assert(isreg > 0);
+	}
 #endif
 #if defined(__INNOTEK_LIBC__) && defined(EXEC_HASH_BANG_SCRIPT)
 	__libc_Back_gfProcessHandleHashBangScripts = 0;
@@ -395,7 +449,7 @@ bad:		  error(psh, "Bad #! line");
 	while ((*ap2++ = *ap++))
 	    /* nothing*/;
 	TRACE((psh, "hash bang '%s'\n", new[0]));
-	shellexec(psh, new, envp, pathval(psh), 0);
+	shellexec(psh, new, envp, pathval(psh), 0, -1);
 	/* NOTREACHED */
 }
 
@@ -465,44 +519,32 @@ padvance(shinstance *psh, const char **path, const char *name)
 
 
 #ifdef PC_EXE_EXTS
-STATIC int stat_pc_exec_exts(shinstance *psh, char *fullname, struct stat *st, int has_ext)
+STATIC int stat_pc_exec_exts(shinstance *psh, char *fullname, int has_ext, int *suffixp)
 {
+    int isreg;
+
     /* skip the SYSV crap */
-    if (shfile_stat(&psh->fdtab, fullname, st) >= 0)
-        return 0;
+    if ((isreg = shfile_stat_isreg(&psh->fdtab, fullname)) >= 1) {
+	*suffixp = 0;
+        return isreg;
+    }
     if (!has_ext && errno == ENOENT)
     {
+	/* Ignore non-regular files here. */
         char *psz = strchr(fullname, '\0');
-        memcpy(psz, ".exe", 5);
-        if (shfile_stat(&psh->fdtab, fullname, st) >= 0)
-            return 0;
-        if (errno != ENOENT && errno != ENOTDIR)
-            return -1;
-
-        memcpy(psz, ".cmd", 5);
-        if (shfile_stat(&psh->fdtab, fullname, st) >= 0)
-            return 0;
-        if (errno != ENOENT && errno != ENOTDIR)
-            return -1;
-
-        memcpy(psz, ".bat", 5);
-        if (shfile_stat(&psh->fdtab, fullname, st) >= 0)
-            return 0;
-        if (errno != ENOENT && errno != ENOTDIR)
-            return -1;
-
-        memcpy(psz, ".com", 5);
-        if (shfile_stat(&psh->fdtab, fullname, st) >= 0)
-            return 0;
-        if (errno != ENOENT && errno != ENOTDIR)
-            return -1;
-
-        memcpy(psz, ".btm", 5);
-        if (shfile_stat(&psh->fdtab, fullname, st) >= 0)
-            return 0;
-        *psz = '\0';
+	int i;
+	for (i = 1 /*first entry is empty*/; i < K_ELEMENTS(g_exe_suffixes); i++) {
+	    strcpy(psz, g_exe_suffixes[i]);
+	    if ((isreg = shfile_stat_isreg(&psh->fdtab, fullname)) >= 1) {
+		*suffixp = i;
+		return isreg;
+	    }
+	    if (isreg < 0 && errno != ENOENT && errno != ENOTDIR)
+		break;
+	}
     }
-    return -1;
+    *suffixp = -1;
+    return isreg;
 }
 #endif /* PC_EXE_EXTS */
 
@@ -566,13 +608,17 @@ printentry(shinstance *psh, struct tblentry *cmdp, int verbose)
 
 	switch (cmdp->cmdtype) {
 	case CMDNORMAL:
-		idx = cmdp->param.index;
+		idx = cmdp->param.n.index;
 		path = pathval(psh);
 		do {
 			name = padvance(psh, &path, cmdp->cmdname);
 			stunalloc(psh, name);
 		} while (--idx >= 0);
 		out1str(psh, name);
+#ifdef PC_EXE_EXTS
+		if ((unsigned)cmdp->param.n.suffix < K_ELEMENTS(g_exe_suffixes))
+			out1str(psh, g_exe_suffixes[cmdp->param.n.suffix]);
+#endif
 		break;
 	case CMDSPLBLTIN:
 		out1fmt(psh, "special builtin %s", cmdp->cmdname);
@@ -613,8 +659,8 @@ find_command(shinstance *psh, char *name, struct cmdentry *entry, int act, const
 	struct tblentry *cmdp, loc_cmd;
 	int idx;
 	int prev;
+	int norehashoncd = 1;
 	char *fullname;
-	struct stat statb;
 	int e;
 	int (*bltin)(shinstance*,int,char **);
 	int argv0len = (int)strlen(name);
@@ -634,9 +680,9 @@ find_command(shinstance *psh, char *name, struct cmdentry *entry, int act, const
 #endif
 
 	/* If name contains a slash, don't use PATH or hash table */
-	if (strchr(name, '/') != NULL) {
+	if (haspath(name)) {
 		if (act & DO_ABS) {
-			while (shfile_stat(&psh->fdtab, name, &statb) < 0) {
+			while (shfile_stat_exists(&psh->fdtab, name) < 0) {
 #ifdef SYSV
 				if (errno == EINTR)
 					continue;
@@ -644,15 +690,18 @@ find_command(shinstance *psh, char *name, struct cmdentry *entry, int act, const
 				if (errno != ENOENT && errno != ENOTDIR)
 					e = errno;
 				entry->cmdtype = CMDUNKNOWN;
-				entry->u.index = -1;
+				entry->u.n.index = -1;
+				entry->u.n.suffix = -1;
 				return;
 			}
 			entry->cmdtype = CMDNORMAL;
-			entry->u.index = -1;
+			entry->u.n.index = -1;
+			entry->u.n.suffix = -1;
 			return;
 		}
 		entry->cmdtype = CMDNORMAL;
-		entry->u.index = 0;
+		entry->u.n.index = 0;
+		entry->u.n.suffix = 0;
 		return;
 	}
 
@@ -702,7 +751,7 @@ find_command(shinstance *psh, char *name, struct cmdentry *entry, int act, const
 		if (cmdp->cmdtype == CMDBUILTIN)
 			prev = psh->builtinloc;
 		else
-			prev = cmdp->param.index;
+			prev = cmdp->param.n.index;
 	}
 
 	/* Before we search the PATH, transform kmk_builtin_% to kmk_% so we don't
@@ -722,6 +771,10 @@ find_command(shinstance *psh, char *name, struct cmdentry *entry, int act, const
 	idx = -1;
 loop:
 	while ((fullname = padvance(psh, &path, name)) != NULL) {
+#ifdef PC_EXE_EXTS
+		int suffix;
+#endif
+		int isreg;
 		stunalloc(psh, fullname);
 		idx++;
 		if (psh->pathopt) {
@@ -737,16 +790,16 @@ loop:
 			}
 		}
 		/* if rehash, don't redo absolute path names */
-		if (fullname[0] == '/' && idx <= prev) {
+		if (idx <= prev && isabspath(fullname)) {
 			if (idx < prev)
 				goto loop;
 			TRACE((psh, "searchexec \"%s\": no change\n", name));
 			goto success;
 		}
 #ifdef PC_EXE_EXTS
-		while (stat_pc_exec_exts(psh, fullname, &statb, has_ext) < 0) {
+		while ((isreg = stat_pc_exec_exts(psh, fullname, has_ext, &suffix)) < 0) {
 #else
-		while (shfile_stat(&psh->fdtab, fullname, &statb) < 0) {
+		while ((isreg = shfile_stat_isreg(&psh->fdtab, fullname)) < 0) {
 #endif
 #ifdef SYSV
 			if (errno == EINTR)
@@ -758,7 +811,7 @@ loop:
 			goto loop;
 		}
 		e = EACCES;	/* if we fail, this will be the error */
-		if (!S_ISREG(statb.st_mode))
+		if (isreg < 1)
 			goto loop;
 		if (psh->pathopt) {		/* this is a %func directory */
 			if (act & DO_NOFUNC)
@@ -793,7 +846,8 @@ loop:
 		} else
 			cmdp = cmdlookup(psh, name, 1);
 		cmdp->cmdtype = CMDNORMAL;
-		cmdp->param.index = idx;
+		cmdp->param.n.index = idx;
+		cmdp->param.n.suffix = suffix;
 		INTON;
 		goto success;
 	}
@@ -970,7 +1024,7 @@ clearcmdentry(shinstance *psh, int firstchange)
 		pp = tblp;
 		while ((cmdp = *pp) != NULL) {
 			if ((cmdp->cmdtype == CMDNORMAL &&
-			     cmdp->param.index >= firstchange)
+			     cmdp->param.n.index >= firstchange)
 			 || (cmdp->cmdtype == CMDBUILTIN &&
 			     psh->builtinloc >= firstchange)) {
 				*pp = cmdp->next;
@@ -1063,6 +1117,8 @@ cmdlookup(shinstance *psh, const char *name, int add)
 		cmdp->next = NULL;
 		cmdp->cmdtype = CMDUNKNOWN;
 		cmdp->rehash = 0;
+		cmdp->param.n.index = 0;
+		cmdp->param.n.suffix = 0;
 		strcpy(cmdp->cmdname, name);
 		INTON;
 	}
@@ -1228,10 +1284,10 @@ typecmd(shinstance *psh, int argc, char **argv)
 
 		switch (entry.cmdtype) {
 		case CMDNORMAL: {
-			if (strchr(arg, '/') == NULL) {
+			if (!haspath(arg)) {
 				const char *path = pathval(psh);
 				char *name;
-				int j = entry.u.index;
+				int j = entry.u.n.index;
 				do {
 					name = padvance(psh, &path, arg);
 					stunalloc(psh, name);
@@ -1239,7 +1295,12 @@ typecmd(shinstance *psh, int argc, char **argv)
 				if (!v_flag)
 					out1fmt(psh, " is%s ",
 					    cmdp ? " a tracked alias for" : "");
-				out1fmt(psh, "%s\n", name);
+#ifdef PC_EXE_EXTS
+				if ((unsigned)entry.u.n.suffix < K_ELEMENTS(g_exe_suffixes))
+					out1fmt(psh, "%s%s\n", name, g_exe_suffixes[entry.u.n.suffix]);
+				else
+#endif
+					out1fmt(psh, "%s\n", name);
 			} else {
 				if (shfile_access(&psh->fdtab, arg, X_OK) == 0) {
 					if (!v_flag)
