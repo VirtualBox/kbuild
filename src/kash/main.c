@@ -377,14 +377,13 @@ find_dot_file(struct shinstance *psh, char *basename)
 {
 	char *fullname;
 	const char *path = pathval(psh);
-	struct stat statb;
 
 	/* don't try this for absolute or relative paths */
 	if (strchr(basename, '/'))
 		return basename;
 
 	while ((fullname = padvance(psh, &path, basename)) != NULL) {
-		if ((shfile_stat(&psh->fdtab, fullname, &statb) == 0) && S_ISREG(statb.st_mode)) {
+		if (shfile_stat_isreg(&psh->fdtab, fullname) > 0) {
 			/*
 			 * Don't bother freeing here, since it will
 			 * be freed by the caller.
