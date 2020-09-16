@@ -1,4 +1,4 @@
-/* $Id: shfile.h 3469 2020-09-15 23:47:57Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 3473 2020-09-16 21:12:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * File management.
  */
@@ -46,6 +46,7 @@
 #  define _PATH_DEFPATH "/bin:/usr/bin:/sbin:/usr/sbin"
 # endif
 #endif
+#include <limits.h> /* for PIPE_BUF */
 #ifndef _MSC_VER
 # include <fcntl.h>
 # include <unistd.h>
@@ -159,6 +160,13 @@ void shfile_async_close_sync(void);
 #endif
 
 int shfile_open(shfdtab *, const char *, unsigned, mode_t);
+#if K_OS == K_OS_WINDOWS
+# define SHFILE_PIPE_SIZE   65536
+#elif defined(PIPE_BUF)
+# define SHFILE_PIPE_SIZE   PIPE_BUF
+#else
+# define SHFILE_PIPE_SIZE   4096
+#endif
 int shfile_pipe(shfdtab *, int [2]);
 int shfile_close(shfdtab *, unsigned);
 long shfile_read(shfdtab *, int, void *, size_t);
@@ -170,6 +178,8 @@ int shfile_movefd(shfdtab *, int fdfrom, int fdto);
 int shfile_movefd_above(shfdtab *, int fdfrom, int fdmin);
 
 int shfile_stat(shfdtab *, const char *, struct stat *);
+int shfile_stat_isreg(shfdtab *, const char *);  /**< returns -1, 0 or 1. */
+int shfile_stat_exists(shfdtab *, const char *); /**< same as shfile_stat, but discards the stat data. */
 int shfile_lstat(shfdtab *, const char *, struct stat *);
 int shfile_chdir(shfdtab *, const char *);
 char *shfile_getcwd(shfdtab *, char *, int);

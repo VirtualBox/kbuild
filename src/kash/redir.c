@@ -66,11 +66,7 @@ __RCSID("$NetBSD: redir.c,v 1.29 2004/07/08 03:57:33 christos Exp $");
 
 
 #define EMPTY -2		/* marks an unused slot in redirtab */
-#ifndef PIPE_BUF
-# define PIPESIZE 4096		/* amount of buffering in a pipe */
-#else
-# define PIPESIZE PIPE_BUF
-#endif
+#define PIPESIZE SHFILE_PIPE_SIZE
 
 
 MKINIT
