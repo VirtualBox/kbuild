@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3469 2020-09-15 23:47:57Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3471 2020-09-16 00:06:12Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -294,6 +294,8 @@ static KBOOL shfile_async_close_submit(HANDLE toclose)
     unsigned idx;
     unsigned idx_next;
     unsigned idx_read;
+    unsigned num_pending = 0;
+    unsigned num_threads = 0;
     shmtxtmp tmp;
     shmtx_enter(&g_shfile_async_close.mtx, &tmp);
 
@@ -303,8 +305,6 @@ static KBOOL shfile_async_close_submit(HANDLE toclose)
     idx_read = g_shfile_async_close.idx_read  % K_ELEMENTS(g_shfile_async_close.handles);
     if (idx_next != idx_read)
     {
-        unsigned num_pending, num_threads;
-
         /* Write the handle to the ring buffer: */
         assert(g_shfile_async_close.handles[idx] == NULL);
         g_shfile_async_close.handles[idx] = toclose;
@@ -321,6 +321,7 @@ static KBOOL shfile_async_close_submit(HANDLE toclose)
             num_threads = g_shfile_async_close.num_threads;
             if (num_pending > num_threads && num_threads < K_ELEMENTS(g_shfile_async_close.threads))
             {
+                int const savederrno = errno;
                 unsigned tid = 0;
                 intptr_t hThread = _beginthreadex(NULL /*security*/, 0 /*stack_size*/, shfile_async_close_handle_thread,
                                                   NULL /*arg*/, 0 /*initflags*/, &tid);
@@ -328,12 +329,19 @@ static KBOOL shfile_async_close_submit(HANDLE toclose)
                 if (hThread != -1)
                 {
                     g_shfile_async_close.threads[num_threads] = (HANDLE)hThread;
-                    g_shfile_async_close.num_threads = num_threads + 1;
+                    g_shfile_async_close.num_threads = ++num_threads;
                 }
-                else if (num_threads == 0)
-                    ret = K_FALSE;
+                else
+                {
+                    TRACE2((NULL, "shfile_async_close_submit: _beginthreadex failed: %d\n", errno));
+                    if (num_threads == 0)
+                        ret = K_FALSE;
+                }
+                errno = savederrno;
             }
         }
+        else
+            TRACE2((NULL, "shfile_async_close_submit: SetEvent(%p) failed: %u\n", g_shfile_async_close.evt_workers, GetLastError()));
 
         /* cleanup on failure. */
         if (ret)
@@ -349,6 +357,8 @@ static KBOOL shfile_async_close_submit(HANDLE toclose)
         ret = K_FALSE;
 
     shmtx_leave(&g_shfile_async_close.mtx, &tmp);
+    TRACE2((NULL, "shfile_async_close_submit: toclose=%p idx=%d #pending=%u #thread=%u -> %d\n",
+            toclose, idx, num_pending, num_threads, ret));
     return ret;
 }
 
@@ -375,9 +385,11 @@ void shfile_async_close_sync(void)
 
         shmtx_leave(&g_shfile_async_close.mtx, &tmp);
 
+        TRACE2((NULL, "shfile_async_close_sync: Calling WaitForSingleObject...\n"));
         dwRet = WaitForSingleObject(g_shfile_async_close.evt_sync, 10000 /*ms*/);
         assert(dwRet == WAIT_OBJECT_0);
         assert(g_shfile_async_close.num_pending == 0);
+        TRACE2((NULL, "shfile_async_close_sync: WaitForSingleObject returned %u...\n", dwRet));
     }
     else
         shmtx_leave(&g_shfile_async_close.mtx, &tmp);
@@ -404,9 +416,11 @@ static void shfile_native_close(intptr_t native, shfile *file, KBOOL inheritable
      *
      * So, detect problematic handles and do CloseHandle asynchronously.   When
      * executing a child process, we probably will have to make sure the CloseHandle
-     * operation has completed before we let do ResumeThread on the child to make
-     * 100% sure we can't have any sharing conflicts.  Sharing conflicts are not a
-     * problem for builtin commands.
+     * operation has completed before we do ResumeThread on the child to make 100%
+     * sure we can't have any sharing conflicts or end up with incorrect CRT stat()
+     * results.  Sharing conflicts are not a problem for builtin commands, and for
+     * stat we do not use the CRT code but ntstat.c/h and it seems to work fine
+     * (might be a tiny bit slower, so (TODO) might be worth reducing what we ask for).
      *
      * If child processes are spawned using handle inheritance and the handle in
      * question is inheritable, we will have to fix the inheriability before pushing
