@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3471 2020-09-16 00:06:12Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3473 2020-09-16 21:12:58Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -35,10 +35,6 @@
 #include <assert.h>
 
 #if K_OS == K_OS_WINDOWS
-# include <limits.h>
-# ifndef PIPE_BUF
-#  define PIPE_BUF 512
-# endif
 # include <ntstatus.h>
 # define WIN32_NO_STATUS
 # include <Windows.h>
@@ -1710,7 +1706,7 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
     SecurityAttributes.bInheritHandle = FALSE;
 
     fds[1] = fds[0] = -1;
-    if (CreatePipe(&hRead, &hWrite, &SecurityAttributes, 4096))
+    if (CreatePipe(&hRead, &hWrite, &SecurityAttributes, SHFILE_PIPE_SIZE))
     {
         fds[0] = shfile_insert(pfdtab, (intptr_t)hRead, O_RDONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe", "pipe-rd");
         if (fds[0] != -1)
@@ -2192,6 +2188,53 @@ int shfile_stat(shfdtab *pfdtab, const char *path, struct stat *pst)
     return rc;
 #else
     return stat(path, pst);
+#endif
+}
+
+/**
+ * @retval 1 if regular file.
+ * @retval 0 if found but not a regular file.
+ * @retval -1 and errno on failure
+ */
+int shfile_stat_isreg(shfdtab *pfdtab, const char *path)
+{
+#if defined(SHFILE_IN_USE) && K_OS == K_OS_WINDOWS
+    char    abspath[SHFILE_MAX_PATH];
+    KU16    mode = 0;
+    int     rc = shfile_make_path(pfdtab, path, &abspath[0]);
+    if (!rc)
+    {
+        rc = birdStatModeOnly(abspath, &mode, 0 /*fFollowLink*/);
+        if (rc >= 0)
+            rc = S_ISREG(mode) ? 1 : 0;
+    }
+    TRACE2((NULL, "shfile_stat_isreg(,%s,) -> %d [%d] st_mode=%o\n", path, rc, errno, mode));
+    return rc;
+#else
+    struct stat st;
+    int rc = shfile_stat(pfdtab, path, &st);
+    if (rc >= 0)
+        rc = S_ISREG(st.st_mode) ? 1 : 0;
+    return rc;
+#endif
+}
+
+/**
+ * Same as shfile_stat, but without the data structure.
+ */
+int shfile_stat_exists(shfdtab *pfdtab, const char *path)
+{
+#if defined(SHFILE_IN_USE) && K_OS == K_OS_WINDOWS
+    char    abspath[SHFILE_MAX_PATH];
+    KU16    mode = 0;
+    int     rc = shfile_make_path(pfdtab, path, &abspath[0]);
+    if (!rc)
+        rc = birdStatModeOnly(abspath, &mode, 0 /*fFollowLink*/);
+    TRACE2((NULL, "shfile_stat_exists(,%s,) -> %d [%d] st_mode=%o\n", path, rc, errno, mode));
+    return rc;
+#else
+    struct stat ignored;
+    return shfile_stat(pfdtab, path, &ignored);
 #endif
 }
 
