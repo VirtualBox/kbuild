@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3472 2020-09-16 21:10:02Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3476 2020-09-17 21:32:45Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -42,6 +42,8 @@
 
 #include "alias.h"
 #include "error.h"
+#include "input.h"
+#include "jobs.h"
 #include "memalloc.h"
 #include "nodes.h"
 #include "redir.h"
@@ -119,6 +121,13 @@ struct shsigstate
     /** The number of threads masking it. */
     int num_masked;
 }                   g_sig_state[NSIG];
+
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
+#ifndef SH_FORKED_MODE
+static void shsubshellstatus_signal_and_release(shinstance *psh, int iExit);
+#endif
 
 
 
@@ -307,6 +316,12 @@ static void sh_destroy(shinstance *psh)
     /** @todo children. */
     sh_free(psh, psh->threadarg);
     psh->threadarg = NULL;
+    assert(!psh->subshellstatus);
+    if (psh->subshellstatus)
+    {
+        shsubshellstatus_signal_and_release(psh, psh->exitstatus);
+        psh->subshellstatus = NULL;
+    }
 #endif
 
     /* alias.c */
@@ -383,48 +398,31 @@ static void sh_destroy(shinstance *psh)
         }
     }
 
-#if 0
-    /* input.h */
-    int                 plinno/* = 1 */;/**< input line number */
-    int                 parsenleft;     /**< number of characters left in input buffer */
-    char               *parsenextc;     /**< next character in input buffer */
-    int                 init_editline/* = 0 */;     /**< 0 == not setup, 1 == OK, -1 == failed */
+    /* input.h/c */
+    popallfiles(psh);
+    while (psh->basepf.strpush)
+        popstring(psh);
 
-    /* input.c */
-    int                 parselleft;     /**< copy of parsefile->lleft */
-    struct parsefile    basepf;         /**< top level input file */
-    char                basebuf[BUFSIZ];/**< buffer for top level input file */
-    struct parsefile   *parsefile/* = &basepf*/;    /**< current input file */
-#ifndef SMALL
-    EditLine           *el;             /**< cookie for editline package */
-#endif
-
-    /* jobs.h */
-    shpid               backgndpid/* = -1 */;   /**< pid of last background process */
-    int                 job_warning;    /**< user was warned about stopped jobs */
-
-    /* jobs.c */
-    struct job         *jobtab;         /**< array of jobs */
-    int                 njobs;          /**< size of array */
-    int                 jobs_invalid;   /**< set in child */
-    shpid               initialpgrp;    /**< pgrp of shell on invocation */
-    int                 curjob/* = -1*/;/**< current job */
-    int                 ttyfd/* = -1*/;
-    int                 jobctl;         /**< job control enabled / disabled */
-    char               *cmdnextc;
-    int                 cmdnleft;
-
-
-    /* mail.c */
-#define MAXMBOXES 10
-    int                 nmboxes;        /**< number of mailboxes */
-    time_t              mailtime[MAXMBOXES]; /**< times of mailboxes */
+    /* jobs.h/c */
+    if (psh->jobtab)
+    {
+        int j = psh->njobs;
+        while (j-- > 0)
+            if (psh->jobtab[j].used && psh->jobtab[j].ps != &psh->jobtab[j].ps0)
+            {
+                sh_free(psh, psh->jobtab[j].ps);
+                psh->jobtab[j].ps = &psh->jobtab[j].ps0;
+            }
+        sh_free(psh, psh->jobtab);
+        psh->jobtab = NULL;
+        psh->njobs = 0;
+    }
 
     /* myhistedit.h */
 #ifndef SMALL
+# error FIXME
     History            *hist;
     EditLine           *el;
-#endif
 #endif
 
     /* output.h */
@@ -455,27 +453,6 @@ static void sh_destroy(shinstance *psh)
     sh_free_string_vector(psh, &psh->orgargv);
     psh->argptr = NULL;
     psh->minusc = NULL;
-
-#if 0
-    /* parse.h */
-    int                 tokpushback;
-    int                 whichprompt;    /**< 1 == PS1, 2 == PS2 */
-
-    /* parser.c */
-    int                 noalias/* = 0*/;/**< when set, don't handle aliases */
-    struct heredoc     *heredoclist;    /**< list of here documents to read */
-    int                 parsebackquote; /**< nonzero if we are inside backquotes */
-    int                 doprompt;       /**< if set, prompt the user */
-    int                 needprompt;     /**< true if interactive and at start of line */
-    int                 lasttoken;      /**< last token read */
-    char               *wordtext;       /**< text of last word returned by readtoken */
-    int                 checkkwd;       /**< 1 == check for kwds, 2 == also eat newlines */
-    struct nodelist    *backquotelist;
-    union node         *redirnode;
-    struct heredoc     *heredoc;
-    int                 quoteflag;      /**< set if (part of) last token was quoted */
-    int                 startlinno;     /**< line # where last token started */
-#endif
 
     /* redir.c */
     if (psh->redirlist)
