@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3476 2020-09-17 21:32:45Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3477 2020-09-17 21:52:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -31,7 +31,6 @@
 *********************************************************************************************************************************/
 #include <string.h>
 #include <stdlib.h>
-#include <assert.h>
 #ifdef _MSC_VER
 # include <process.h>
 #else
@@ -173,7 +172,7 @@ void shmtx_enter(shmtx *pmtx, shmtxtmp *ptmp)
 void shmtx_leave(shmtx *pmtx, shmtxtmp *ptmp)
 {
 #if K_OS == K_OS_WINDOWS
-    assert(ptmp->i == 0x42);
+    kHlpAssert(ptmp->i == 0x42);
     LeaveCriticalSection((CRITICAL_SECTION *)pmtx);
     ptmp->i = 0x21;
 #else
@@ -189,7 +188,7 @@ void shmtx_leave(shmtx *pmtx, shmtxtmp *ptmp)
  */
 void sh_init_globals(void)
 {
-    assert(g_sh_mtx.au64[SHMTX_MAGIC_IDX] != SHMTX_MAGIC);
+    kHlpAssert(g_sh_mtx.au64[SHMTX_MAGIC_IDX] != SHMTX_MAGIC);
     shmtx_init(&g_sh_mtx);
 #ifndef SH_FORKED_MODE
     shmtx_init(&g_sh_exec_inherit_mtx);
@@ -316,7 +315,7 @@ static void sh_destroy(shinstance *psh)
     /** @todo children. */
     sh_free(psh, psh->threadarg);
     psh->threadarg = NULL;
-    assert(!psh->subshellstatus);
+    kHlpAssert(!psh->subshellstatus);
     if (psh->subshellstatus)
     {
         shsubshellstatus_signal_and_release(psh, psh->exitstatus);
@@ -909,7 +908,7 @@ static void sh_int_lazy_init_sigaction(shinstance *psh, int signo)
                     shold.sh_handler = SH_SIG_DFL;
                 else
                 {
-                    assert(old.sa_handler == SIG_IGN);
+                    kHlpAssert(old.sa_handler == SIG_IGN);
                     shold.sh_handler = SH_SIG_IGN;
                 }
             }
@@ -918,7 +917,7 @@ static void sh_int_lazy_init_sigaction(shinstance *psh, int signo)
             {
                 /* fake */
 #ifndef _MSC_VER
-                assert(0);
+                kHlpAssert(0);
                 old.sa_handler = SIG_DFL;
                 old.sa_flags = 0;
                 sigemptyset(&shold.sh_mask);
@@ -944,7 +943,7 @@ static void sh_int_lazy_init_sigaction(shinstance *psh, int signo)
             /* update all shells */
             for (cur = g_sh_head; cur; cur = cur->next)
             {
-                assert(cur->sigactions[signo].sh_handler == SH_SIG_UNK);
+                kHlpAssert(cur->sigactions[signo].sh_handler == SH_SIG_UNK);
                 cur->sigactions[signo] = shold;
             }
         }
@@ -987,7 +986,7 @@ static void sh_sig_do_signal(shinstance *psh, shinstance *pshDst, int signo, int
         /* ignore it */;
     else
     {
-        assert(pfn != SH_SIG_ERR);
+        kHlpAssert(pfn != SH_SIG_ERR);
         pfn(pshDst, signo);
     }
     (void)locked;
@@ -1124,11 +1123,11 @@ int sh_sigaction(shinstance *psh, int signo, const struct shsigaction *newp, str
                 && signo != SIGTSTP
                 && signo != SIGTTOU
                 && signo != SIGCONT)
-                assert(0);
+                kHlpAssert(0);
         }
 #else
         if (sigaction(signo, &g_sig_state[signo].sa, NULL))
-            assert(0);
+            kHlpAssert(0);
 #endif
 
         shmtx_leave(&g_sh_mtx, &tmp);
@@ -1416,8 +1415,8 @@ int sh_sysconf_clk_tck(void)
 static unsigned shsubshellstatus_retain(shsubshellstatus *sts)
 {
     unsigned refs = sh_atomic_dec(&sts->refs);
-    assert(refs > 1);
-    assert(refs < 16);
+    kHlpAssert(refs > 1);
+    kHlpAssert(refs < 16);
     return refs;
 }
 
@@ -1427,7 +1426,7 @@ static unsigned shsubshellstatus_retain(shsubshellstatus *sts)
 static unsigned shsubshellstatus_release(shinstance *psh, shsubshellstatus *sts)
 {
     unsigned refs = sh_atomic_dec(&sts->refs);
-    assert(refs < ~(unsigned)0/4);
+    kHlpAssert(refs < ~(unsigned)0/4);
     if (refs == 0)
     {
         shmtxtmp tmp;
@@ -1462,7 +1461,7 @@ static shsubshellstatus *shsubshellstatus_create(shinstance *psh, int refs)
     {
 # if K_OS == K_OS_WINDOWS
         BOOL rc = ResetEvent((HANDLE)sts->towaiton);
-        assert(rc); K_NOREF(rc);
+        kHlpAssert(rc); K_NOREF(rc);
 # endif
     }
     else
@@ -1476,7 +1475,7 @@ static shsubshellstatus *shsubshellstatus_create(shinstance *psh, int refs)
                                              FALSE /*fInitialState*/, NULL /*pszName*/);
         if (!sts->towaiton)
         {
-            assert(0);
+            kHlpAssert(0);
             sh_free(psh, sts);
             return NULL;
         }
@@ -1507,11 +1506,11 @@ static void shsubshellstatus_signal_and_release(shinstance *psh, int iExit)
 
         sts->status = W_EXITCODE(iExit, 0);
         sts->done   = K_TRUE;
-        rc = SetEvent((HANDLE)sts->towaiton); assert(rc); K_NOREF(rc);
+        rc = SetEvent((HANDLE)sts->towaiton); kHlpAssert(rc); K_NOREF(rc);
 
         hThread = (HANDLE)sts->hThread;
         sts->hThread = 0;
-        rc = CloseHandle(hThread); assert(rc);
+        rc = CloseHandle(hThread); kHlpAssert(rc);
 
         shsubshellstatus_release(psh, sts);
         psh->subshellstatus = NULL;
@@ -1780,7 +1779,7 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
             if (psh->children[i].subshellstatus)
             {
                 rc = psh->children[i].subshellstatus->done;
-                assert(rc);
+                kHlpAssert(rc);
                 if (rc)
                 {
                     *statusp = psh->children[i].subshellstatus->status;
@@ -1811,7 +1810,7 @@ shpid sh_waitpid(shinstance *psh, shpid pid, int *statusp, int flags)
 # endif
         {
             rc = CloseHandle(psh->children[i].hChild);
-            assert(rc);
+            kHlpAssert(rc);
         }
 
         psh->num_children--;
@@ -2114,7 +2113,7 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
                  * Wait for it and forward the exit code.
                  */
                 dwErr = WaitForSingleObject(ProcInfo.hProcess, INFINITE);
-                assert(dwErr == WAIT_OBJECT_0);
+                kHlpAssert(dwErr == WAIT_OBJECT_0);
 
                 if (GetExitCodeProcess(ProcInfo.hProcess, &dwExitCode))
                 {
@@ -2128,7 +2127,7 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
 
                 /* this shouldn't happen... */
                 TRACE2((psh, "sh_execve: GetExitCodeProcess failed: %u\n", GetLastError()));
-                assert(0);
+                kHlpAssert(0);
                 errno = EINVAL;
             }
             TerminateProcess(ProcInfo.hProcess, 0x40000015);
@@ -2225,7 +2224,7 @@ shpid sh_getpgrp(shinstance *psh)
 {
     shpid pgid = psh->pgid;
 #ifndef _MSC_VER
-    assert(pgid == getpgrp());
+    kHlpAssert(pgid == getpgrp());
 #endif
 
     TRACE2((psh, "sh_getpgrp() -> %" SHPID_PRI " [%d]\n", pgid, errno));
@@ -2243,12 +2242,12 @@ shpid sh_getpgid(shinstance *psh, shpid pid)
     {
         shpid pgid = psh->pgid;
 #ifndef _MSC_VER
-        assert(pgid == getpgrp());
+        kHlpAssert(pgid == getpgrp());
 #endif
     }
     else
     {
-        assert(0);
+        kHlpAssert(0);
         errno = ESRCH;
         pgid = -1;
     }

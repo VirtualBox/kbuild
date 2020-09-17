@@ -370,3 +370,25 @@ errmsg(shinstance *psh, int e, int action)
 	fmtstr(psh->errmsg_buf, sizeof psh->errmsg_buf, "error %d", e);
 	return psh->errmsg_buf;
 }
+
+
+#ifdef K_STRICT
+
+KHLP_DECL(void) kHlpAssertMsg1(const char *pszExpr, const char *pszFile, unsigned iLine, const char *pszFunction)
+{
+	shinstance *psh = shthread_get_shell();
+
+	TRACE((psh,  "Assertion failed in %s --- %s --- %s(%u)\n", pszFunction, pszExpr, pszFile, iLine));
+	dprintf(psh, "Assertion failed in %s --- %s --- %s(%u)\n", pszFunction, pszExpr, pszFile, iLine);
+}
+
+KHLP_DECL(void) kHlpAssertMsg2(const char *pszFormat, ...)
+{
+	shinstance *psh = shthread_get_shell();
+	va_list va;
+	va_start(va, pszFormat);
+	doformat(psh->out2, pszFormat, va);
+	va_end(va);
+}
+
+#endif /* K_STRICT */

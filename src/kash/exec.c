@@ -45,7 +45,6 @@ __RCSID("$NetBSD: exec.c,v 1.37 2003/08/07 09:05:31 agc Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
-#include <assert.h>
 
 /*
  * When commands are first encountered, they are entered in a hash table.
@@ -306,7 +305,7 @@ tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int has_ext)
         if (!has_ext) {
 		int suffix;
 		int isreg = stat_pc_exec_exts(psh, cmd, 0, &suffix);
-		assert(isreg > 0);
+		kHlpAssert(isreg > 0);
 	}
 #endif
 #if defined(__INNOTEK_LIBC__) && defined(EXEC_HASH_BANG_SCRIPT)

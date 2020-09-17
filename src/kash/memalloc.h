@@ -73,8 +73,8 @@ void ungrabstackstr(struct shinstance *, char *, char *);
 #define STARTSTACKSTR(psh, p)       p = stackblock(psh), (psh)->sstrnleft = stackblocksize(psh)
 #define STPUTC(psh, c, p)           (--(psh)->sstrnleft >= 0? (*p++ = (c)) : (p = growstackstr(psh), *p++ = (c)))
 #define CHECKSTRSPACE(psh, n, p)    { if ((psh)->sstrnleft < n) p = makestrspace(psh); }
-#define USTPUTC(psh, c, p)          do { assert((psh)->sstrnleft > 0); \
-                                         assert(p - (char *)stackblock(psh) == stackblocksize(psh) - (psh)->sstrnleft); \
+#define USTPUTC(psh, c, p)          do { kHlpAssert((psh)->sstrnleft > 0); \
+                                         kHlpAssert(p - (char *)stackblock(psh) == stackblocksize(psh) - (psh)->sstrnleft); \
                                          --(psh)->sstrnleft; *p++ = (c); } while (0)
 #define STACKSTRNUL(psh, p)         ((psh)->sstrnleft == 0? (p = growstackstr(psh), *p = '\0') : (*p = '\0'))
 #define STUNPUTC(psh, p)            (++(psh)->sstrnleft, --p)
@@ -113,10 +113,10 @@ char *pstgrabstr(struct shinstance *, char *); /* was: grabstackstr / grabstackb
     } while (0)
 # define PSTCHECKSTRSPACE(psh, n, p) do { \
         if ((psh)->curpstack->strleft >= (n)) {/*likely*/} \
-        else { (p) = pstmakestrspace(psh, (n), (p)); assert((psh)->curpstack->strleft >= (n)); } \
+        else { (p) = pstmakestrspace(psh, (n), (p)); kHlpAssert((psh)->curpstack->strleft >= (n)); } \
     } while (0)
 # define PSTUPUTC(psh, c, p) do { \
-        assert((psh)->curpstack->strleft > 0); \
+        kHlpAssert((psh)->curpstack->strleft > 0); \
         (psh)->curpstack->strleft -= 1; \
         *(p)++ = (c); \
     } while (0)
@@ -136,8 +136,8 @@ char *pstgrabstr(struct shinstance *, char *); /* was: grabstackstr / grabstackb
 # define PSTBLOCK(psh)               ((psh)->stacknxt)
 # define PSTARTSTACKSTR(psh, p)      do { (p) = (psh)->stacknxt; (psh)->sstrnleft = (psh)->stacknleft; } while (0)
 # define PSTCHECKSTRSPACE(psh, n, p) do { if ((psh)->sstrnleft >= (n)) {/*likely*/} \
-                                         else { (p) = pstmakestrspace(psh, (n), (p)); assert((psh)->sstrnleft >= (n)); } } while (0)
-# define PSTUPUTC(psh, c, p)         do { assert((psh)->sstrnleft > 0); --(psh)->sstrnleft; *(p)++ = (c); } while (0)
+                                         else { (p) = pstmakestrspace(psh, (n), (p)); kHlpAssert((psh)->sstrnleft >= (n)); } } while (0)
+# define PSTUPUTC(psh, c, p)         do { kHlpAssert((psh)->sstrnleft > 0); --(psh)->sstrnleft; *(p)++ = (c); } while (0)
 # define PSTPUTC(psh, c, p)          do { if (--(psh)->sstrnleft >= 0) *(p)++ = (c); else (p) = pstputcgrow(psh, (p), (c)); } while (0)
 # define PSTPUTSTRN(psh, str, n, p)  do { if ((psh)->sstrnleft >= (n)) {/*likely?*/} else (p) = pstmakestrspace(psh, (n), (p)); \
                                          memcpy((p), (str), (n)); (psh)->sstrnleft -= (n); (p) += (n); } while (0)

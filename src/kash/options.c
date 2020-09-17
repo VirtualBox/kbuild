@@ -40,7 +40,6 @@ __RCSID("$NetBSD: options.c,v 1.38 2005/03/20 21:38:17 dsl Exp $");
 #endif /* not lint */
 #endif
 
-#include <assert.h>
 #include <stdlib.h>
 
 #include "shell.h"
@@ -108,7 +107,7 @@ subshellinitoptions(shinstance *psh, shinstance *inherit)
 	    }
 	    i++;
 	}
-	assert(psh->arg0 != NULL);
+	kHlpAssert(psh->arg0 != NULL);
     }
 
     /* eval.h's commandname is same as arg0 when set unless we're doing a dot-include. */
@@ -130,7 +129,7 @@ subshellinitoptions(shinstance *psh, shinstance *inherit)
     psh->shellparam.malloc = 1;
     psh->shellparam.reset  = inherit->shellparam.reset;
     psh->shellparam.nparam = left = inherit->shellparam.nparam;
-    assert(left >= 0);
+    kHlpAssert(left >= 0);
     psh->shellparam.p = (char **)ckmalloc(psh, (left + 1) * sizeof(psh->shellparam.p[0]));
     psh->shellparam.p[left] = NULL;
     while (left-- > 0) {
@@ -141,7 +140,7 @@ subshellinitoptions(shinstance *psh, shinstance *inherit)
     /* The shellparam.optnext member is either NULL or points to a 'p' entry. */
     if (inherit->shellparam.optnext) {
 	size_t idx = (size_t)(inherit->shellparam.optnext - inherit->shellparam.p);
-	assert(idx <= inherit->shellparam.nparam);
+	kHlpAssert(idx <= inherit->shellparam.nparam);
 	if (idx <= inherit->shellparam.nparam)
 	    psh->shellparam.optnext = &psh->shellparam.p[idx];
     }
@@ -168,7 +167,7 @@ subshellinitoptions(shinstance *psh, shinstance *inherit)
 	    }
 	    off--;
 	}
-	assert(psh->shellparam.optptr != NULL);
+	kHlpAssert(psh->shellparam.optptr != NULL);
     }
 
     /* minusc:    only used in main.c, so not applicable to subshells. */
@@ -224,7 +223,7 @@ procargs(shinstance *psh, int argc, char **argv)
 
 	psh->shellparam.p = psh->argptr;
 	psh->shellparam.reset = 1;
-	/* assert(shellparam.malloc == 0 && shellparam.nparam == 0); */
+	/* kHlpAssert(shellparam.malloc == 0 && shellparam.nparam == 0); */
 	while (*psh->argptr) {
 		psh->shellparam.nparam++;
 		psh->argptr++;
