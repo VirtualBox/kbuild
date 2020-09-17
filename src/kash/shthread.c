@@ -1,4 +1,4 @@
-/* $Id: shthread.c 2498 2011-07-22 12:05:57Z knut.osmundsen@oracle.com $ */
+/* $Id: shthread.c 3477 2020-09-17 21:52:16Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Shell Thread Management.
@@ -26,7 +26,6 @@
 
 #include "shthread.h"
 #include "shinstance.h"
-#include <assert.h>
 
 #if K_OS == K_OS_WINDOWS
 # include <Windows.h>
@@ -65,28 +64,28 @@ void shthread_set_shell(struct shinstance *psh)
     if (sh_tls == TLS_OUT_OF_INDEXES)
     {
         sh_tls = TlsAlloc();
-        assert(sh_tls != TLS_OUT_OF_INDEXES);
+        kHlpAssert(sh_tls != TLS_OUT_OF_INDEXES);
     }
     if (!TlsSetValue(sh_tls, psh))
-        assert(0);
+        kHlpAssert(0);
 
 #elif K_OS == K_OS_OS2
     if (sh_tls == -1)
     {
         sh_tls = __libc_TLSAlloc();
-        assert(sh_tls != -1);
+        kHlpAssert(sh_tls != -1);
     }
     if (__libc_TLSSet(sh_tls, psh) == -1)
-        assert(0);
+        kHlpAssert(0);
 #else
     if (!sh_tls_inited)
     {
         if (pthread_key_create(&sh_tls, NULL) != 0)
-            assert(0);
+            kHlpAssert(0);
         sh_tls_inited = 1;
     }
     if (pthread_setspecific(sh_tls, psh) != 0)
-        assert(0);
+        kHlpAssert(0);
 #endif
 }
 

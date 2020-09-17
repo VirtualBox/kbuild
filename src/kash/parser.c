@@ -42,7 +42,6 @@ __RCSID("$NetBSD: parser.c,v 1.59 2005/03/21 20:10:29 dsl Exp $");
 
 #define SH_MEMALLOC_NO_STACK
 #include <stdlib.h>
-#include <assert.h>
 
 #include "shell.h"
 #include "parser.h"

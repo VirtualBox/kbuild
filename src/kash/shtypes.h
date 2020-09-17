@@ -1,4 +1,4 @@
-/* $Id: shtypes.h 3438 2020-09-09 20:01:39Z knut.osmundsen@oracle.com $ */
+/* $Id: shtypes.h 3477 2020-09-17 21:52:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * Wrapper for missing types and such.
  */
@@ -29,6 +29,7 @@
 #define ___shtypes_h___
 
 #include "k/kTypes.h" /* Use these, not the ones below. */
+#include "k/kHlpAssert.h"
 
 #include <sys/types.h>
 #include <stdlib.h>

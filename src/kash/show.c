@@ -43,7 +43,6 @@ __RCSID("$NetBSD: show.c,v 1.26 2003/11/14 10:46:13 dsl Exp $");
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include <assert.h>
 
 #include "shell.h"
 #include "parser.h"
@@ -292,7 +291,7 @@ trace_flush(shinstance *psh)
 
 	if (pos > sizeof(psh->tracebuf)) {
 		char *end;
-		assert(0);
+		kHlpAssert(0);
 		end = memchr(psh->tracebuf, '\0', sizeof(psh->tracebuf));
 		pos = end ? end - &psh->tracebuf[0] : 0;
 	}

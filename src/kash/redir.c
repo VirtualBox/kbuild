@@ -42,7 +42,6 @@ __RCSID("$NetBSD: redir.c,v 1.29 2004/07/08 03:57:33 christos Exp $");
 
 #include <sys/types.h>
 #include <limits.h>         /* PIPE_BUF */
-#include <assert.h>
 #include <string.h>
 #include <errno.h>
 #include <stddef.h>
@@ -157,7 +156,7 @@ redirect(shinstance *psh, union node *redir, int flags)
 	}
 	idxexpfname = 0;
 	for (n = redir, idxexpfname = 0 ; n ; n = n->nfile.next, idxexpfname++) {
-		assert(idxexpfname < psh->expfnames->count);
+		kHlpAssert(idxexpfname < psh->expfnames->count);
 		fd = n->nfile.fd;
 		try = 0;
 		if ((n->nfile.type == NTOFD || n->nfile.type == NFROMFD) &&
@@ -195,7 +194,7 @@ again:
 		if (!try)
 			openredirect(psh, n, memory, flags, psh->expfnames->names[idxexpfname]);
 	}
-	assert(!redir || idxexpfname == psh->expfnames->count);
+	kHlpAssert(!redir || idxexpfname == psh->expfnames->count);
 	if (memory[1])
 		psh->out1 = &psh->memout;
 	if (memory[2])

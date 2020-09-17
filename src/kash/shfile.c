@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3473 2020-09-16 21:12:58Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3477 2020-09-17 21:52:16Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -32,7 +32,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
 #if K_OS == K_OS_WINDOWS
 # include <ntstatus.h>
@@ -234,16 +233,16 @@ static unsigned __stdcall shfile_async_close_handle_thread(void *ignored)
 
         if (decrement_pending)
         {
-            assert(g_shfile_async_close.num_pending > 0);
+            kHlpAssert(g_shfile_async_close.num_pending > 0);
             g_shfile_async_close.num_pending -= 1;
         }
 
         idx = g_shfile_async_close.idx_read % K_ELEMENTS(g_shfile_async_close.handles);
         if (idx != g_shfile_async_close.idx_write % K_ELEMENTS(g_shfile_async_close.handles))
         {
-            assert(g_shfile_async_close.num_pending > 0);
+            kHlpAssert(g_shfile_async_close.num_pending > 0);
             toclose = g_shfile_async_close.handles[idx];
-            assert(toclose);
+            kHlpAssert(toclose);
             g_shfile_async_close.handles[idx] = NULL;
             g_shfile_async_close.idx_read = (idx + 1) % K_ELEMENTS(g_shfile_async_close.handles);
         }
@@ -253,7 +252,7 @@ static unsigned __stdcall shfile_async_close_handle_thread(void *ignored)
             if (g_shfile_async_close.signal_sync && g_shfile_async_close.num_pending == 0)
             {
                 BOOL rc = SetEvent(g_shfile_async_close.evt_sync);
-                assert(rc);
+                kHlpAssert(rc);
                 g_shfile_async_close.signal_sync = FALSE;
             }
             toclose = NULL;
@@ -264,13 +263,13 @@ static unsigned __stdcall shfile_async_close_handle_thread(void *ignored)
         if (toclose != NULL)
         {
             BOOL rc = CloseHandle(toclose);
-            assert(rc);
+            kHlpAssert(rc);
             decrement_pending = K_TRUE;
         }
         else
         {
             DWORD dwRet = WaitForSingleObject(g_shfile_async_close.evt_workers, 10000 /*ms*/);
-            assert(dwRet == WAIT_OBJECT_0 || dwRet == WAIT_TIMEOUT);
+            kHlpAssert(dwRet == WAIT_OBJECT_0 || dwRet == WAIT_TIMEOUT);
             decrement_pending = K_FALSE;
         }
     }
@@ -302,7 +301,7 @@ static KBOOL shfile_async_close_submit(HANDLE toclose)
     if (idx_next != idx_read)
     {
         /* Write the handle to the ring buffer: */
-        assert(g_shfile_async_close.handles[idx] == NULL);
+        kHlpAssert(g_shfile_async_close.handles[idx] == NULL);
         g_shfile_async_close.handles[idx] = toclose;
         g_shfile_async_close.idx_write    = idx_next;
 
@@ -310,7 +309,7 @@ static KBOOL shfile_async_close_submit(HANDLE toclose)
         g_shfile_async_close.num_pending = num_pending;
 
         ret = SetEvent(g_shfile_async_close.evt_workers);
-        assert(ret);
+        kHlpAssert(ret);
         if (ret)
         {
             /* If we have more pending requests than threads, create a new thread. */
@@ -321,7 +320,7 @@ static KBOOL shfile_async_close_submit(HANDLE toclose)
                 unsigned tid = 0;
                 intptr_t hThread = _beginthreadex(NULL /*security*/, 0 /*stack_size*/, shfile_async_close_handle_thread,
                                                   NULL /*arg*/, 0 /*initflags*/, &tid);
-                assert(hThread != -1);
+                kHlpAssert(hThread != -1);
                 if (hThread != -1)
                 {
                     g_shfile_async_close.threads[num_threads] = (HANDLE)hThread;
@@ -374,7 +373,7 @@ void shfile_async_close_sync(void)
         if (!g_shfile_async_close.signal_sync)
         {
             BOOL rc = ResetEvent(g_shfile_async_close.evt_sync);
-            assert(rc); K_NOREF(rc);
+            kHlpAssert(rc); K_NOREF(rc);
 
             g_shfile_async_close.signal_sync = K_TRUE;
         }
@@ -383,8 +382,8 @@ void shfile_async_close_sync(void)
 
         TRACE2((NULL, "shfile_async_close_sync: Calling WaitForSingleObject...\n"));
         dwRet = WaitForSingleObject(g_shfile_async_close.evt_sync, 10000 /*ms*/);
-        assert(dwRet == WAIT_OBJECT_0);
-        assert(g_shfile_async_close.num_pending == 0);
+        kHlpAssert(dwRet == WAIT_OBJECT_0);
+        kHlpAssert(g_shfile_async_close.num_pending == 0);
         TRACE2((NULL, "shfile_async_close_sync: WaitForSingleObject returned %u...\n", dwRet));
     }
     else
@@ -440,14 +439,14 @@ static void shfile_native_close(intptr_t native, shfile *file, KBOOL inheritable
 #  ifdef DEBUG
     KU64 ns = shfile_nano_ts();
     BOOL fRc = CloseHandle((HANDLE)native);
-    assert(fRc); K_NOREF(fRc);
+    kHlpAssert(fRc); K_NOREF(fRc);
     ns = shfile_nano_ts() - ns;
     if (ns > 1000000)
         TRACE2((NULL, "shfile_native_close: %u ns %p oflags=%#x %s\n",
                 ns, native, file ? file->oflags : 0, file ? file->dbgname : NULL));
 #  else
     BOOL fRc = CloseHandle((HANDLE)native);
-    assert(fRc); K_NOREF(fRc);
+    kHlpAssert(fRc); K_NOREF(fRc);
 #  endif
     }
 
@@ -655,7 +654,7 @@ static shfile *shfile_get(shfdtab *pfdtab, int fd, shmtxtmp *ptmp)
 static void shfile_put(shfdtab *pfdtab, shfile *file, shmtxtmp *ptmp)
 {
     shmtx_leave(&pfdtab->mtx, ptmp);
-    assert(file);
+    kHlpAssert(file);
     (void)file;
 }
 
@@ -1068,7 +1067,7 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                                 fFlags2 = 0;
 
                             fd2 = shfile_insert(pfdtab, (intptr_t)h, fFlags, fFlags2, i, "shtab_init", NULL);
-                            assert(fd2 == i); (void)fd2;
+                            kHlpAssert(fd2 == i); (void)fd2;
                             if (fd2 != i)
                                 rc = -1;
                         }
@@ -1094,7 +1093,7 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                             else
                                 fFlags2 = SHFILE_FLAGS_FILE;
                             fd2 = shfile_insert(pfdtab, (intptr_t)hFile, fFlags, fFlags2, i, "shtab_init", NULL);
-                            assert(fd2 == i); (void)fd2;
+                            kHlpAssert(fd2 == i); (void)fd2;
                             if (fd2 != i)
                                 rc = -1;
                         }
@@ -1135,7 +1134,7 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                             if (native == -1)
                                 native = fd;
                             fd2 = shfile_insert(pfdtab, native, oflags, fFlags2, fd, "shtab_init", NULL);
-                            assert(fd2 == fd); (void)fd2;
+                            kHlpAssert(fd2 == fd); (void)fd2;
                             if (fd2 != fd)
                                 rc = -1;
                             if (native != fd)
@@ -1267,10 +1266,10 @@ void shfile_uninit(shfdtab *pfdtab, int tracefd)
                 {
 #if K_OS == K_OS_WINDOWS
                     BOOL rc = CloseHandle((HANDLE)pfd->native);
-                    assert(rc == TRUE); K_NOREF(rc);
+                    kHlpAssert(rc == TRUE); K_NOREF(rc);
 #else
                     int rc = close((int)pfd->native);
-                    assert(rc == 0); K_NOREF(rc);
+                    kHlpAssert(rc == 0); K_NOREF(rc);
 #endif
                     pfd->fd     = -1;
                     pfd->native = -1;
@@ -1329,13 +1328,13 @@ static HANDLE shfile_set_inherit_win(shfile *pfd, int set)
         {
             TRACE2((NULL, "shfile_set_inherit_win: %p -> %p (set=%d)\n", pfd->native, hFile, set));
             if (!CloseHandle((HANDLE)pfd->native))
-                assert(0);
+                kHlpAssert(0);
             pfd->native = (intptr_t)hFile;
         }
         else
         {
             err = GetLastError();
-            assert(0);
+            kHlpAssert(0);
             hFile = (HANDLE)pfd->native;
         }
     }
@@ -2042,9 +2041,9 @@ long shfile_lseek(shfdtab *pfdtab, int fd, long off, int whench)
     if (file)
     {
 # if K_OS == K_OS_WINDOWS
-        assert(SEEK_SET == FILE_BEGIN);
-        assert(SEEK_CUR == FILE_CURRENT);
-        assert(SEEK_END == FILE_END);
+        kHlpAssert(SEEK_SET == FILE_BEGIN);
+        kHlpAssert(SEEK_CUR == FILE_CURRENT);
+        kHlpAssert(SEEK_END == FILE_END);
         rc = SetFilePointer((HANDLE)file->native, off, NULL, whench);
         if (rc == INVALID_SET_FILE_POINTER)
             rc = shfile_dos2errno(GetLastError());
@@ -2095,7 +2094,7 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
                 else
                 {
 # if K_OS == K_OS_WINDOWS
-                    assert(0);
+                    kHlpAssert(0);
                     errno = EINVAL;
                     rc = -1;
 # else

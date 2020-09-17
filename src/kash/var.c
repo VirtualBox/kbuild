@@ -40,7 +40,6 @@ __RCSID("$NetBSD: var.c,v 1.36 2004/10/06 10:23:43 enami Exp $");
 #endif /* not lint */
 #endif
 
-#include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -302,7 +301,7 @@ subshellinitvar(shinstance *psh, shinstance *inherit)
 							dst++;
 						} else
 							break;
-					assert(left < 256 /*whatever, just no rollover*/);
+					kHlpAssert(left < 256 /*whatever, just no rollover*/);
 				}
 				*dst = *vsrc;
 
@@ -335,7 +334,7 @@ subshellinitvar(shinstance *psh, shinstance *inherit)
 				dst->text = vsrc->text;
 
 			dst->vp = find_var(psh, vsrc->vp->text, NULL, NULL);
-			assert(dst->vp);
+			kHlpAssert(dst->vp);
 
 			*ppdst = dst;
 			ppdst = &dst->next;

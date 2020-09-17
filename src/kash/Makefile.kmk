@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3470 2020-09-15 23:49:56Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3477 2020-09-17 21:52:16Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -41,7 +41,7 @@ kash_DEFS += SH_FORKED_MODE
 else
 kash_DEFS += KASH_SEPARATE_PARSER_ALLOCATOR KASH_ASYNC_CLOSE_HANDLE
 endif
-kash_DEFS.debug = DEBUG=2
+kash_DEFS.debug = DEBUG=2 K_STRICT
 kash_DEFS.haiku = BSD
 kash_DEFS.linux = BSD
 kash_DEFS.solaris = BSD

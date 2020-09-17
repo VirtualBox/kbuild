@@ -42,7 +42,6 @@ __RCSID("$NetBSD: memalloc.c,v 1.28 2003/08/07 09:05:34 agc Exp $");
 
 #include <stdlib.h>
 #include <stddef.h>
-#include <assert.h>
 
 #include "shell.h"
 #include "output.h"
@@ -331,15 +330,15 @@ grabstackstr(shinstance *psh, char *end)
 	char * const pstart = stackblock(psh);
 	size_t nbytes = (size_t)(end - pstart);
 
-	assert((uintptr_t)end >= (uintptr_t)pstart);
-	/*assert(end[-1] == '\0'); - not if it's followed by ungrabstrackstr(), sigh. */
-	assert(SHELL_ALIGN((uintptr_t)pstart) == (uintptr_t)pstart);
-	assert(stackblocksize(psh) - psh->sstrnleft >= nbytes);
+	kHlpAssert((uintptr_t)end >= (uintptr_t)pstart);
+	/*kHlpAssert(end[-1] == '\0'); - not if it's followed by ungrabstrackstr(), sigh. */
+	kHlpAssert(SHELL_ALIGN((uintptr_t)pstart) == (uintptr_t)pstart);
+	kHlpAssert(stackblocksize(psh) - psh->sstrnleft >= nbytes);
 
 	nbytes = SHELL_ALIGN(nbytes);
 	psh->stacknxt += nbytes;
 	psh->stacknleft -= (int)nbytes;
-	assert(psh->stacknleft >= 0);
+	kHlpAssert(psh->stacknleft >= 0);
 
 	return pstart;
 }
@@ -347,9 +346,9 @@ grabstackstr(shinstance *psh, char *end)
 void
 ungrabstackstr(shinstance *psh, char *s, char *p)
 {
-	assert((size_t)(psh->stacknxt - p) <= SHELL_SIZE);
-	assert((uintptr_t)s >= (uintptr_t)&psh->stackp->space[0]);
-	assert((uintptr_t)p >= (uintptr_t)s);
+	kHlpAssert((size_t)(psh->stacknxt - p) <= SHELL_SIZE);
+	kHlpAssert((uintptr_t)s >= (uintptr_t)&psh->stackp->space[0]);
+	kHlpAssert((uintptr_t)p >= (uintptr_t)s);
 
 	psh->stacknleft += (int)(psh->stacknxt - s);
 	psh->stacknxt = s;
@@ -373,7 +372,7 @@ unsigned pstackrelease(shinstance *psh, pstack_block *pst, const char *caller)
 			struct stack_block *top;
 			while ((top = pst->top) != &pst->first) {
 				pst->top = top->prev;
-				assert(pst->top);
+				kHlpAssert(pst->top);
 				top->prev = NULL;
 				sh_free(psh, top);
 			}
@@ -392,7 +391,7 @@ unsigned pstackrelease(shinstance *psh, pstack_block *pst, const char *caller)
 
 void pstackpop(shinstance *psh, unsigned target)
 {
-	assert(target <= psh->pstacksize);
+	kHlpAssert(target <= psh->pstacksize);
 	while (target < psh->pstacksize) {
 		unsigned idx = --psh->pstacksize;
 		pstack_block *pst = psh->pstack[idx];
@@ -413,7 +412,7 @@ void pstackpop(shinstance *psh, unsigned target)
 		for (i = 0; i < psh->pstacksize; i++)
 			if (psh->curpstack == psh->pstack[i])
 				break;
-		assert(i < psh->pstacksize);
+		kHlpAssert(i < psh->pstacksize);
 	}
 # endif
 }
@@ -422,8 +421,8 @@ void pstackpop(shinstance *psh, unsigned target)
 unsigned pstackretain(pstack_block *pst)
 {
 	unsigned refs = sh_atomic_inc(&pst->refs);
-	assert(refs > 1);
-	assert(refs < 256 /* bogus, but useful */);
+	kHlpAssert(refs > 1);
+	kHlpAssert(refs < 256 /* bogus, but useful */);
 	return refs;
 }
 
@@ -532,8 +531,8 @@ static void pstgrowblock(shinstance *psh, pstack_block *pst, size_t nbytes, size
 	struct stack_block *top = pst->top;
 	size_t blocksize;
 
-	assert(pst->avail < nbytes); /* only called when we need more space */
-	assert(tocopy <= pst->avail);
+	kHlpAssert(pst->avail < nbytes); /* only called when we need more space */
+	kHlpAssert(tocopy <= pst->avail);
 
 	/* Double the size used thus far and add some fudge and alignment.  Make
 	   sure to at least allocate MINSIZE. */
@@ -561,8 +560,8 @@ static void pstgrowblock(shinstance *psh, pstack_block *pst, size_t nbytes, size
 	else {
 		char const * const copysrc = pst->nextbyte;
 		pstallocnewblock(psh, pst, nbytes);
-		assert(pst->avail >= nbytes);
-		assert(pst->avail >= tocopy);
+		kHlpAssert(pst->avail >= nbytes);
+		kHlpAssert(pst->avail >= tocopy);
 		memcpy(pst->nextbyte, copysrc, tocopy);
 	}
 }
@@ -645,7 +644,7 @@ char *pstmakestrspace(struct shinstance *psh, size_t minbytes, char *end)
 	pstack_block *pst = psh->curpstack;
 	size_t const len = end - pst->nextbyte;
 
-	assert(pst->avail - pst->strleft == len);
+	kHlpAssert(pst->avail - pst->strleft == len);
 	TRACE2((psh, "pstmakestrspace: len=%u minbytes=%u (=> %u)\n", len, minbytes, len + minbytes));
 
 	pstgrowblock(psh, pst, minbytes + len, len);
@@ -656,7 +655,7 @@ char *pstmakestrspace(struct shinstance *psh, size_t minbytes, char *end)
 #else
 	size_t const len = end - stackblock(psh);
 
-	assert(stackblocksize(psh) - psh->sstrnleft == len);
+	kHlpAssert(stackblocksize(psh) - psh->sstrnleft == len);
 	TRACE2((psh, "pstmakestrspace: len=%u minbytes=%u (=> %u)\n", len, minbytes, len + minbytes));
 
 	minbytes += len;
@@ -675,12 +674,12 @@ char *pstputcgrow(shinstance *psh, char *end, char c)
 	pstack_block *pst = psh->curpstack;
 	pst->strleft++; 	/* PSTPUTC() already incremented it. */
 	end = pstmakestrspace(psh, 1, end);
-	assert(pst->strleft > 0);
+	kHlpAssert(pst->strleft > 0);
 	pst->strleft--;
 #else
 	psh->sstrnleft++; 	/* PSTPUTC() already incremented it. */
 	end = pstmakestrspace(psh, 1, end);
-	assert(psh->sstrnleft > 0);
+	kHlpAssert(psh->sstrnleft > 0);
 	psh->sstrnleft--;
 #endif
 	*end++ = c;
@@ -695,10 +694,10 @@ char *pstgrabstr(struct shinstance *psh, char *end)
 	char * const pstart = pst->nextbyte;
 	size_t nbytes = (size_t)(end - pstart);
 
-	assert((uintptr_t)end > (uintptr_t)pstart);
-	assert(end[-1] == '\0');
-	assert(SHELL_ALIGN((uintptr_t)pstart) == (uintptr_t)pstart);
-	assert(pst->avail - pst->strleft >= nbytes);
+	kHlpAssert((uintptr_t)end > (uintptr_t)pstart);
+	kHlpAssert(end[-1] == '\0');
+	kHlpAssert(SHELL_ALIGN((uintptr_t)pstart) == (uintptr_t)pstart);
+	kHlpAssert(pst->avail - pst->strleft >= nbytes);
 
 	nbytes = SHELL_ALIGN(nbytes); /** @todo don't align strings, align the other allocations. */
 	pst->nextbyte += nbytes;
@@ -711,10 +710,10 @@ char *pstgrabstr(struct shinstance *psh, char *end)
 	char * const pstart = stackblock(psh);
 	size_t nbytes = (size_t)(end - pstart);
 
-	assert((uintptr_t)end > (uintptr_t)pstart);
-	assert(end[-1] == '\0');
-	assert(SHELL_ALIGN((uintptr_t)pstart) == (uintptr_t)pstart);
-	assert(stackblocksize(psh) - psh->sstrnleft >= nbytes);
+	kHlpAssert((uintptr_t)end > (uintptr_t)pstart);
+	kHlpAssert(end[-1] == '\0');
+	kHlpAssert(SHELL_ALIGN((uintptr_t)pstart) == (uintptr_t)pstart);
+	kHlpAssert(stackblocksize(psh) - psh->sstrnleft >= nbytes);
 
 	nbytes = SHELL_ALIGN(nbytes); /** @todo don't align strings, align the other allocations. */
 	psh->stacknxt += nbytes;

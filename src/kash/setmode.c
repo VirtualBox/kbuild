@@ -43,7 +43,6 @@ __RCSID("$NetBSD: setmode.c,v 1.30 2003/08/07 16:42:56 agc Exp $");
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -75,7 +74,7 @@ static void	 dumpmode(BITCMD *);
 #endif
 
 #ifndef _DIAGASSERT
-# define _DIAGASSERT assert
+# define _DIAGASSERT kHlpAssert
 #endif
 
 #ifndef S_ISTXT

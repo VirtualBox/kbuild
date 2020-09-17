@@ -5,7 +5,6 @@
 *******************************************************************************/
 #include <string.h>
 #include <locale.h>
-#include <assert.h>
 #include "shinstance.h"
 #include <Windows.h>
 
@@ -84,8 +83,8 @@ void *shfork_maybe_forked(int argc, char **argv, char **envp)
     stack_ptr     = shfork_string_to_ptr(argv[3], argv[0], "--stack-address");
     g_stack_base  = shfork_string_to_ptr(argv[5], argv[0], "--stack-base");
     g_stack_limit = shfork_string_to_ptr(argv[7], argv[0], "--stack-limit");
-    assert((uintptr_t)stack_ptr < (uintptr_t)g_stack_base);
-    assert((uintptr_t)stack_ptr > (uintptr_t)g_stack_limit);
+    kHlpAssert((uintptr_t)stack_ptr < (uintptr_t)g_stack_base);
+    kHlpAssert((uintptr_t)stack_ptr > (uintptr_t)g_stack_limit);
 
     /*
      * Switch stack and jump to the fork resume point.
@@ -182,8 +181,8 @@ int shfork_body(shinstance *psh, void *stack_ptr)
     DWORD cch;
     int rc = 0;
 
-    assert((uintptr_t)stack_ptr < (uintptr_t)g_stack_base);
-    assert((uintptr_t)stack_ptr > (uintptr_t)g_stack_limit);
+    kHlpAssert((uintptr_t)stack_ptr < (uintptr_t)g_stack_base);
+    kHlpAssert((uintptr_t)stack_ptr > (uintptr_t)g_stack_limit);
 
     /*
      * Mark all handles inheritable and get the three standard handles.

@@ -40,7 +40,6 @@ __RCSID("$NetBSD: eval.c,v 1.84 2005/06/23 23:05:29 christos Exp $");
 #endif /* not lint */
 #endif
 
-#include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -527,12 +526,12 @@ expredir(shinstance *psh, union node *n)
 			expfnames->names[i] = NULL;
 			break;
 		default:
-			assert(redir->type == NHERE || redir->type == NXHERE);
+			kHlpAssert(redir->type == NHERE || redir->type == NXHERE);
 			expfnames->names[i] = NULL;
 			break;
 		}
 	}
-	assert(i == expfnames->count);
+	kHlpAssert(i == expfnames->count);
 
 	/* Do the linking at the end, as nesting happens when we expand backtick arguments. */
 	expfnames->prev = psh->expfnames;
@@ -544,7 +543,7 @@ STATIC void
 expredircleanup(shinstance *psh, unsigned depth)
 {
 	redirexpfnames *expfnames = psh->expfnames;
-	assert(expfnames == NULL ? depth == 0 : expfnames->depth == depth || expfnames->depth + 1 == depth);
+	kHlpAssert(expfnames == NULL ? depth == 0 : expfnames->depth == depth || expfnames->depth + 1 == depth);
 	while (expfnames && expfnames->depth >= depth)
 	    expfnames = psh->expfnames = expfnames->prev;
 }
