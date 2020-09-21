@@ -755,7 +755,7 @@ makejob(shinstance *psh, union node *node, int nprocs)
 				psh->jobtab = jp;
 			}
 			jp = psh->jobtab + psh->njobs;
-			for (i = 4 ; --i >= 0 ; psh->jobtab[psh->njobs++].used = 0);
+			for (i = 4 ; --i >= 0 ; psh->jobtab[psh->njobs++].used = 0) { /*empty*/ }
 			INTON;
 			break;
 		}
@@ -886,7 +886,7 @@ forkshell2(shinstance *psh, struct job *jp, union node *n, int mode,
 }
 #endif
 
-static shpid
+STATIC shpid
 forkparent(shinstance *psh, struct job *jp, union node *n, int mode, shpid pid)
 {
 	shpid pgrp;
@@ -913,7 +913,7 @@ forkparent(shinstance *psh, struct job *jp, union node *n, int mode, shpid pid)
 	return pid;
 }
 
-static void
+STATIC void
 forkchild(shinstance *psh, shpid pgrp, union node *n, int mode)
 {
 	int wasroot;

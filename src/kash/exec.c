@@ -167,7 +167,7 @@ subshellinitexec(shinstance *psh, shinstance *inherit)
 /*
  * Check if 'path' is an absolute (starts with root) path or not.
  */
-K_INLINE isabspath(const char *path)
+K_INLINE int isabspath(const char *path)
 {
 #if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
 	if (path[0] == '/' || path[0] == '\\') {
@@ -186,7 +186,7 @@ K_INLINE isabspath(const char *path)
 /*
  * Checks if the filename include a path or not.
  */
-K_INLINE haspath(const char *name)
+K_INLINE int haspath(const char *name)
 {
 #if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
     return strchr(name, '/') != NULL
@@ -658,7 +658,6 @@ find_command(shinstance *psh, char *name, struct cmdentry *entry, int act, const
 	struct tblentry *cmdp, loc_cmd;
 	int idx;
 	int prev;
-	int norehashoncd = 1;
 	char *fullname;
 	int e;
 	int (*bltin)(shinstance*,int,char **);
@@ -846,7 +845,11 @@ loop:
 			cmdp = cmdlookup(psh, name, 1);
 		cmdp->cmdtype = CMDNORMAL;
 		cmdp->param.n.index = idx;
+#ifdef PC_EXE_EXTS
 		cmdp->param.n.suffix = suffix;
+#else
+		cmdp->param.n.suffix = 0;
+#endif
 		INTON;
 		goto success;
 	}

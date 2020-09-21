@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3477 2020-09-17 21:52:16Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3480 2020-09-21 11:20:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -625,7 +625,7 @@ static shinstance *sh_create_shell_common(char **argv, char **envp, shfdtab *par
             psh->pgid = psh->pid = _getpid();
 #else
             psh->pid = getpid();
-            psh->pgid = getpgid();
+            psh->pgid = getpgid(0);
 #endif
 
             /*sh_sigemptyset(&psh->sigrestartset);*/
@@ -2240,7 +2240,7 @@ shpid sh_getpgid(shinstance *psh, shpid pid)
     shpid pgid;
     if (pid == 0 || psh->pid == pid)
     {
-        shpid pgid = psh->pgid;
+        pgid = psh->pgid;
 #ifndef _MSC_VER
         kHlpAssert(pgid == getpgrp());
 #endif
