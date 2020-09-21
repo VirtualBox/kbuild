@@ -83,6 +83,7 @@ STATIC shpid dowait(shinstance *, int, struct job *);
 STATIC shpid waitproc(shinstance *, int, struct job *, int *);
 STATIC void cmdtxt(shinstance *, union node *);
 STATIC void cmdlist(shinstance *, union node *, int);
+STATIC void cmdredirlist(shinstance *, union node *, int);
 STATIC void cmdputs(shinstance *, const char *);
 STATIC shpid forkparent(shinstance *psh, struct job *jp, union node *n, int mode, shpid pid);
 STATIC void forkchild(shinstance *psh, shpid pgrp, union node *n, int mode);
@@ -1353,7 +1354,7 @@ until:
 		break;
 	case NCMD:
 		cmdlist(psh, n->ncmd.args, 1);
-		cmdlist(psh, n->ncmd.redirect, 0);
+		cmdredirlist(psh, n->ncmd.redirect, 0);
 		break;
 	case NARG:
 		cmdputs(psh, n->narg.text);
@@ -1405,6 +1406,18 @@ cmdlist(shinstance *psh, union node *np, int sep)
 			cmdputs(psh, " ");
 		cmdtxt(psh, np);
 		if (sep && np->narg.next)
+			cmdputs(psh, " ");
+	}
+}
+
+STATIC void
+cmdredirlist(shinstance *psh, union node *np, int sep)
+{
+	for (; np; np = np->nfile.next) {
+		if (!sep)
+			cmdputs(psh, " ");
+		cmdtxt(psh, np);
+		if (sep && np->nfile.next)
 			cmdputs(psh, " ");
 	}
 }
