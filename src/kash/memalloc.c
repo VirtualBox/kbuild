@@ -333,7 +333,7 @@ grabstackstr(shinstance *psh, char *end)
 	kHlpAssert((uintptr_t)end >= (uintptr_t)pstart);
 	/*kHlpAssert(end[-1] == '\0'); - not if it's followed by ungrabstrackstr(), sigh. */
 	kHlpAssert(SHELL_ALIGN((uintptr_t)pstart) == (uintptr_t)pstart);
-	kHlpAssert(stackblocksize(psh) - psh->sstrnleft >= nbytes);
+	kHlpAssert(stackblocksize(psh) - psh->sstrnleft >= (ssize_t)nbytes);
 
 	nbytes = SHELL_ALIGN(nbytes);
 	psh->stacknxt += nbytes;
@@ -588,7 +588,7 @@ K_INLINE void *pstallocint(shinstance *psh, pstack_block *pst, size_t nbytes)
 	return ret;
 }
 
-#endif KASH_SEPARATE_PARSER_ALLOCATOR
+#endif /* KASH_SEPARATE_PARSER_ALLOCATOR */
 
 
 void *pstalloc(struct shinstance *psh, size_t nbytes)

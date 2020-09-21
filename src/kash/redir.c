@@ -68,8 +68,6 @@ __RCSID("$NetBSD: redir.c,v 1.29 2004/07/08 03:57:33 christos Exp $");
 #define PIPESIZE SHFILE_PIPE_SIZE
 
 
-MKINIT
-
 //MKINIT struct redirtab *redirlist;
 
 /*

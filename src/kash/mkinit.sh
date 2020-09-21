@@ -153,6 +153,7 @@ for f in $includes; do
 	echo "#include $f"
 done
 echo "#include \"shinstance.h\""
+echo "#include \"nodes.h\""
 
 echo
 echo

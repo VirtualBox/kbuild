@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 3468 2020-09-15 23:28:47Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 3480 2020-09-21 11:20:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -78,6 +78,8 @@ typedef struct shsubshellstatus
 # endif
     struct shsubshellstatus *next;      /**< Next free one on the free chain. */
 } shsubshellstatus;
+#else
+struct shsubshellstatus;
 #endif
 
 /**
