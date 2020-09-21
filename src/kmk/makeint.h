@@ -661,6 +661,7 @@ void fatal (const floc *flocp, size_t length, const char *fmt, ...)
 #define OUT_OF_MEM() O (fatal, NILF, _("virtual memory exhausted"))
 
 void die (int) __attribute__ ((noreturn));
+struct output;
 void die_with_job_output (int, struct output *) __attribute__ ((noreturn));
 void pfatal_with_name (const char *) __attribute__ ((noreturn));
 void perror_with_name (const char *, const char *);
