@@ -4379,9 +4379,11 @@ die (int status)
               || print_stats_flag))
         {
           need_2nd_error = 1;
-          need_2nd_error_output = job_slots_used > 2
-                               && out == NULL
+          need_2nd_error_output = job_slots_used >= 2
+                               && out != NULL
                                && out != &make_sync;
+          if (need_2nd_error_output)
+            output_metered = 0;
         }
 #endif /* KMK */
 
@@ -4461,8 +4463,11 @@ die (int status)
   if (out)
   {
       out->dont_truncate = 0;
-      if (need_2nd_error_output)
+fprintf(stderr, "output_metered=%d\n", output_metered);
+      if (need_2nd_error_output && output_metered > 20)
         output_dump (out);
+      else
+        output_reset (out);
       output_close (out);
   }
 #endif
@@ -4471,7 +4476,7 @@ die (int status)
 }
 
 #ifdef KMK
-void die(int status)
+void die (int status)
 {
     die_with_job_output (status, NULL);
 }

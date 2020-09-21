@@ -66,6 +66,9 @@ struct output
 
 extern struct output *output_context;
 extern unsigned int stdio_traced;
+#if defined(KMK) && !defined(NO_OUTPUT_SYNC)
+extern int output_metered;
+#endif
 
 #define OUTPUT_SET(_new)    do{ output_context = (_new)->syncout ? (_new) : NULL; }while(0)
 #define OUTPUT_UNSET()      do{ output_context = NULL; }while(0)
@@ -95,6 +98,9 @@ ssize_t output_write_text (struct output *out, int is_err, const char *src, size
 int output_tmpfd (void);
 /* Dump any child output content to stdout, and reset it.  */
 void output_dump (struct output *out);
+# ifdef KMK
+void output_reset (struct output *out);
+# endif
 #endif
 
 #endif /* INLCUDED_MAKE_OUTPUT_H */
