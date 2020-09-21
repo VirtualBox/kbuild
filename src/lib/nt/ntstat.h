@@ -1,4 +1,4 @@
-/* $Id: ntstat.h 3007 2016-11-06 16:46:43Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.h 3485 2020-09-21 12:25:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat implementation and wrappers.
  */
@@ -85,6 +85,7 @@ int birdStatAtW(void *hRoot, const wchar_t *pwszPath, BirdStat_T *pStat, int fFo
 int birdStatOnFd(int fd, BirdStat_T *pStat);
 int birdStatOnFdJustSize(int fd, __int64 *pcbFile);
 int birdStatModTimeOnly(const char *pszPath, BirdTimeSpec_T *pTimeSpec, int fFollowLink);
+int birdStatModeOnly(const char *pszPath, unsigned __int16 *pMode, int fFollowLink);
 #ifdef ___nt_ntstuff_h
 int  birdStatHandle(HANDLE hFile, BirdStat_T *pStat, const char *pszPath);
 void birdStatFillFromFileIdFullDirInfo(BirdStat_T *pStat, MY_FILE_ID_FULL_DIR_INFORMATION const *pBuf);
