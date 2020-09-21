@@ -4463,7 +4463,6 @@ die (int status)
   if (out)
   {
       out->dont_truncate = 0;
-fprintf(stderr, "output_metered=%d\n", output_metered);
       if (need_2nd_error_output && output_metered > 20)
         output_dump (out);
       else
