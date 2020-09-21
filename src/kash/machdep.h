@@ -39,10 +39,14 @@
  * in some way.  The following macro will get this right on many machines.
  */
 
-#ifdef _MSC_VER
-#define SHELL_SIZE (8 - 1)
-#else
+/* For the purposes of the allocation stack(s), this is nonsensical given
+   that struct stack_block does not align the 'space' member accordingly.
+   That member will be aligned according to the pointer size, so we
+   should do the same here and not mix in any 'double' nonsense: */
+#if 0
 #define SHELL_SIZE (sizeof(union {int i; char *cp; double d; }) - 1)
+#else
+#define SHELL_SIZE (sizeof(void *) - 1)
 #endif
 
 /*
