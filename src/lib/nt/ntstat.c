@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 3223 2018-03-31 02:29:56Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 3485 2020-09-21 12:25:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -1003,5 +1003,63 @@ int birdStatModTimeOnly(const char *pszPath, BirdTimeSpec_T *pTimeSpec, int fFol
     return -1;
 }
 
+/**
+ * Special function for getting the file mode.
+ */
+int birdStatModeOnly(const char *pszPath, unsigned __int16 *pMode, int fFollowLink)
+{
+    /*
+     * Convert the path and call NtQueryFullAttributesFile.
+     */
+    MY_UNICODE_STRING  NtPath;
+
+    birdResolveImports();
+    if (birdDosToNtPath(pszPath, &NtPath) == 0)
+    {
+        MY_OBJECT_ATTRIBUTES                ObjAttr;
+        MY_FILE_BASIC_INFORMATION           Info;
+        MY_NTSTATUS                         rcNt;
+
+        memset(&Info, 0xfe, sizeof(Info));
+
+        MyInitializeObjectAttributes(&ObjAttr, &NtPath, OBJ_CASE_INSENSITIVE, NULL /*hRoot*/, NULL /*pSecAttr*/);
+        rcNt = g_pfnNtQueryAttributesFile(&ObjAttr, &Info);
+
+        if (MY_NT_SUCCESS(rcNt))
+        {
+            unsigned __int8 isdirsymlink = 0;
+            unsigned __int8 ismountpoint = 0;
+            *pMode = birdFileInfoToMode(Info.FileAttributes, 0, pszPath, NtPath.Buffer, NtPath.Length,
+                                        &isdirsymlink, &ismountpoint);
+
+            /* Do the trailing slash check. */
+            if (   (Info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                || !birdIsPathDirSpec(pszPath))
+            {
+                if (   !(Info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+                    || !fFollowLink)
+                {
+                    birdFreeNtPath(&NtPath);
+                    return 0;
+                }
+
+                /* Fallback on birdStatOnlyInternal to follow the reparse point.  */
+                if (!birdStatOnlyInternal(pszPath, fFollowLink, &Info))
+                {
+                    *pMode = birdFileInfoToMode(Info.FileAttributes, 0, pszPath, NtPath.Buffer, NtPath.Length,
+                                                &isdirsymlink, &ismountpoint);
+                    birdFreeNtPath(&NtPath);
+                    return 0;
+                }
+            }
+            else
+                errno = ENOTDIR;
+        }
+        else
+            birdSetErrnoFromNt(rcNt);
+        birdFreeNtPath(&NtPath);
+    }
+    return -1;
+}
 
 
