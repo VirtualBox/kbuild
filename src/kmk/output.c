@@ -60,6 +60,37 @@ unsigned int stdio_traced = 0;
 #endif
 
 
+#if defined(KMK) && !defined(NO_OUTPUT_SYNC)
+/* Non-negative if we're counting output lines.
+
+   This is used by die_with_job_output to decide whether the initial build
+   error needs to be repeated because there was too much output from parallel
+   jobs between it and the actual make termination. */
+int output_metered = -1;
+
+static void meter_output_block (char const *buffer, size_t len)
+{
+  while (len > 0)
+    {
+      char *nl = (char *)memchr (buffer, '\n', len);
+      size_t linelen;
+      if (nl)
+        {
+          linelen = nl - buffer + 1;
+          output_metered++;
+        }
+      else
+          linelen = len;
+      output_metered += linelen / 132;
+
+      /* advance */
+      buffer += linelen;
+      len    -= linelen;
+    }
+}
+#endif
+
+
 #ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
 # define MEMBUF_MIN_SEG_SIZE  4096
 # define MEMBUF_MAX_SEG_SIZE  (512*1024)
@@ -77,6 +108,42 @@ static int   log_working_directory (int);
    Also, did we already sync_init (== -1)?  */
 static int combined_output = -1;
 
+/* Helper for membuf_reset and output_reset */
+static membuf_reset (struct output *out)
+{
+  struct output_segment *seg;
+  while ((seg = out->out.head_seg))
+    {
+     out->out.head_seg = seg->next;
+     free (seg);
+    }
+  out->out.tail_seg = NULL;
+  out->out.tail_run = NULL;
+  out->out.head_run = NULL;
+  out->out.left     = 0;
+  out->out.total    = 0;
+
+  while ((seg = out->err.head_seg))
+    {
+     out->err.head_seg = seg->next;
+     free (seg);
+    }
+  out->err.tail_seg = NULL;
+  out->err.tail_run = NULL;
+  out->err.head_run = NULL;
+  out->err.left     = 0;
+  out->err.total    = 0;
+
+  out->seqno = 0;
+}
+
+/* Used by die_with_job_output to suppress output when it shouldn't be repeated. */
+void output_reset (struct output *out)
+{
+  if (out && (out->out.total || out->err.total))
+    membuf_reset (out);
+}
+
 /* Internal worker for output_dump and membuf_dump_most. */
 static void membuf_dump (struct output *out)
 {
@@ -85,7 +152,6 @@ static void membuf_dump (struct output *out)
       int traced = 0;
       struct output_run *err_run;
       struct output_run *out_run;
-      struct output_segment *seg;
       FILE *prevdst;
 
       /* Try to acquire the semaphore.  If it fails, dump the output
@@ -129,6 +195,12 @@ static void membuf_dump (struct output *out)
           if (dst != prevdst)
             fflush(prevdst);
           prevdst = dst;
+#ifdef KMK
+          if (output_metered < 0)
+            { /* likely */ }
+          else
+            meter_output_block (src, len);
+#endif
 # if 0 /* for debugging */
           while (len > 0)
             {
@@ -178,29 +250,7 @@ static void membuf_dump (struct output *out)
 # endif
 
       /* Free the segments and reset the state. */
-      while ((seg = out->out.head_seg))
-        {
-         out->out.head_seg = seg->next;
-         free (seg);
-        }
-      out->out.tail_seg = NULL;
-      out->out.tail_run = NULL;
-      out->out.head_run = NULL;
-      out->out.left     = 0;
-      out->out.total    = 0;
-
-      while ((seg = out->err.head_seg))
-        {
-         out->err.head_seg = seg->next;
-         free (seg);
-        }
-      out->err.tail_seg = NULL;
-      out->err.tail_run = NULL;
-      out->err.head_run = NULL;
-      out->err.left     = 0;
-      out->err.total    = 0;
-
-      out->seqno = 0;
+      membuf_reset (out);
     }
   else
     assert (out->out.head_seg == NULL && out->err.head_seg == NULL);
@@ -752,6 +802,12 @@ pump_from_tmp (int from, FILE *to)
         perror ("read()");
       if (len <= 0)
         break;
+#ifdef KMK
+      if (output_metered < 0)
+        { /* likely */ }
+      else
+        meter_output_block (buffer, len);
+#endif
       if (fwrite (buffer, len, 1, to) < 1)
         {
           perror ("fwrite()");
@@ -949,6 +1005,28 @@ output_dump (struct output *out)
     }
 #endif
 }
+
+# if defined(KMK) && !defined(CONFIG_WITH_OUTPUT_IN_MEMORY)
+/* Used by die_with_job_output to suppress output when it shouldn't be repeated. */
+void output_reset (struct output *out)
+{
+  if (out)
+    {
+      if (out->out != OUTPUT_NONE)
+        {
+          int e;
+          lseek (out->out, 0, SEEK_SET);
+          EINTRLOOP (e, ftruncate (out->out, 0));
+        }
+      if (out->err != OUTPUT_NONE && out->err != out->out)
+        {
+          int e;
+          lseek (out->err, 0, SEEK_SET);
+          EINTRLOOP (e, ftruncate (out->err, 0));
+        }
+    }
+}
+# endif
 #endif /* NO_OUTPUT_SYNC */
 
 
