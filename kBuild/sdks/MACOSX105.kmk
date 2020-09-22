@@ -1,4 +1,4 @@
-# $Id: MACOSX105.kmk 3406 2020-07-17 20:02:41Z knut.osmundsen@oracle.com $
+# $Id: MACOSX105.kmk 3489 2020-09-22 13:44:52Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Mac OS X v10.5 SDK.
 #
@@ -44,9 +44,9 @@ endif
 # General Properties (used by kBuild)
 # Note: The MAC_OS_X_VERSION_MAX_ALLOWED is left free for the SDK user to define.
 SDK_MACOSX105_DEFS        ?= MAC_OS_X_VERSION_MIN_REQUIRED=1050
-SDK_MACOSX105_CFLAGS      ?= -mmacosx-version-min=10.5 -isysroot $(PATH_SDK_MACOSX105)
-SDK_MACOSX105_CXXFLAGS    ?= -mmacosx-version-min=10.5 -isysroot $(PATH_SDK_MACOSX105)
-SDK_MACOSX105_OBJCFLAGS   ?= -mmacosx-version-min=10.5 -isysroot $(PATH_SDK_MACOSX105)
-SDK_MACOSX105_OBJCXXFLAGS ?= -mmacosx-version-min=10.5 -isysroot $(PATH_SDK_MACOSX105)
-SDK_MACOSX105_LDFLAGS     ?= -mmacosx-version-min=10.5 -Wl,-syslibroot,$(PATH_SDK_MACOSX105)
+SDK_MACOSX105_CFLAGS      ?= -mmacosx-version-min=10.5 -isysroot "$(PATH_SDK_MACOSX105)"
+SDK_MACOSX105_CXXFLAGS    ?= -mmacosx-version-min=10.5 -isysroot "$(PATH_SDK_MACOSX105)"
+SDK_MACOSX105_OBJCFLAGS   ?= -mmacosx-version-min=10.5 -isysroot "$(PATH_SDK_MACOSX105)"
+SDK_MACOSX105_OBJCXXFLAGS ?= -mmacosx-version-min=10.5 -isysroot "$(PATH_SDK_MACOSX105)"
+SDK_MACOSX105_LDFLAGS     ?= -mmacosx-version-min=10.5 -Wl,-syslibroot,"$(PATH_SDK_MACOSX105)"
 
