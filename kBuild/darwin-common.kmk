@@ -1,4 +1,4 @@
-# $Id: darwin-common.kmk 3401 2020-07-05 15:58:36Z knut.osmundsen@oracle.com $
+# $Id: darwin-common.kmk 3488 2020-09-22 09:47:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Common Darwin (macOS) Definitions - Used by tools and SDKs.
 #
@@ -74,14 +74,20 @@ DARWINCMN_TOOLCHAIN_DIRS = $(DARWINCMN_TOOLCHAIN_DIRS_PREFERRED) \
 # Users can alter this by setting DARWINCMN_MACOSX_SDKS_DIRS_PREFERRED and DARWINCMN_MACOSX_SDKS_DIRS_FALLBACK.
 DARWINCMN_MACOSX_SDKS_DIRS = $(DARWINCMN_MACOSX_SDKS_DIRS_PREFERRED) \
 	$(if-expr defined(DARWINCMN_MACOSX_SDKS_DIRS_IGNORE_DEVTOOLS),, \
-		$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_TGT)/SDKs)) \
-		$(if-expr "$(KBUILD_DEVTOOLS_TGT_ALT)" != "", \
-			$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_TGT_ALT)/SDKs)) ,)\
-		$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST)/CommandLineTools/v*/SDKs)) \
-		$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST)/xcode/v*/*.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs)) \
-		$(if-expr "$(KBUILD_DEVTOOLS_HST_ALT)" != "", \
-			$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST_ALT)/CommandLineTools/v*)) \
-			$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST_ALT)/xcode/v*/*.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs)) ,) \
+		$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_TRG_NOARCH)/SDKs)) \
+		$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_TRG)/SDKs)) \
+		$(if-expr "$(KBUILD_DEVTOOLS_TRG_ALT)" != "", \
+			$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_TRG_ALT)/SDKs)) ,) \
+		$(if-expr "$(KBUILD_DEVTOOLS_TRG_NOARCH)" != "$(KBUILD_DEVTOOLS_HST_NOARCH)", \
+			$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST_NOARCH)/SDKs)),) \
+		$(if-expr "$(KBUILD_DEVTOOLS_HST)" != "$(KBUILD_DEVTOOLS_TRG)", \
+			$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST)/SDKs)) \
+			$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST)/CommandLineTools/v*/SDKs)) \
+			$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST)/xcode/v*/*.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs)) \
+			$(if-expr "$(KBUILD_DEVTOOLS_HST_ALT)" != "", \
+				$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST_ALT)/CommandLineTools/v*)) \
+				$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST_ALT)/xcode/v*/*.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs)) ,) \
+		) \
 	) \
 	/Library/Developer/CommandLineTools/SDKs \
 	$(qwildcard ,/Applications/Xcode*.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs) \
