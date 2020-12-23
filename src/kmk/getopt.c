@@ -204,7 +204,9 @@ static char *posixly_correct;
 #ifndef getenv
 extern char *getenv ();
 #endif
-#endif /* !KMK */
+#else /* KMK */
+# include <stdlib.h>
+#endif /* KMK */
 
 static char *
 my_index (const char *str, int chr)

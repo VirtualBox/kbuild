@@ -7084,6 +7084,7 @@ func_q_notdir (char *o, char **argv, const char *funcname)
   struct nameseq *chain = helper_parse_file_list (argv[1], style, 0);
   struct nameseq *cur;
   int const stop = MAP_DIRSEP;
+  (void)funcname;
 
   for (cur = chain; cur; cur = cur->next)
     {
@@ -7121,6 +7122,7 @@ func_q_suffix (char *o, char **argv, const char *funcname)
   struct nameseq *prev;
   struct nameseq *cur;
   int const stop = MAP_DIRSEP | MAP_DOT;
+  (void)funcname;
 
   /* For suffixes we do a pre-pass that removes elements without suffixes.
      This simplifies the handling of end-quoting. */
