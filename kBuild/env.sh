@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 3295 2019-01-10 16:35:56Z knut.osmundsen@oracle.com $
+# $Id: env.sh 3492 2020-12-23 13:59:02Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -365,7 +365,7 @@ if test -z "$KBUILD_HOST_ARCH"; then
         aarch32|arm|arm1|arm2|arm3|arm6|armv1|armv2|armv3*|armv4*|armv5*|armv6*|armv7*|armv8*)
             KBUILD_HOST_ARCH='arm32'
             ;;
-        aarch64*)
+        aarch64*|arm64) # (Apple M1 is arm64.)
             KBUILD_HOST_ARCH='arm64'
             ;;
         hppa32|parisc32|parisc)
