@@ -35,6 +35,10 @@
 # include <stdlib.h>
 #endif /* HAVE_STDLIB_H */
 
+#ifdef HAVE_UNISTD_H /* bird: for unlink on darwin */
+# include <unistd.h>
+#endif
+
 #include "utils.h"
 
 #ifdef KBUILD_OS_WINDOWS /* bird: Way faster console output! */
