@@ -1,4 +1,4 @@
-# $Id: StandardDTrace.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: StandardDTrace.kmk 3496 2021-03-31 18:12:42Z knut.osmundsen@oracle.com $
 ## @file
 # Standard DTrace tool.
 #
@@ -42,11 +42,13 @@ endef
 
 TOOL_StandardDTrace_DTRACE_OBJ_NOT_NEEDED := darwin
 TOOL_StandardDTrace_DTRACE_OBJ_FLAGS := -G
+# Note! We have to exclude gcc style precompiled headers here as they are automatically
+#       added to the list of object files (see func_kbuild_source_one in kbuild.c).
 define TOOL_StandardDTrace_DTRACE_OBJ_CMDS  
 	$(QUIET)$(TOOL_StandardDTrace_DTRACE) \
 		$(if-expr $(intersects $(bld_trg_arch),$(KBUILD_ARCHES_64)),-64,-32) \
 		$(flags) \
 		-o "$(out)" -s "$(source)" \
-		$$(filter-out %-dtrace-object-format.o, $$($(target)_2_OBJS))
+		$$(filter-out %-dtrace-object-format.o $$($(target)_1_GCC_PCH_FILE), $$($(target)_2_OBJS))
 endef
 
