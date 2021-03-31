@@ -1,4 +1,4 @@
-# $Id: StandardDTrace.kmk 3496 2021-03-31 18:12:42Z knut.osmundsen@oracle.com $
+# $Id: StandardDTrace.kmk 3497 2021-03-31 19:36:02Z knut.osmundsen@oracle.com $
 ## @file
 # Standard DTrace tool.
 #
@@ -49,6 +49,6 @@ define TOOL_StandardDTrace_DTRACE_OBJ_CMDS
 		$(if-expr $(intersects $(bld_trg_arch),$(KBUILD_ARCHES_64)),-64,-32) \
 		$(flags) \
 		-o "$(out)" -s "$(source)" \
-		$$(filter-out %-dtrace-object-format.o $$($(target)_1_GCC_PCH_FILE), $$($(target)_2_OBJS))
+		$$(filter-out %-dtrace-object-format.o %.h.gch, $$($(target)_2_OBJS))
 endef
 
