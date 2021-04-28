@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 3146 2018-03-15 17:01:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 3498 2021-04-28 11:51:49Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -156,17 +156,12 @@ _command kkeys_delete_right()
    ch = get_text();
    if (ch != ' ' && ch != "\t" && ch != "\r" && ch != "\n")
    {
-      /* Delete word and any trailing spaces, but stop at new line. */
-      delete_word();
-
-      ch = get_text();
-      if (ch == ' ' || ch == "\t" || ch == "\r" || ch == "\n")
+      /* Delete word and any trailing spaces, but stop at new line.
+         (Don't use delete_word here!) */
+      if (search('(:v|?)[ \t]@','r+') == 0)
       {
-         if (search('[ \t]#','r+') == 0)
-         {
-            _nrseek(match_length('s'));
-            _delete_text(match_length());
-         }
+         _nrseek(match_length('s'));
+         _delete_text(match_length());
       }
    }
    else
