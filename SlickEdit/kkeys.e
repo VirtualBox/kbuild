@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 3498 2021-04-28 11:51:49Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 3499 2021-05-10 19:18:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -158,7 +158,7 @@ _command kkeys_delete_right()
    {
       /* Delete word and any trailing spaces, but stop at new line.
          (Don't use delete_word here!) */
-      if (search('(:v|?)[ \t]@','r+') == 0)
+      if (search('([[:alnum:]_]#|?)[ \t]@','r+') == 0)
       {
          _nrseek(match_length('s'));
          _delete_text(match_length());
