@@ -1,4 +1,4 @@
-/* $Id: shthread.h 3457 2020-09-14 17:34:28Z knut.osmundsen@oracle.com $ */
+/* $Id: shthread.h 3502 2021-12-14 23:13:33Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Shell thread methods.
@@ -51,6 +51,7 @@ typedef uintptr_t shtid;
 
 void shthread_set_shell(struct shinstance *);
 struct shinstance *shthread_get_shell(void);
+void shthread_set_name(const char *name);
 
 int shmtx_init(shmtx *pmtx);
 void shmtx_delete(shmtx *pmtx);
@@ -62,6 +63,10 @@ K_INLINE unsigned sh_atomic_inc(KU32 volatile *valuep)
 {
 #ifdef _MSC_VER
     return _InterlockedIncrement((long *)valuep);
+#elif defined(__GNUC__) && (K_ARCH == K_ARCH_AMD64 || K_ARCH == K_ARCH_X86)
+    unsigned uRet;
+    __asm__ __volatile__("lock; xaddl %1, %0" : "=m" (*valuep), "=r" (uRet) : "m" (*valuep), "1" (1) : "memory", "cc");
+    return uRet + 1;
 #else
     return __sync_add_and_fetch(valuep, 1);
 #endif
@@ -71,6 +76,10 @@ K_INLINE unsigned sh_atomic_dec(unsigned volatile *valuep)
 {
 #ifdef _MSC_VER
     return _InterlockedDecrement((long *)valuep);
+#elif defined(__GNUC__) && (K_ARCH == K_ARCH_AMD64 || K_ARCH == K_ARCH_X86)
+    unsigned uRet;
+    __asm__ __volatile__("lock; xaddl %1, %0" : "=m" (*valuep), "=r" (uRet) : "m" (*valuep), "1" (-1) : "memory", "cc");
+    return uRet - 1;
 #else
     return __sync_sub_and_fetch(valuep, 1);
 #endif
