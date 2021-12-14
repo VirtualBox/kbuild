@@ -1,4 +1,4 @@
-# $Id: WINSDK10-UM.kmk 3500 2021-12-14 09:38:34Z knut.osmundsen@oracle.com $
+# $Id: WINSDK10-UM.kmk 3501 2021-12-14 21:54:48Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Derives from WINSDK10.kmk, user mode.
 #
@@ -55,4 +55,15 @@ endif
 ifndef SDK_WINSDK10-UM_LIBS.x86
 SDK_WINSDK10-UM_LIBS.x86      := $(addprefix $(PATH_SDK_WINSDK10_UM_LIB.x86)/,$(SDK_WINSDK10_UM_LIB_NAMES))
 endif
+
+# Path variables for smoothing the transistion from older PSDKs.
+PATH_SDK_WINSDK10_UM           = $(PATH_SDK_WINSDK10)
+
+PATH_SDK_WINSDK10-UM_LIB.x86   = $(PATH_SDK_WINSDK10_UM_LIB.x86)
+PATH_SDK_WINSDK10-UM_LIB.amd64 = $(PATH_SDK_WINSDK10_UM_LIB.amd64)
+PATH_SDK_WINSDK10-UM_LIB.arm32 = $(PATH_SDK_WINSDK10_UM_LIB.arm32)
+PATH_SDK_WINSDK10-UM_LIB.arm64 = $(PATH_SDK_WINSDK10_UM_LIB.arm64)
+PATH_SDK_WINSDK10-UM_LIB      ?= $(PATH_SDK_WINSDK10_UM_LIB.$(KBUILD_TARGET_ARCH))
+
+PATH_SDK_WINSDK10-UM_BIN      ?= $(PATH_SDK_WINSDK10_BIN)
 
