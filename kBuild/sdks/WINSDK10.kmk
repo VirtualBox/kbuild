@@ -1,4 +1,4 @@
-# $Id: WINSDK10.kmk 3418 2020-08-21 11:02:13Z knut.osmundsen@oracle.com $
+# $Id: WINSDK10.kmk 3500 2021-12-14 09:38:34Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Windows SDK v10.
 #
@@ -199,7 +199,9 @@ endif
 #
 # Properties used by kBuild.
 #
-SDK_WINSDK10_INCS ?= $(PATH_SDK_WINSDK10_INC)
+SDK_WINSDK10_INCS ?= \
+	$(PATH_SDK_WINSDK10_UM_INC) \
+	$(PATH_SDK_WINSDK10_SHARED_INC)
 SDK_WINSDK10_LIBPATH.amd64 ?= $(PATH_SDK_WINSDK10_UM_LIB.amd64)
 SDK_WINSDK10_LIBPATH.arm32 ?= $(PATH_SDK_WINSDK10_UM_LIB.arm32)
 SDK_WINSDK10_LIBPATH.arm64 ?= $(PATH_SDK_WINSDK10_UM_LIB.arm64)

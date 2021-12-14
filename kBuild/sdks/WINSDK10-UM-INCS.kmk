@@ -1,4 +1,4 @@
-# $Id: WINSDK10-UM-INCS.kmk 3320 2020-04-16 22:19:22Z knut.osmundsen@oracle.com $
+# $Id: WINSDK10-UM-INCS.kmk 3500 2021-12-14 09:38:34Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Derives from WINSDK10.kmk, user mode includes only.
 #
@@ -36,5 +36,7 @@ ifndef SDK_WINSDK10
 endif
 
 SDK_WINSDK10-UM-INCS      := The Microsoft Windows 10 SDK, user mode includes only.
-SDK_WINSDK10-UM-INCS_INCS ?= $(PATH_SDK_WINSDK10_INC)
+SDK_WINSDK10-UM-INCS_INCS ?= \
+	$(PATH_SDK_WINSDK10_UM_INC) \
+	$(PATH_SDK_WINSDK10_SHARED_INC)
 
