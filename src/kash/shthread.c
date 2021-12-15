@@ -1,4 +1,4 @@
-/* $Id: shthread.c 3477 2020-09-17 21:52:16Z knut.osmundsen@oracle.com $ */
+/* $Id: shthread.c 3505 2021-12-15 22:53:57Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Shell Thread Management.
@@ -105,5 +105,47 @@ struct shinstance *shthread_get_shell(void)
     psh = (shinstance *)pthread_getspecific(sh_tls);
 #endif
     return psh;
+}
+
+
+/**
+ * Sets the name of the current thread if supported by the OS.
+ */
+void shthread_set_name(const char *name)
+{
+#if K_OS == K_OS_WINDOWS
+    typedef BOOL (WINAPI * PFNSETTHREADDESCRIPTION)(HANDLE, WCHAR *);
+    static KBOOL volatile                   s_initialized             = K_FALSE;
+    static PFNSETTHREADDESCRIPTION volatile s_pfnSetThreadDescription = NULL;
+    PFNSETTHREADDESCRIPTION                 pfnSetThreadDescription   = s_pfnSetThreadDescription;
+    WCHAR                                   wszName[32];
+    size_t                                  i;
+
+    /* Get the function pointer, return if not available. */
+    if (pfnSetThreadDescription)
+    { }
+    else if (s_initialized)
+        return;
+    else
+    {
+        pfnSetThreadDescription = (PFNSETTHREADDESCRIPTION)GetProcAddress(GetModuleHandleW(L"KERNEL32.DLL"),
+                                                                          "SetThreadDescription");
+        s_pfnSetThreadDescription = pfnSetThreadDescription;
+        s_initialized = K_TRUE;
+        if (!pfnSetThreadDescription)
+            return;
+    }
+
+    /* Convert the name to UTF-16 and call the API. */
+    i = strlen(name);
+    kHlpAssertStmt(i < K_ELEMENTS(wszName), i = K_ELEMENTS(wszName));
+    wszName[i] = '\0';
+    while (i-- > 0)
+        wszName[i] = name[i];
+
+    pfnSetThreadDescription(GetCurrentThread(), wszName);
+#else
+    K_NOREF(name);
+#endif
 }
 
