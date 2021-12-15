@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3477 2020-09-17 21:52:16Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3505 2021-12-15 22:53:57Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -220,6 +220,7 @@ static KU64 shfile_nano_ts(void)
 static unsigned __stdcall shfile_async_close_handle_thread(void *ignored)
 {
     KBOOL decrement_pending = K_FALSE;
+    shthread_set_name("Async CloseHandle");
     while (!g_shfile_async_close.terminate_threads)
     {
         HANDLE toclose;
