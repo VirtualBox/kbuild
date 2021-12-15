@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3480 2020-09-21 11:20:56Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3506 2021-12-15 22:54:57Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -398,9 +398,12 @@ static void sh_destroy(shinstance *psh)
     }
 
     /* input.h/c */
-    popallfiles(psh);
-    while (psh->basepf.strpush)
-        popstring(psh);
+    if (psh->parsefile != NULL)
+    {
+        popallfiles(psh);
+        while (psh->basepf.strpush)
+            popstring(psh);
+    }
 
     /* jobs.h/c */
     if (psh->jobtab)
@@ -1003,6 +1006,12 @@ static void sh_sig_common_handler(int signo)
 
 /*    fprintf(stderr, "sh_sig_common_handler: signo=%d:%s\n", signo, sys_signame[signo]); */
 
+#ifdef _MSC_VER
+    /* We're treating SIGBREAK as if it was SIGINT for now: */
+    if (signo == SIGBREAK)
+        signo = SIGINT;
+#endif
+
     /*
      * No need to take locks if there is only one shell.
      * Since this will be the initial case, just avoid the deadlock
@@ -1113,6 +1122,10 @@ int sh_sigaction(shinstance *psh, int signo, const struct shsigaction *newp, str
         TRACE2((psh, "sh_sigaction: setting signo=%d:%s to {.sa_handler=%p, .sa_flags=%#x}\n",
                 signo, sys_signame[signo], g_sig_state[signo].sa.sa_handler, g_sig_state[signo].sa.sa_flags));
 #ifdef _MSC_VER
+        /* Throw SIGBREAK in with SIGINT for now. */
+        if (signo == SIGINT)
+            signal(SIGBREAK, g_sig_state[signo].sa.sa_handler);
+
         if (signal(signo, g_sig_state[signo].sa.sa_handler) == SIG_ERR)
         {
             TRACE2((psh, "sh_sigaction: SIG_ERR, errno=%d signo=%d\n", errno, signo));
