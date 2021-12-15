@@ -1,4 +1,4 @@
-/* $Id: ntunlink.c 3388 2020-06-26 16:52:06Z knut.osmundsen@oracle.com $ */
+/* $Id: ntunlink.c 3504 2021-12-15 22:50:14Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT unlink and variations.
  */
@@ -63,7 +63,7 @@ static MY_NTSTATUS birdMakeWritable(HANDLE hRoot, MY_UNICODE_STRING *pNtPath)
         memset(&BasicInfo, 0, sizeof(BasicInfo));
         rcNt = g_pfnNtQueryInformationFile(hFile, &Ios, &BasicInfo, sizeof(BasicInfo), MyFileBasicInformation);
 
-        if (MY_NT_SUCCESS(rcNt) && MY_NT_SUCCESS(Ios.u.Status) /*&& BasicInfo.FileAttributes != FILE_ATTRIBUTE_READONLY*/)
+        if (MY_NT_SUCCESS(rcNt) && MY_NT_SUCCESS(Ios.u.Status) && BasicInfo.FileAttributes != FILE_ATTRIBUTE_READONLY)
             dwAttr = BasicInfo.FileAttributes & ~FILE_ATTRIBUTE_READONLY;
         else
             dwAttr = FILE_ATTRIBUTE_NORMAL;
@@ -113,7 +113,7 @@ static int birdUnlinkInternal(HANDLE hRoot, const char *pszFile, const wchar_t *
             rcNt = g_pfnNtDeleteFile(&ObjAttr);
 
             /* In case some file system does things differently than NTFS. */
-            if (rcNt == STATUS_CANNOT_DELETE)
+            if (rcNt == STATUS_CANNOT_DELETE && fReadOnlyToo)
             {
                 birdMakeWritable(hRoot, &NtPath);
                 rcNt = g_pfnNtDeleteFile(&ObjAttr);
@@ -123,7 +123,6 @@ static int birdUnlinkInternal(HANDLE hRoot, const char *pszFile, const wchar_t *
         {
             /* Use the set information stuff. Probably more reliable. */
             HANDLE hFile;
-            int    fMayTryAgain = 1;
             for (;;)
             {
                 rcNt = birdOpenFileUniStr(hRoot,
@@ -149,10 +148,10 @@ static int birdUnlinkInternal(HANDLE hRoot, const char *pszFile, const wchar_t *
 
                     birdCloseFile(hFile);
                 }
-                if (rcNt != STATUS_CANNOT_DELETE || !fMayTryAgain)
+                if (rcNt != STATUS_CANNOT_DELETE || !fReadOnlyToo)
                     break;
 
-                fMayTryAgain = 0;
+                fReadOnlyToo = 0;
                 birdMakeWritable(hRoot, &NtPath);
             }
         }
