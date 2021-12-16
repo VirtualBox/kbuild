@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3493 2020-12-23 19:52:04Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3509 2021-12-16 11:09:26Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -231,9 +231,15 @@ ifeq ($(KBUILD_TARGET),os2)
  TEMPLATE_BIN_LDFLAGS           = -Zhigh-mem -Zstack=1024 -g
 
 else if1of ($(KBUILD_TARGET), win nt)
- TEMPLATE_BIN_TOOL              = VCC100
- TEMPLATE_BIN_TOOL.x86          = VCC100X86
- TEMPLATE_BIN_TOOL.amd64        = VCC100AMD64
+ ifdef KBUILD_NEW_VCC
+  TEMPLATE_BIN_TOOL             = VCC142
+  TEMPLATE_BIN_TOOL.x86         = VCC142X86
+  TEMPLATE_BIN_TOOL.amd64       = VCC142AMD64
+ else
+  TEMPLATE_BIN_TOOL             = VCC100
+  TEMPLATE_BIN_TOOL.x86         = VCC100X86
+  TEMPLATE_BIN_TOOL.amd64       = VCC100AMD64
+ endif
  TEMPLATE_BIN_DEFS              = WINDOWS32 _CONSOLE __WIN__ _CRT_SECURE_NO_DEPRECATE _CRT_NONSTDC_NO_WARNINGS
  TEMPLATE_BIN_DEFS.x86          = WIN32 __WIN32__
  TEMPLATE_BIN_DEFS.amd64        = WIN32 __WIN32__ __WIN64__ WIN64
@@ -245,10 +251,27 @@ else if1of ($(KBUILD_TARGET), win nt)
 	$(PATH_GNUMAKE_SRC)/w32/include \
 	$(PATH_GNUMAKE_SRC)/glob
  TEMPLATE_BIN_LDFLAGS           = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG /OPT:REF /OPT:ICF /LargeAddressAware
- ifeq ($(KBUILD_TYPE),profile)
-  TEMPLATE_BIN_SDKS             = WINPSDKINCS
-  TEMPLATE_BIN_CFLAGS          += -MT
-  TEMPLATE_BIN_LIBS             = \
+ ifdef KBUILD_NEW_VCC
+  ifdef KBUILD_WITH_STATIC_MSVCRT
+   TEMPLATE_BIN_SDKS            = WINPSDK71 WINSDK10-UCRT-STATIC
+   TEMPLATE_BIN_CFLAGS         += -MT
+   TEMPLATE_BIN_LIBS            = \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/vcruntime.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcmt.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcpmt.lib
+  else
+   TEMPLATE_BIN_SDKS            = WINPSDK71 WINSDK10-UCRT
+   TEMPLATE_BIN_CFLAGS         += -MD
+   TEMPLATE_BIN_LIBS            = \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/vcruntime.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
+  endif
+ else ifeq ($(KBUILD_TYPE),profile)
+   TEMPLATE_BIN_SDKS             = WINPSDKINCS
+   TEMPLATE_BIN_CFLAGS          += -MT
+   TEMPLATE_BIN_LIBS             = \
 	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/lib/kPrf2.lib \
 	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/lib/kPrf2WinApiWrappersImp.lib \
   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
