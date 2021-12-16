@@ -1,4 +1,4 @@
-# $Id: WINSDK10.kmk 3507 2021-12-16 01:35:08Z knut.osmundsen@oracle.com $
+# $Id: WINSDK10.kmk 3511 2021-12-16 12:00:28Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Windows SDK v10.
 #
@@ -31,7 +31,7 @@
 #
 #
 
-SDK_WINSDK10 := The Windows Platform SDK v7.1, targeting (KBUILD_TARGET).
+SDK_WINSDK10 := The Windows Platform SDK v10, targeting (KBUILD_TARGET).
 
 ifndef INCLUDED_WIN_COMMON_KMK
  include $(KBUILD_PATH)/win-common.kmk
