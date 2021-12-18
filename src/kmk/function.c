@@ -475,6 +475,25 @@ pattern_matches (const char *pattern, const char *percent, const char *str)
 
   return !strcmp (percent + 1, str + (strlength - sfxlen));
 }
+
+#ifdef KMK
+/* Return 1 if PATTERN matches STR, 0 if not.
+
+   PATTERN is the pattern to match against.  PERCENT points to the '%' wildcard
+   inside PATTERN. SFXLEN is the length of pattern following PERCENT. */
+
+static int
+pattern_matches_ex (const char *pattern, const char *percent,
+                    unsigned int sfxlen,
+                    const char *str, unsigned int strlength)
+{
+  if (strlength < (percent - pattern) + sfxlen
+      || !strneq (pattern, str, percent - pattern)
+      || strcmp (percent + 1, str + (strlength - sfxlen)))
+    return 0;
+  return 1;
+}
+#endif
 
 
 /* Find the next comma or ENDPAREN (counting nested STARTPAREN and
@@ -1546,6 +1565,9 @@ struct a_pattern
   char *str;
   char *percent;
   int length;
+#ifdef KMK
+  unsigned int sfxlen;
+#endif
 };
 
 static char *
@@ -1588,6 +1610,9 @@ func_filter_filterout (char *o, char **argv, const char *funcname)
       pat->percent = find_percent (p);
       if (pat->percent == 0)
         literals++;
+#ifdef KMK
+      pat->sfxlen = pat->percent ? strlen(pat->percent + 1) : 0;
+#endif
 
       /* find_percent() might shorten the string so LEN is wrong.  */
       pat->length = strlen (pat->str);
@@ -1639,7 +1664,12 @@ func_filter_filterout (char *o, char **argv, const char *funcname)
         {
           if (pp->percent)
             for (wp = wordhead; wp != 0; wp = wp->next)
+#ifdef KMK
+              wp->matched |= pattern_matches_ex (pp->str, pp->percent, pp->sfxlen,
+                                                 wp->str, wp->length);
+#else
               wp->matched |= pattern_matches (pp->str, pp->percent, wp->str);
+#endif
           else if (hashing)
             {
               struct a_word a_word_key;
@@ -3772,456 +3802,6 @@ func_translate (char *o, char **argv, const char *funcname UNUSED)
 }
 #endif /* CONFIG_WITH_STRING_FUNCTIONS */
 
-#ifdef CONFIG_WITH_LAZY_DEPS_VARS
-
-/* This is also in file.c (bad).  */
-# if VMS
-#  define FILE_LIST_SEPARATOR ','
-# else
-#  define FILE_LIST_SEPARATOR ' '
-# endif
-
-/* Implements $^ and $+.
-
-   The first comes with FUNCNAME 'deps', the second as 'deps-all'.
-
-   If no second argument is given, or if it's empty, or if it's zero,
-   all dependencies will be returned.  If the second argument is non-zero
-   the dependency at that position will be returned.  If the argument is
-   negative a fatal error is thrown.  */
-static char *
-func_deps (char *o, char **argv, const char *funcname)
-{
-  unsigned int idx = 0;
-  struct file *file;
-
-  /* Handle the argument if present. */
-
-  if (argv[1])
-    {
-      char *p = argv[1];
-      while (ISSPACE (*p))
-        p++;
-      if (*p != '\0')
-        {
-          char *n;
-          long l = strtol (p, &n, 0);
-          while (ISSPACE (*n))
-            n++;
-          idx = l;
-          if (*n != '\0' || l < 0 || (long)idx != l)
-            OSS (fatal, NILF, _("%s: invalid index value: `%s'\n"), funcname, p);
-        }
-    }
-
-  /* Find the file and select the list corresponding to FUNCNAME. */
-
-  file = lookup_file (argv[0]);
-  if (file)
-    {
-      struct dep *deps;
-      struct dep *d;
-      if (funcname[4] == '\0')
-        {
-          deps = file->deps_no_dupes;
-          if (!deps && file->deps)
-            deps = file->deps = create_uniqute_deps_chain (file->deps);
-        }
-      else
-        deps = file->deps;
-
-      if (   file->double_colon
-          && (   file->double_colon != file
-              || file->last != file))
-          OSS (error, NILF, _("$(%s ) cannot be used on files with multiple double colon rules like `%s'\n"),
-               funcname, file->name);
-
-      if (idx == 0 /* all */)
-        {
-          unsigned int total_len = 0;
-
-          /* calc the result length. */
-
-          for (d = deps; d; d = d->next)
-            if (!d->ignore_mtime)
-              {
-                const char *c = dep_name (d);
-
-#ifndef	NO_ARCHIVES
-                if (ar_name (c))
-                  {
-                    c = strchr (c, '(') + 1;
-                    total_len += strlen (c);
-                  }
-                else
-#endif
-#ifdef CONFIG_WITH_STRCACHE2
-                if (!d->need_2nd_expansion)
-                  total_len += strcache2_get_len (&file_strcache, c) + 1;
-                else
-#endif
-                  total_len += strlen (c) + 1;
-              }
-
-          if (total_len)
-            {
-              /* prepare the variable buffer dude wrt to the output size and
-                 pass along the strings.  */
-
-              o = variable_buffer_output (o + total_len, "", 0) - total_len; /* a hack */
-
-              for (d = deps; d; d = d->next)
-                if (!d->ignore_mtime)
-                  {
-                    unsigned int len;
-                    const char *c = dep_name (d);
-
-#ifndef	NO_ARCHIVES
-                    if (ar_name (c))
-                      {
-                        c = strchr (c, '(') + 1;
-                        len = strlen (c);
-                      }
-                    else
-#endif
-#ifdef CONFIG_WITH_STRCACHE2
-                    if (!d->need_2nd_expansion)
-                      len = strcache2_get_len (&file_strcache, c) + 1;
-                    else
-#endif
-                      len = strlen (c) + 1;
-                    o = variable_buffer_output (o, c, len);
-                    o[-1] = FILE_LIST_SEPARATOR;
-                  }
-
-                --o;        /* nuke the last list separator */
-                *o = '\0';
-            }
-        }
-      else
-        {
-          /* Dependency given by index.  */
-
-          for (d = deps; d; d = d->next)
-            if (!d->ignore_mtime)
-              {
-                if (--idx == 0) /* 1 based indexing */
-                  {
-                    unsigned int len;
-                    const char *c = dep_name (d);
-
-#ifndef	NO_ARCHIVES
-                    if (ar_name (c))
-                      {
-                        c = strchr (c, '(') + 1;
-                        len = strlen (c) - 1;
-                      }
-                    else
-#endif
-#ifdef CONFIG_WITH_STRCACHE2
-                    if (!d->need_2nd_expansion)
-                      len = strcache2_get_len (&file_strcache, c);
-                    else
-#endif
-                      len = strlen (c);
-                    o = variable_buffer_output (o, c, len);
-                    break;
-                  }
-              }
-        }
-    }
-
-  return o;
-}
-
-/* Implements $?.
-
-   If no second argument is given, or if it's empty, or if it's zero,
-   all dependencies will be returned.  If the second argument is non-zero
-   the dependency at that position will be returned.  If the argument is
-   negative a fatal error is thrown.  */
-static char *
-func_deps_newer (char *o, char **argv, const char *funcname)
-{
-  unsigned int idx = 0;
-  struct file *file;
-
-  /* Handle the argument if present. */
-
-  if (argv[1])
-    {
-      char *p = argv[1];
-      while (ISSPACE (*p))
-        p++;
-      if (*p != '\0')
-        {
-          char *n;
-          long l = strtol (p, &n, 0);
-          while (ISSPACE (*n))
-            n++;
-          idx = l;
-          if (*n != '\0' || l < 0 || (long)idx != l)
-            OSS (fatal, NILF, _("%s: invalid index value: `%s'\n"), funcname, p);
-        }
-    }
-
-  /* Find the file. */
-
-  file = lookup_file (argv[0]);
-  if (file)
-    {
-      struct dep *deps = file->deps;
-      struct dep *d;
-
-      if (   file->double_colon
-          && (   file->double_colon != file
-              || file->last != file))
-          OSS (error, NILF, _("$(%s ) cannot be used on files with multiple double colon rules like `%s'\n"),
-               funcname, file->name);
-
-      if (idx == 0 /* all */)
-        {
-          unsigned int total_len = 0;
-
-          /* calc the result length. */
-
-          for (d = deps; d; d = d->next)
-            if (!d->ignore_mtime && d->changed)
-              {
-                const char *c = dep_name (d);
-
-#ifndef	NO_ARCHIVES
-                if (ar_name (c))
-                  {
-                    c = strchr (c, '(') + 1;
-                    total_len += strlen (c);
-                  }
-                else
-#endif
-#ifdef CONFIG_WITH_STRCACHE2
-                if (!d->need_2nd_expansion)
-                  total_len += strcache2_get_len (&file_strcache, c) + 1;
-                else
-#endif
-                  total_len += strlen (c) + 1;
-              }
-
-          if (total_len)
-            {
-              /* prepare the variable buffer dude wrt to the output size and
-                 pass along the strings.  */
-
-              o = variable_buffer_output (o + total_len, "", 0) - total_len; /* a hack */
-
-              for (d = deps; d; d = d->next)
-                if (!d->ignore_mtime && d->changed)
-                  {
-                    unsigned int len;
-                    const char *c = dep_name (d);
-
-#ifndef	NO_ARCHIVES
-                    if (ar_name (c))
-                      {
-                        c = strchr (c, '(') + 1;
-                        len = strlen (c);
-                      }
-                    else
-#endif
-#ifdef CONFIG_WITH_STRCACHE2
-                    if (!d->need_2nd_expansion)
-                      len = strcache2_get_len (&file_strcache, c) + 1;
-                    else
-#endif
-                      len = strlen (c) + 1;
-                    o = variable_buffer_output (o, c, len);
-                    o[-1] = FILE_LIST_SEPARATOR;
-                  }
-
-                --o;        /* nuke the last list separator */
-                *o = '\0';
-            }
-        }
-      else
-        {
-          /* Dependency given by index.  */
-
-          for (d = deps; d; d = d->next)
-            if (!d->ignore_mtime && d->changed)
-              {
-                if (--idx == 0) /* 1 based indexing */
-                  {
-                    unsigned int len;
-                    const char *c = dep_name (d);
-
-#ifndef	NO_ARCHIVES
-                    if (ar_name (c))
-                      {
-                        c = strchr (c, '(') + 1;
-                        len = strlen (c) - 1;
-                      }
-                    else
-#endif
-#ifdef CONFIG_WITH_STRCACHE2
-                    if (!d->need_2nd_expansion)
-                      len = strcache2_get_len (&file_strcache, c);
-                    else
-#endif
-                      len = strlen (c);
-                    o = variable_buffer_output (o, c, len);
-                    break;
-                  }
-              }
-        }
-    }
-
-  return o;
-}
-
-/* Implements $|, the order only dependency list.
-
-   If no second argument is given, or if it's empty, or if it's zero,
-   all dependencies will be returned.  If the second argument is non-zero
-   the dependency at that position will be returned.  If the argument is
-   negative a fatal error is thrown.  */
-static char *
-func_deps_order_only (char *o, char **argv, const char *funcname)
-{
-  unsigned int idx = 0;
-  struct file *file;
-
-  /* Handle the argument if present. */
-
-  if (argv[1])
-    {
-      char *p = argv[1];
-      while (ISSPACE (*p))
-        p++;
-      if (*p != '\0')
-        {
-          char *n;
-          long l = strtol (p, &n, 0);
-          while (ISSPACE (*n))
-            n++;
-          idx = l;
-          if (*n != '\0' || l < 0 || (long)idx != l)
-            OSS (fatal, NILF, _("%s: invalid index value: `%s'\n"), funcname, p);
-        }
-    }
-
-  /* Find the file. */
-
-  file = lookup_file (argv[0]);
-  if (file)
-    {
-      struct dep *deps = file->deps;
-      struct dep *d;
-
-      if (   file->double_colon
-          && (   file->double_colon != file
-              || file->last != file))
-          OSS (error, NILF, _("$(%s ) cannot be used on files with multiple double colon rules like `%s'\n"),
-               funcname, file->name);
-
-      if (idx == 0 /* all */)
-        {
-          unsigned int total_len = 0;
-
-          /* calc the result length. */
-
-          for (d = deps; d; d = d->next)
-            if (d->ignore_mtime)
-              {
-                const char *c = dep_name (d);
-
-#ifndef	NO_ARCHIVES
-                if (ar_name (c))
-                  {
-                    c = strchr (c, '(') + 1;
-                    total_len += strlen (c);
-                  }
-                else
-#endif
-#ifdef CONFIG_WITH_STRCACHE2
-                if (!d->need_2nd_expansion)
-                  total_len += strcache2_get_len (&file_strcache, c) + 1;
-                else
-#endif
-                  total_len += strlen (c) + 1;
-              }
-
-          if (total_len)
-            {
-              /* prepare the variable buffer dude wrt to the output size and
-                 pass along the strings.  */
-
-              o = variable_buffer_output (o + total_len, "", 0) - total_len; /* a hack */
-
-              for (d = deps; d; d = d->next)
-                if (d->ignore_mtime)
-                  {
-                    unsigned int len;
-                    const char *c = dep_name (d);
-
-#ifndef	NO_ARCHIVES
-                    if (ar_name (c))
-                      {
-                        c = strchr (c, '(') + 1;
-                        len = strlen (c);
-                      }
-                    else
-#endif
-#ifdef CONFIG_WITH_STRCACHE2
-                    if (!d->need_2nd_expansion)
-                      len = strcache2_get_len (&file_strcache, c) + 1;
-                    else
-#endif
-                      len = strlen (c) + 1;
-                    o = variable_buffer_output (o, c, len);
-                    o[-1] = FILE_LIST_SEPARATOR;
-                  }
-
-                --o;        /* nuke the last list separator */
-                *o = '\0';
-            }
-        }
-      else
-        {
-          /* Dependency given by index.  */
-
-          for (d = deps; d; d = d->next)
-            if (d->ignore_mtime)
-              {
-                if (--idx == 0) /* 1 based indexing */
-                  {
-                    unsigned int len;
-                    const char *c = dep_name (d);
-
-#ifndef	NO_ARCHIVES
-                    if (ar_name (c))
-                      {
-                        c = strchr (c, '(') + 1;
-                        len = strlen (c) - 1;
-                      }
-                    else
-#endif
-#ifdef CONFIG_WITH_STRCACHE2
-                    if (!d->need_2nd_expansion)
-                      len = strcache2_get_len (&file_strcache, c);
-                    else
-#endif
-                      len = strlen (c);
-                    o = variable_buffer_output (o, c, len);
-                    break;
-                  }
-              }
-        }
-    }
-
-  return o;
-}
-#endif /* CONFIG_WITH_LAZY_DEPS_VARS */
-
-
 #ifdef CONFIG_WITH_DEFINED
 /* Similar to ifdef. */
 static char *
@@ -6142,12 +5722,13 @@ static void free_ns_chain_no_strcache (struct nameseq *ns)
 #define Q_RET_SHELL_IN_DQ       0x0007
 #define Q_RET_SHELL_IN_SQ       0x0008
 
-#define Q_IN_MASK               0x0030
+#define Q_IN_MASK               0x0070
 #define Q_IN_QUOTED             0x0000
 #define Q_IN_UNQUOTED           0x0010
 #define Q_IN_QUOTED_DEP         0x0020  /** @todo needed? */
 #define Q_IN_QUOTED_TGT         0x0030  /** @todo needed? */
-#define Q_IN_SEP_COMMA          0x0040  /* for VMS hacks, file lists only */
+#define Q_IN_UNQUOTED_SINGLE    0x0040
+#define Q_IN_SEP_COMMA          0x0080  /* for VMS hacks, file lists only */
 
 #define Q_SEP_MASK              0x0700
 #define Q_SEP_SHIFT             8
@@ -6177,7 +5758,7 @@ static unsigned int helper_file_quoting_style (char *style, unsigned int intstyl
       for (;;)
         {
           /* Skip blanks: */
-          while (ISBLANK(*style))
+          while (ISBLANK (*style))
             style++;
           if (*style != '\0')
             {
@@ -6185,7 +5766,7 @@ static unsigned int helper_file_quoting_style (char *style, unsigned int intstyl
               char * const start = style;
               size_t len;
               char ch;
-              while (!ISBLANK((ch = *style)) && ch != '\0')
+              while (!ISBLANK ((ch = *style)) && ch != '\0')
                 style++;
               len = style - start;
 
@@ -6208,20 +5789,23 @@ static unsigned int helper_file_quoting_style (char *style, unsigned int intstyl
               else if (MATCH ("shell")          || MATCH ("sh"))
                 intstyle = (intstyle & ~Q_RET_MASK) | Q_RET_SHELL;
               else if (MATCH ("shell-in-dq")    || MATCH ("sh-i-d"))
-                intstyle = (intstyle & ~Q_RET_MASK) | Q_RET_SHELL_IN_DQ;
+                intstyle = (intstyle & ~Q_RET_MASK) | Q_RET_SHELL_IN_DQ; /* returned string is used inside double shell quotes */
               else if (MATCH ("shell-in-sq")    || MATCH ("sh-i-s"))
-                intstyle = (intstyle & ~Q_RET_MASK) | Q_RET_SHELL_IN_SQ;
+                intstyle = (intstyle & ~Q_RET_MASK) | Q_RET_SHELL_IN_SQ; /* returned string is used inside single shell quotes */
               /* input styles: */
               else if (MATCH ("in-quoted")         || MATCH ("i-q"))
                 intstyle = (intstyle & ~Q_IN_MASK) | Q_IN_QUOTED;
               else if (MATCH ("in-unquoted")       || MATCH ("i-unq")   || MATCH ("i-u"))
                 intstyle = (intstyle & ~Q_IN_MASK) | Q_IN_UNQUOTED;
+              else if (MATCH ("in-unquoted-single")|| MATCH ("i-unq-s") || MATCH ("i-u-s")
+                    || MATCH ("in-unquoted-file")  || MATCH ("i-unq-f") || MATCH ("i-u-f"))
+                intstyle = (intstyle & ~Q_IN_MASK) | Q_IN_UNQUOTED_SINGLE;
               else if (MATCH ("in-quoted-dep")     || MATCH ("i-q-dep") || MATCH ("i-q-d"))
                 intstyle = (intstyle & ~Q_IN_MASK) | Q_IN_QUOTED_DEP;
               else if (MATCH ("in-quoted-tgt")     || MATCH ("i-q-tgt") || MATCH ("i-q-t"))
                 intstyle = (intstyle & ~Q_IN_MASK) | Q_IN_QUOTED_TGT;
               else if (MATCH ("in-sep-comma")      || MATCH ("i-s-com") || MATCH ("i-s-c"))
-                intstyle = (intstyle & ~Q_SEP_MASK) | Q_IN_SEP_COMMA;
+                intstyle |= Q_IN_SEP_COMMA; /*?*/
               /* separator styles (output): */
               else if (MATCH ("sep-space")  || MATCH ("s-space")  || MATCH ("s-s"))
                 intstyle = (intstyle & ~Q_SEP_MASK) | Q_SEP_SPACE;
@@ -6237,7 +5821,7 @@ static unsigned int helper_file_quoting_style (char *style, unsigned int intstyl
                 {
                   char savedch = *style;
                   *style = '\0';
-                  OS (error, reading_file, "Unknown file return style: %s", start);
+                  OS (error, reading_file, "Unknown file style: %s", start);
                   *style = savedch;
                 }
 #undef MATCH
@@ -6274,6 +5858,20 @@ static char *helper_return_sep (char *o, unsigned int style)
                                 seps[(style & Q_SEP_MASK) >> Q_SEP_SHIFT].sep,
                                 seps[(style & Q_SEP_MASK) >> Q_SEP_SHIFT].len);
 }
+
+/* Removes one separator from the output.
+
+This is typically used when outputting lists where there is no simple way of
+telling whether an entry is the last one or not.  So, is_last is always false
+and the last separator is removed afterwards by this function. */
+
+MY_INLINE char *helper_drop_separator (char *o, unsigned int style)
+{
+  o -= (style & Q_SEP_MASK) != Q_SEP_NL_TAB ? 2 : 1;
+  *o = '\0'; /* not strictly necessary */
+  return o;
+}
+
 
 /* Outputs (returns) the given file. */
 
@@ -6327,7 +5925,8 @@ static char *helper_return_file_len (char *o, const char *file, size_t len,
 
 /* Outputs (returns) the given file. */
 
-static char *helper_return_file (char *o, const char *file, unsigned int style, int is_last)
+static char *helper_return_file (char *o, const char *file,
+                                 unsigned int style, int is_last)
 {
   return helper_return_file_len (o,file, strlen (file), style, is_last);
 }
@@ -6411,7 +6010,9 @@ helper_glob_chain (struct nameseq *chain)
 
 /* Parses a file/word list according to STYLE and returns a name list.
 
-   Note! The FILELIST parameter may be modified.
+   The FILELIST parameter may be modified!
+
+   The GLOB param is for wildcard/qwildcard.
 
    TODO/XXX: Unquote and split up the FILELIST directly.  All function
              arguments are heap copies already, so we are free to modify
@@ -6458,14 +6059,14 @@ helper_parse_file_list (char *filelist, unsigned int style, int glob)
                                   : PARSEFS_NOSTRIP | PARSEFS_NOCACHE | PARSEFS_EXISTS);
 
           case Q_IN_UNQUOTED:
-           {
-             struct nameseq *chain = NULL;
-             struct nameseq **ppnext = &chain;
-             const char *it = filelist;
-             const char *cur;
-             unsigned int curlen;
-             while ((cur = find_next_token (&it, &curlen)) != NULL)
-               {
+            {
+              struct nameseq *chain = NULL;
+              struct nameseq **ppnext = &chain;
+              const char *it = filelist;
+              const char *cur;
+              unsigned int curlen;
+              while ((cur = find_next_token (&it, &curlen)) != NULL)
+                {
 #ifndef CONFIG_WITH_ALLOC_CACHES
                   struct nameseq *newp = xcalloc (sizeof (*newp));
 #else
@@ -6475,11 +6076,27 @@ helper_parse_file_list (char *filelist, unsigned int style, int glob)
                   newp->next = NULL;
                   *ppnext = newp;
                   ppnext = &newp->next;
-               }
-             if (!glob)
-               return chain;
-             return helper_glob_chain (chain);
-           }
+                }
+              if (!glob)
+                return chain;
+              return helper_glob_chain (chain);
+            }
+
+          case Q_IN_UNQUOTED_SINGLE:
+            if (*filelist != '\0')
+              {
+#ifndef CONFIG_WITH_ALLOC_CACHES
+                struct nameseq *newp = xcalloc (sizeof (*newp));
+#else
+                struct nameseq *newp = alloccache_calloc (&nameseq_cache);
+#endif
+                newp->name = xstrdup (filelist);
+                newp->next = NULL;
+                if (!glob)
+                  return newp;
+                return helper_glob_chain (newp);
+              }
+            return NULL;
 
           default:
             assert (0);
@@ -7359,8 +6976,538 @@ func_q_wildcard (char *o, char **argv, const char *funcname UNUSED)
   return helper_return_and_free_chain (o, chain, style);
 }
 
-#endif /* KMK */
+static char *
+worker_filter_filterout (char *o, char **argv, unsigned style, int is_filter)
+{
+  struct nameseq *wordchain;
+  struct a_word *wordhead;
+  struct a_word **wordtail;
+  struct a_word *wp;
+  struct nameseq *patchain;
+  struct a_pattern *pathead;
+  struct a_pattern **pattail;
+  struct a_pattern *pp;
+  struct nameseq *cur;
+  struct hash_table a_word_table;
+  int literals;
+  int words;
+  int hashing;
+  unsigned int words_len; /* for output estimation */
 
+  /* Chop ARGV[0] up into patterns to match against the words. */
+  /** @todo this very inefficient as we convert between two list format and
+   *        duplicates the patterns on the heap.  We could just modify argv[0]
+   *        directly. */
+  patchain = helper_parse_file_list (argv[0], style, 0 /*glob*/);
+  pattail = &pathead;
+  for (cur = patchain, literals = 0; cur; cur = cur->next)
+    {
+      struct a_pattern *pat = alloca (sizeof (struct a_pattern));
+
+      *pattail = pat;
+      pattail = &pat->next;
+
+      pat->str = (char *)cur->name; /* (safe - PARSEFS_NOCACHE) */
+      pat->percent = find_percent (pat->str); /* may modify name */
+      if (pat->percent == 0)
+        literals++;
+      pat->sfxlen = pat->percent ? strlen(pat->percent + 1) : 0;
+      pat->length = strlen (pat->str);
+    }
+  *pattail = NULL;
+
+  /* Chop ARGV[1] up into words to match against the patterns.  */
+  /** @todo this very inefficient as we convert between two list format and
+   *        duplicates the words on the heap.  We could just modify argv[1]
+   *        directly. */
+  wordchain = helper_parse_file_list (argv[1], style, 0 /*glob*/);
+  wordtail = &wordhead;
+  for (cur = wordchain, words = 0, words_len = 0; cur; cur = cur->next)
+    {
+      struct a_word *word = alloca (sizeof (struct a_word));
+
+      *wordtail = word;
+      wordtail = &word->next;
+
+      word->str = (char *)cur->name; /* (safe - PARSEFS_NOCACHE) */
+      word->length = strlen (cur->name);
+      words_len += word->length + 1;
+      word->matched = 0;
+      word->chain = NULL;
+      words++;
+    }
+  *wordtail = NULL;
+
+  /* Only use a hash table if arg list lengths justifies the cost.  */
+  hashing = (literals >= 2 && (literals * words) >= 10);
+  if (hashing)
+    {
+      hash_init (&a_word_table, words, a_word_hash_1, a_word_hash_2,
+                 a_word_hash_cmp);
+      for (wp = wordhead; wp != 0; wp = wp->next)
+        {
+          struct a_word *owp = hash_insert (&a_word_table, wp);
+          if (owp)
+            wp->chain = owp;
+        }
+    }
+
+  if (words)
+    {
+      int doneany = 0;
+
+      if (is_filter)
+        words_len = 0;
+
+      /* Run each pattern through the words, killing words.  */
+      for (pp = pathead; pp != 0; pp = pp->next)
+        {
+          if (pp->percent)
+            for (wp = wordhead; wp != 0; wp = wp->next)
+              if (!wp->matched
+                  && pattern_matches_ex (pp->str, pp->percent, pp->sfxlen,
+                                         wp->str, wp->length))
+                {
+                  wp->matched = 1;
+                  if (is_filter)
+                    words_len += wp->length + 1;
+                  else
+                    words_len -= wp->length + 1;
+                }
+          else if (hashing)
+            {
+              struct a_word a_word_key;
+              a_word_key.str = pp->str;
+              a_word_key.length = pp->length;
+              wp = hash_find_item (&a_word_table, &a_word_key);
+              while (wp)
+                {
+                  if (!wp->matched)
+                    {
+                      wp->matched = 1;
+                      if (is_filter)
+                        words_len += wp->length + 1;
+                      else
+                        words_len -= wp->length + 1;
+                    }
+                  wp = wp->chain;
+                }
+            }
+          else
+            for (wp = wordhead; wp != 0; wp = wp->next)
+              if (!wp->matched
+                  && wp->length == pp->length
+                  && strneq (pp->str, wp->str, wp->length))
+                {
+                  wp->matched = 1;
+                  if (is_filter)
+                    words_len += wp->length + 1;
+                  else
+                    words_len -= wp->length + 1;
+                }
+        }
+
+      /* Output the words that matched (or didn't, for filter-out).  */
+      o = ensure_variable_buffer_space (o, words_len);
+
+      for (wp = wordhead; wp != 0; wp = wp->next)
+        if (wp->matched == is_filter)
+          {
+            o = helper_return_file_len (o, wp->str, wp->length,
+                                        style, 0 /*is_last*/);
+            doneany = 1;
+          }
+
+      /* Kill the last separator. */
+      if (doneany)
+        o = helper_drop_separator (o, style);
+    }
+
+  /* Clean up. */
+  if (hashing)
+    hash_free (&a_word_table, 0);
+  free_ns_chain_no_strcache (wordchain);
+  free_ns_chain_no_strcache (patchain);
+
+  return o;
+}
+
+/* Implements $(qfilter ) and $(qfilter-out ). */
+static char *
+func_q_filter_filterout (char *o, char **argv, const char *funcname)
+{
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  return worker_filter_filterout (o, &argv[1], style, funcname[7] == '\0');
+}
+
+#endif /* KMK */
+
+#ifdef CONFIG_WITH_LAZY_DEPS_VARS
+
+/* Helper that parses the index argument for the $(deps* ) and $(qdeps* )
+   functions. */
+static unsigned int parse_dep_index (const char *index, const char *funcname)
+{
+  unsigned int idx = 0;
+  if (index)
+    {
+      while (ISSPACE (*index))
+        index++;
+      if (*index != '\0')
+        {
+          char *next = (char *)index;
+          long l = strtol (index, &next, 0);
+          while (ISSPACE (*next))
+            next++;
+          idx = (unsigned int)l;
+          if (*next != '\0' || l < 0 || (long)idx != l)
+            OSS (fatal, NILF, _("%s: invalid index value: `%s'\n"), funcname, index);
+        }
+    }
+  return idx;
+}
+
+/* Helper that calculates the output length for a dependency */
+
+MY_INLINE unsigned int helper_dep_output_len (struct dep *d)
+{
+  const char *c = dep_name (d);
+#ifndef NO_ARCHIVES
+  if (ar_name (c))
+    return strlen (strchr (c, '(') + 1);
+#endif
+#ifdef CONFIG_WITH_STRCACHE2
+  if (!d->need_2nd_expansion)
+    return strcache2_get_len (&file_strcache, c) + 1;
+#endif
+  return strlen (c) + 1;
+}
+
+/* Helper that outputs a depndency. */
+
+MY_INLINE char *helper_dep_output_one (char *o, struct dep *d,
+                                       unsigned int style, int is_last)
+{
+  const char *c = dep_name (d);
+#ifndef NO_ARCHIVES
+  if (ar_name (c))
+    {
+      c = strchr(c, '(') + 1;
+      o = helper_return_file_len (o, c, strlen(c) - 1, style, is_last);
+    }
+  else
+#endif
+#ifdef CONFIG_WITH_STRCACHE2
+  if (!d->need_2nd_expansion)
+    {
+      unsigned int len = strcache2_get_len (&file_strcache, c);
+      o = helper_return_file_len (o, c, len, style, is_last);
+    }
+  else
+#endif
+    o = helper_return_file (o, c, style, is_last);
+  return o;
+}
+
+/* Implements $^/$(deps )/$(qdeps ) and $+/$(deps-all )/$(qdeps-all ).
+
+   If no second argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the second argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+worker_deps (char *o, char **argv, const char *funcname, unsigned int style,
+             int all_deps)
+{
+  unsigned int idx = parse_dep_index (argv[1], funcname);
+  struct file *file;
+
+  /* Find the file and select the list corresponding to FUNCNAME. */
+
+  file = lookup_file (argv[0]);
+  if (file)
+    {
+      struct dep *deps;
+      struct dep *d;
+      if (!all_deps)
+        {
+          deps = file->deps_no_dupes;
+          if (!deps && file->deps)
+            deps = file->deps_no_dupes = create_uniqute_deps_chain (file->deps);
+        }
+      else
+        deps = file->deps;
+
+      if (   file->double_colon
+          && (   file->double_colon != file
+              || file->last != file))
+          OSS (error, NILF, _("$(%s ) cannot be used on files with multiple double colon rules like `%s'\n"),
+               funcname, file->name);
+
+      if (idx == 0 /* all */)
+        {
+          /* Since this may be a long list, calculate the output space needed if
+             no quoting takes place and no multichar separators are used. */
+
+          unsigned int total_len = 0;
+          for (d = deps; d; d = d->next)
+            if (!d->ignore_mtime)
+              total_len += helper_dep_output_len (d);
+          if (total_len > 0)
+            {
+              o = ensure_variable_buffer_space (o, total_len);
+
+              for (d = deps; d; d = d->next)
+                if (!d->ignore_mtime)
+                  o = helper_dep_output_one (o, d, style, 0 /*is_last*/);
+
+              /* nuke the last list separator */
+              o = helper_drop_separator (o, style);
+            }
+        }
+      else
+        {
+          /* Dependency given by index.  */
+
+          for (d = deps; d; d = d->next)
+            if (!d->ignore_mtime)
+              if (--idx == 0) /* 1 based indexing */
+                return helper_dep_output_one (o, d, style, 1 /*is_last*/);
+        }
+    }
+
+  return o;
+}
+
+/* Implements $? / $(deps-newer ) / $(qdeps-newer ).
+
+   If no second argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the second argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+worker_deps_newer (char *o, char **argv, const char *funcname, unsigned int style)
+{
+  unsigned int idx = parse_dep_index (argv[1], funcname);
+  struct file *file;
+
+  /* Find the file. */
+
+  file = lookup_file (argv[0]);
+  if (file)
+    {
+      struct dep *deps = file->deps;
+      struct dep *d;
+
+      if (   file->double_colon
+          && (   file->double_colon != file
+              || file->last != file))
+          OSS (error, NILF, _("$(%s ) cannot be used on files with multiple double colon rules like `%s'\n"),
+               funcname, file->name);
+
+      if (idx == 0 /* all */)
+        {
+          unsigned int total_len = 0;
+
+          /* calc the result length. */
+
+          for (d = deps; d; d = d->next)
+            if (!d->ignore_mtime && d->changed)
+              total_len += helper_dep_output_len (d);
+          if (total_len)
+            {
+              o = ensure_variable_buffer_space (o, total_len);
+
+              for (d = deps; d; d = d->next)
+                if (!d->ignore_mtime && d->changed)
+                  o = helper_dep_output_one (o, d, style, 0 /*is_last*/);
+
+              /* nuke the last list separator */
+              o = helper_drop_separator (o, style);
+            }
+        }
+      else
+        {
+          /* Dependency given by index.  */
+
+          for (d = deps; d; d = d->next)
+            if (!d->ignore_mtime && d->changed)
+              if (--idx == 0) /* 1 based indexing */
+                return helper_dep_output_one (o, d, style, 1 /*is_last*/);
+        }
+    }
+
+  return o;
+}
+
+/* Implements $|, the order only dependency list.
+
+   If no second argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the second argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+worker_deps_order_only (char *o, char **argv, const char *funcname, unsigned int style)
+{
+  unsigned int idx = parse_dep_index (argv[1], funcname);
+  struct file *file;
+
+  /* Find the file. */
+
+  file = lookup_file (argv[0]);
+  if (file)
+    {
+      struct dep *deps = file->deps;
+      struct dep *d;
+
+      if (   file->double_colon
+          && (   file->double_colon != file
+              || file->last != file))
+          OSS (error, NILF, _("$(%s ) cannot be used on files with multiple double colon rules like `%s'\n"),
+               funcname, file->name);
+
+      if (idx == 0 /* all */)
+        {
+          unsigned int total_len = 0;
+
+          /* calc the result length. */
+
+          for (d = deps; d; d = d->next)
+            if (d->ignore_mtime)
+              total_len += helper_dep_output_len (d);
+          if (total_len)
+            {
+              o = ensure_variable_buffer_space (o, total_len);
+
+              for (d = deps; d; d = d->next)
+                if (d->ignore_mtime)
+                  o = helper_dep_output_one (o, d, style, 0 /*is_last*/);
+
+              /* nuke the last list separator */
+              o = helper_drop_separator (o, style);
+            }
+        }
+      else
+        {
+          /* Dependency given by index.  */
+
+          for (d = deps; d; d = d->next)
+            if (d->ignore_mtime)
+              if (--idx == 0) /* 1 based indexing */
+                return helper_dep_output_one (o, d, style, 1 /*is_last*/);
+        }
+    }
+
+  return o;
+}
+
+/* Implements $^ and $+.
+
+   The first comes with FUNCNAME 'deps', the second as 'deps-all'.
+
+   If no second argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the second argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+func_deps (char *o, char **argv, const char *funcname)
+{
+# ifdef VMS
+  return worker_deps (o, argv, funcname, Q_RET_UNQUOTED | Q_SEP_COMMA,
+# else
+  return worker_deps (o, argv, funcname, Q_RET_UNQUOTED | Q_SEP_SPACE,
+# endif
+                      funcname[4] != '\0');
+}
+
+/* Implements $?.
+
+   If no second argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the second argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+func_deps_newer (char *o, char **argv, const char *funcname)
+{
+# ifdef VMS
+  return worker_deps_newer (o, argv, funcname, Q_RET_UNQUOTED | Q_SEP_COMMA);
+# else
+  return worker_deps_newer (o, argv, funcname, Q_RET_UNQUOTED | Q_SEP_SPACE);
+# endif
+}
+
+/* Implements $|, the order only dependency list.
+
+   If no second argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the second argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+func_deps_order_only (char *o, char **argv, const char *funcname)
+{
+# ifdef VMS
+  return worker_deps_order_only (o, argv, funcname, Q_RET_UNQUOTED | Q_SEP_COMMA);
+# else
+  return worker_deps_order_only (o, argv, funcname, Q_RET_UNQUOTED | Q_SEP_SPACE);
+# endif
+}
+
+#endif /* CONFIG_WITH_LAZY_DEPS_VARS */
+#ifdef KMK
+
+/* Implements $(qdeps ) and $(qdeps-all )
+
+   If no third argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the third argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+func_q_deps (char *o, char **argv, const char *funcname)
+{
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  return worker_deps (o, &argv[1], funcname, style, funcname[5] != '\0');
+}
+
+/* Implements $(qdeps-newer ).
+
+   If no third argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the third argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+func_q_deps_newer (char *o, char **argv, const char *funcname)
+{
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  return worker_deps_newer (o, &argv[1], funcname, style);
+}
+
+/* Implements $(qdeps-oo ), the order only dependency list.
+
+   If no third argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the third argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+func_q_deps_order_only (char *o, char **argv, const char *funcname)
+{
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  return worker_deps_order_only (o, &argv[1], funcname, style);
+}
+
+/* Implements $(qtarget ), converting a single unquoted file to the given
+   quoting style.
+
+   Typically used like this:
+      $(qtarget sh,$@)
+      $(qone-unquoted sh,$@) */
+static char *
+func_q_one_unquoted (char *o, char **argv, const char *funcname)
+{
+  unsigned int const style = helper_file_quoting_style (argv[0], Q_QDEFAULT);
+  return helper_return_file (o, argv[1], style, 1 /*is_last*/);
+}
+
+#endif /* KMK */
 
 /* Lookup table for builtin functions.
 
@@ -7612,7 +7759,15 @@ static struct function_table_entry function_table_init[] =
   FT_ENTRY ("qabspathex",   1+0, 1+2, 1, func_q_abspathex),
 # endif
   FT_ENTRY ("qwildcard",    1+0, 1+1, 1, func_q_wildcard),
-/** @todo XXX: Add more qxxxx variants. */
+  FT_ENTRY ("qone-unquoted",1+1, 1+1, 1, func_q_one_unquoted),
+  FT_ENTRY ("qtarget",      1+1, 1+1, 1, func_q_one_unquoted),    /* For requoting plain $@ to given style. */
+  FT_ENTRY ("qdeps",        1+1, 1+2, 1, func_q_deps),            /* $^ with quoting style */
+  FT_ENTRY ("qdeps-all",    1+1, 1+2, 1, func_q_deps),            /* $+ with quoting style */
+  FT_ENTRY ("qdeps-newer",  1+1, 1+2, 1, func_q_deps_newer),      /* $? with quoting style */
+  FT_ENTRY ("qdeps-oo",     1+1, 1+2, 1, func_q_deps_order_only), /* $| with quoting style */
+  FT_ENTRY ("qfilter",      1+2, 1+2, 1, func_q_filter_filterout),
+  FT_ENTRY ("qfilter-out",  1+2, 1+2, 1, func_q_filter_filterout),
+  /** @todo XXX: Add more qxxxx variants. */
 #endif
 };
 
