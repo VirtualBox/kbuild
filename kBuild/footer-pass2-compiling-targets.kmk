@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 3415 2020-08-20 23:43:33Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 3521 2021-12-18 13:41:28Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -1016,10 +1016,17 @@ local orderdeps   := \
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
- local libpath    := $(abspathex $(libpath),$(defpath))
- local deps       := $(abspathex $(deps),$(defpath))
- local orderdeps  := $(abspathex $(orderdeps),$(defpath))
- othersrc := $(abspathex $(othersrc),$(defpath))
+ ifdef KMK_WITH_QUOTING
+  local libpath    := $(qabspathex ,$(libpath),$(defpath))
+  local deps       := $(qabspathex ,$(deps),$(defpath))
+  local orderdeps  := $(qabspathex ,$(orderdeps),$(defpath))
+  othersrc := $(qabspathex ,$(othersrc),$(defpath))
+ else
+  local libpath    := $(abspathex $(libpath),$(defpath))
+  local deps       := $(abspathex $(deps),$(defpath))
+  local orderdeps  := $(abspathex $(orderdeps),$(defpath))
+  othersrc := $(abspathex $(othersrc),$(defpath))
+ endif
  # libs are not subject to this because of the the -l<lib> stuff. Use $(<target>_DEFPATH)/lib if relative to current dir!
 endif
 
