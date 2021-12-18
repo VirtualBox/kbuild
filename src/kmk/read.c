@@ -3045,7 +3045,7 @@ find_percent (char *pattern)
 #ifndef CONFIG_WITH_VALUE_LENGTH
   return find_char_unquote (pattern, MAP_PERCENT);
 #else
-  char *eos = strchr(pattern, '\0');
+  char *eos = strchr (pattern, '\0');
   return find_char_unquote_0 (pattern, '%', MAP_PERCENT, &eos);
 #endif
 }
