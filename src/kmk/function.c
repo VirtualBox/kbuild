@@ -5867,7 +5867,7 @@ and the last separator is removed afterwards by this function. */
 
 MY_INLINE char *helper_drop_separator (char *o, unsigned int style)
 {
-  o -= (style & Q_SEP_MASK) != Q_SEP_NL_TAB ? 2 : 1;
+  o -= (style & Q_SEP_MASK) != Q_SEP_NL_TAB ? 1 : 2;
   *o = '\0'; /* not strictly necessary */
   return o;
 }
