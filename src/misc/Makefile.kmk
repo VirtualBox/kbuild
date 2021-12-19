@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3208 2018-03-29 03:54:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3527 2021-12-19 16:32:15Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk_time.
 #
@@ -31,6 +31,42 @@ kmk_time_TEMPLATE = BIN
 kmk_time_DEFS = KBUILD_SVN_REV=$(KBUILD_SVN_REV)
 kmk_time_SOURCES = kmk_time.c
 kmk_time_SOURCES.win = ../lib/quote_argv.c
+
+
+#
+# Wrapper stubs for using the kBuild binaries as standard unixy ones on windows.
+#
+TEMPLATE_EXECWRAPPER = Windows exec wrapper
+TEMPLATE_EXECWRAPPER_EXTENDS    = BIN
+TEMPLATE_EXECWRAPPER_INST       = $(TEMPLATE_BIN_INST)wrappers/
+TEMPLATE_EXECWRAPPER_CFLAGS     = $(TEMPLATE_BIN_CFLAGS) -GS-
+TEMPLATE_EXECWRAPPER_LDFLAGS    = $(TEMPLATE_BIN_LDFLAGS) /Entry:BareBoneStart
+TEMPLATE_EXECWRAPPER_LIBS       = $(NO_SUCH_VARIABLE)
+TEMPLATE_EXECWRAPPER_LIBS.x86   = $(NO_SUCH_VARIABLE)
+TEMPLATE_EXECWRAPPER_LIBS.amd64 = $(NO_SUCH_VARIABLE)
+TEMPLATE_EXECWRAPPER_SOURCES    = win_exec_wrapper.c
+
+define def_WindowsWrapper
+PROGRAMS.win += $1
+$1_TEMPLATE   = EXECWRAPPER
+$1_DEFS       = TARGET_EXE_NAME=\"$2.exe\"
+endef
+
+$(evalcall2 def_WindowsWrapper,cat,kmk_cat)
+$(evalcall2 def_WindowsWrapper,cp,kmk_cp)
+$(evalcall2 def_WindowsWrapper,echo,kmk_echo)
+$(evalcall2 def_WindowsWrapper,expr,kmk_expr)
+$(evalcall2 def_WindowsWrapper,ln,kmk_ln)
+$(evalcall2 def_WindowsWrapper,mkdir,kmk_mkdir)
+$(evalcall2 def_WindowsWrapper,mv,kmk_mv)
+$(evalcall2 def_WindowsWrapper,kkill,kmk_kill)
+$(evalcall2 def_WindowsWrapper,killall,kmk_kill)
+$(evalcall2 def_WindowsWrapper,printf,kmk_printf)
+$(evalcall2 def_WindowsWrapper,rm,kmk_rm)
+$(evalcall2 def_WindowsWrapper,rmdir,kmk_rmdir)
+$(evalcall2 def_WindowsWrapper,sed,kmk_sed)
+$(evalcall2 def_WindowsWrapper,sleep,kmk_sleep)
+$(evalcall2 def_WindowsWrapper,touch,kmk_touch)
 
 include $(KBUILD_PATH)/subfooter.kmk
 
