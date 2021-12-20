@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 3009 2016-11-07 02:21:59Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 3535 2021-12-20 23:32:28Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -84,6 +84,7 @@ static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 #include <assert.h>
 #include "nthlp.h"
 #include "ntdir.h"
+#include "ntopenat.h" /* for AT_FDCWD */
 #include <stdio.h>//debug
 
 static FTSENT	*fts_alloc(FTS *sp, char const *name, size_t namelen, wchar_t const *wcsname, size_t cwcname);
@@ -190,6 +191,7 @@ nt_fts_open_common(char * const *argv, wchar_t * const *wcsargv, int options,
 	sp->fts_compar = compar;
 	sp->fts_options = options;
 	SET(FTS_NOCHDIR); /* NT: FTS_NOCHDIR is always on (for external consumes) */
+	sp->fts_cwd_fd = AT_FDCWD;
 
 	/* Shush, GCC. */
 	tmp = NULL;

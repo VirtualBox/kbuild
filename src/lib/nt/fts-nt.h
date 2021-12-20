@@ -1,4 +1,4 @@
-/* $Id: fts-nt.h 3004 2016-11-05 23:18:51Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.h 3535 2021-12-20 23:32:28Z knut.osmundsen@oracle.com $ */
 /** @file
  * Header for the NT port of BSD fts.h.
  *
@@ -82,12 +82,15 @@ typedef struct {
 #if 0 /* No whiteout on NT. */
 #define	FTS_WHITEOUT	0x080		/* return whiteout information */
 #endif
+#define FTS_CWDFD       0x100           /* For gnulib fts compatibility, enables fts_cwd_fd. */
+#define FTS_TIGHT_CYCLE_CHECK 0x200     /* Ignored currently */
 #define FTS_NO_ANSI     0x40000000      /* NT: No ansi name or access path. */
-#define	FTS_OPTIONMASK	0x400000ff	/* valid user option mask */
+#define	FTS_OPTIONMASK	0x400003ff	/* valid user option mask */
 
-#define	FTS_NAMEONLY	0x100		/* (private) child names only */
-#define	FTS_STOP	0x200		/* (private) unrecoverable error */
+#define	FTS_NAMEONLY	0x10000		/* (private) child names only */
+#define	FTS_STOP	0x20000		/* (private) unrecoverable error */
 	int fts_options;		/* fts_open options, global flags */
+	int fts_cwd_fd;                 /* FTS_CWDFD: AT_FDCWD or a virtual CWD file descriptor. */
 	void *fts_clientptr;		/* thunk for sort function */
 } FTS;
 
@@ -131,7 +134,7 @@ typedef struct _ftsent {
 #define	FTS_NSOK	11		/* no stat(2) requested */
 #define	FTS_SL		12		/* symbolic link */
 #define	FTS_SLNONE	13		/* symbolic link without target */
-//#define	FTS_W		14		/* whiteout object */
+#define	FTS_W		14		/* whiteout object */
 	int fts_info;			/* user status for FTSENT structure */
 
 #define	FTS_DONTCHDIR	 0x01		/* don't chdir .. to the parent */
