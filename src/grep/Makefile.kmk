@@ -1,0 +1,315 @@
+# $Id: Makefile.kmk 3532 2021-12-20 22:51:05Z knut.osmundsen@oracle.com $
+## @file
+# Sub-Makefile for kmk_grep.
+#
+
+#
+# Copyright (c) 2006-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+SUB_DEPTH = ../..
+include $(KBUILD_PATH)/subheader.kmk
+
+#
+# Grep uses C99 syntax, which isn't supported by older microsoft compilers,
+# so select a newer one if needed and do static linking.
+#
+TEMPLATE_BINC99 = Accept C99 syntax
+TEMPLATE_BINC99_EXTENDS = BIN
+if1of ($(KBUILD_TARGET), win nt)
+ ifeq ($(TEMPLATE_BIN_TOOL),VCC100)
+  TEMPLATE_BINC99_TOOL            = VCC142
+  TEMPLATE_BINC99_TOOL.x86        = VCC142X86
+  TEMPLATE_BINC99_TOOL.amd64      = VCC142AMD64
+  TEMPLATE_BINC99_SDKS            = WINSDK10-UM WINSDK10-UCRT-STATIC
+  TEMPLATE_BINC99_CFLAGS          = $(filter-out -MD,$(TEMPLATE_BIN_CFLAGS)) -MT -Gy -Gw -Zc:inline
+  TEMPLATE_BINC99_LDFLAGS         = $(TEMPLATE_BIN_LDFLAGS) /OPT:REF
+  TEMPLATE_BINC99_LIBS            = \
+  	$(PATH_TOOL_$(TEMPLATE_BINC99_TOOL)_LIB.$(KBUILD_TARGET_ARCH))/vcruntime.lib \
+  	$(PATH_TOOL_$(TEMPLATE_BINC99_TOOL)_LIB.$(KBUILD_TARGET_ARCH))/oldnames.lib \
+  	$(PATH_TOOL_$(TEMPLATE_BINC99_TOOL)_LIB.$(KBUILD_TARGET_ARCH))/libcmt.lib \
+  	$(PATH_TOOL_$(TEMPLATE_BINC99_TOOL)_LIB.$(KBUILD_TARGET_ARCH))/libcpmt.lib
+  TEMPLATE_BINC99_LIBS.x86        = $(NO_SUCH_VARIABLE)
+  TEMPLATE_BINC99_LIBS.amd64      = $(NO_SUCH_VARIABLE)
+ endif
+endif
+
+#
+# kmk_grep
+#
+PROGRAMS += kmk_grep
+kmk_grep_TEMPLATE = BINC99
+kmk_grep_DEPS = \
+	$(kmk_grep_0_OUTDIR)/config.h \
+	$(kmk_grep_0_OUTDIR)/configmake.h
+kmk_grep_DEPS.win = \
+	$(kmk_grep_0_OUTDIR)/getopt-cdefs.h \
+	$(kmk_grep_0_OUTDIR)/getopt.h \
+	$(kmk_grep_0_OUTDIR)/unistd.h \
+       $(kmk_grep_0_OUTDIR)/sigsegv.h \
+       $(kmk_grep_0_OUTDIR)/fnmatch.h
+kmk_grep_CLEAN = $(kmk_grep_DEPS)
+kmk_grep_CFLAGS.solaris = -std=gnu99
+kmk_grep_CFLAGS.win += -wd4018 # grep.c(797): warning C4018: '<': signed/unsigned mismatch [lots of size_t / ptrdiff_t mixups]
+kmk_grep_CFLAGS.win += -wd4244 # grep.c(1423): warning C4244: '=': conversion from '__int64' to 'off_t', possible loss of data
+kmk_grep_CFLAGS.win += -wd4267 # grep.c(2303): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+kmk_grep_CFLAGS.win += -wd4146 # fnmatch_loop.c(1067): warning C4146: unary minus operator applied to unsigned type, result still unsigned
+kmk_grep_CFLAGS.win += -wd4308 # fnmatch_loop.c(1067): warning C4308: negative integral constant converted to unsigned type
+kmk_grep_INCS = \
+	$(kmk_grep_0_OUTDIR) \
+	. \
+	lib
+kmk_grep_DEFS = \
+	KMK_GREP \
+	HAVE_CONFIG_H
+ifdef KBUILD_SOLARIS_10
+ kmk_grep_CFLAGS += -std=gnu99
+endif
+kmk_grep_SOURCES = \
+	src/grep.c \
+	src/dfasearch.c \
+	src/kwsearch.c \
+	src/kwset.c \
+	src/searchutils.c \
+       \
+	lib/regex.c \
+	lib/dfa.c \
+       \
+	lib/getopt1.c \
+	lib/getopt.c \
+       \
+	lib/xalloc-die.c \
+	lib/xmalloc.c \
+       lib/reallocarray.c \
+	lib/obstack.c \
+       lib/c-stack.c \
+       lib/malloc/dynarray_resize.c \
+       \
+       lib/stripslash.c \
+       lib/argmatch.c \
+       lib/quotearg.c \
+       lib/exclude.c \
+       lib/fnmatch.c \
+       lib/hash.c \
+       lib/error.c \
+       \
+       lib/openat-safer.c \
+       lib/fd-safer.c \
+       lib/fd-safer-flag.c \
+       lib/dup-safer.c \
+       lib/dup-safer-flag.c \
+       lib/closeout.c \
+       lib/close-stream.c \
+       lib/fpending.c \
+       lib/safe-read.c \
+       \
+       lib/c-strcasecmp.c \
+       lib/localeinfo.c \
+       lib/localcharset.c \
+       lib/mbchar.c \
+       lib/mbscasecmp.c \
+	lib/memrchr.c \
+	lib/memchr2.c \
+       lib/wmempcpy.c \
+       lib/strnlen1.c \
+       lib/xstrtoimax.c \
+       \
+       lib/exitfail.c \
+       lib/version-etc.c \
+       lib/version-etc-fsf.c \
+
+kmk_grep_SOURCES.win = \
+	lib/w32-initialize-main.c \
+	lib/colorize-w32.c \
+	lib/basename-lgpl.c \
+	lib/getpagesize.c \
+	lib/getprogname-w32.c \
+	lib/xbinary-io.c \
+       lib/strerror.c \
+       \
+	../lib/nt/ntstat.c \
+	../lib/nt/ntdir.c \
+	../lib/nt/nthlpcore.c \
+	../lib/nt/nthlpfs.c \
+	../lib/nt/ntopenat.c \
+	../lib/nt/fts-nt.c
+
+#src/pcresearch.c
+
+#kmk_grep_SOURCES.darwin = \
+#	lib/strverscmp.c \
+#	lib/obstack.c \
+#	lib/getline.c
+#kmk_grep_SOURCES.dragonfly = \
+#	lib/strverscmp.c \
+#	lib/obstack.c \
+#	lib/getline.c
+#kmk_grep_SOURCES.freebsd = \
+#	lib/strverscmp.c \
+#	lib/obstack.c \
+#	lib/getline.c
+#kmk_grep_SOURCES.haiku = \
+#	lib/strverscmp.c \
+#	lib/obstack.c
+#kmk_grep_SOURCES.netbsd = \
+#	lib/strverscmp.c \
+#	lib/obstack.c \
+#	lib/getline.c
+#kmk_grep_SOURCES.openbsd = \
+#	lib/strverscmp.c \
+#	lib/obstack.c \
+#	lib/getline.c
+#kmk_grep_SOURCES.solaris = \
+#	lib/strverscmp.c \
+#	lib/obstack.c \
+#	lib/getline.c
+#kmk_grep_SOURCES.win = \
+#	lib/strverscmp.c \
+#	lib/obstack.c \
+#	lib/mkstemp.c \
+#	lib/getline.c \
+#	../lib/startuphacks-win.c
+
+#kmk_grep_LIBS.win = $(LIB_KUTIL) # for stdout optimizations.
+
+MAKEFILE_GREP := $(MAKEFILE_CURRENT)
+
+include $(FILE_KBUILD_SUB_FOOTER)
+
+#
+# Use checked in config.h instead of running ./configure for it.
+#
+kmk_grep_config.h.$(KBUILD_TARGET) := $(kmk_grep_DEFPATH)/config.h.$(KBUILD_TARGET)
+
+$(kmk_grep_0_OUTDIR)/config.h: $(kmk_grep_DEFPATH)/config.$(KBUILD_TARGET).h | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+	$(CP) -f -- "$^" "$@"
+
+$(kmk_grep_0_OUTDIR)/configmake.h: $(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+	$(APPEND) -tn "$@" \
+		'#define PREFIX         "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define EXEC_PREFIX    "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define BINDIR         "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define SBINDIR        "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define LIBEXECDIR     "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define DATAROOTDIR    "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define DATADIR        "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define SYSCONFDIR     "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define SHAREDSTATEDIR "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define LOCALSTATEDIR  "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define RUNSTATEDIR    "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define INCLUDEDIR     "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define OLDINCLUDEDIR  "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define DOCDIR         "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define INFODIR        "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define HTMLDIR        "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define DVIDIR         "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define PDFDIR         "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define PSDIR          "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define LIBDIR         "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define LISPDIR        "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define LOCALEDIR      "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define MANDIR         "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define MANEXT         "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define PKGDATADIR     "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define PKGINCLUDEDIR  "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define PKGLIBDIR      "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
+		'#define PKGLIBEXECDIR  "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"';
+
+#
+# Stuff Windows needs.
+#
+$(kmk_grep_0_OUTDIR)/getopt-cdefs.h: $(kmk_grep_DEFPATH)/lib/getopt-cdefs.in.h \
+		$(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+	$(SED) \
+       	-e 's,@HAVE_SYS_CDEFS_H@,0,' \
+               --output "$@" \
+               $(qdeps sh,$@,1)
+
+$(kmk_grep_0_OUTDIR)/getopt.h: $(kmk_grep_DEFPATH)/lib/getopt.in.h \
+		$(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+	$(SED) \
+       	-e 's,@GUARD_PREFIX@,GNULIB,' \
+       	-e '/@PRAGMA_SYSTEM_HEADER@/d' \
+       	-e '/@PRAGMA_COLUMNS@/d' \
+       	-e 's,@HAVE_SYS_CDEFS_H@,0,' \
+       	-e '/@INCLUDE_NEXT@/d' \
+       	-e '/@NEXT_GETOPT_H@/d' \
+       	-e 's,@HAVE_GETOPT_H@,0,' \
+               --output "$@" \
+               $(qdeps sh,$@,1)
+
+$(kmk_grep_0_OUTDIR)/fnmatch.h: $(kmk_grep_DEFPATH)/lib/fnmatch.in.h \
+		$(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+	$(SED) \
+       	-e 's,@GUARD_PREFIX@,GNULIB,' \
+       	-e '/@PRAGMA_SYSTEM_HEADER@/d' \
+       	-e '/@PRAGMA_COLUMNS@/d' \
+       	-e 's,@HAVE_FNMATCH_H@,0,' \
+       	-e 's,@REPLACE_FNMATCH@,0,' \
+       	-e 's,@GNULIB_FNMATCH@,1,' \
+       	-e 's,@HAVE_FNMATCH@,0,' \
+       	-e '/@INCLUDE_NEXT@/d' \
+               --output "$@" \
+               $(qdeps sh,$@,1)
+
+$(kmk_grep_0_OUTDIR)/unistd.h: $(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+	$(APPEND) -tn "$@" \
+		'extern int getpagesize(void);' \
+		'extern int fchdir(int);'
+
+$(kmk_grep_0_OUTDIR)/sigsegv.h: $(kmk_grep_DEFPATH)/lib/sigsegv.in.h | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+	$(CP) -f -- "$^" "$@"
+
+# Not needed for VCC142:
+$(kmk_grep_0_OUTDIR)/inttypes.h: $(kmk_grep_DEFPATH)/lib/inttypes.in.h $(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+	$(SED) \
+       	-e '/@PRAGMA_SYSTEM_HEADER@/d' \
+       	-e '/@PRAGMA_COLUMNS@/d' \
+		-e 's,@HAVE_INTTYPES_H@,0,' \
+		-e '/@INCLUDE_NEXT@/d' \
+		-e 's,@APPLE_UNIVERSAL_BUILD@,0,' \
+		-e 's,@INT64_MAX_EQ_LONG_MAX@,0/*not-on-win*/,' \
+		-e 's,@INT64_MAX_EQ_ULONG_MAX@,0/*not-on-win*/,' \
+		-e 's,@INT32_MAX_LT_INTMAX_MAX@,0,' \
+		-e 's,@UINT32_MAX_LT_UINTMAX_MAX@,0,' \
+		-e 's,@UINT64_MAX_EQ_ULONG_MAX@,1,' \
+		-e 's,@PRIPTR_PREFIX@,"ll" /*fixme*/,' \
+		-e 's,@GNULIB_IMAXABS@,0,' \
+		-e 's,@HAVE_DECL_IMAXABS@,0,' \
+		-e 's,@GNULIB_IMAXDIV@,0,' \
+		-e 's,@HAVE_IMAXDIV_T@,0,' \
+		-e 's,@HAVE_DECL_IMAXDIV@,0,' \
+		-e 's,@GNULIB_STRTOIMAX@,0,' \
+		-e 's,@REPLACE_STRTOIMAX@,0,' \
+		-e 's,@HAVE_DECL_STRTOIMAX@,0,' \
+		-e 's,@GNULIB_STRTOUMAX@,0,' \
+		-e 's,@REPLACE_STRTOUMAX@,0,' \
+		-e 's,@HAVE_DECL_STRTOUMAX@,0,' \
+		--output "$@" \
+               $(qdeps sh,$@,1)
+
+$(kmk_grep_0_OUTDIR)/stdbool.h: $(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+	$(APPEND) -tn "$@" \
+		'#ifndef ___STDBOOL_H___' \
+		'#define ___STDBOOL_H___' \
+		'typedef unsigned char bool;' \
+		'#define true  (1)' \
+		'#define false (0)' \
+		'#endif'
+

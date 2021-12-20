@@ -296,6 +296,9 @@ enum
 
   RPAREN,                       /* RPAREN never appears in the parse tree.  */
 
+#if defined(KMK_GREP) && defined(KBUILD_OS_WINDOWS)
+# define WCHAR DFA_WCHAR
+#endif
   WCHAR,                        /* Only returned by lex.  wctok contains
                                    the wide character representation.  */
 

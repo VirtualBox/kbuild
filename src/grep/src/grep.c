@@ -38,7 +38,11 @@
 #include "exclude.h"
 #include "exitfail.h"
 #include "fcntl-safer.h"
+#if defined(KMK_GREP) && defined(KBUILD_OS_WINDOWS)
+# include "nt/fts-nt.h" /* Use NT optimized FTS implementation. */
+#else
 #include "fts_.h"
+#endif
 #include "getopt.h"
 #include "getprogname.h"
 #include "grep.h"
@@ -1690,6 +1694,7 @@ grepdirent (FTS *fts, FTSENT *ent, bool command_line)
       if (skip_devices (command_line))
         {
           struct stat *st = ent->fts_statp;
+#if !defined(KMK_GREP) || !defined(_MSC_VER) /** @todo revisit this */
           struct stat st1;
           if (! st->st_mode)
             {
@@ -1704,6 +1709,7 @@ grepdirent (FTS *fts, FTSENT *ent, bool command_line)
                 }
               st = &st1;
             }
+#endif
           if (is_device_mode (st->st_mode))
             return true;
         }
@@ -2068,14 +2074,14 @@ static struct
   compile_fp_t compile;
   execute_fp_t execute;
 } const matchers[] = {
-  { "grep", RE_SYNTAX_GREP, GEAcompile, EGexecute },
-  { "egrep", RE_SYNTAX_EGREP, GEAcompile, EGexecute },
-  { "fgrep", 0, Fcompile, Fexecute, },
-  { "awk", RE_SYNTAX_AWK, GEAcompile, EGexecute },
-  { "gawk", RE_SYNTAX_GNU_AWK, GEAcompile, EGexecute },
-  { "posixawk", RE_SYNTAX_POSIX_AWK, GEAcompile, EGexecute },
+  { "grep",     RE_SYNTAX_GREP,      (compile_fp_t)GEAcompile,  (execute_fp_t)EGexecute },
+  { "egrep",    RE_SYNTAX_EGREP,     (compile_fp_t)GEAcompile,  (execute_fp_t)EGexecute },
+  { "fgrep",    0,                   (compile_fp_t)Fcompile,    (execute_fp_t)Fexecute },
+  { "awk",      RE_SYNTAX_AWK,       (compile_fp_t)GEAcompile,  (execute_fp_t)EGexecute },
+  { "gawk",     RE_SYNTAX_GNU_AWK,   (compile_fp_t)GEAcompile,  (execute_fp_t)EGexecute },
+  { "posixawk", RE_SYNTAX_POSIX_AWK, (compile_fp_t)GEAcompile,  (execute_fp_t)EGexecute },
 #if HAVE_LIBPCRE
-  { "perl", 0, Pcompile, Pexecute, },
+  { "perl",     0,                   (compile_fp_t)Pcompile,    (execute_fp_t)Pexecute },
 #endif
 };
 /* Keep these in sync with the 'matchers' table.  */

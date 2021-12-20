@@ -25,7 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if !defined(KMK_GREP) || !defined(_MSC_VER)
 #include <langinfo.h>
+#endif
 #include <locale.h>
 #include <wchar.h>
 #include <wctype.h>
