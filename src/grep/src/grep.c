@@ -57,6 +57,10 @@
 #include "xbinary-io.h"
 #include "xstrtol.h"
 
+#if defined(KMK_GREP) && defined(KBUILD_OS_WINDOWS)
+# include "console.h"
+#endif
+
 enum { SEP_CHAR_SELECTED = ':' };
 enum { SEP_CHAR_REJECTED = '-' };
 static char const SEP_STR_GROUP[] = "--";
@@ -438,18 +442,32 @@ static const struct color_cap color_dict[] =
 /* Saved errno value from failed output functions on stdout.  */
 static int stdout_errno;
 
+#if defined(KMK_GREP) && defined(KBUILD_OS_WINDOWS)
+# include <assert.h>
+static void fwrite_errno (void const *, size_t, size_t);
+#endif
+
 static void
 putchar_errno (int c)
 {
+#if defined(KMK_GREP) && defined(KBUILD_OS_WINDOWS)
+  char ch = (char)c;
+  fwrite_errno (&ch, 1, 1);
+#else
   if (putchar (c) < 0)
     stdout_errno = errno;
+#endif
 }
 
 static void
 fputs_errno (char const *s)
 {
+#if defined(KMK_GREP) && defined(KBUILD_OS_WINDOWS)
+  fwrite_errno (s, 1, strlen (s));
+#else
   if (fputs (s, stdout) < 0)
     stdout_errno = errno;
+#endif
 }
 
 static void _GL_ATTRIBUTE_FORMAT_PRINTF_STANDARD (1, 2)
@@ -457,15 +475,38 @@ printf_errno (char const *format, ...)
 {
   va_list ap;
   va_start (ap, format);
+#if defined(KMK_GREP) && defined(KBUILD_OS_WINDOWS)
+  char szBuf[1024]; /* Only really used for a PRIuMAX number and maybe a newline.  */
+  int cch = vsnprintf (szBuf, sizeof (szBuf), format, ap);
+  assert (cch < sizeof(szBuf));
+  fwrite_errno (szBuf, 1, cch);
+#else
   if (vfprintf (stdout, format, ap) < 0)
     stdout_errno = errno;
+#endif
   va_end (ap);
 }
 
 static void
 fwrite_errno (void const *ptr, size_t size, size_t nmemb)
 {
+#if defined(KMK_GREP) && defined(KBUILD_OS_WINDOWS)
+  /*
+   * This trick reduces the runtime of 'grep -r GNU .' in the grep source dir
+   * from just above 11 seconds to just below 1.2 seconds.
+   * Note! s_is_console is for keeping output to file speedy.
+   */
+  static int s_is_console = -1;
+  if (s_is_console != -1)
+    { /* likely*/ }
+  else
+    s_is_console = is_console (fileno (stdout));
+  if (  s_is_console
+      ? maybe_con_fwrite (ptr, size, nmemb, stdout) != nmemb
+      : fwrite (ptr, size, nmemb, stdout) != nmemb)
+#else
   if (fwrite (ptr, size, nmemb, stdout) != nmemb)
+#endif
     stdout_errno = errno;
 }
 

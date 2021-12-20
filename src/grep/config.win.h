@@ -2586,6 +2586,7 @@ extern int wcwidth(wchar_t);
 
 /* Override initialize_main to do wildcard expansion. */
 #define initialize_main w32_initialize_main
+void w32_initialize_main(int *pcArgs, char ***ppapszArgs);
 
 #endif /* !INCLUDED_CONFIG_WIN_H */
 
