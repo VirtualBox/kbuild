@@ -874,11 +874,16 @@ init_dfa (re_dfa_t *dfa, size_t pat_len)
   dfa->map_notascii = (_NL_CURRENT_WORD (LC_CTYPE, _NL_CTYPE_MAP_TO_NONASCII)
 		       != 0);
 #else
+# ifdef _MSC_VER
+  (void)codeset_name;
+  if (GetACP() == 65001 /*utf-8*/)
+# else
   codeset_name = nl_langinfo (CODESET);
   if ((codeset_name[0] == 'U' || codeset_name[0] == 'u')
       && (codeset_name[1] == 'T' || codeset_name[1] == 't')
       && (codeset_name[2] == 'F' || codeset_name[2] == 'f')
       && strcmp (codeset_name + 3 + (codeset_name[3] == '-'), "8") == 0)
+# endif
     dfa->is_utf8 = 1;
 
   /* We check exhaustively in the loop below if this charset is a

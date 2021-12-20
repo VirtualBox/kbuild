@@ -33,8 +33,14 @@
 #define _@GUARD_PREFIX@_FNMATCH_H
 
 /* The definitions of _GL_FUNCDECL_RPL etc. are copied here.  */
+#if defined(KMK_GREP)
+# include "c++defs.h"
+#endif
 
 /* The definition of _GL_ARG_NONNULL is copied here.  */
+#if defined(KMK_GREP)
+# include "arg-nonnull.h"
+#endif
 
 /* The definition of _GL_WARN_ON_USE is copied here.  */
 

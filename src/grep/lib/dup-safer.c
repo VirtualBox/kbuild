@@ -30,5 +30,21 @@
 int
 dup_safer (int fd)
 {
+#if defined(KMK_GREP) && defined(_MSC_VER)
+  int afd[STDERR_FILENO + 1];
+  int i;
+  for (i = 0; ; i++)
+    {
+      int fdNew = _dup(fd);
+      if (fdNew >= STDERR_FILENO + 1 || fdNew < 0)
+        {
+          while (i-- > 0)
+            close(afd[i]);
+          return fdNew;
+        }
+      afd[i] = fdNew;
+    }
+#else
   return fcntl (fd, F_DUPFD, STDERR_FILENO + 1);
+#endif
 }

@@ -38,6 +38,9 @@ _GL_INLINE_HEADER_BEGIN
 #  include <io.h> /* declares setmode() */
 #  define __gl_setmode setmode
 # else
+#  ifdef KMK_GREP
+#   include <io.h> /* declares _setmode() */
+#  endif
 #  define __gl_setmode _setmode
 #  undef fileno
 #  define fileno _fileno
