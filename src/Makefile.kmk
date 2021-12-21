@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3013 2016-11-07 11:54:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3539 2021-12-21 12:21:29Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for the source directory.
 #
@@ -37,6 +37,9 @@ ifeq ($(KBUILD_TARGET),win)
  include $(PATH_SUB_CURRENT)/kLibTweaker/Makefile.kmk
  include $(PATH_SUB_CURRENT)/kDeDup/Makefile.kmk
  include $(PATH_SUB_CURRENT)/kWorker/Makefile.kmk
+endif
+if1of ($(KBUILD_TARGET), win)
+ include $(PATH_SUB_CURRENT)/grep/Makefile.kmk
 endif
 
 include $(FILE_KBUILD_SUB_FOOTER)
