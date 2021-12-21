@@ -442,10 +442,33 @@ static const struct color_cap color_dict[] =
 /* Saved errno value from failed output functions on stdout.  */
 static int stdout_errno;
 
-#if defined(KMK_GREP) && defined(KBUILD_OS_WINDOWS)
-# include <assert.h>
+#ifdef KMK_GREP
+# ifdef KBUILD_OS_WINDOWS
+#  include <assert.h>
 static void fwrite_errno (void const *, size_t, size_t);
+static int g_fStdOutIsConsole = -1; /* TRUE or FALSE; -1 if not initialize. */
 #endif
+
+/* Attempts to set the code page, leave the rest of the locale as default. */
+static void kmk_grep_set_codepage (const char *pszCodepage)
+{
+# ifdef KBUILD_OS_WINDOWS
+  /* Make sure it starts with a dot: */
+  char szDot[256];
+  if (pszCodepage[0] != '.')
+    {
+      snprintf (szDot, sizeof(szDot), ".%s", pszCodepage);
+      pszCodepage = szDot;
+    }
+
+  if (setlocale (LC_ALL, pszCodepage) == NULL)
+    error (0, errno, _("warning: setlocale (LC_ALL, \"%s\") failed"),
+           pszCodepage);
+
+  g_fStdOutIsConsole = -1; /* ensure this is reinitialized. */
+# endif
+}
+#endif /* KMK_GREP */
 
 static void
 putchar_errno (int c)
@@ -493,20 +516,73 @@ fwrite_errno (void const *ptr, size_t size, size_t nmemb)
 #if defined(KMK_GREP) && defined(KBUILD_OS_WINDOWS)
   /*
    * This trick reduces the runtime of 'grep -r GNU .' in the grep source dir
-   * from just above 11 seconds to just below 1.2 seconds.
-   * Note! s_is_console is for keeping output to file speedy.
+   * from just above 11 seconds to around 0.8 seconds.
+   *
+   * The trouble with the microsoft CRTs (both the old and the new UCRT), is
+   * that we end up writing one char at the time when writing to the console,
+   * which is a total performance killer. write_double_translated_ansi_nolock()
+   * and write_requires_double_translation_nolock() in lowio/write.cpp in the
+   * UCRT sources have further details.
    */
-  static int s_is_console = -1;
-  if (s_is_console != -1)
+  static HANDLE s_hStdOut = INVALID_HANDLE_VALUE;
+  if (g_fStdOutIsConsole != -1)
     { /* likely*/ }
   else
-    s_is_console = is_console (fileno (stdout));
-  if (  s_is_console
-      ? maybe_con_fwrite (ptr, size, nmemb, stdout) != nmemb
-      : fwrite (ptr, size, nmemb, stdout) != nmemb)
-#else
-  if (fwrite (ptr, size, nmemb, stdout) != nmemb)
+    {
+      DWORD fModeIgnored;
+      s_hStdOut          = (HANDLE)_get_osfhandle (fileno (stdout));
+      g_fStdOutIsConsole = GetConsoleMode (s_hStdOut, &fModeIgnored)
+                         ? TRUE : FALSE;
+      if (getenv("KMK_GREP_CONSOLE_DEBUG"))
+        fprintf(stderr, "kmk_grep: g_fStdOutIsConsole=%d s_hStdOut=%p codepage=%u\n",
+                g_fStdOutIsConsole, s_hStdOut, ___lc_codepage_func());
+    }
+  if (g_fStdOutIsConsole == TRUE && size && nmemb)
+    {
+      size_t const cbToWrite = size * nmemb;
+      if (   cbToWrite < (size_t)INT_MAX / 4
+          && cbToWrite >= size
+          && cbToWrite >= nmemb)
+        {
+          /* ASSUME that one input byte won't be translated to more than one
+             surrogate pair, or two compound UTF-16 codepoints. */
+          wchar_t        awcBuf[1024];
+          wchar_t       *pawcFree = NULL;
+          wchar_t       *pawcBuf;
+          size_t         cwcBuf = cbToWrite * 2 + 16;
+          if (cwcBuf < sizeof(awcBuf) / sizeof(wchar_t))
+            {
+              cwcBuf = sizeof(awcBuf) / sizeof(wchar_t);
+              pawcBuf = awcBuf;
+            }
+          else
+              pawcFree = pawcBuf = (wchar_t *)malloc(cwcBuf * sizeof(wchar_t));
+          if (pawcBuf)
+            {
+              int cwcToWrite = MultiByteToWideChar(___lc_codepage_func(),
+                                                   0 /*dwFlags*/,
+                                                   ptr, (int)cbToWrite,
+                                                   pawcBuf, (int)(cwcBuf - 1));
+              if (cwcToWrite > 0)
+                {
+                  pawcBuf[cwcToWrite] = '\0';
+
+                  /* Let the CRT do the rest.  At least the Visual C++ 2010 CRT
+                     sources indicates _cputws will do the right thing.  */
+                  fflush(stdout);
+                  int rc = _cputws(pawcBuf);
+                  if (pawcFree)
+                    free(pawcFree);
+                  if (rc != 0)
+                    stdout_errno = errno;
+                  return;
+                }
+              free(pawcFree);
+            }
+        }
+    }
 #endif
+  if (fwrite (ptr, size, nmemb, stdout) != nmemb)
     stdout_errno = errno;
 }
 
@@ -535,6 +611,10 @@ enum
   INCLUDE_OPTION,
   LINE_BUFFERED_OPTION,
   LABEL_OPTION,
+#ifdef KMK_GREP
+  UTF8_OPTION,
+  CODEPAGE_OPTION,
+#endif
   NO_IGNORE_CASE_OPTION
 };
 
@@ -592,6 +672,11 @@ static struct option const long_options[] =
   {"version", no_argument, NULL, 'V'},
   {"with-filename", no_argument, NULL, 'H'},
   {"word-regexp", no_argument, NULL, 'w'},
+#ifdef KMK_GREP
+  {"utf8", no_argument, NULL, UTF8_OPTION},
+  {"cp", required_argument, NULL, CODEPAGE_OPTION},
+  {"codepage", required_argument, NULL, CODEPAGE_OPTION},
+#endif
   {0, 0, 0, 0}
 };
 
@@ -2096,6 +2181,15 @@ Context control:\n\
                             WHEN is 'always', 'never', or 'auto'\n\
   -U, --binary              do not strip CR characters at EOL (MSDOS/Windows)\n\
 \n"));
+#ifdef KMK_GREP
+      printf (_("\
+kmk_grep extensions:\n\
+  --codepage=NUM            switches the locale to the given codepage, \n\
+                            affecting how input files are treated and outputted\n\
+                            windows only, ignored elsewhere\n\
+  --utf8                    shorthand for --codepage=UTF8\n\
+\n"));
+#endif
       printf (_("\
 When FILE is '-', read standard input.  With no FILE, read '.' if\n\
 recursive, '-' otherwise.  With fewer than two FILEs, assume -h.\n\
@@ -2540,7 +2634,12 @@ main (int argc, char **argv)
 
   /* Internationalization. */
 #if defined HAVE_SETLOCALE
-  setlocale (LC_ALL, "");
+# if defined(KMK_GREP) && defined(KBUILD_OS_WINDOWS)
+  if (getenv ("KMK_GREP_CODEPAGE"))
+    kmk_grep_set_codepage (getenv ("KMK_GREP_CODEPAGE"));
+  else
+# endif
+    setlocale (LC_ALL, "");
 #endif
 #if defined ENABLE_NLS
   bindtextdomain (PACKAGE, LOCALEDIR);
@@ -2858,6 +2957,22 @@ main (int argc, char **argv)
       case LABEL_OPTION:
         label = optarg;
         break;
+
+#ifdef KMK_GREP
+      /* The --utf8 and --codepage <cp> options are mainly for windows where
+         UCRT doesn't check any of the standard locale selecting environment
+         variables and we have to give it directly to setlocale if we want
+         any control beyond the Windows defaults.
+
+         The UCRT setlocale has a nice feature of allowing us to set just
+         the codepage, omitting the rest of the locale spec. */
+      case UTF8_OPTION:
+        kmk_grep_set_codepage (".UTF-8");
+        break;
+      case CODEPAGE_OPTION:
+        kmk_grep_set_codepage (optarg);
+        break;
+#endif
 
       case 0:
         /* long options */
