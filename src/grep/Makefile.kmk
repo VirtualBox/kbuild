@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3536 2021-12-20 23:32:59Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3537 2021-12-21 12:19:11Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-Makefile for kmk_grep.
 #
@@ -55,32 +55,22 @@ endif
 #
 PROGRAMS += kmk_grep
 kmk_grep_TEMPLATE = BINC99
-kmk_grep_DEPS = \
-	$(kmk_grep_0_OUTDIR)/config.h \
-	$(kmk_grep_0_OUTDIR)/configmake.h
-kmk_grep_DEPS.win = \
-	$(kmk_grep_0_OUTDIR)/getopt-cdefs.h \
-	$(kmk_grep_0_OUTDIR)/getopt.h \
-	$(kmk_grep_0_OUTDIR)/unistd.h \
-       $(kmk_grep_0_OUTDIR)/sigsegv.h \
-       $(kmk_grep_0_OUTDIR)/fnmatch.h
-kmk_grep_CLEAN = $(kmk_grep_DEPS)
+kmk_grep_DEFS = \
+	KMK_GREP \
+	HAVE_CONFIG_H
 kmk_grep_CFLAGS.solaris = -std=gnu99
 kmk_grep_CFLAGS.win += -wd4018 # grep.c(797): warning C4018: '<': signed/unsigned mismatch [lots of size_t / ptrdiff_t mixups]
 kmk_grep_CFLAGS.win += -wd4244 # grep.c(1423): warning C4244: '=': conversion from '__int64' to 'off_t', possible loss of data
 kmk_grep_CFLAGS.win += -wd4267 # grep.c(2303): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
 kmk_grep_CFLAGS.win += -wd4146 # fnmatch_loop.c(1067): warning C4146: unary minus operator applied to unsigned type, result still unsigned
 kmk_grep_CFLAGS.win += -wd4308 # fnmatch_loop.c(1067): warning C4308: negative integral constant converted to unsigned type
+ifdef KBUILD_SOLARIS_10
+ kmk_grep_CFLAGS += -std=gnu99
+endif
 kmk_grep_INCS = \
 	$(kmk_grep_0_OUTDIR) \
 	. \
 	lib
-kmk_grep_DEFS = \
-	KMK_GREP \
-	HAVE_CONFIG_H
-ifdef KBUILD_SOLARIS_10
- kmk_grep_CFLAGS += -std=gnu99
-endif
 kmk_grep_SOURCES = \
 	src/grep.c \
 	src/dfasearch.c \
@@ -152,57 +142,30 @@ kmk_grep_SOURCES.win = \
 	../lib/nt/ntopenat.c \
 	../lib/nt/fts-nt.c
 
-#src/pcresearch.c
-
-#kmk_grep_SOURCES.darwin = \
-#	lib/strverscmp.c \
-#	lib/obstack.c \
-#	lib/getline.c
-#kmk_grep_SOURCES.dragonfly = \
-#	lib/strverscmp.c \
-#	lib/obstack.c \
-#	lib/getline.c
-#kmk_grep_SOURCES.freebsd = \
-#	lib/strverscmp.c \
-#	lib/obstack.c \
-#	lib/getline.c
-#kmk_grep_SOURCES.haiku = \
-#	lib/strverscmp.c \
-#	lib/obstack.c
-#kmk_grep_SOURCES.netbsd = \
-#	lib/strverscmp.c \
-#	lib/obstack.c \
-#	lib/getline.c
-#kmk_grep_SOURCES.openbsd = \
-#	lib/strverscmp.c \
-#	lib/obstack.c \
-#	lib/getline.c
-#kmk_grep_SOURCES.solaris = \
-#	lib/strverscmp.c \
-#	lib/obstack.c \
-#	lib/getline.c
-#kmk_grep_SOURCES.win = \
-#	lib/strverscmp.c \
-#	lib/obstack.c \
-#	lib/mkstemp.c \
-#	lib/getline.c \
-#	../lib/startuphacks-win.c
-
-#kmk_grep_LIBS.win = $(LIB_KUTIL) # for stdout optimizations.
-
-MAKEFILE_GREP := $(MAKEFILE_CURRENT)
-
-include $(FILE_KBUILD_SUB_FOOTER)
+#TODO use:	../lib/startuphacks-win.c
 
 #
+# We generate a few files.
+#
+kmk_grep_DEPS = \
+	$(kmk_grep_0_OUTDIR)/config.h \
+	$(kmk_grep_0_OUTDIR)/configmake.h
+kmk_grep_DEPS.win = \
+	$(kmk_grep_0_OUTDIR)/getopt-cdefs.h \
+	$(kmk_grep_0_OUTDIR)/getopt.h \
+	$(kmk_grep_0_OUTDIR)/unistd.h \
+	$(kmk_grep_0_OUTDIR)/sigsegv.h \
+	$(kmk_grep_0_OUTDIR)/fnmatch.h
+
+kmk_grep_CLEAN = $(kmk_grep_DEPS)
+kmk_grep_CLEAN.win = $(kmk_grep_DEPS.win) $(kmk_grep_LNK_DEPS.win)
+
 # Use checked in config.h instead of running ./configure for it.
-#
-kmk_grep_config.h.$(KBUILD_TARGET) := $(kmk_grep_DEFPATH)/config.h.$(KBUILD_TARGET)
-
-$(kmk_grep_0_OUTDIR)/config.h: $(kmk_grep_DEFPATH)/config.$(KBUILD_TARGET).h | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+$$(kmk_grep_0_OUTDIR)/config.h: $(PATH_SUB_CURRENT)/config.$(KBUILD_TARGET).h | $$(call DIRDEP,$$(kmk_grep_0_OUTDIR))
 	$(CP) -f -- "$^" "$@"
 
-$(kmk_grep_0_OUTDIR)/configmake.h: $(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+# This shouldn't be used with NLS disabled, so the paths doesn't matter I hope.
+$$(kmk_grep_0_OUTDIR)/configmake.h: $(MAKEFILE_CURRENT) | $$(call DIRDEP,$$(kmk_grep_0_OUTDIR))
 	$(APPEND) -tn "$@" \
 		'#define PREFIX         "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
 		'#define EXEC_PREFIX    "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
@@ -233,18 +196,16 @@ $(kmk_grep_0_OUTDIR)/configmake.h: $(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0
 		'#define PKGLIBDIR      "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"'; \
 		'#define PKGLIBEXECDIR  "kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/"';
 
-#
-# Stuff Windows needs.
-#
-$(kmk_grep_0_OUTDIR)/getopt-cdefs.h: $(kmk_grep_DEFPATH)/lib/getopt-cdefs.in.h \
-		$(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+# Windows needs a few more things:
+$$(kmk_grep_0_OUTDIR)/getopt-cdefs.h: $(PATH_SUB_CURRENT)/lib/getopt-cdefs.in.h \
+		$(MAKEFILE_CURRENT) | $$(call DIRDEP,$$(kmk_grep_0_OUTDIR))
 	$(SED) \
        	-e 's,@HAVE_SYS_CDEFS_H@,0,' \
                --output "$@" \
                $(qdeps sh,$@,1)
 
-$(kmk_grep_0_OUTDIR)/getopt.h: $(kmk_grep_DEFPATH)/lib/getopt.in.h \
-		$(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+$$(kmk_grep_0_OUTDIR)/getopt.h: $(PATH_SUB_CURRENT)/lib/getopt.in.h \
+		$(MAKEFILE_CURRENT) | $$(call DIRDEP,$$(kmk_grep_0_OUTDIR))
 	$(SED) \
        	-e 's,@GUARD_PREFIX@,GNULIB,' \
        	-e '/@PRAGMA_SYSTEM_HEADER@/d' \
@@ -256,8 +217,8 @@ $(kmk_grep_0_OUTDIR)/getopt.h: $(kmk_grep_DEFPATH)/lib/getopt.in.h \
                --output "$@" \
                $(qdeps sh,$@,1)
 
-$(kmk_grep_0_OUTDIR)/fnmatch.h: $(kmk_grep_DEFPATH)/lib/fnmatch.in.h \
-		$(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+$$(kmk_grep_0_OUTDIR)/fnmatch.h: $(PATH_SUB_CURRENT)/lib/fnmatch.in.h \
+		$(MAKEFILE_CURRENT) | $$(call DIRDEP,$$(kmk_grep_0_OUTDIR))
 	$(SED) \
        	-e 's,@GUARD_PREFIX@,GNULIB,' \
        	-e '/@PRAGMA_SYSTEM_HEADER@/d' \
@@ -270,48 +231,38 @@ $(kmk_grep_0_OUTDIR)/fnmatch.h: $(kmk_grep_DEFPATH)/lib/fnmatch.in.h \
                --output "$@" \
                $(qdeps sh,$@,1)
 
-$(kmk_grep_0_OUTDIR)/unistd.h: $(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+$$(kmk_grep_0_OUTDIR)/unistd.h: $(MAKEFILE_CURRENT) | $$(call DIRDEP,$$(kmk_grep_0_OUTDIR))
 	$(APPEND) -tn "$@" \
 		'extern int getpagesize(void);' \
 		'extern int fchdir(int);'
 
-$(kmk_grep_0_OUTDIR)/sigsegv.h: $(kmk_grep_DEFPATH)/lib/sigsegv.in.h | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+$$(kmk_grep_0_OUTDIR)/sigsegv.h: $(PATH_SUB_CURRENT)/lib/sigsegv.in.h | $$(call DIRDEP,$$(kmk_grep_0_OUTDIR))
 	$(CP) -f -- "$^" "$@"
 
-# Not needed for VCC142:
-$(kmk_grep_0_OUTDIR)/inttypes.h: $(kmk_grep_DEFPATH)/lib/inttypes.in.h $(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
-	$(SED) \
-       	-e '/@PRAGMA_SYSTEM_HEADER@/d' \
-       	-e '/@PRAGMA_COLUMNS@/d' \
-		-e 's,@HAVE_INTTYPES_H@,0,' \
-		-e '/@INCLUDE_NEXT@/d' \
-		-e 's,@APPLE_UNIVERSAL_BUILD@,0,' \
-		-e 's,@INT64_MAX_EQ_LONG_MAX@,0/*not-on-win*/,' \
-		-e 's,@INT64_MAX_EQ_ULONG_MAX@,0/*not-on-win*/,' \
-		-e 's,@INT32_MAX_LT_INTMAX_MAX@,0,' \
-		-e 's,@UINT32_MAX_LT_UINTMAX_MAX@,0,' \
-		-e 's,@UINT64_MAX_EQ_ULONG_MAX@,1,' \
-		-e 's,@PRIPTR_PREFIX@,"ll" /*fixme*/,' \
-		-e 's,@GNULIB_IMAXABS@,0,' \
-		-e 's,@HAVE_DECL_IMAXABS@,0,' \
-		-e 's,@GNULIB_IMAXDIV@,0,' \
-		-e 's,@HAVE_IMAXDIV_T@,0,' \
-		-e 's,@HAVE_DECL_IMAXDIV@,0,' \
-		-e 's,@GNULIB_STRTOIMAX@,0,' \
-		-e 's,@REPLACE_STRTOIMAX@,0,' \
-		-e 's,@HAVE_DECL_STRTOIMAX@,0,' \
-		-e 's,@GNULIB_STRTOUMAX@,0,' \
-		-e 's,@REPLACE_STRTOUMAX@,0,' \
-		-e 's,@HAVE_DECL_STRTOUMAX@,0,' \
-		--output "$@" \
-               $(qdeps sh,$@,1)
+if 1 # Add a manifest making UTF-8 as the active code page.
+kmk_grep_LNK_DEPS.win = \
+	$(kmk_grep_0_OUTDIR)/kmk_grep.manifest
 
-$(kmk_grep_0_OUTDIR)/stdbool.h: $(MAKEFILE_GREP) | $(call DIRDEP,$(kmk_grep_0_OUTDIR))
+$$(kmk_grep_0_OUTDIR)/kmk_grep.manifest: $(MAKEFILE_CURRENT) | $$(call DIRDEP,$$(kmk_grep_0_OUTDIR))
 	$(APPEND) -tn "$@" \
-		'#ifndef ___STDBOOL_H___' \
-		'#define ___STDBOOL_H___' \
-		'typedef unsigned char bool;' \
-		'#define true  (1)' \
-		'#define false (0)' \
-		'#endif'
+		'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' \
+		'<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">' \
+		'  <assemblyIdentity type="win32" name="kmk_grep.exe" version="3.7.0.0"/>' \
+		'  <application>' \
+		'    <windowsSettings>' \
+		'      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>' \
+		'    </windowsSettings>' \
+		'  </application>' \
+		'</assembly>'
+
+# HACK ALERT! Using kmk_builting_redirect here to bypass some shell quoting
+#             issue.  Also, no idea why we need to escape the hash (\#1).
+kmk_grep_POST_CMDS.win = \
+	$(REDIRECT) -- $(PATH_SDK_WINSDK10-UM_BIN)/mt.exe \
+		-manifest "$(subst /,\\,$(kmk_grep_0_OUTDIR)/kmk_grep.manifest)" \
+		'-outputresource:$(subst /,\\,$(out));\#1'
+endif
+
+
+include $(FILE_KBUILD_SUB_FOOTER)
 
