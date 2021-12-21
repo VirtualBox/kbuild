@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3527 2021-12-19 16:32:15Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3538 2021-12-21 12:19:40Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk_time.
 #
@@ -56,6 +56,7 @@ $(evalcall2 def_WindowsWrapper,cat,kmk_cat)
 $(evalcall2 def_WindowsWrapper,cp,kmk_cp)
 $(evalcall2 def_WindowsWrapper,echo,kmk_echo)
 $(evalcall2 def_WindowsWrapper,expr,kmk_expr)
+$(evalcall2 def_WindowsWrapper,grep,kmk_grep)
 $(evalcall2 def_WindowsWrapper,ln,kmk_ln)
 $(evalcall2 def_WindowsWrapper,mkdir,kmk_mkdir)
 $(evalcall2 def_WindowsWrapper,mv,kmk_mv)
