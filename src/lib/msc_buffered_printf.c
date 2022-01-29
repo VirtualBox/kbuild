@@ -1,4 +1,4 @@
-/* $Id: msc_buffered_printf.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
+/* $Id: msc_buffered_printf.c 3547 2022-01-29 02:39:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * printf, vprintf, fprintf, puts, fputs console optimizations for Windows/MSC.
  */
@@ -38,6 +38,7 @@
 #include <io.h>
 #include <conio.h>
 #include <malloc.h>
+#include <locale.h>
 #include "console.h"
 
 #undef printf
@@ -168,15 +169,14 @@ int __cdecl fprintf(FILE *pFile, const char *pszFormat, ...)
 DLL_IMPORT
 int __cdecl puts(const char *pszString)
 {
-    size_t cchString = strlen(pszString);
-    size_t cch;
-
     /*
      * If it's a TTY, we convert it to a wide char string with a newline
      * appended right here.  Going thru maybe_con_fwrite is just extra
      * buffering due to the added newline.
      */
-    if (*pszString != '\0')
+    size_t cchString = strlen(pszString);
+    size_t cch;
+    if (cchString > 0 && cchString < INT_MAX / 2)
     {
         int fd = fileno(stdout);
         if (fd >= 0)
@@ -187,33 +187,39 @@ int __cdecl puts(const char *pszString)
                 if (   hCon != INVALID_HANDLE_VALUE
                     && hCon != NULL)
                 {
-                    /* We need to append a newline, so we can just as well do the conversion here. */
-                    size_t   cwcTmp  = cchString * 2 + 16 + 2;
-                    wchar_t *pawcTmp = (wchar_t *)malloc(cwcTmp * sizeof(wchar_t));
-                    if (pawcTmp)
+                    wchar_t  awcBuf[1024];
+                    wchar_t *pawcBuf;
+                    wchar_t *pawcBufFree = NULL;
+                    size_t   cwcBuf      = cchString * 2 + 16 + 1; /* +1 for added newline */
+                    if (cwcBuf < sizeof(awcBuf) / sizeof(awcBuf[0]))
                     {
-                        int           cwcToWrite;
-                        static UINT s_uConsoleCp = 0;
-                        if (s_uConsoleCp == 0)
-                            s_uConsoleCp = GetConsoleCP();
-
-                        cwcToWrite = MultiByteToWideChar(s_uConsoleCp, 0 /*dwFlags*/, pszString, (int)cchString, pawcTmp,
-                                                         (int)(cwcTmp - 2));
+                        pawcBuf = awcBuf;
+                        cwcBuf  = sizeof(awcBuf) / sizeof(awcBuf[0]);
+                    }
+                    else
+                        pawcBufFree = pawcBuf = (wchar_t *)malloc(cwcBuf * sizeof(wchar_t));
+                    if (pawcBuf)
+                    {
+                        int cwcToWrite = MultiByteToWideChar(get_crt_codepage(), 0 /*dwFlags*/,
+                                                             pszString, (int)cchString,
+                                                             pawcBuf, (int)(cwcBuf - 1));
                         if (cwcToWrite > 0)
                         {
                             int rc;
-
-                            pawcTmp[cwcToWrite++] = '\n';
-                            pawcTmp[cwcToWrite]   = '\0';
+                            pawcBuf[cwcToWrite++] = '\n';
+                            pawcBuf[cwcToWrite]   = '\0';
 
                             /* Let the CRT do the rest.  At least the Visual C++ 2010 CRT
-                               sources indicates _cputws will do the right thing we want.  */
+                               sources indicates _cputws will do the right thing.  */
                             fflush(stdout);
-                            rc = _cputws(pawcTmp);
-                            free(pawcTmp);
-                            return rc;
+                            rc = _cputws(pawcBuf);
+                            if (pawcBufFree)
+                                free(pawcBufFree);
+                            if (rc >= 0)
+                                return 0;
+                            return -1;
                         }
-                        free(pawcTmp);
+                        free(pawcBufFree);
                     }
                 }
             }

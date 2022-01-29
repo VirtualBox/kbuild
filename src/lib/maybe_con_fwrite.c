@@ -1,4 +1,4 @@
-/* $Id: maybe_con_fwrite.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
+/* $Id: maybe_con_fwrite.c 3547 2022-01-29 02:39:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * maybe_con_write - Optimized console output on windows.
  */
@@ -56,11 +56,12 @@ size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, FILE *p
 {
 #ifdef KBUILD_OS_WINDOWS
     /*
-     * If it's a TTY, do our own conversion to wide char and
-     * call WriteConsoleW directly.
+     * If it's a TTY, do our own conversion to wide char and call _cputws.
      */
     if (   cbUnit > 0
         && cUnits > 0
+        && cbUnit < (unsigned)INT_MAX / 4
+        && cUnits < (unsigned)INT_MAX / 4
         && (pFile == stdout || pFile == stderr))
     {
         int fd = fileno(pFile);
@@ -72,33 +73,40 @@ size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, FILE *p
             {
                 if (is_console_handle((intptr_t)hCon))
                 {
-                    size_t   cbToWrite = cbUnit * cUnits;
-                    size_t   cwcTmp    = cbToWrite * 2 + 16;
-                    wchar_t *pawcTmp   = (wchar_t *)malloc(cwcTmp * sizeof(wchar_t));
-                    if (pawcTmp)
+                    /* Use a stack buffer if we can, falling back on the heap for larger writes: */
+                    wchar_t  awcBuf[1024];
+                    wchar_t *pawcBuf;
+                    wchar_t *pawcBufFree = NULL;
+                    size_t   cbToWrite   = cbUnit * cUnits;
+                    size_t   cwcBuf      = cbToWrite * 2 + 16;
+                    if (cwcBuf < sizeof(awcBuf) / sizeof(awcBuf[0]))
                     {
-                        int           cwcToWrite;
-                        static UINT s_uConsoleCp = 0;
-                        if (s_uConsoleCp == 0)
-                            s_uConsoleCp = GetConsoleCP();
-
-                        cwcToWrite = MultiByteToWideChar(s_uConsoleCp, 0 /*dwFlags*/, pvBuf, (int)cbToWrite,
-                                                         pawcTmp, (int)(cwcTmp - 1));
+                        pawcBuf = awcBuf;
+                        cwcBuf  = sizeof(awcBuf) / sizeof(awcBuf[0]);
+                    }
+                    else
+                        pawcBufFree = pawcBuf = (wchar_t *)malloc(cwcBuf * sizeof(wchar_t));
+                    if (pawcBuf)
+                    {
+                        int cwcToWrite = MultiByteToWideChar(get_crt_codepage(), 0 /*dwFlags*/,
+                                                             pvBuf, (int)cbToWrite,
+                                                             pawcBuf, (int)(cwcBuf - 1));
                         if (cwcToWrite > 0)
                         {
                             int rc;
-                            pawcTmp[cwcToWrite] = '\0';
+                            pawcBuf[cwcToWrite] = '\0';
 
                             /* Let the CRT do the rest.  At least the Visual C++ 2010 CRT
                                sources indicates _cputws will do the right thing.  */
                             fflush(pFile);
-                            rc = _cputws(pawcTmp);
-                            free(pawcTmp);
+                            rc = _cputws(pawcBuf);
+                            if (pawcBufFree)
+                                free(pawcBufFree);
                             if (rc >= 0)
                                 return cUnits;
                             return 0;
                         }
-                        free(pawcTmp);
+                        free(pawcBufFree);
                     }
                 }
             }
