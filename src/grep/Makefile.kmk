@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3537 2021-12-21 12:19:11Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3548 2022-01-29 02:41:10Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-Makefile for kmk_grep.
 #
@@ -133,8 +133,7 @@ kmk_grep_SOURCES.win = \
 	lib/xbinary-io.c \
        lib/strerror.c \
        \
-	../lib/maybe_con_fwrite.c \
-	../lib/is_console.c \
+	../lib/get_codepage.c \
 	../lib/nt/ntstat.c \
 	../lib/nt/ntdir.c \
 	../lib/nt/nthlpcore.c \
@@ -239,7 +238,7 @@ $$(kmk_grep_0_OUTDIR)/unistd.h: $(MAKEFILE_CURRENT) | $$(call DIRDEP,$$(kmk_grep
 $$(kmk_grep_0_OUTDIR)/sigsegv.h: $(PATH_SUB_CURRENT)/lib/sigsegv.in.h | $$(call DIRDEP,$$(kmk_grep_0_OUTDIR))
 	$(CP) -f -- "$^" "$@"
 
-if 1 # Add a manifest making UTF-8 as the active code page.
+ifndef KBUILD_NEW_VCC # Add a manifest making UTF-8 as the active code page.
 kmk_grep_LNK_DEPS.win = \
 	$(kmk_grep_0_OUTDIR)/kmk_grep.manifest
 

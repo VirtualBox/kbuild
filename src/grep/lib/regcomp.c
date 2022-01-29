@@ -876,7 +876,7 @@ init_dfa (re_dfa_t *dfa, size_t pat_len)
 #else
 # ifdef _MSC_VER
   (void)codeset_name;
-  if (GetACP() == 65001 /*utf-8*/)
+  if (get_crt_codepage() == CP_UTF8)
 # else
   codeset_name = nl_langinfo (CODESET);
   if ((codeset_name[0] == 'U' || codeset_name[0] == 'u')
