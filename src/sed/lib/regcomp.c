@@ -845,9 +845,13 @@ init_dfa (re_dfa_t *dfa, size_t pat_len)
   dfa->map_notascii = (_NL_CURRENT_WORD (LC_CTYPE, _NL_CTYPE_MAP_TO_NONASCII)
 		       != 0);
 #else
-# ifdef HAVE_LANGINFO_CODESET
-  codeset_name = nl_langinfo (CODESET);
+# ifdef KBUILD_OS_WINDOWS
+  (void)codeset_name;
+  if (get_crt_codepage() == MY_CP_UTF8)
 # else
+#  ifdef HAVE_LANGINFO_CODESET
+  codeset_name = nl_langinfo (CODESET);
+#  else
   codeset_name = getenv ("LC_ALL");
   if (codeset_name == NULL || codeset_name[0] == '\0')
     codeset_name = getenv ("LC_CTYPE");
@@ -857,10 +861,11 @@ init_dfa (re_dfa_t *dfa, size_t pat_len)
     codeset_name = "";
   else if (strchr (codeset_name, '.') !=  NULL)
     codeset_name = strchr (codeset_name, '.') + 1;
-# endif
+#  endif
 
   if (strcasecmp (codeset_name, "UTF-8") == 0
       || strcasecmp (codeset_name, "UTF8") == 0)
+# endif
     dfa->is_utf8 = 1;
 
   /* We check exhaustively in the loop below if this charset is a
