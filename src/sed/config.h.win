@@ -410,4 +410,7 @@ int _inline mbsinit(const mbstate_t *_p)
 #endif
 
 /* mkstemp, getline */
+
+#include "get_codepage.h"
+
 #endif
