@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3546 2022-01-29 02:37:06Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3551 2022-01-29 02:57:33Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -98,6 +98,12 @@ tstkFsCache_TEMPLATE = BIN
 tstkFsCache_SOURCES = nt/tstkFsCache.c
 tstkFsCache_LIBS = $(LIB_KUTIL)
 tstkFsCache_NOINST = 1
+
+PROGRAMS += tstVersionCompare
+tstVersionCompare_TEMPLATE = BIN
+tstVersionCompare_SOURCES = version_compare.c
+tstVersionCompare_DEFS = TEST
+tstVersionCompare_NOINST = 1
 
 include $(FILE_KBUILD_SUB_FOOTER)
 
