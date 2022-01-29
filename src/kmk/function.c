@@ -5468,7 +5468,7 @@ helper_quote_make (char *o, const char *name, size_t len, int is_dep,
         }
     }
   else
-      OS (message, 0, "%s: cannot quote empty string", funcname);
+      OS (error, reading_file, "%s: cannot quote empty string", funcname);
   return o;
 }
 
@@ -5540,7 +5540,7 @@ static char *func_quote_make (char *o, char **argv, const char *funcname)
             }
         }
       else
-          OS (message, 0, "%s: cannot munge empty string", funcname);
+          OS (error, reading_file, "%s: cannot munge empty string", funcname);
     }
 
   return o;
