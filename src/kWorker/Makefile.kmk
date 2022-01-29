@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3371 2020-06-10 10:58:58Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3549 2022-01-29 02:41:36Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -85,6 +85,7 @@ kWorkerLib_SOURCES.win = \
        nt/kFsCache.c \
        win_get_processor_group_active_mask.c \
        quote_argv.c \
+	get_codepage.c \
 	is_console.c \
 	maybe_con_write.c \
 	maybe_con_fwrite.c \
