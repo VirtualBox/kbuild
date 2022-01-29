@@ -1,4 +1,4 @@
-# $Id: VCC142.kmk 3370 2020-06-10 10:45:05Z knut.osmundsen@oracle.com $
+# $Id: VCC142.kmk 3553 2022-01-29 02:59:56Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 14.2 (aka Visual 2019 and MSC v19.20), default target.
 #
@@ -41,9 +41,9 @@ endif
 # Tool Specific Properties
 #
 ifndef PATH_TOOL_VCC142
- PATH_TOOL_VCC142 := $(firstfile $(rsortfiles $(qwildcard ,$(KBUILD_DEVTOOLS)/win.amd64/vcc/v14.2*/Tools/MSVC/14.2?.*)))
+ PATH_TOOL_VCC142 := $(firstfile $(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS)/win.amd64/vcc/v14.2*/Tools/MSVC/14.2?.*)))
  ifeq ($(PATH_TOOL_VCC142),)
-  PATH_TOOL_VCC142 := $(firstfile $(rsortfiles $(qwildcard ,$(KBUILD_DEVTOOLS)/win.x86/vcc/v14.2*/Tools/MSVC/14.2?.*)))
+  PATH_TOOL_VCC142 := $(firstfile $(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS)/win.x86/vcc/v14.2*/Tools/MSVC/14.2?.*)))
  endif
  ifeq ($(PATH_TOOL_VCC142),)
   PATH_TOOL_VCC142 := $(PATH_TOOL_VCC142X86)
@@ -52,10 +52,10 @@ ifndef PATH_TOOL_VCC142
   PATH_TOOL_VCC142 := $(PATH_TOOL_VCC142)
  endif
  ifeq ($(PATH_TOOL_VCC142),)
-  PATH_TOOL_VCC142 := $(firstfile $(rsortfiles $(qwildcard ,$(KBUILD_DEVTOOLS)/win.x86/vcc/v14.2*/Tools/MSVC/14.2?.*)))
+  PATH_TOOL_VCC142 := $(firstfile $(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS)/win.x86/vcc/v14.2*/Tools/MSVC/14.2?.*)))
   ifeq ($(PATH_TOOL_VCC142),)
    PATH_TOOL_VCC142 := $(firstfile $(foreach ver,2019,$(foreachfile progfilesdir,$(WINCMN_PROGRAM_FILES_LIST)\
-   	, $(rsortfiles $(qwildcard ,$(progfilesdir)/Microsoft\ Visual\ Studio/$(ver)/BuildTools/VC/Tools/MSVC/14.2?.*)))))
+   	, $(rversortfiles $(qwildcard ,$(progfilesdir)/Microsoft\ Visual\ Studio/$(ver)/BuildTools/VC/Tools/MSVC/14.2?.*)))))
    ifeq ($(PATH_TOOL_VCC142),)
     $(warning kBuild: PATH_TOOL_VCC142 cannot be determined!)
     PATH_TOOL_VCC142 := $(KBUILD_DEVTOOLS)/win.x86/vcc/v142
@@ -147,8 +147,8 @@ TOOL_VCC142_FN_FIND_SDK_TOOL_SUB = $(eval $3 := $(qfirstfile sh,\
        $(if-expr defined(PATH_SDK_WINSDK10_BIN) , $(qwildcard ,$(PATH_SDK_WINSDK10_BIN)/$2)) \
        $(if-expr defined(PATH_SDK_WINPSDK71_BIN), $(qwildcard ,$(PATH_SDK_WINPSDK71_BIN)/$2)) \
        $(if-expr defined(PATH_SDK_WINPSDK_BIN)  , $(qwildcard ,$(PATH_SDK_WINPSDK_BIN)/$2)) \
-	$(rsortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST)/sdk/*/[Bb][Ii][Nn]/$2)) \
-	$(rsortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST_ALT)/sdk/*/[Bb][Ii][Nn]/$2)) \
+	$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST)/sdk/*/[Bb][Ii][Nn]/$2)) \
+	$(rversortfiles $(qwildcard ,$(KBUILD_DEVTOOLS_HST_ALT)/sdk/*/[Bb][Ii][Nn]/$2)) \
 	$1))
 TOOL_VCC142_FN_FIND_SDK_TOOL = $(if-expr !defined($3),$(TOOL_VCC142_FN_FIND_SDK_TOOL_SUB),)$($3)
 
@@ -179,7 +179,7 @@ PATH_TOOL_VCC142_REDIST_DEBUG ?= $(PATH_TOOL_VCC142_REDIST)/debug_nonredist
 # @param 2 The DLL basename (no suffix).
 # @param 3 The VCC architecture name (for constructing the path).
 FN_TOOL_VCC142_FIND_DLLS = $(2).dll \
-	$(sortfiles $(qnotdir ,$(qwildcard ,$(PATH_TOOL_VCC142_REDIST)/$(3)/$(1)/$(2)_?.dll)))
+	$(versortfiles $(qnotdir ,$(qwildcard ,$(PATH_TOOL_VCC142_REDIST)/$(3)/$(1)/$(2)_?.dll)))
 
 TOOL_VCC142_REDIST_CRT_SUBDIR       := Microsoft.VC142.CRT
 TOOL_VCC142_REDIST_DEBUG_CRT_SUBDIR := Microsoft.VC142.DebugCRT
