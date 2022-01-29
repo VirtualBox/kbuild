@@ -1,4 +1,4 @@
-/* $Id: maybe_con_write.c 3188 2018-03-24 15:32:26Z knut.osmundsen@oracle.com $ */
+/* $Id: maybe_con_write.c 3547 2022-01-29 02:39:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * maybe_con_write - Optimized console output on windows.
  */
@@ -62,7 +62,7 @@ ssize_t maybe_con_write(int fd, void const *pvBuf, size_t cbToWrite)
      * If it's a TTY, do our own conversion to wide char and
      * call WriteConsoleW directly.
      */
-    if (cbToWrite > 0)
+    if (cbToWrite > 0 && cbToWrite < INT_MAX / 2)
     {
         HANDLE hCon = (HANDLE)_get_osfhandle(fd);
         if (   hCon != INVALID_HANDLE_VALUE
@@ -70,26 +70,37 @@ ssize_t maybe_con_write(int fd, void const *pvBuf, size_t cbToWrite)
         {
             if (is_console_handle((intptr_t)hCon))
             {
-                size_t   cwcTmp  = cbToWrite * 2 + 16;
-                wchar_t *pawcTmp = (wchar_t *)malloc(cwcTmp * sizeof(wchar_t));
-                if (pawcTmp)
+                wchar_t  awcBuf[1024];
+                wchar_t *pawcBuf;
+                wchar_t *pawcBufFree = NULL;
+                size_t   cwcBuf      = cbToWrite * 2 + 16;
+                if (cwcBuf < sizeof(awcBuf) / sizeof(awcBuf[0]))
                 {
-                    int           cwcToWrite;
-                    static UINT s_uConsoleCp = 0;
-                    if (s_uConsoleCp == 0)
-                        s_uConsoleCp = GetConsoleCP();
-
-                    cwcToWrite = MultiByteToWideChar(s_uConsoleCp, 0 /*dwFlags*/, pvBuf, (int)cbToWrite,
-                                                     pawcTmp, (int)(cwcTmp - 1));
+                    pawcBuf = awcBuf;
+                    cwcBuf  = sizeof(awcBuf) / sizeof(awcBuf[0]);
+                }
+                else
+                    pawcBufFree = pawcBuf = (wchar_t *)malloc(cwcBuf * sizeof(wchar_t));
+                if (pawcBuf)
+                {
+                    int cwcToWrite = MultiByteToWideChar(get_crt_codepage(), 0 /*dwFlags*/,
+                                                         pvBuf, (int)cbToWrite,
+                                                         pawcBuf, (int)(cwcBuf - 1));
                     if (cwcToWrite > 0)
                     {
+                        int rc;
+                        pawcBuf[cwcToWrite] = '\0';
+
                         /* Let the CRT do the rest.  At least the Visual C++ 2010 CRT
                            sources indicates _cputws will do the right thing.  */
-                        pawcTmp[cwcToWrite] = '\0';
-                        if (_cputws(pawcTmp) >= 0)
+                        rc = _cputws(pawcBuf);
+                        if (pawcBufFree)
+                            free(pawcBufFree);
+                        if (rc >= 0)
                             return cbToWrite;
                         return -1;
                     }
+                    free(pawcBufFree);
                 }
             }
         }
