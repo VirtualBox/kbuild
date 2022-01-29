@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3509 2021-12-16 11:09:26Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3552 2022-01-29 02:59:03Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -298,6 +298,24 @@ else if1of ($(KBUILD_TARGET), win nt)
    	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.x86)_LIB)/msvcrt.lib
   endif
  endif
+ # HACK ALERT! Using kmk_builting_redirect here to bypass some shell quoting issue.
+ ifdef KBUILD_NEW_VCC # The OLD CRT will use the codepage default to the locale rather than UTF-8, so APC and CRT ends
+                      # up using different code pages when a locale other than "C" is used.  Thus, only enable for new compiler.
+  TEMPLATE_BIN_POST_CMDS.win = \
+	$(QUIET)$(APPEND) -tn "$(out).manifest" \
+		'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' \
+		'<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">' \
+		'  <assemblyIdentity type="win32" name="$(notdir $(out))" version="$(KBUILD_VERSION_MAJOR).$(KBUILD_VERSION_MINOR).$(KBUILD_VERSION_PATCH).$(KBUILD_SVN_REV)"/>' \
+		'  <application>' \
+		'    <windowsSettings>' \
+		'      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>' \
+		'    </windowsSettings>' \
+		'  </application>' \
+		'</assembly>' \
+	$(NLTAB)$(QUIET)$(REDIRECT) -- $(requote sh,$(PATH_SDK_$(firstword $(TEMPLATE_$($(target)_TEMPLATE)_SDKS))_BIN)/mt.exe) \
+		-nologo -manifest '$(subst /,\,$(out).manifest)' '-outputresource:$(subst /,\,$(out));$(HASH)1' \
+	$(NLTAB)$(QUIET)$(RM) -f -- "$(out).manifest"
+ endif
 
 else # !os2, !win, !nt
 
@@ -430,7 +448,9 @@ TEMPLATE_LIB_EXTENDS = BIN
 TEMPLATE_LIB_INST    = lib/
 # for LIB_KDEP
 TEMPLATE_LIB_TOOL    = $(TEMPLATE_BIN_TOOL)
-
+TEMPLATE_LIB_CLEAN.win     = $(NO_SUCH_VARIABLE)
+TEMPLATE_LIB_LNK_DEPS.win  = $(NO_SUCH_VARIABLE)
+TEMPLATE_LIB_POST_CMDS.win = $(NO_SUCH_VARIABLE)
 
 #
 # Template for static threaded binaries (windows).
@@ -456,7 +476,7 @@ endif
 TEMPLATE_LIB-STATIC-THREADED = Threaded command line library
 TEMPLATE_LIB-STATIC-THREADED_EXTENDS  = BIN-STATIC-THREADED
 TEMPLATE_LIB-STATIC-THREADED_INST     = lib/
-
+TEMPLATE_LIB-STATIC-THREADED_POST_CMDS.win = $(NO_SUCH_VARIABLE)
 
 #
 # Template for build programs.

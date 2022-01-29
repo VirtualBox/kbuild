@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3431 2020-09-01 13:10:32Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3552 2022-01-29 02:59:03Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -86,6 +86,13 @@ ifdef GCC_SANITIZERS
 endif
 
 #
+# Library version of the above.
+#
+TEMPLATE_LIB-KMK = Template for src/gmake libraries
+TEMPLATE_LIB-KMK_EXTENDS = BIN-KMK
+TEMPLATE_LIB-KMK_POST_CMDS.win = $(NO_SUCH_VARIABLE)
+
+#
 # Template for building standalone built-in utilities.
 #
 TEMPLATE_BIN-KMK-BUILTIN = Template for standalone built-in utilies.
@@ -99,7 +106,7 @@ TEMPLATE_BIN-KMK-BUILTIN_SOURCES += kmkbuiltin/err.c
 # kmk_* binaries. Saves a bit of work later on.
 #
 LIBRARIES += kmkmissing
-kmkmissing_TEMPLATE = BIN-KMK
+kmkmissing_TEMPLATE = LIB-KMK
 kmkmissing_DEFS = KMK
 kmkmissing_NOINST = 1
 kmkmissing_SOURCES = \
