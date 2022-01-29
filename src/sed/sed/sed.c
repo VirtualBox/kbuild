@@ -116,6 +116,14 @@ Usage: %s [OPTION]... {script-only-if-no-other-script} [input-file]...\n\
   fprintf(out, _("  -l N, --line-length=N\n\
                  specify the desired line-wrap length for the `l' command\n"));
 #ifndef CONFIG_WITHOUT_O_LANG_C
+  fprintf(out, _("  --codepage=N\n\
+                 switches the locale to the given codepage, affecting how\n\
+                 input files are treated and outputted\n\
+                 windows only, ignored elsewhere\n"));
+# if _MSC_VER >= 1900
+  fprintf(out, _("  --utf8\n\
+                 alias for --codepage=.UTF-8\n"));
+# endif
   fprintf(out, _("  --lang_c\n\
                  specify C locale\n"));
 #endif
@@ -182,6 +190,8 @@ main(argc, argv)
     {"line-length", 1, NULL, 'l'},
 #ifndef CONFIG_WITHOUT_O_LANG_C
     {"lang_c", 0, NULL, 'L'},
+    {"codepage", 1, NULL, 305},
+    {"utf8", 0, NULL, 306},
 #endif
     {"quiet", 0, NULL, 'n'},
     {"posix", 0, NULL, 'p'},
@@ -204,35 +214,23 @@ main(argc, argv)
   int opt;
   int return_code;
   const char *cols = getenv("COLS");
+#ifdef KBUILD_OS_WINDOWS
+  const char *locale;
+#endif
 
   initialize_main (&argc, &argv);
 #ifndef CONFIG_WITHOUT_O_OPT
   sed_stdout = stdout;
 #endif
 #if HAVE_SETLOCALE
-  /* Set locale according to user's wishes.  */
-#ifdef _MSC_VER
-  {
-    /* The redmond guys doesn't listen to the user in the same way... */
-    const char *lc_all = getenv ("LC_ALL");
-    if (lc_all)
-      setlocale (LC_ALL, lc_all);
-    else
-      {
-        const char *lc_lang = getenv ("LANG");
-        const char *lc_ctype = getenv ("LC_TYPE");
-        const char *lc_collate = getenv ("LC_COLLATE");
-
-        setlocale (LC_ALL, lc_lang ? lc_lang : "");
-        if (lc_ctype)
-          setlocale (LC_CTYPE, lc_ctype ? lc_ctype : "");
-        if (lc_collate)
-          setlocale (LC_COLLATE, lc_collate ? lc_collate : "");
-      }
-  }
-#else
+# ifdef KBUILD_OS_WINDOWS
+  locale = setlocale (LC_ALL, "");
+  if (getenv("KMK_SED_CODEPAGE_DEBUG"))
+    fprintf (stderr, "kmk_sed: codepage=%u locale=%s ACP=%u\n",
+             get_crt_codepage(), locale, get_ansi_codepage());
+# else
   setlocale (LC_ALL, "");
-#endif
+# endif
 #endif
   initialize_mbcs ();
 
@@ -298,13 +296,46 @@ main(argc, argv)
 
 #ifndef CONFIG_WITHOUT_O_LANG_C
 	case 'L':
-	  setlocale (LC_ALL, "C");
+	  locale = setlocale (LC_ALL, "C");
+          if (getenv("KMK_SED_CODEPAGE_DEBUG"))
+            fprintf (stderr, "kmk_sed: codepage=%u locale=%s ACP=%u\n",
+                     get_crt_codepage(), locale, get_ansi_codepage());
 	  initialize_mbcs ();
 # if ENABLE_NLS
 	  bindtextdomain (PACKAGE, LOCALEDIR);
 	  textdomain (PACKAGE);
 # endif
 	  break;
+
+        case 306: /* --codepage=N */
+# if _MSC_VER < 1900
+          break; /* does not work, so ignore */
+# else
+          optarg = ".UTF-8";
+# endif
+          /* fall through */
+        case 305: /* --codepage=N */
+          {
+# ifdef KBUILD_OS_WINDOWS
+            char szTmp[64];
+            if (optarg[0] != '.')
+                optarg = strncat (strcpy (szTmp, "."), optarg, sizeof (szTmp) - 1);
+            locale = setlocale (LC_ALL, optarg);
+            if (locale == NULL)
+              fprintf (stderr,
+                       _("%s: warning: setlocale (LC_ALL, \"%s\") failed: %d\n"),
+                       myname, optarg, errno);
+            else if (getenv("KMK_SED_CODEPAGE_DEBUG"))
+              fprintf (stderr, "kmk_sed: codepage=%u locale=%s ACP=%u\n",
+                       get_crt_codepage(), locale, get_ansi_codepage());
+            initialize_mbcs();
+#  if ENABLE_NLS
+            bindtextdomain (PACKAGE, LOCALEDIR);
+            textdomain (PACKAGE);
+#  endif
+# endif
+            break;
+          }
 #endif
 
 #ifndef CONFIG_WITHOUT_O_OPT
