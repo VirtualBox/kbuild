@@ -2588,5 +2588,7 @@ extern int wcwidth(wchar_t);
 #define initialize_main w32_initialize_main
 void w32_initialize_main(int *pcArgs, char ***ppapszArgs);
 
+#include "get_codepage.h"
+
 #endif /* !INCLUDED_CONFIG_WIN_H */
 

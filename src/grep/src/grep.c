@@ -533,9 +533,10 @@ fwrite_errno (void const *ptr, size_t size, size_t nmemb)
       s_hStdOut          = (HANDLE)_get_osfhandle (fileno (stdout));
       g_fStdOutIsConsole = GetConsoleMode (s_hStdOut, &fModeIgnored)
                          ? TRUE : FALSE;
-      if (getenv("KMK_GREP_CONSOLE_DEBUG"))
-        fprintf(stderr, "kmk_grep: g_fStdOutIsConsole=%d s_hStdOut=%p codepage=%u\n",
-                g_fStdOutIsConsole, s_hStdOut, ___lc_codepage_func());
+      if (getenv ("KMK_GREP_CONSOLE_DEBUG"))
+        fprintf (stderr, "kmk_grep: hStdOut=%p %sconsole codepage=%u ansi=%u\n",
+                s_hStdOut, g_fStdOutIsConsole ? "" : "!",
+                get_crt_codepage (), get_ansi_codepage ());
     }
   if (g_fStdOutIsConsole == TRUE && size && nmemb)
     {
@@ -559,7 +560,7 @@ fwrite_errno (void const *ptr, size_t size, size_t nmemb)
               pawcFree = pawcBuf = (wchar_t *)malloc(cwcBuf * sizeof(wchar_t));
           if (pawcBuf)
             {
-              int cwcToWrite = MultiByteToWideChar(___lc_codepage_func(),
+              int cwcToWrite = MultiByteToWideChar(get_crt_codepage(),
                                                    0 /*dwFlags*/,
                                                    ptr, (int)cbToWrite,
                                                    pawcBuf, (int)(cwcBuf - 1));
