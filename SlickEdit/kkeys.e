@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 3499 2021-05-10 19:18:13Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 3555 2022-02-16 13:20:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -45,6 +45,7 @@ def  'A-g'      = goto_line
 def  'A-z'      = kkeys_fullscreen
 def  'INS'      = boxer_paste
 def  'S-INS'    = insert_toggle
+def  'S- '      = kkey_space;
 def  'C-UP'     = kkeys_scroll_down
 def  'C-DOWN'   = kkeys_scroll_up
 def  'C-PGUP'   = prev_window
@@ -92,6 +93,10 @@ def  'S-M-C--'  = wfont_zoom_out;
 /* Fixing brainfucked slickedit silliness: */
 def  'M-v'      = paste
 
+/* Want proper shift-space in C. */
+defeventtab c_keys
+def  'S- '      = kkey_space;
+
 
 /** Saves the cursor position. */
 static long kkeys_save_cur_pos()
@@ -107,6 +112,18 @@ static void kkeys_restore_cur_pos(long lSavedCurPos)
    _GoToROffset(lSavedCurPos);
 }
 
+/** Fixes shift-space while in block select, default slickedit since a while
+ *  is to exit selection mode and insert a single space.  A long long time
+ *  ago, I think slickedit would ask if you wanted the normal 'space'
+ *  behaviour for this. */
+_command void kkey_space()
+{
+   /** @todo figure out when these functions were added and such. */
+   if (!select_active() || _select_type('') != 'BLOCK')
+      keyin(' ');
+   else
+      block_insert_text(' ');
+}
 
 _command kkeys_switch_lines()
 {
