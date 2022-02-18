@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 3492 2020-12-23 13:59:02Z knut.osmundsen@oracle.com $
+# $Id: env.sh 3556 2022-02-18 02:02:07Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -377,12 +377,6 @@ if test -z "$KBUILD_HOST_ARCH"; then
         ia64)
             KBUILD_HOST_ARCH='ia64'
             ;;
-        ppc32|ppc|powerpc)
-            KBUILD_HOST_ARCH='ppc32'
-            ;;
-        ppc64|ppc64le|powerpc64|powerpc64le)
-            KBUILD_HOST_ARCH='ppc64'
-            ;;
         m68k)
             KBUILD_HOST_ARCH='m68k'
             ;;
@@ -391,6 +385,18 @@ if test -z "$KBUILD_HOST_ARCH"; then
             ;;
         mips64)
             KBUILD_HOST_ARCH='mips64'
+            ;;
+        ppc32|ppc|powerpc)
+            KBUILD_HOST_ARCH='ppc32'
+            ;;
+        ppc64|ppc64le|powerpc64|powerpc64le)
+            KBUILD_HOST_ARCH='ppc64'
+            ;;
+        riscv64*)
+            KBUILD_HOST_ARCH='riscv64'
+            ;;
+        riscv32*|riscv)
+            KBUILD_HOST_ARCH='riscv32'
             ;;
         s390)
             KBUILD_HOST_ARCH='s390'
