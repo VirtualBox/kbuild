@@ -1,4 +1,4 @@
-# $Id: qt-Q_OBJECT.sed 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: qt-Q_OBJECT.sed 3558 2022-03-02 00:47:18Z knut.osmundsen@oracle.com $
 ## @file
 # Qt unit - sed script for checking for Q_OBJECT in a file.
 #
