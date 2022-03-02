@@ -1,4 +1,4 @@
-# $Id: qt6.kmk 3557 2022-02-28 22:50:32Z knut.osmundsen@oracle.com $
+# $Id: qt6.kmk 3559 2022-03-02 01:47:27Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 6 unit.
 #
@@ -1126,7 +1126,7 @@ ifeq ($(bld_trg),darwin)
  $(eval $(target)_CXXFLAGS += -F$(PATH_SDK_QT6_LIB) )
  $(eval $(target)_OBJCXXFLAGS += -F$(PATH_SDK_QT6_LIB) )
  $(eval $(target)_LDFLAGS  += -F$(PATH_SDK_QT6_LIB) $(foreach module,$(qt_modules), -framework $(qt_prefix)Qt$(module)$(qt_infix)) )
- $(eval $(target)_INCS     += $(foreach module,$(qt_modules), $(PATH_SDK_QT6_LIB)/$(qt_prefix)Qt$(module)$(qt_infix).framework/Versions/6/Headers) )
+ $(eval $(target)_INCS     += $(foreach module,$(qt_modules), $(PATH_SDK_QT6_LIB)/$(qt_prefix)Qt$(module)$(qt_infix).framework/Versions/A/Headers) )
 else
  ifeq ($(bld_trg),win)
   $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT6_LIB)/$(qt_prefix)Qt6$(module)$(qt_infix)$(SUFF_LIB)) )
