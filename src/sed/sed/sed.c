@@ -137,7 +137,7 @@ Usage: %s [OPTION]... {script-only-if-no-other-script} [input-file]...\n\
 #endif
   fprintf(out, _("  -r, --regexp-extended\n\
                  use extended regular expressions in the script.\n"));
-  fprintf(out, PERL_HELP);
+  fprintf(out, "%s", PERL_HELP);
   fprintf(out, _("  -s, --separate\n\
                  consider files as separate rather than as a single continuous\n\
                  long stream.\n"));
@@ -296,10 +296,14 @@ main(argc, argv)
 
 #ifndef CONFIG_WITHOUT_O_LANG_C
 	case 'L':
+# ifdef KBUILD_OS_WINDOWS
 	  locale = setlocale (LC_ALL, "C");
           if (getenv("KMK_SED_CODEPAGE_DEBUG"))
             fprintf (stderr, "kmk_sed: codepage=%u locale=%s ACP=%u\n",
                      get_crt_codepage(), locale, get_ansi_codepage());
+# else
+	  setlocale (LC_ALL, "C");
+# endif
 	  initialize_mbcs ();
 # if ENABLE_NLS
 	  bindtextdomain (PACKAGE, LOCALEDIR);
@@ -413,6 +417,7 @@ to the extent permitted by law.\n\
 	  exit (0);
 	case 'h':
 	  usage(0);
+          break;
 	default:
 	  usage(4);
 	}
