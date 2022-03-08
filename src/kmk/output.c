@@ -957,7 +957,9 @@ output_dump (struct output *out)
 
   if (outfd_not_empty || errfd_not_empty)
     {
+# ifndef KMK /* this drives me bananas. */
       int traced = 0;
+# endif
 
       /* Try to acquire the semaphore.  If it fails, dump the output
          unsynchronized; still better than silently discarding it.
