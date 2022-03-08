@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3412 2020-08-19 21:41:54Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3562 2022-03-08 11:10:40Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -1417,11 +1417,28 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
 
 #ifdef USE_POSIX_SPAWN
     /*
-     * Init posix attributes.
+     * Init posix attributes with stdout/err redirections according to pCtx.
      */
     rcExit = posix_spawn_file_actions_init(&FileActions);
     if (rcExit != 0)
         rcExit = errx(pCtx, 9, "posix_spawn_file_actions_init failed: %s", strerror(rcExit));
+# ifndef CONFIG_WITH_OUTPUT_IN_MEMORY
+    if (pCtx->pOut && rcExit == 0)
+    {
+        if (pCtx->pOut->out >= 0)
+        {
+            rcExit = posix_spawn_file_actions_adddup2(&FileActions, pCtx->pOut->out, 1);
+            if (rcExit != 0)
+                rcExit = errx(pCtx, 2, "posix_spawn_file_actions_addclose(%d, 1) failed: %s", pCtx->pOut->out, strerror(rcExit));
+        }
+        if (pCtx->pOut->err >= 0 && rcExit == 0)
+        {
+            rcExit = posix_spawn_file_actions_adddup2(&FileActions, pCtx->pOut->err, 2);
+            if (rcExit != 0)
+                rcExit = errx(pCtx, 2, "posix_spawn_file_actions_addclose(%d, 1) failed: %s", pCtx->pOut->err, strerror(rcExit));
+        }
+    }
+# endif
 #endif
 
     /*
@@ -1760,7 +1777,8 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
 #ifdef USE_POSIX_SPAWN
                         rcExit = posix_spawn_file_actions_adddup2(&FileActions, fdSource, fd);
                         if (rcExit != 0)
-                            rcExit = errx(pCtx, 2, "posix_spawn_file_actions_addclose(%d) failed: %s", fd, strerror(rcExit));
+                            rcExit = errx(pCtx, 2, "posix_spawn_file_actions_adddup2(%d) failed: %s",
+                                          fdSource, fd, strerror(rcExit));
 #endif
                     }
                 }
