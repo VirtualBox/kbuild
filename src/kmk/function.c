@@ -81,11 +81,13 @@ static math_int math_int_from_string (const char *str);
   extern APIRET APIENTRY DosQueryHeaderInfo(HMODULE hmod, ULONG ulIndex, PVOID pvBuffer, ULONG cbBuffer, ULONG ulSubFunction);
 #endif /* CONFIG_WITH_OS2_LIBPATH */
 
-#ifdef KMK
+#if defined(KMK) || defined(CONFIG_WITH_LAZY_DEPS_VARS)
 /** Checks if the @a_cch characters (bytes) in @a a_psz equals @a a_szConst. */
 # define STR_N_EQUALS(a_psz, a_cch, a_szConst) \
     ( (a_cch) == sizeof (a_szConst) - 1 && !strncmp ((a_psz), (a_szConst), sizeof (a_szConst) - 1) )
+#endif
 
+#ifdef KMK
 # ifdef _MSC_VER
 #  include "kmkbuiltin/mscfakes.h"
 # endif
@@ -5387,6 +5389,9 @@ func_dircache_ctl (char *o, char **argv UNUSED, const char *funcname UNUSED)
   return o;
 }
 
+#endif /* KMK */
+#if defined (KMK) || defined (CONFIG_WITH_LAZY_DEPS_VARS)
+
 /* Helper for performer GNU make style quoting of one filename. */
 
 static char *
@@ -5472,6 +5477,8 @@ helper_quote_make (char *o, const char *name, size_t len, int is_dep,
   return o;
 }
 
+# ifdef KMK
+
 /* Helper for func_quote_make that checks if there are more arguments
    that produces output or not. */
 
@@ -5546,6 +5553,8 @@ static char *func_quote_make (char *o, char **argv, const char *funcname)
   return o;
 }
 
+# endif /* KMK */
+
 /* Worker for func_quote_shell() for escaping a string that's inside
    double quotes. */
 
@@ -5579,13 +5588,14 @@ static char *func_escape_shell_in_dq (char *o, const char *arg, size_t len)
   return o;
 }
 
+# ifdef KMK
 /* quote-sh-dq */
 
 static char *func_quote_shell_dq (char *o, char **argv, const char *funcname UNUSED)
 {
   return func_escape_shell_in_dq (o, argv[0], strlen (argv[0]));
 }
-
+# endif
 
 /* Worker for func_quote_shell() for escaping a string that's inside
    single quotes. */
@@ -5609,12 +5619,14 @@ static char *func_escape_shell_in_sq (char *o, const char *arg, size_t len)
   return o;
 }
 
+# ifdef KMK
 /* quote-sh-dq */
 
 static char *func_quote_shell_sq (char *o, char **argv, const char *funcname UNUSED)
 {
   return func_escape_shell_in_sq (o, argv[0], strlen (argv[0]));
 }
+#endif
 
 /* Output a shell argument with quoting as needed. */
 static char *helper_quote_shell (char *o, const char *arg, size_t len,
@@ -5663,6 +5675,8 @@ static char *helper_quote_shell (char *o, const char *arg, size_t len,
   return o;
 }
 
+# ifdef KMK
+
 /* Takes zero or more plain strings and escapes/quotes spaces and other
    problematic characters, bourne make style.
 
@@ -5710,6 +5724,8 @@ static void free_ns_chain_no_strcache (struct nameseq *ns)
     }
 }
 
+# endif /* KMK */
+
 /* Decoded style options for the $(q* ) and $(*file* ) functions. */
 #define Q_RET_MASK              0x000f
 #define Q_RET_QUOTED            0x0000
@@ -5747,7 +5763,7 @@ static void free_ns_chain_no_strcache (struct nameseq *ns)
      : (Q_QDEFAULT & ~Q_SEP_MASK) | Q_SEP_COMMA)
 #endif
 
-
+# ifdef KMK
 /* Decodes the optional style argument.  This is chiefly for the return
    style, but can also pick the input and space styles (just because we can).  */
 
@@ -5832,6 +5848,7 @@ static unsigned int helper_file_quoting_style (char *style, unsigned int intstyl
     }
   return intstyle;
 }
+# endif /* KMK */
 
 /* Output (returns) a separator according to STYLE. */
 
@@ -5930,6 +5947,9 @@ static char *helper_return_file (char *o, const char *file,
 {
   return helper_return_file_len (o,file, strlen (file), style, is_last);
 }
+
+#endif /* KMK || CONFIG_WITH_LAZY_DEPS_VARS */
+#ifdef KMK
 
 /* Outputs (returns) the given CHAIN and frees it. */
 
@@ -7063,17 +7083,19 @@ worker_filter_filterout (char *o, char **argv, unsigned style, int is_filter)
       for (pp = pathead; pp != 0; pp = pp->next)
         {
           if (pp->percent)
-            for (wp = wordhead; wp != 0; wp = wp->next)
-              if (!wp->matched
-                  && pattern_matches_ex (pp->str, pp->percent, pp->sfxlen,
-                                         wp->str, wp->length))
-                {
-                  wp->matched = 1;
-                  if (is_filter)
-                    words_len += wp->length + 1;
-                  else
-                    words_len -= wp->length + 1;
-                }
+            {
+              for (wp = wordhead; wp != 0; wp = wp->next)
+                if (!wp->matched
+                    && pattern_matches_ex (pp->str, pp->percent, pp->sfxlen,
+                                           wp->str, wp->length))
+                  {
+                    wp->matched = 1;
+                    if (is_filter)
+                      words_len += wp->length + 1;
+                    else
+                      words_len -= wp->length + 1;
+                  }
+            }
           else if (hashing)
             {
               struct a_word a_word_key;
