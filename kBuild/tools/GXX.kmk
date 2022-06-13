@@ -1,4 +1,4 @@
-# $Id: GXX.kmk 3393 2020-06-30 17:11:42Z knut.osmundsen@oracle.com $
+# $Id: GXX.kmk 3566 2022-06-13 15:37:08Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic GCC using the system GCC, for building C++ code.
 #
@@ -120,7 +120,7 @@ TOOL_GXX_COMPILE_C_DEPEND =
 TOOL_GXX_COMPILE_C_DEPORD =
 define TOOL_GXX_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_GXX_CC) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) \
 		-o $(obj)\
 		$(abspath $(source))
@@ -146,7 +146,7 @@ TOOL_GXX_COMPILE_CXX_DEPEND = $($(target)_1_GCC_PCH_FILE)
 TOOL_GXX_COMPILE_CXX_DEPORD =
 define TOOL_GXX_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_GXX_CXX) -c\
-		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj) $(if-expr defined($(target)_PCH_HDR) \
 		,-Winvalid-pch -include $(basename $($(target)_1_GCC_PCH_FILE)),) \
@@ -172,7 +172,7 @@ TOOL_GXX_COMPILE_PCH_DEPEND =
 TOOL_GXX_COMPILE_PCH_DEPORD = $($(target)_1_GCC_PCH_DIR)
 define TOOL_GXX_COMPILE_PCH_CMDS
 	$(QUIET)$(TOOL_GXX_PCH) -c\
-		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
@@ -199,7 +199,7 @@ TOOL_GXX_COMPILE_AS_DEPEND =
 TOOL_GXX_COMPILE_AS_DEPORD =
 define TOOL_GXX_COMPILE_AS_CMDS
 	$(QUIET)$(TOOL_GXX_AS) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) \
 		-o $(obj)\
 		$(abspath $(source))
