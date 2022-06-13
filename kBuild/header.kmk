@@ -1,4 +1,4 @@
-# $Id: header.kmk 3556 2022-02-18 02:02:07Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3566 2022-06-13 15:37:08Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3556 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3566 $  )
 
 
 #
@@ -1713,7 +1713,7 @@ endif
 
 ##
 # An internal define used by subheader.kmk, subfooter.kmk, and
-# KB_FN_PASS_0_ON_TARGET.
+# KB_FN_DO_PASS0_ON_TARGET.
 #
 # @param target    The target to process.
 #
