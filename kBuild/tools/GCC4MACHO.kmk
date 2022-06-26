@@ -1,4 +1,4 @@
-# $Id: GCC4MACHO.kmk 3566 2022-06-13 15:37:08Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 3567 2022-06-26 20:00:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-O.
 #
@@ -59,13 +59,6 @@ TOOL_GCC4MACHO_STRIP     ?= $(TOOL_GCC4MACHO_PREFIX2)strip$(TOOL_GCC4MACHO_SUFFI
 TOOL_GCC4MACHO_STRIP_PROGRAM ?= $(TOOL_GCC4MACHO_STRIP) -SXxru
 TOOL_GCC4MACHO_STRIP_DLL     ?= $(TOOL_GCC4MACHO_STRIP) -Sxru
 TOOL_GCC4MACHO_STRIP_SYSMOD  ?= $(TOOL_GCC4MACHO_STRIP) -Sru
-
-ifdef SLKRUNS
-TOOL_GCC4MACHO_CC        += -fmessage-length=0
-TOOL_GCC4MACHO_CXX       += -fmessage-length=0
-TOOL_GCC4MACHO_OBJC      += -fmessage-length=0
-TOOL_GCC4MACHO_OBJCXX    += -fmessage-length=0
-endif
 
 # General Properties used by kBuild
 TOOL_GCC4MACHO_COBJSUFF         ?= .o

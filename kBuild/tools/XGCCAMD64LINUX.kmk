@@ -1,4 +1,4 @@
-# $Id: XGCCAMD64LINUX.kmk 3393 2020-06-30 17:11:42Z knut.osmundsen@oracle.com $
+# $Id: XGCCAMD64LINUX.kmk 3567 2022-06-26 20:00:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC Cross compiler for AMD64+Linux.
 #
@@ -81,11 +81,6 @@ TOOL_XGCCAMD64LINUX_LD_MAP ?= -Wl,-Map -Wl,$(1) -Wl,--cref
 TOOL_XGCCAMD64LINUX_LD_SYSMOD_MAP ?= -Map $(1) --cref
 TOOL_XGCCAMD64LINUX_LDFLAGS.dll ?= -shared
 TOOL_XGCCAMD64LINUX_LDFLAGS.sysmod ?= -r
-
-ifdef SLKRUNS
-TOOL_XGCCAMD64LINUX_CC  += -fmessage-length=0
-TOOL_XGCCAMD64LINUX_CXX += -fmessage-length=0
-endif
 
 # General Properties used by kBuild
 TOOL_XGCCAMD64LINUX_COBJSUFF         ?= .o
