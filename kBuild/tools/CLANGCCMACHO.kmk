@@ -1,4 +1,4 @@
-# $Id: CLANGCCMACHO.kmk 3404 2020-07-06 12:56:51Z knut.osmundsen@oracle.com $
+# $Id: CLANGCCMACHO.kmk 3567 2022-06-26 20:00:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - LLVM Clang targeting Darwin (Mac OS X) Mach-O, for building C code.
 #
@@ -75,13 +75,6 @@ TOOL_CLANGCCMACHO_STRIP     ?= $(TOOL_CLANGCCMACHO_PREFIX2)strip$(TOOL_CLANGCCMA
 TOOL_CLANGCCMACHO_STRIP_PROGRAM ?= $(TOOL_CLANGCCMACHO_STRIP) -SXxru
 TOOL_CLANGCCMACHO_STRIP_DLL     ?= $(TOOL_CLANGCCMACHO_STRIP) -Sxru
 TOOL_CLANGCCMACHO_STRIP_SYSMOD  ?= $(TOOL_CLANGCCMACHO_STRIP) -Sru
-
-ifdef SLKRUNS
-TOOL_CLANGCCMACHO_CC     += -fmessage-length=0
-TOOL_CLANGCCMACHO_CXX    += -fmessage-length=0
-TOOL_CLANGCCMACHO_OBJC   += -fmessage-length=0
-TOOL_CLANGCCMACHO_OBJCXX += -fmessage-length=0
-endif
 
 # General Properties used by kBuild
 TOOL_CLANGCCMACHO_COBJSUFF         ?= .o

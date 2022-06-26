@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 3566 2022-06-13 15:37:08Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 3567 2022-06-26 20:00:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v3 targeting OS/2 OMF.
 #
@@ -57,11 +57,6 @@ TOOL_GCC3OMF_LD_MAP ?= -Zmap=$(1)
 TOOL_GCC3OMF_LD_SYSMOD_MAP ?= -Zmap=$(1)
 
 TOOL_GCC3OMF_RC = $(TOOL_GCC3OMF_PREFIX3)rc$(TOOL_GCC3OMF_SUFFIX3)
-
-ifdef SLKRUNS
-TOOL_GCC3OMF_CC  += -fmessage-length=0
-TOOL_GCC3OMF_CXX += -fmessage-length=0
-endif
 
 # General Properties used by kBuild
 TOOL_GCC3OMF_COBJSUFF         ?= .o
