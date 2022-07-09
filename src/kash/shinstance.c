@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 3569 2022-07-09 13:26:29Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 3570 2022-07-09 14:42:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -428,21 +428,21 @@ static void sh_destroy(shinstance *psh)
 #endif
 
     /* output.h */
-	if (psh->output.buf != NULL)
+    if (psh->output.buf != NULL)
     {
         ckfree(psh, psh->output.buf);
         psh->output.buf = NULL;
-	}
-	if (psh->errout.buf != NULL)
+    }
+    if (psh->errout.buf != NULL)
     {
         ckfree(psh, psh->errout.buf);
         psh->errout.buf = NULL;
-	}
-	if (psh->memout.buf != NULL)
+    }
+    if (psh->memout.buf != NULL)
     {
         ckfree(psh, psh->memout.buf);
         psh->memout.buf = NULL;
-	}
+    }
 
     /* options.h */
     if (psh->arg0malloc)
