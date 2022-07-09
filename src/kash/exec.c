@@ -234,13 +234,14 @@ shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx, 
 			cmdname = stalloc(psh, argv0len + sufflen + 1);
 			memcpy(cmdname, argv0, argv0len);
 			memcpy(cmdname + argv0len, g_exe_suffixes[suffix], sufflen + 1);
+			tryexec(psh, cmdname, argv, envp, 1);
 		} else
 #endif
 		{
 			cmdname = stalloc(psh, argv0len + 5);
 			memcpy(cmdname, argv0, argv0len + 1);
+			tryexec(psh, cmdname, argv, envp, has_ext);
 		}
-		tryexec(psh, cmdname, argv, envp, has_ext);
 		TRACE((psh, "shellexec: cmdname=%s\n", cmdname));
 		stunalloc(psh, cmdname);
 		e = errno;
@@ -262,10 +263,12 @@ shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx, 
 		while ((cmdname = padvance(psh, &path, argv0)) != NULL) {
 			if (--idx < 0 && psh->pathopt == NULL) {
 #ifdef PC_EXE_EXTS
-				if (!has_ext && idx == -1 && suffix && (unsigned)suffix < K_ELEMENTS(g_exe_suffixes))
+				if (!has_ext && idx == -1 && suffix && (unsigned)suffix < K_ELEMENTS(g_exe_suffixes)) {
 					strcat(cmdname, g_exe_suffixes[suffix]);
+					tryexec(psh, cmdname, argv, envp, 1);
+				} else
 #endif
-				tryexec(psh, cmdname, argv, envp, has_ext);
+					tryexec(psh, cmdname, argv, envp, has_ext);
 				if (errno != ENOENT && errno != ENOTDIR)
 					e = errno;
 			}
@@ -304,8 +307,7 @@ tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int has_ext)
          * correct extentions to the file. */
         if (!has_ext) {
 		int suffix;
-		int isreg = stat_pc_exec_exts(psh, cmd, 0, &suffix);
-		kHlpAssert(isreg > 0);
+		stat_pc_exec_exts(psh, cmd, 0, &suffix);
 	}
 #endif
 #if defined(__INNOTEK_LIBC__) && defined(EXEC_HASH_BANG_SCRIPT)
