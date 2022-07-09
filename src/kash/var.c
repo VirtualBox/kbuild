@@ -136,33 +136,33 @@ static const char * const libpath_envs[4] = {"LIBPATH=", "BEGINLIBPATH=", "ENDLI
 
 const struct varinit varinit[] = {
 #if ATTY
-	{ offsetof(shinstance, vatty),	VSTRFIXED|VTEXTFIXED|VUNSET,	"ATTY=",
+	{ offsetof(shinstance, vatty),	VSTRFIXED|VSTRFIXED2|VTEXTFIXED|VUNSET,	"ATTY=",
 	  NULL },
 #endif
 #ifndef SMALL
-	{ offsetof(shinstance, vhistsize),	VSTRFIXED|VTEXTFIXED|VUNSET,	"HISTSIZE=",
+	{ offsetof(shinstance, vhistsize),	VSTRFIXED|VSTRFIXED2|VTEXTFIXED|VUNSET,	"HISTSIZE=",
 	  sethistsize },
 #endif
-	{ offsetof(shinstance, vifs),	VSTRFIXED|VTEXTFIXED,		"IFS= \t\n",
+	{ offsetof(shinstance, vifs),	VSTRFIXED|VSTRFIXED2|VTEXTFIXED,		"IFS= \t\n",
 	  NULL },
-	{ offsetof(shinstance, vmail),	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAIL=",
+	{ offsetof(shinstance, vmail),	VSTRFIXED|VSTRFIXED2|VTEXTFIXED|VUNSET,	"MAIL=",
 	  NULL },
-	{ offsetof(shinstance, vmpath),	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAILPATH=",
+	{ offsetof(shinstance, vmpath),	VSTRFIXED|VSTRFIXED2|VTEXTFIXED|VUNSET,	"MAILPATH=",
 	  NULL },
-	{ offsetof(shinstance, vpath),	VSTRFIXED|VTEXTFIXED,		"PATH=" _PATH_DEFPATH,
+	{ offsetof(shinstance, vpath),	VSTRFIXED|VSTRFIXED2|VTEXTFIXED,		"PATH=" _PATH_DEFPATH,
 	  changepath },
 	/*
 	 * vps1 depends on uid
 	 */
-	{ offsetof(shinstance, vps2),	VSTRFIXED|VTEXTFIXED,		"PS2=> ",
+	{ offsetof(shinstance, vps2),	VSTRFIXED|VSTRFIXED2|VTEXTFIXED,		"PS2=> ",
 	  NULL },
-	{ offsetof(shinstance, vps4),	VSTRFIXED|VTEXTFIXED,		"PS4=+ ",
+	{ offsetof(shinstance, vps4),	VSTRFIXED|VSTRFIXED2|VTEXTFIXED,		"PS4=+ ",
 	  NULL },
 #ifndef SMALL
-	{ offsetof(shinstance, vterm),	VSTRFIXED|VTEXTFIXED|VUNSET,	"TERM=",
+	{ offsetof(shinstance, vterm),	VSTRFIXED|VSTRFIXED2|VTEXTFIXED|VUNSET,	"TERM=",
 	  setterm },
 #endif
-	{ offsetof(shinstance, voptind),	VSTRFIXED|VTEXTFIXED|VNOFUNC,	"OPTIND=1",
+	{ offsetof(shinstance, voptind),	VSTRFIXED|VSTRFIXED2|VTEXTFIXED|VNOFUNC,	"OPTIND=1",
 	  getoptsreset },
 	{ 0,	0,				NULL,
 	  NULL }
@@ -211,7 +211,7 @@ initvar(shinstance *psh)
 
 	for (i = 0; i < 4; i++)
 	{
-		psh->libpath_vars[i].flags = VSTRFIXED | VOS2LIBPATH;
+		psh->libpath_vars[i].flags = VSTRFIXED | VSTRFIXED2 | VOS2LIBPATH;
 		psh->libpath_vars[i].func = NULL;
 
 		if (i > 0)
@@ -235,7 +235,7 @@ initvar(shinstance *psh)
 		else
 		{
 			psh->libpath_vars[i].flags |= VUNSET | VTEXTFIXED;
-			psh->libpath_vars[i].text = (char*)libpath_envs[i];
+			psh->libpath_vars[i].text = (char *)libpath_envs[i];
 		}
 		if (find_var(psh, psh->libpath_vars[i].text, &vpp, &psh->libpath_vars[i].name_len) != NULL)
 			continue;
@@ -266,7 +266,7 @@ initvar(shinstance *psh)
 #else
 		psh->vps1.text = sh_strdup(psh, sh_geteuid(psh) ? "PS1=$ " : "PS1=# ");
 #endif
-		psh->vps1.flags = VSTRFIXED|VTEXTFIXED;
+		psh->vps1.flags = VSTRFIXED|VSTRFIXED2|VTEXTFIXED; /** @todo text isn't fixed here... */
 	}
 }
 
@@ -281,16 +281,17 @@ subshellinitvar(shinstance *psh, shinstance *inherit)
 	unsigned i;
 	for (i = 0; i < K_ELEMENTS(inherit->vartab); i++) {
 		struct var const *vsrc = inherit->vartab[i];
-		if (!vsrc) {
-		} else {
+		if (vsrc) {
 			struct var **ppdst = &psh->vartab[i];
 			do
 			{
 				struct var *dst;
-				if (!(vsrc->flags & VSTRFIXED)) {
+				if (!(vsrc->flags & VSTRFIXED2)) {
 					dst = (struct var *)ckmalloc(psh, sizeof(*dst));
+					*dst = *vsrc;
+					dst->flags &= ~VSTRFIXED;
 				} else {
-					/* VSTRFIXED is used when the structure is a fixed allocation in
+					/* VSTRFIXED2 is used when the structure is a fixed allocation in
 					   the shinstance structure, so scan those to find which it is: */
 					size_t            left     = ((struct var *)&inherit->vartab[0] - &inherit->vatty);
 					struct var const *fixedsrc = &inherit->vatty;
@@ -302,8 +303,8 @@ subshellinitvar(shinstance *psh, shinstance *inherit)
 						} else
 							break;
 					kHlpAssert(left < 256 /*whatever, just no rollover*/);
+					*dst = *vsrc;
 				}
-				*dst = *vsrc;
 
 				if (!(vsrc->flags & VTEXTFIXED)) {
 					dst->text = savestr(psh, vsrc->text);
@@ -327,12 +328,14 @@ subshellinitvar(shinstance *psh, shinstance *inherit)
 		{
 			struct localvar *dst = ckmalloc(psh, sizeof(*dst));
 
-			dst->flags = vsrc->flags & ~VSTACK;
-			if (vsrc->flags & VTEXTFIXED)
-				dst->text = savestr(psh, vsrc->text);
+			dst->flags = vsrc->flags & ~(VSTACK | VTEXTFIXED | (vsrc->flags & VSTRFIXED2 ? 0 : VSTRFIXED));
+			if (vsrc->text)
+			    dst->text = savestr(psh, vsrc->text);
 			else
-				dst->text = vsrc->text;
-
+			{
+			    dst->text = NULL;
+			    dst->flags |= vsrc->flags & VTEXTFIXED;
+			}
 			dst->vp = find_var(psh, vsrc->vp->text, NULL, NULL);
 			kHlpAssert(dst->vp);
 
@@ -341,6 +344,7 @@ subshellinitvar(shinstance *psh, shinstance *inherit)
 
 			vsrc = vsrc->next;
 		} while (vsrc);
+		*ppdst = NULL;
 	}
 }
 #endif /* !SH_FORKED_MODE */
@@ -629,7 +633,7 @@ shprocvar(shinstance *psh)
 				*prev = vp->next;
 				if ((vp->flags & VTEXTFIXED) == 0)
 					ckfree(psh, vp->text);
-				if ((vp->flags & VSTRFIXED) == 0)
+				if ((vp->flags & (VSTRFIXED | VSTRFIXED2)) == 0)
 					ckfree(psh, vp);
 			} else {
 				if (vp->flags & VSTACK) {
@@ -947,7 +951,7 @@ unsetvar(shinstance *psh, const char *s, int unexport)
 			setvar(psh, s, nullstr, 0);
 		vp->flags &= ~VEXPORT;
 		vp->flags |= VUNSET;
-		if ((vp->flags & VSTRFIXED) == 0) {
+		if ((vp->flags & (VSTRFIXED | VSTRFIXED2)) == 0) {
 			if ((vp->flags & VTEXTFIXED) == 0)
 				ckfree(psh, vp->text);
 			*vpp = vp->next;
