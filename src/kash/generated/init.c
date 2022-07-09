@@ -203,6 +203,7 @@ reset(shinstance *psh) {
 	      if (psh->memout.buf != NULL) {
 		      ckfree(psh, psh->memout.buf);
 		      psh->memout.buf = NULL;
+		      psh->memout.nextc = NULL;
 	      }
       }
 

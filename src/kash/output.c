@@ -90,6 +90,7 @@ RESET {
 	if (psh->memout.buf != NULL) {
 		ckfree(psh, psh->memout.buf);
 		psh->memout.buf = NULL;
+		psh->memout.nextc = NULL;
 	}
 }
 
@@ -199,6 +200,7 @@ freestdout(shinstance *psh)
 	if (psh->output.buf) {
 		ckfree(psh, psh->output.buf);
 		psh->output.buf = NULL;
+		psh->output.nextc = NULL;
 		psh->output.nleft = 0;
 	}
 	INTON;
