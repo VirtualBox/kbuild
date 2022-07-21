@@ -5321,7 +5321,7 @@ func_set_umask (char *o, char **argv UNUSED, const char *funcname UNUSED)
           OS (error, reading_file, _("$(%s ) too many arguments for octal mode"), funcname);
 
       umask (u);
-      g_fUMask = u;
+      g_fUMask = umask (u); /* Must get it again as windows modifies it. */
   }
   else
   {
