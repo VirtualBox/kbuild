@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3552 2022-01-29 02:59:03Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3572 2022-10-24 08:36:35Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -123,6 +123,13 @@ endif
 if1of ($(KBUILD_TARGET), openbsd)
  TOOL_FLEX_LEX = gflex
 endif
+# Not all compiler tools currently do the same quoting of DEFS, so here's a
+# temporary workaround.
+ifn1of ($(KBUILD_TARGET), win)
+ TMP_QUOTE_SLASH :=
+else
+ TMP_QUOTE_SLASH := \$(NO_SUCH_VARIABLE)
+endif
 
 #
 # The OS and Architecture indicators.
@@ -182,8 +189,8 @@ ifdef NIX_INSTALL_DIR
  endif
 
 DEFS += \
-	KBUILD_PATH=\"/$(patsubst %/,%,$(MY_INST_DATA))\" \
-	KBUILD_BIN_PATH=\"/$(patsubst %/,%,$(MY_INST_BIN))\"
+	KBUILD_PATH=$(TMP_QUOTE_SLASH)"/$(patsubst %/,%,$(MY_INST_DATA))$(TMP_QUOTE_SLASH)" \
+	KBUILD_BIN_PATH=$(TMP_QUOTE_SLASH)"/$(patsubst %/,%,$(MY_INST_BIN))$(TMP_QUOTE_SLASH)"
 endif
 
 
