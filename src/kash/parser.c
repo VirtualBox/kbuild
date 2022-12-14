@@ -392,7 +392,7 @@ TRACE((psh, "expecting DO got %s %s\n", tokname[got], got == TWORD ? psh->wordte
 			if (psh->lasttoken != TNL && psh->lasttoken != TSEMI)
 				synexpect(psh, -1);
 		} else {
-			static char argvars[5] = {CTLVAR, VSNORMAL|VSQUOTE,
+			static char argvars[5] = {CTLVAR, (char)(unsigned char)(VSNORMAL|VSQUOTE),
 								   '@', '=', '\0'};
 			n2 = pstallocnode(psh, sizeof (struct narg));
 			n2->type = NARG;
@@ -496,6 +496,7 @@ TRACE((psh, "expecting DO got %s %s\n", tokname[got], got == TWORD ? psh->wordte
 		 */
 		if (!redir)
 			synexpect(psh, -1);
+		/* FALLTHROUGH */
 	case TAND:
 	case TOR:
 	case TNL:
@@ -1641,9 +1642,9 @@ my_basename(const char *argv0, unsigned *lenp)
 {
 	const char *tmp;
 
-    /* skip the path */
-    for (tmp = strpbrk(argv0, "\\/:"); tmp; tmp = strpbrk(argv0, "\\/:"))
-        argv0 = tmp + 1;
+	/* skip the path */
+	for (tmp = strpbrk(argv0, "\\/:"); tmp; tmp = strpbrk(argv0, "\\/:"))
+		argv0 = tmp + 1;
 
 	if (lenp) {
 		/* find the end, ignoring extenions */

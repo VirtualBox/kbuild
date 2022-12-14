@@ -393,6 +393,7 @@ doformat(struct output *dest, const char *f, va_list ap)
 		case 'x':
 			/* we don't implement 'x'; treat like 'X' */
 			digit = digit_lower;
+			/*FALLTHROUGH*/
 		case 'X':
 			base = 16;
 uns_number:	  /* an unsigned number */
