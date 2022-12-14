@@ -1067,6 +1067,7 @@ static int evalcommand_child(shinstance *psh, union node *cmd, void *argp)
 	return 0;
 }
 
+#ifdef KASH_USE_FORKSHELL2
 /* Copies data in the argument structure from parent to child. */
 static void evalcommand_setup_child(shinstance *pshchild, shinstance *pshparent, void *argp)
 {
@@ -1115,6 +1116,7 @@ static void evalcommand_setup_child(shinstance *pshchild, shinstance *pshparent,
 	if (args->cmdentry.cmdtype == CMDFUNCTION)
 		args->cmdentry.u.func = copyparsetree(pshchild, args->cmdentry.u.func); /** @todo isn't this duplicated already? */
 }
+#endif /* KASH_USE_FORKSHELL2 */
 
 /*
  * Execute a simple command.
