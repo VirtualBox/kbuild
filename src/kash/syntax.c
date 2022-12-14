@@ -112,6 +112,13 @@ void init_syntax(void)
 #define set(ch, val) [ndx(ch)] = val,
 #define set_range(s, e, val) [ndx(s) ... ndx(e)] = val,
 
+/* Shut up the pedantic warnings about set_range() */
+#ifdef __GNUC__
+# if __GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 2)
+#  pragma GCC diagnostic ignored "-Wpedantic"
+# endif
+#endif
+
 /* syntax table used when not in quotes */
 const char basesyntax[257] = { CSHEOF,
     set_range(CTL_FIRST, CTL_LAST, CCTL)
