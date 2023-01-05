@@ -39,7 +39,7 @@ static int job_fds[2] = { -1, -1 };
 /* Used to signal read() that a SIGCHLD happened.  Always CLOEXEC.
    If we use pselect() this will never be created and always -1.
  */
-static int job_rfd = -1;
+static int volatile job_rfd = -1; /* bird: added volatile to try ensure atomic update.  */
 
 /* Token written to the pipe (could be any character...)  */
 static char token = '+';
@@ -51,11 +51,15 @@ make_job_rfd (void)
   /* Pretend we succeeded.  */
   return 0;
 #else
-  EINTRLOOP (job_rfd, dup (job_fds[0]));
-  if (job_rfd >= 0)
-    CLOSE_ON_EXEC (job_rfd);
+  /* bird: modified to use local variable and only update job_rfd once, otherwise
+           we're racing the signal handler clearing and closing this. */
+  int new_job_rfd;
+  EINTRLOOP (new_job_rfd, dup (job_fds[0]));
+  if (new_job_rfd >= 0)
+    CLOSE_ON_EXEC (new_job_rfd);
 
-  return job_rfd;
+  job_rfd = new_job_rfd;
+  return new_job_rfd;
 #endif
 }
 
