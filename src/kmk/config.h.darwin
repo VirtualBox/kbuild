@@ -157,8 +157,12 @@
 /* Define to 1 if you have the `pipe' function. */
 #define HAVE_PIPE 1
 
+#if 0 /* before 10.12.0 pselect is a useland implementation, which is insufficient for our purposes. */
 /* Define to 1 if you have the `pselect' function. */
-#define HAVE_PSELECT 1
+# define HAVE_PSELECT 1
+#else
+# undef HAVE_PSELECT
+#endif
 
 /* Define to 1 if you have the `pstat_getdynamic' function. */
 /* #undef HAVE_PSTAT_GETDYNAMIC */
