@@ -1,4 +1,4 @@
-# $Id: LLVMGCC42MACHO.kmk 3567 2022-06-26 20:00:02Z knut.osmundsen@oracle.com $
+# $Id: LLVMGCC42MACHO.kmk 3579 2023-01-05 01:53:41Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - LLVM GCC v4.2.x targeting Darwin (Mac OS X) Mach-O.
 #
@@ -157,7 +157,7 @@ define TOOL_LLVMGCC42MACHO_COMPILE_C_CMDS
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
 		--kObjCache-cpp $(outbase).i\
 		$(TOOL_LLVMGCC42MACHO_CC) -E -o -\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		$(abspath $(source))\
 		--kObjCache-cc $(obj)\
@@ -171,7 +171,7 @@ else  # !KBUILD_USE_KOBJCACHE
 TOOL_LLVMGCC42MACHO_COMPILE_C_OUTPUT =
 define TOOL_LLVMGCC42MACHO_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_LLVMGCC42MACHO_CC) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
@@ -201,7 +201,7 @@ define TOOL_LLVMGCC42MACHO_COMPILE_CXX_CMDS
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
 		--kObjCache-cpp $(outbase).ii\
 		$(TOOL_LLVMGCC42MACHO_CXX) -E -o -\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		$(abspath $(source))\
 		--kObjCache-cc $(obj)\
@@ -215,7 +215,7 @@ else  # !KBUILD_USE_KOBJCACHE
 TOOL_LLVMGCC42MACHO_COMPILE_CXX_OUTPUT =
 define TOOL_LLVMGCC42MACHO_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_LLVMGCC42MACHO_CXX) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
@@ -245,7 +245,7 @@ define TOOL_LLVMGCC42MACHO_COMPILE_OBJC_CMDS
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
 		--kObjCache-cpp $(outbase).ii\
 		$(TOOL_LLVMGCC42MACHO_OBJC) -E -o -\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		$(abspath $(source))\
 		--kObjCache-cc $(obj)\
@@ -259,7 +259,7 @@ else  # !KBUILD_USE_KOBJCACHE
 TOOL_LLVMGCC42MACHO_COMPILE_OBJC_OUTPUT =
 define TOOL_LLVMGCC42MACHO_COMPILE_OBJC_CMDS
 	$(QUIET)$(TOOL_LLVMGCC42MACHO_OBJC) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
@@ -289,7 +289,7 @@ define TOOL_LLVMGCC42MACHO_COMPILE_OBJCXX_CMDS
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
 		--kObjCache-cpp $(outbase).mii\
 		$(TOOL_LLVMGCC42MACHO_OBJCXX) -E -o -\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		$(abspath $(source))\
 		--kObjCache-cc $(obj)\
@@ -303,7 +303,7 @@ else  # !KBUILD_USE_KOBJCACHE
 TOOL_LLVMGCC42MACHO_COMPILE_OBJCXX_OUTPUT =
 define TOOL_LLVMGCC42MACHO_COMPILE_OBJCXX_CMDS
 	$(QUIET)$(TOOL_LLVMGCC42MACHO_OBJCXX) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
@@ -330,7 +330,7 @@ TOOL_LLVMGCC42MACHO_COMPILE_AS_DEPEND =
 TOOL_LLVMGCC42MACHO_COMPILE_AS_DEPORD =
 define TOOL_LLVMGCC42MACHO_COMPILE_AS_CMDS
 	$(QUIET)$(TOOL_LLVMGCC42MACHO_AS) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))

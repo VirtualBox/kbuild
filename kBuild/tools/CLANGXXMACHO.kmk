@@ -1,4 +1,4 @@
-# $Id: CLANGXXMACHO.kmk 3567 2022-06-26 20:00:02Z knut.osmundsen@oracle.com $
+# $Id: CLANGXXMACHO.kmk 3579 2023-01-05 01:53:41Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - LLVM Clang targeting Darwin (Mac OS X) Mach-O, for building C++ code.
 #
@@ -178,7 +178,7 @@ if "$(use_objcache)" != ""
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
 		--kObjCache-cpp $(outbase).i\
 		$(TOOL_CLANGXXMACHO_CC) -E -o -\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		$(abspath $(source))\
 		--kObjCache-cc $(obj)\
@@ -188,7 +188,7 @@ if "$(use_objcache)" != ""
 		-
 else
 	$(QUIET)$(TOOL_CLANGXXMACHO_CC) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
@@ -219,7 +219,7 @@ if "$(use_objcache)" != ""
 		--kObjCache-cpp $(outbase).ii\
 		$(TOOL_CLANGXXMACHO_CXX) -E -o - $(if-expr defined($(target)_PCH_HDR)\
 		,-fpch-preprocess -Winvalid-pch -I$($(target)_1_GCC_PCH_DIR) -include $(basename $($(target)_1_GCC_PCH_FILE)),)\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		$(abspath $(source))\
 		--kObjCache-cc $(obj)\
@@ -286,7 +286,7 @@ define TOOL_CLANGXXMACHO_COMPILE_OBJC_CMDS
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
 		--kObjCache-cpp $(outbase).ii\
 		$(TOOL_CLANGXXMACHO_OBJC) -E -o -\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		$(abspath $(source))\
 		--kObjCache-cc $(obj)\
@@ -300,7 +300,7 @@ else  # !KBUILD_USE_KOBJCACHE
 TOOL_CLANGXXMACHO_COMPILE_OBJC_OUTPUT =
 define TOOL_CLANGXXMACHO_COMPILE_OBJC_CMDS
 	$(QUIET)$(TOOL_CLANGXXMACHO_OBJC) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
@@ -330,7 +330,7 @@ define TOOL_CLANGXXMACHO_COMPILE_OBJCXX_CMDS
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
 		--kObjCache-cpp $(outbase).mii\
 		$(TOOL_CLANGXXMACHO_OBJCXX) -E -o -\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		$(abspath $(source))\
 		--kObjCache-cc $(obj)\
@@ -344,7 +344,7 @@ else  # !KBUILD_USE_KOBJCACHE
 TOOL_CLANGXXMACHO_COMPILE_OBJCXX_OUTPUT =
 define TOOL_CLANGXXMACHO_COMPILE_OBJCXX_CMDS
 	$(QUIET)$(TOOL_CLANGXXMACHO_OBJCXX) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
@@ -371,7 +371,7 @@ TOOL_CLANGXXMACHO_COMPILE_AS_DEPEND =
 TOOL_CLANGXXMACHO_COMPILE_AS_DEPORD =
 define TOOL_CLANGXXMACHO_COMPILE_AS_CMDS
 	$(QUIET)$(TOOL_CLANGXXMACHO_AS) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
