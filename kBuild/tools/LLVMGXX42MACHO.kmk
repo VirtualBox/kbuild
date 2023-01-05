@@ -1,4 +1,4 @@
-# $Id: LLVMGXX42MACHO.kmk 3579 2023-01-05 01:53:41Z knut.osmundsen@oracle.com $
+# $Id: LLVMGXX42MACHO.kmk 3580 2023-01-05 02:16:42Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - LLVM GCC v4.2.x targeting Darwin (Mac OS X) Mach-O, for building C++ code.
 #
@@ -218,7 +218,7 @@ if "$(use_objcache)" != ""
 		-
 else
 	$(QUIET)$(TOOL_LLVMGXX42MACHO_CXX) -c\
-		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj) $(if-expr defined($(target)_PCH_HDR) \
 		,-Winvalid-pch -include $(basename $($(target)_1_GCC_PCH_FILE)),) \
@@ -245,7 +245,7 @@ TOOL_LLVMGXX42MACHO_COMPILE_PCH_DEPEND =
 TOOL_LLVMGXX42MACHO_COMPILE_PCH_DEPORD = $($(target)_1_GCC_PCH_DIR)
 define TOOL_LLVMGXX42MACHO_COMPILE_PCH_CMDS
 	$(QUIET)$(TOOL_LLVMGXX42MACHO_PCH) -c\
-		$(flags) $(addprefix -I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
