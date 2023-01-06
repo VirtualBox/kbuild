@@ -137,9 +137,29 @@ typedef struct INSTALLINSTANCE
     const char *suffix;
     int ignore_perm_errors;
     int hard_link_files_when_possible;
+    int verbose_hard_link_refusal;
+    int verbose_hard_link_mode_mismatch;
     int dos2unix;
 } INSTALLINSTANCE;
 typedef INSTALLINSTANCE *PINSTALLINSTANCE;
+
+enum
+{
+    kInstOpt_Help = 261,
+    kInstOpt_Version,
+    kInstOpt_Verbose,
+    kInstOpt_Quiet,
+    kInstOpt_IgnorePermErrors,
+    kInstOpt_NoIgnorePermErrors,
+    kInstOpt_HardLinkFilesWhenPossible,
+    kInstOpt_NoHardLinkFilesWhenPossible,
+    kInstOpt_Dos2Unix,
+    kInstOpt_Unix2Dos,
+    kInstOpt_VerboseHardLinkRefusal,
+    kInstOpt_QuietHardLinkRefusal,
+    kInstOpt_VerboseHardLinkModeMismatch,
+    kInstOpt_QuietHardLinkModeMismatch
+};
 
 
 /*********************************************************************************************************************************
@@ -147,14 +167,29 @@ typedef INSTALLINSTANCE *PINSTALLINSTANCE;
 *********************************************************************************************************************************/
 static struct option long_options[] =
 {
-    { "help",   					no_argument, 0, 261 },
-    { "version",   					no_argument, 0, 262 },
-    { "ignore-perm-errors",   				no_argument, 0, 263 },
-    { "no-ignore-perm-errors",				no_argument, 0, 264 },
-    { "hard-link-files-when-possible",			no_argument, 0, 265 },
-    { "no-hard-link-files-when-possible",		no_argument, 0, 266 },
-    { "dos2unix",					no_argument, 0, 267 },
-    { "unix2dos",					no_argument, 0, 268 },
+    { "help",   					no_argument, 0, kInstOpt_Help },
+    { "version",   					no_argument, 0, kInstOpt_Version },
+    { "quiet",   					no_argument, 0, kInstOpt_Quiet },
+    { "ignore-perm-errors",   				no_argument, 0, kInstOpt_IgnorePermErrors },
+    { "no-ignore-perm-errors",				no_argument, 0, kInstOpt_NoIgnorePermErrors },
+    { "hard-link-files-when-possible",			no_argument, 0, kInstOpt_HardLinkFilesWhenPossible },
+    { "no-hard-link-files-when-possible",		no_argument, 0, kInstOpt_NoHardLinkFilesWhenPossible },
+    { "verbose-hard-link-refusal",			no_argument, 0, kInstOpt_VerboseHardLinkRefusal },
+    { "quiet-hard-link-refusal",			no_argument, 0, kInstOpt_QuietHardLinkRefusal },
+    { "verbose-hard-link-mode-mismatch",		no_argument, 0, kInstOpt_VerboseHardLinkModeMismatch },
+    { "quiet-hard-link-mode-mismatch",			no_argument, 0, kInstOpt_QuietHardLinkModeMismatch },
+    { "dos2unix",					no_argument, 0, kInstOpt_Dos2Unix },
+    { "unix2dos",					no_argument, 0, kInstOpt_Unix2Dos },
+#if 1 /* GNU coreutils compatibility: */
+    { "compare",   					no_argument, 0, 'C' },
+    { "directory",   					no_argument, 0, 'd' },
+    { "group",   					required_argument, 0, 'g' },
+    { "mode",   					required_argument, 0, 'm' },
+    { "owner",   					required_argument, 0, 'o' },
+    { "strip",   					no_argument, 0, 's' },
+    { "suffix",   					required_argument, 0, 'S' },
+    { "verbose",   					no_argument, 0, 'v' },
+#endif
     { 0, 0,	0, 0 },
 };
 
@@ -203,6 +238,8 @@ kmk_builtin_install(int argc, char *argv[], char ** envp, PKMKBUILTINCTX pCtx)
 	This.mode_given = 0;
 	This.ignore_perm_errors = geteuid() != 0;
 	This.hard_link_files_when_possible = 0;
+	This.verbose_hard_link_refusal = 0;
+	This.verbose_hard_link_mode_mismatch = 0;
 	This.dos2unix = 0;
 
 	iflags = 0;
@@ -256,35 +293,55 @@ kmk_builtin_install(int argc, char *argv[], char ** envp, PKMKBUILTINCTX pCtx)
 			break;
 		case 'S':
 			This.safecopy = 1;
+			This.verbose_hard_link_refusal = 0;
 			break;
 		case 's':
 			This.dostrip = 1;
+			This.verbose_hard_link_refusal = 0;
 			break;
 		case 'v':
+		case kInstOpt_Verbose:
 			This.verbose = 1;
 			break;
-		case 261:
+		case kInstOpt_Quiet:
+			This.verbose = 0;
+			break;
+		case kInstOpt_Help:
 			usage(pCtx, 0);
 			return 0;
-		case 262:
+		case kInstOpt_Version:
 			return kbuild_version(argv[0]);
-		case 263:
+		case kInstOpt_IgnorePermErrors:
 			This.ignore_perm_errors = 1;
 			break;
-		case 264:
+		case kInstOpt_NoIgnorePermErrors:
 			This.ignore_perm_errors = 0;
 			break;
-                case 265:
+                case kInstOpt_HardLinkFilesWhenPossible:
                         This.hard_link_files_when_possible = 1;
                         break;
-                case 266:
+                case kInstOpt_NoHardLinkFilesWhenPossible:
                         This.hard_link_files_when_possible = 0;
                         break;
-		case 267:
-			This.dos2unix = 1;
+		case kInstOpt_VerboseHardLinkRefusal:
+			This.verbose_hard_link_refusal = 1;
 			break;
-		case 268:
+		case kInstOpt_QuietHardLinkRefusal:
+			This.verbose_hard_link_refusal = 0;
+			break;
+		case kInstOpt_VerboseHardLinkModeMismatch:
+			This.verbose_hard_link_mode_mismatch = 1;
+			break;
+		case kInstOpt_QuietHardLinkModeMismatch:
+			This.verbose_hard_link_mode_mismatch = 0;
+			break;
+		case kInstOpt_Dos2Unix:
+			This.dos2unix = 1;
+			This.verbose_hard_link_refusal = 0;
+			break;
+		case kInstOpt_Unix2Dos:
 			This.dos2unix = -1;
+			This.verbose_hard_link_refusal = 0;
 			break;
 		case '?':
 		default:
@@ -513,11 +570,13 @@ install(PINSTALLINSTANCE pThis, const char *from_name, const char *to_name, u_lo
 # else
 		} else if (pThis->mode != (from_sb.st_mode & ALLPERMS)) {
 # endif
-			kmk_builtin_ctx_printf(pThis->pCtx, 0,
-				"install: warning: Not hard linking, mode differs: 0%03o, desires 0%03o\n"
-				"install: src path '%s'\n"
-				"install: dst path '%s'\n",
-				(from_sb.st_mode & ALLPERMS), pThis->mode, from_name, to_name);
+			if (   pThis->verbose_hard_link_mode_mismatch
+			    || pThis->verbose_hard_link_refusal)
+				kmk_builtin_ctx_printf(pThis->pCtx, 0,
+					"install: warning: Not hard linking, mode differs: 0%03o, desires 0%03o\n"
+					"install: src path '%s'\n"
+					"install: dst path '%s'\n",
+					(from_sb.st_mode & ALLPERMS), pThis->mode, from_name, to_name);
 			why_not = NULL;
 		} else if (pThis->uid != (uid_t)-1 && pThis->uid != from_sb.st_uid) {
 			why_not = "uid mismatch";
@@ -545,7 +604,7 @@ install(PINSTALLINSTANCE pThis, const char *from_name, const char *to_name, u_lo
 			why_not = NULL;
 		}
 #endif
-		if (pThis->verbose && why_not)
+		if (why_not && pThis->verbose_hard_link_refusal)
 		    kmk_builtin_ctx_printf(pThis->pCtx, 0, "install: not hard linking '%s' to '%s' because: %s\n",
 					   to_name, from_name, why_not);
 
@@ -1122,10 +1181,11 @@ usage(PKMKBUILTINCTX pCtx, int fIsErr)
 {
 	kmk_builtin_ctx_printf(pCtx, fIsErr,
 "usage: %s [-bCcpSsv] [--[no-]hard-link-files-when-possible]\n"
-"            [--[no-]ignore-perm-errors] [-B suffix] [-f flags] [-g group]\n"
-"            [-m mode] [-o owner] [--dos2unix|--unix2dos] file1 file2\n"
+"           [--verbose-hard-link-refusal] [--verbose-hard-link-mode-mismatch]\n"
+"           [--[no-]ignore-perm-errors] [-B suffix] [-f flags] [-g group]\n"
+"           [-m mode] [-o owner] [--dos2unix|--unix2dos] file1 file2\n"
 "   or: %s [-bCcpSsv] [--[no-]ignore-perm-errors] [-B suffix] [-f flags]\n"
-"            [-g group] [-m mode] [-o owner] file1 ... fileN directory\n"
+"           [-g group] [-m mode] [-o owner] file1 ... fileN directory\n"
 "   or: %s -d [-v] [-g group] [-m mode] [-o owner] directory ...\n"
 "   or: %s --help\n"
 "   or: %s --version\n",
