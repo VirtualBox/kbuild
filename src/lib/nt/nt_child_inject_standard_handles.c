@@ -1,4 +1,4 @@
-/* $Id: nt_child_inject_standard_handles.c 3236 2018-10-28 14:15:41Z knut.osmundsen@oracle.com $ */
+/* $Id: nt_child_inject_standard_handles.c 3584 2023-01-20 15:29:36Z knut.osmundsen@oracle.com $ */
 /** @file
  * Injecting standard handles into a child process.
  */
@@ -171,7 +171,7 @@ int nt_child_inject_standard_handles(HANDLE hProcess, BOOL pafReplace[3], HANDLE
             ULONGLONG   InheritedFromUniqueProcessId;
         } Wow64;
     }                           BasicInfo = { { 0, 0, } };
-    uintptr_t                   uBasicInfoPeb;
+    ULONGLONG                   ullBasicInfoPeb;
     NTSTATUS                    rcNt;
     ULONGLONG                   ullPeb32 = 0;
     ULONGLONG                   ullPeb64 = 0;
@@ -243,7 +243,6 @@ int nt_child_inject_standard_handles(HANDLE hProcess, BOOL pafReplace[3], HANDLE
      * here or the PEB address will be set to zero for 64-bit children.
      */
 #if K_ARCH_BITS != 64
-/** @todo On vista PEB can be above 4GB!   */
     if (s_fHostIs64Bit && pfnNtWow64QueryInformationProcess64)
     {
         rcNt = pfnNtWow64QueryInformationProcess64(hProcess, ProcessBasicInformation, &BasicInfo.Wow64,
@@ -253,14 +252,13 @@ int nt_child_inject_standard_handles(HANDLE hProcess, BOOL pafReplace[3], HANDLE
             _snprintf(pszErr, cbErr, "NtWow64QueryInformationProcess64 failed: %#x", rcNt);
             return rcNt;
         }
-        if (   BasicInfo.Wow64.PebBaseAddress < 0x1000
-            || BasicInfo.Wow64.PebBaseAddress > ~(uintptr_t)0x1000)
+        if ((ULONGLONG)BasicInfo.Wow64.PebBaseAddress < 0x1000)
         {
             _snprintf(pszErr, cbErr, "NtWow64QueryInformationProcess64 returned bad PebBaseAddress: %#llx",
                       BasicInfo.Wow64.PebBaseAddress);
             return ERROR_INVALID_ADDRESS;
         }
-        uBasicInfoPeb = (uintptr_t)BasicInfo.Wow64.PebBaseAddress;
+        ullBasicInfoPeb = BasicInfo.Wow64.PebBaseAddress;
     }
     else
 #endif
@@ -275,10 +273,10 @@ int nt_child_inject_standard_handles(HANDLE hProcess, BOOL pafReplace[3], HANDLE
         if ((uintptr_t)BasicInfo.Natural.PebBaseAddress < 0x1000)
         {
             _snprintf(pszErr, cbErr, "NtQueryInformationProcess returned bad PebBaseAddress: %#llx",
-                      BasicInfo.Natural.PebBaseAddress);
+                      (ULONGLONG)BasicInfo.Natural.PebBaseAddress);
             return ERROR_INVALID_ADDRESS;
         }
-        uBasicInfoPeb = (uintptr_t)BasicInfo.Natural.PebBaseAddress;
+        ullBasicInfoPeb = (uintptr_t)BasicInfo.Natural.PebBaseAddress;
     }
 
     /*
@@ -288,7 +286,7 @@ int nt_child_inject_standard_handles(HANDLE hProcess, BOOL pafReplace[3], HANDLE
      */
 #if K_ARCH_BITS != 64
     if (!s_fHostIs64Bit)
-        ullPeb32 = uBasicInfoPeb;
+        ullPeb32 = ullBasicInfoPeb;
     else
 #endif
     {
@@ -298,7 +296,7 @@ int nt_child_inject_standard_handles(HANDLE hProcess, BOOL pafReplace[3], HANDLE
         if (NT_SUCCESS(rcNt) && uPeb32Ptr != 0)
         {
             ullPeb32 = uPeb32Ptr;
-            ullPeb64 = uBasicInfoPeb;
+            ullPeb64 = ullBasicInfoPeb;
 #if K_ARCH_BITS != 64
             assert(ullPeb64 != ullPeb32);
             if (ullPeb64 == ullPeb32)
@@ -308,7 +306,7 @@ int nt_child_inject_standard_handles(HANDLE hProcess, BOOL pafReplace[3], HANDLE
         else
         {
             assert(NT_SUCCESS(rcNt));
-            ullPeb64 = uBasicInfoPeb;
+            ullPeb64 = ullBasicInfoPeb;
         }
     }
 
