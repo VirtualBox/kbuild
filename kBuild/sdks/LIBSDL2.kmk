@@ -1,4 +1,4 @@
-# $Id: LIBSDL2.kmk 3587 2023-01-31 09:57:54Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL2.kmk 3588 2023-01-31 13:45:33Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Simple DirectMedia Layer v2.x, targeting $(KBUILD_TARGET).
 #
@@ -142,7 +142,7 @@ else # ASSUMES Unix like system
 
  # General Properties used by kBuild
  ifndef SDK_LIBSDL2_INCS
-  ifneq ($(wildcard $(PATH_SDK_LIBSDL2)/include/SDL/),)
+  if exists("$(PATH_SDK_LIBSDL2)/include/SDL2/")
    SDK_LIBSDL2_INCS := $(PATH_SDK_LIBSDL2)/include/SDL2
   else
    SDK_LIBSDL2_INCS := $(PATH_SDK_LIBSDL2)/include
