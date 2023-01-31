@@ -1,4 +1,4 @@
-# $Id: LIBSDL2.kmk 3586 2023-01-26 14:27:05Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL2.kmk 3587 2023-01-31 09:57:54Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Simple DirectMedia Layer v2.x, targeting $(KBUILD_TARGET).
 #
@@ -73,6 +73,9 @@ else
   _SDK_LIBSDL2_IS_FRAMEWORK := $(if $(wildcard $(PATH_SDK_LIBSDL2)/Headers/SDL.h),yes)
  endif
 endif
+ifeq ($(KBUILD_TARGET).$(_SDK_LIBSDL2_IS_FRAMEWORK),darwin.yes)
+ PATH_SDK_LIBSDL2_FRAMEWORKS_DIR := $(abspath $(PATH_SDK_LIBSDL2)/..)
+endif
 
 #
 # The way libsdl is distributed on the different platforms
@@ -122,7 +125,11 @@ else ifeq ($(KBUILD_TARGET).$(_SDK_LIBSDL2_IS_FRAMEWORK),darwin.yes)
 
  # General Properties used by kBuild
  SDK_LIBSDL2_INCS         ?= $(PATH_SDK_LIBSDL2)/Headers
- SDK_LIBSDL2_LDFLAGS      ?= -framework SDL
+ SDK_LIBSDL2_LDFLAGS      ?= -F$(PATH_SDK_LIBSDL2_FRAMEWORKS_DIR) -framework SDL2
+ SDK_LIBSDL2_CFLAGS       ?= -F$(PATH_SDK_LIBSDL2_FRAMEWORKS_DIR)
+ SDK_LIBSDL2_CXXFLAGS     ?= -F$(PATH_SDK_LIBSDL2_FRAMEWORKS_DIR)
+ SDK_LIBSDL2_OBJCFLAGS    ?= -F$(PATH_SDK_LIBSDL2_FRAMEWORKS_DIR)
+ SDK_LIBSDL2_OBJCXXFLAGS  ?= -F$(PATH_SDK_LIBSDL2_FRAMEWORKS_DIR)
 
 else # ASSUMES Unix like system
  LIB_SDK_LIBSDL2_SDLMAIN  ?= SDL2main
