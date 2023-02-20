@@ -1,4 +1,4 @@
-/* $Id: kdev.e 3311 2020-03-09 22:20:32Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 3589 2023-02-20 10:07:39Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -113,7 +113,7 @@ static _str     skChange        = '';       /* Current change identifier. */
 
 static int      ikStyleWidth    = 130;       /* The page width of the style. */
 static boolean  fkStyleFullHeaders = false; /* false: omit some tags. */
-static int      ikStyleOneliner = 41;       /* The oneline comment column. */
+static int      ikStyleOneliner = 45;       /* The oneline comment column. */
 static int      ikStyleModifyMarkColumn = 105;
 static boolean  fkStyleBoxTag   = false;    /* true: Include tag in k_box_start. */
 
