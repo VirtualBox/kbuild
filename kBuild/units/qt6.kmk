@@ -1,4 +1,4 @@
-# $Id: qt6.kmk 3559 2022-03-02 01:47:27Z knut.osmundsen@oracle.com $
+# $Id: qt6.kmk 3593 2023-05-19 10:39:04Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 6 unit.
 #
@@ -1130,9 +1130,6 @@ ifeq ($(bld_trg),darwin)
 else
  ifeq ($(bld_trg),win)
   $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT6_LIB)/$(qt_prefix)Qt6$(module)$(qt_infix)$(SUFF_LIB)) )
-  ifeq ($(tool_do),LINK_PROGRAM)
-   $(eval $(target)_LIBS   += $(PATH_SDK_QT6_LIB)/$(qt_prefix)qtmain$(qt_infix)$(SUFF_LIB) )
-  endif
  else
   $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT6_LIB)/lib$(qt_prefix)Qt6$(module)$(qt_infix)$(SUFF_DLL)) )
  endif
