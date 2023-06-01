@@ -1,4 +1,4 @@
-# $Id: footer-inherit-uses-tools.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: footer-inherit-uses-tools.kmk 3594 2023-06-01 21:07:11Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Template & Target Inheritance, Uses and Tools.
 #
@@ -574,7 +574,7 @@ define def_templates_load_function
 ifndef TEMPLATE_$(loading)
  TEMPLATE_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_TEMPLATE_PATHS) $(KBUILD_PATH)/templates $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
  ifeq ($(TEMPLATE_$(loading)_KMK_FILE),)
-  $(error kBuild: Cannot find include file for the template '$(loading)'! Searched: $(KBUILD_TEMPLATE_PATHS) $(KBUILD_PATH)/templates $(KBUILD_DEFAULT_PATHS))
+  $(error kBuild: Cannot find include file for the template '$(loading)'! Searched: $(KBUILD_TEMPLATE_PATHS) $(KBUILD_PATH)/templates $(KBUILD_DEFAULT_PATHS) Used by target(s): $(strip $(foreach target, $(_ALL_TARGETS),$(if-expr "$($(target)_TEMPLATE)" == "$(loading)",$(target) (in $(where $(target)_TEMPLATE)),))))
  endif
  include $(TEMPLATE_$(loading)_KMK_FILE)
  ifndef TEMPLATE_$(loading)
