@@ -1,10 +1,10 @@
-# $Id: MACOSX123INCS.kmk 3595 2023-06-14 08:06:24Z knut.osmundsen@oracle.com $
+# $Id: MACOSX123INCS.kmk 3596 2023-06-14 08:11:45Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Mac OS X v12.3 SDK, includes only.
 #
 
 #
-# Copyright (c) 2008-2020 knut st. osmundsen <bird-kBuild-spam-xx@anduin.net>
+# Copyright (c) 2008-2023 knut st. osmundsen <bird-kBuild-spam-xxiii@anduin.net>
 #
 # This file is part of kBuild.
 #
