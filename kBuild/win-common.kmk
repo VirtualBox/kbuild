@@ -1,4 +1,4 @@
-# $Id: win-common.kmk 3323 2020-04-16 23:10:45Z knut.osmundsen@oracle.com $
+# $Id: win-common.kmk 3597 2023-06-16 20:56:17Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Common Windows Definitions - Used by tools and SDKs.
 #
@@ -59,3 +59,7 @@ WINCMN_MAP_ARCH.arm64 := arm64
 WINCMN_MAP_ARCH.ia64  := ia64
 WINCMN_MAP_ARCH.x86   := x86
 ## @}
+
+## @def WINCMN_MT_RETRY
+## Invocation of script for retrying MT.EXE when it clashes with AV software.
+WINCMN_MT_RETRY = $(ASH) $(KBUILD_PATH)/retry-10-delay-500ms.sh
