@@ -1555,15 +1555,15 @@ STATIC char *
 cvtnum(shinstance *psh, int num, char *buf)
 {
 	char temp[32];
+	char *p = &temp[sizeof(temp) - 1];
 	int neg = num < 0;
-	char *p = temp + 31;
+	if (neg)
+		num = -num;
 
-	temp[31] = '\0';
-
+	*p = '\0';
 	do {
 		*--p = num % 10 + '0';
 	} while ((num /= 10) != 0);
-
 	if (neg)
 		*--p = '-';
 
@@ -1576,11 +1576,12 @@ STATIC char *
 cvtnum64(shinstance *psh, KI64 num, char *buf)
 {
 	char temp[32];
+	char *p = &temp[sizeof(temp) - 1];
 	int neg = num < 0;
-	char *p = temp + 31;
+	if (neg)
+		num = -num;
 
-	temp[31] = '\0';
-
+	*p = '\0';
 	do {
 		*--p = num % 10 + '0';
 	} while ((num /= 10) != 0);
