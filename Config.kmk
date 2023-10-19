@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3572 2022-10-24 08:36:35Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3600 2023-10-19 14:26:27Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -145,6 +145,7 @@ DEFS.win     += KBUILD_OS_WINDOWS
 
 DEFS.x86     += KBUILD_ARCH_X86
 DEFS.amd64   += KBUILD_ARCH_AMD64
+DEFS.arm64   += KBUILD_ARCH_ARM64
 
 
 #
