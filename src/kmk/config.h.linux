@@ -1,5 +1,5 @@
 /* config.h.  Generated from config.h.in by configure.  */
-/* config.h.in.  Generated from configure.in by autoheader.  */
+/* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /*
  * bird: Move up this bunch so we can include features.h early.
@@ -71,7 +71,9 @@
 
 /* Define to 1 if you have the declaration of `bsd_signal', and to 0 if you
    don't. */
-/* #define HAVE_DECL_BSD_SIGNAL 1 */
+#if !defined(KBUILD_ARCH_X86) && !defined(KBUILD_ARCH_AMD64)
+# define HAVE_DECL_BSD_SIGNAL 1
+#endif
 
 /* Define to 1 if you have the declaration of `dlerror', and to 0 if you
    don't. */
@@ -348,7 +350,13 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Build host information. (not used by kmk) */
-#define MAKE_HOST "i686-pc-linux-gnu"
+#if defined(KBUILD_ARCH_X86)
+# define MAKE_HOST "i686-pc-linux-gnu"
+#elif defined(KBUILD_ARCH_AMD64)
+# define MAKE_HOST "amd64-pc-linux-gnu"
+#else
+# define MAKE_HOST "aarch64-unknown-linux-gnu"
+#endif
 
 /* Define to 1 to enable job server support in GNU make. */
 #define MAKE_JOBSERVER 1
@@ -435,7 +443,6 @@
    <sys/cpustats.h>. */
 /* #undef UMAX4_3 */
 
-
 /* Version number of package */
 #define VERSION "4.2.1"
 
@@ -451,7 +458,11 @@
 #endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
-#define _FILE_OFFSET_BITS 64
+#if defined(KBUILD_ARCH_X86) || defined(KBUILD_ARCH_AMD64)
+# define _FILE_OFFSET_BITS 64
+#else
+/* #undef _FILE_OFFSET_BITS */
+#endif
 
 /* Define for large files, on AIX-style hosts. */
 /* #undef _LARGE_FILES */
