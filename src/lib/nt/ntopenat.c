@@ -55,9 +55,10 @@ static int birdOpenInt(const char *pszPath, int fFlags, unsigned __int16 fMode)
      * directories as the CRT doesn't allow doing that.
      */
     int const iErrnoSaved = errno;
+    int iErrno;
     int fd = open(pszPath, fFlags, fMode);
     if (   fd < 0
-        && (errno == EACCES || errno == ENOENT || errno == EISDIR)
+        && ((iErrno = errno) == EACCES || iErrno == ENOENT || iErrno == EISDIR || iErrno == EINVAL /*CIFS*/)
         && (fFlags & (_O_WRONLY | _O_RDWR | _O_RDONLY)) == _O_RDONLY
         && (fFlags & (_O_CREAT | _O_TRUNC | _O_EXCL)) == 0 )
     {
