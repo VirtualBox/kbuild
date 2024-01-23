@@ -1,4 +1,4 @@
-# $Id: MACOSX110.kmk 3495 2020-12-23 20:18:20Z knut.osmundsen@oracle.com $
+# $Id: MACOSX110.kmk 3603 2024-01-23 09:43:42Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Mac OS X v11.0 SDK.
 #
@@ -49,7 +49,8 @@ ifeq ($(PATH_SDK_MACOSX110),)
 endif
 
 ## The MAC_OS_X_VERSION_MIN_REQUIRED and MAC_OS_X_VERSION_MAX_ALLOWED value for this SDK.
-SDK_MACOSX110_VERSION_VALUE := 110000
+SDK_MACOSX110_VERSION_ARG   := 11.0
+SDK_MACOSX110_VERSION_VALUE := $(subst .,,$(SDK_MACOSX110_VERSION_ARG))000
 
 # General Properties (used by kBuild)
 # Note: The MAC_OS_X_VERSION_MAX_ALLOWED is left free for the SDK user to define.
