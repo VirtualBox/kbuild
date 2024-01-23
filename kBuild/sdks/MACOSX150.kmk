@@ -1,4 +1,4 @@
-# $Id: MACOSX150.kmk 3602 2024-01-23 09:35:29Z knut.osmundsen@oracle.com $
+# $Id: MACOSX150.kmk 3603 2024-01-23 09:43:42Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Mac OS X v15.0 SDK.
 #
@@ -53,7 +53,7 @@ endif
 
 ## The MAC_OS_X_VERSION_MIN_REQUIRED and -mmacosx-version-min values for this SDK.
 SDK_MACOSX150_VERSION_ARG   := 15.0
-SDK_MACOSX150_VERSION_VALUE := $(subst .,,$(SDK_MACOSX150_VERSION_VALUE))000
+SDK_MACOSX150_VERSION_VALUE := $(subst .,,$(SDK_MACOSX150_VERSION_ARG))000
 
 # General Properties (used by kBuild)
 # Note: The MAC_OS_X_VERSION_MAX_ALLOWED is left free for the SDK user to define.
