@@ -59,7 +59,7 @@ gmk_eval (const char *buffer, const gmk_floc *gfloc)
   install_variable_buffer (&pbuf, &plen);
 
   s = xstrdup (buffer);
-  eval_buffer (s, flp IF_WITH_VALUE_LENGTH_PARAM (strlen (s) /** @todo suboptimal */));
+  eval_buffer (s, flp IF_WITH_VALUE_LENGTH_PARAM (strchr (s, '\0') /** @todo suboptimal */));
   free (s);
 
   restore_variable_buffer (pbuf, plen);
