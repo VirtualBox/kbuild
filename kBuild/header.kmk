@@ -1,4 +1,4 @@
-# $Id: header.kmk 3579 2023-01-05 01:53:41Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3607 2024-09-09 14:50:55Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3579 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3607 $  )
 
 
 #
@@ -857,6 +857,37 @@ TARGET_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(1)))
 ## Figure out where to put object files.
 # @param    $1      normalized main target
 TARGET_PATH = $(PATH_TARGET)/$(1)
+
+##
+# An internal define used by subheader.kmk, subfooter.kmk, and
+# KB_FN_DO_PASS0_ON_TARGET.
+#
+# @param target    The target to process.
+#
+define def_subfooter_header_target_pass
+ ifndef $(target)_PATH
+  ifndef $(target)_DEFPATH
+   $(target)_DEFPATH := $(PATH_SUB_CURRENT)
+  endif
+  $(call KB_FN_ASSIGN_DEPRECATED,$(target)_PATH,$($(target)_DEFPATH), $(target)_DEFPATH)
+ else ifndef $(target)_DEFPATH
+  $(target)_DEFPATH := $($(target)_PATH)
+ endif
+ ifndef $(target)_MAKEFILE
+  $(target)_MAKEFILE := $(MAKEFILE_CURRENT)
+ endif
+ ifndef $(target)_0_OUTDIR
+  $(target)_0_OUTDIR := $(call TARGET_PATH,$(target))
+  $(call KB_FN_ASSIGN_DEPRECATED,PATH_$(target),$($(target)_0_OUTDIR), $(target)_0_OUTDIR)
+ endif
+endef
+
+##
+# Function to call to set _0_OUTDIR, _DEFPATH, and _MAKEFILE earlier than subfooter.
+# Can be used to avoid exploiting double expansion.
+#
+# @param 1     The target name.
+KB_FN_DO_PASS0_ON_TARGET = $(foreach target,$1,$(if-expr defined($(target)_0_OUTDIR),,$(evalval def_subfooter_header_target_pass)))
 
 ##
 # Checks if the specified short option ($1) is found in the flags ($2),
@@ -1709,38 +1740,6 @@ else
   MSG_L2 ?= %@$(ECHO) "kBuild: $1"
  endif
 endif
-
-
-##
-# An internal define used by subheader.kmk, subfooter.kmk, and
-# KB_FN_DO_PASS0_ON_TARGET.
-#
-# @param target    The target to process.
-#
-define def_subfooter_header_target_pass
- ifndef $(target)_PATH
-  ifndef $(target)_DEFPATH
-   $(target)_DEFPATH := $(PATH_SUB_CURRENT)
-  endif
-  $(call KB_FN_ASSIGN_DEPRECATED,$(target)_PATH,$($(target)_DEFPATH), $(target)_DEFPATH)
- else ifndef $(target)_DEFPATH
-  $(target)_DEFPATH := $($(target)_PATH)
- endif
- ifndef $(target)_MAKEFILE
-  $(target)_MAKEFILE := $(MAKEFILE_CURRENT)
- endif
- ifndef $(target)_0_OUTDIR
-  $(target)_0_OUTDIR := $(call TARGET_PATH,$(target))
-  $(call KB_FN_ASSIGN_DEPRECATED,PATH_$(target),$($(target)_0_OUTDIR), $(target)_0_OUTDIR)
- endif
-endef
-
-##
-# Function to call to set _0_OUTDIR, _DEFPATH, and _MAKEFILE earlier than subfooter.
-# Can be used to avoid exploiting double expansion.
-#
-# @param 1     The target name.
-KB_FN_DO_PASS0_ON_TARGET = $(foreach target,$1,$(if-expr defined($(target)_0_OUTDIR),,$(evalval def_subfooter_header_target_pass)))
 
 
 #
