@@ -1,4 +1,4 @@
-# $Id: header.kmk 3607 2024-09-09 14:50:55Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3608 2024-09-09 14:53:00Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3607 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3608 $  )
 
 
 #
@@ -1245,7 +1245,7 @@ PROPS_INSTALLS_ACCUMULATE_L  := SOURCES EXEC_SOURCES DIRS CLEAN
 ## @name Properties valid on fetches (FETCHES)
 ## @{
 PROPS_FETCHES_SINGLE         := TOOL TEMPLATE FETCHTOOL UNPACKTOOL PATCHTOOL INST FETCHDIR
-PROPS_FETCHES_DEFERRED       :=
+PROPS_FETCHES_DEFERRED       := NAME
 PROPS_FETCHES_ACCUMULATE_R   := FETCHFLAGS UNPACKFLAGS PATCHFLAGS
 PROPS_FETCHES_ACCUMULATE_L   := SOURCES CLEAN
 ## @}

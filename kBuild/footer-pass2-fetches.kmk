@@ -1,4 +1,4 @@
-# $Id: footer-pass2-fetches.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-fetches.kmk 3608 2024-09-09 14:53:00Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Fetches.
 #
@@ -35,6 +35,7 @@
 ## @page pg_fetches 	Fetching Tools, Sources and Similar.
 #
 # The targets listed in the the FETCHES target list have the following attributes:
+#       NAME
 #       SOURCES
 #       INST
 #       FETCHTOOL
@@ -269,7 +270,7 @@ $(eval $(def_fetch_src_fetch_rule))
 #
 # The unpacking / installing.
 #
-local out := $(inst)_kBuild_$(target)_$(srcname)_unpacked.lst
+local out := $(inst)_kBuild_$(name)_$(srcname)_unpacked.lst
 local dirdep := $(call DIRDEP,$(inst))
 local tool := $(firstword \
 	$($(target)_$(source)_UNPACKTOOL)\
@@ -350,9 +351,9 @@ $(out).lst: $(_TARGET_$(target)_UNPACKED) | $(call DIRDEP,$(inst))
 
 $(out)_unfetched:
 	%$$(call MSG_UNFETCH,$(target))
-	$$(QUIET)$$(RM) -f -- $$(addprefix $(inst),$$(shell $$(CAT_EXT) $(out).lst 2> /dev/null | $$(SED) -e '/\/$$$$/d'))
+	$$(QUIET)$$(RM) -f -- $$(qaddprefix sh,$(inst),$$(shell $$(CAT_EXT) $(out).lst 2> /dev/null | $$(SED) -e '/\/$$$$/d' -e 's/ /\\ /g'))
 	$$(QUIET)$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist -- $$(dir $$@) \
-		$$(addprefix $(inst),$$(sort $$(dir $$(shell $$(CAT_EXT) $(out).lst 2> /dev/null))))
+		$$(qaddprefix sh,$(inst),$$(qsortfiles ,$$(qdir ,$$(shell $$(CAT_EXT) $(out).lst 2> /dev/null | $$(SED) -e '/\/$$$$/d' -e 's/ /\\ /g'))))
 	$$(QUIET)$$(RM) -f -- $(out).lst $(out)
 	$$(QUIET)$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist -- $$(dir $$@)
 
@@ -379,6 +380,7 @@ endef
 # @param	bld_trg_arch
 define def_fetch
 # common
+local name := $(firstword $($(target)_NAME) $(target))
 ## @todo Install-revamp: FIXME
 INSTARGET_$(target) := $($(target)_INST)
 ifneq ($(patsubst %/,ok,$(INSTARGET_$(target))),ok)
@@ -391,13 +393,13 @@ _TARGET_$(target)_DIGEST :=
 local clean_files := $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(KBUILD_TYPE))
 
 # The 'sources'.
-#$ (warning dbg fetch: target=$(target) sources=$($(target)_SOURCES) $($(target)_SOURCES.$(KBUILD_TYPE)) $($(target)_SOURCES.$(KBUILD_TARGET)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(KBUILD_TARGET).$(bld_trg_arch)))
+#$ (warning dbg fetch: target=$(target) name=$(name) sources=$($(target)_SOURCES) $($(target)_SOURCES.$(KBUILD_TYPE)) $($(target)_SOURCES.$(KBUILD_TARGET)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(KBUILD_TARGET).$(bld_trg_arch)))
 $(foreach source,$($(target)_SOURCES) $($(target)_SOURCES.$(KBUILD_TYPE)) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)),\
 	$(evalval def_fetch_src))
 
 # The target.
 local inst := $(INSTARGET_$(target))
-local out := $(inst)_kBuild_fetch_$(target)
+local out := $(inst)_kBuild_fetch_$(name)
 
 $(eval includedep $(out))
 
