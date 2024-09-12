@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3539 2021-12-21 12:21:29Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3610 2024-09-12 20:38:22Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for the source directory.
 #
@@ -27,7 +27,11 @@ SUB_DEPTH = ..
 include $(KBUILD_PATH)/subheader.kmk
 
 include $(PATH_SUB_CURRENT)/lib/Makefile.kmk
-include $(PATH_SUB_CURRENT)/sed/Makefile.kmk
+if1of ($(KBUILD_TARGET), )
+ include $(PATH_SUB_CURRENT)/sed/Makefile.kmk
+else
+ include $(PATH_SUB_CURRENT)/oldsed/Makefile.kmk
+endif
 include $(PATH_SUB_CURRENT)/kmk/Makefile.kmk
 include $(PATH_SUB_CURRENT)/kash/Makefile.kmk
 include $(PATH_SUB_CURRENT)/kDepPre/Makefile.kmk
