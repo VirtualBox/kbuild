@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 3556 2022-02-18 02:02:07Z knut.osmundsen@oracle.com $
+# $Id: env.sh 3609 2024-09-12 20:36:11Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -376,6 +376,9 @@ if test -z "$KBUILD_HOST_ARCH"; then
             ;;
         ia64)
             KBUILD_HOST_ARCH='ia64'
+            ;;
+        loongarch64)
+            KBUILD_HOST_ARCH='loongarch64'
             ;;
         m68k)
             KBUILD_HOST_ARCH='m68k'
