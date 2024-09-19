@@ -1,10 +1,10 @@
-.SH NAME
-sed \- a Stream EDitor
-.SH SYNOPSIS
+[NAME]
+sed \- stream editor for filtering and transforming text
+[SYNOPSIS]
 .nf
 sed [-V] [--version] [--help] [-n] [--quiet] [--silent]
     [-l N] [--line-length=N] [-u] [--unbuffered]
-    [-r] [--regexp-extended] 
+    [-E] [-r] [--regexp-extended]
     [-e script] [--expression=script]
     [-f script-file] [--file=script-file]
     [script-if-no-other-script]
@@ -42,7 +42,7 @@ commands.
 .TP
 .RI # comment
 The comment extends until the next newline (or the end of a
-.B -e
+.B \-e
 script fragment).
 .TP
 }
@@ -67,15 +67,15 @@ Insert
 .IR text ,
 which has each embedded newline preceded by a backslash.
 .TP
-q
+q [\fIexit-code\fR]
 Immediately quit the \*(sd script without processing
-any more input,
-except that if auto-print is not disabled
-the current pattern space will be printed.
+any more input, except that if auto-print is not disabled
+the current pattern space will be printed.  The exit code
+argument is a GNU extension.
 .TP
-Q
+Q [\fIexit-code\fR]
 Immediately quit the \*(sd script without processing
-any more input.
+any more input.  This is a GNU extension.
 .TP
 .RI r\  filename
 Append text read from
@@ -84,6 +84,8 @@ Append text read from
 .RI R\  filename
 Append a line read from
 .IR filename .
+Each invocation of the command reads a line from the file.
+This is a GNU extension.
 .SS
 Commands which accept address ranges
 .TP
@@ -92,24 +94,6 @@ Begin a block of commands (end with a }).
 .TP
 .RI b\  label
 Branch to
-.IR label ;
-if
-.I label
-is omitted, branch to end of script.
-.TP
-.RI t\  label
-If a s/// has done a successful substitution since the
-last input line was read and since the last t or T
-command, then branch to
-.IR label ;
-if
-.I label
-is omitted, branch to end of script.
-.TP
-.RI T\  label
-If no s/// has done a successful substitution since the
-last input line was read and since the last t or T
-command, then branch to
 .IR label ;
 if
 .I label
@@ -127,9 +111,10 @@ Delete pattern space.
 Start next cycle.
 .TP
 D
-Delete up to the first embedded newline in the pattern space.
-Start next cycle, but skip reading from the input
-if there is still data in the pattern space.
+If pattern space contains no newline, start a normal new cycle as if
+the d command was issued.  Otherwise, delete text in the pattern
+space up to the first newline, and restart cycle with the resultant
+pattern space, without reading a new line of input.
 .TP
 h H
 Copy/append pattern space to hold space.
@@ -137,11 +122,14 @@ Copy/append pattern space to hold space.
 g G
 Copy/append hold space to pattern space.
 .TP
-x
-Exchange the contents of the hold and pattern spaces.
-.TP
 l
 List out the current line in a ``visually unambiguous'' form.
+.TP
+.RI l\  width
+List out the current line in a ``visually unambiguous'' form,
+breaking it at
+.I width
+characters.  This is a GNU extension.
 .TP
 n N
 Read/append the next line of input into the pattern space.
@@ -168,6 +156,25 @@ and the special escapes \e1 through \e9 to refer to the
 corresponding matching sub-expressions in the
 .IR regexp .
 .TP
+.RI t\  label
+If a s/// has done a successful substitution since the
+last input line was read and since the last t or T
+command, then branch to
+.IR label ;
+if
+.I label
+is omitted, branch to end of script.
+.TP
+.RI T\  label
+If no s/// has done a successful substitution since the
+last input line was read and since the last t or T
+command, then branch to
+.IR label ;
+if
+.I label
+is omitted, branch to end of script.  This is a GNU
+extension.
+.TP
 .RI w\  filename
 Write the current pattern space to
 .IR filename .
@@ -175,6 +182,10 @@ Write the current pattern space to
 .RI W\  filename
 Write the first line of the current pattern space to
 .IR filename .
+This is a GNU extension.
+.TP
+x
+Exchange the contents of the hold and pattern spaces.
 .TP
 .RI y/ source / dest /
 Transliterate the characters in the pattern space which appear in
@@ -222,16 +233,23 @@ The following address types are supported:
 .TP
 .I number
 Match only the specified line
-.IR number .
+.IR number
+(which increments cumulatively across files, unless the
+.B \-s
+option is specified on the command line).
 .TP
 .IR first ~ step
 Match every
 .IR step 'th
 line starting with line
 .IR first .
-For example, ``sed -n 1~2p'' will print all the odd-numbered lines in
+For example, ``sed \-n 1~2p'' will print all the odd-numbered lines in
 the input stream, and the address 2~5 will match every fifth line,
-starting with the second. (This is an extension.)
+starting with the second.
+.I first
+can be zero; in this case, \*(sd operates as if it were equal to
+.IR step .
+(This is an extension.)
 .TP
 $
 Match the last line.
@@ -239,6 +257,8 @@ Match the last line.
 .RI / regexp /
 Match lines matching the regular expression
 .IR regexp .
+Matching is performed on the current pattern space, which
+can be modified with commands such as ``s///''.
 .TP
 .BI \fR\e\fPc regexp c
 Match lines matching the regular expression
@@ -262,6 +282,9 @@ matches the very first line of input the
 form will be at the end of its range, whereas the
 .RI 1, addr2
 form will still be at the beginning of its range.
+This works only when
+.I addr2
+is a regular expression.
 .TP
 .IR addr1 ,+ N
 Will match
@@ -291,6 +314,9 @@ and similarly for
 .BR \ea ,
 .BR \et ,
 and other sequences.
+The \fI-E\fP option switches to using extended regular expressions instead;
+it has been supported for years by GNU sed, and is now
+included in POSIX.
 
 [SEE ALSO]
 .BR awk (1),
@@ -307,7 +333,6 @@ http://sed.sf.net/grabbag/.
 [BUGS]
 .PP
 E-mail bug reports to
-.BR bonzini@gnu.org .
-Be sure to include the word ``sed'' somewhere in the ``Subject:'' field.
-Also, please include the output of ``sed --version'' in the body
+.BR bug-sed@gnu.org .
+Also, please include the output of ``sed \-\-version'' in the body
 of your report if at all possible.

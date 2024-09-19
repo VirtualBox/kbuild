@@ -1,52 +1,70 @@
-/* strerror -- return a string corresponding to an error number.
-   This is a quickie version only intended as compatability glue
-   for systems which predate the ANSI C definition of the function;
-   the glibc version is recommended for more general use.
+/* strerror.c --- POSIX compatible system error routine
 
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright (C) 2007-2022 Free Software Foundation, Inc.
 
-   This program is free software; you can redistribute it and/or modify it
-   under the terms of the GNU General Public License as published by the
-   Free Software Foundation; either version 2, or (at your option) any
-   later version.
+   This file is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Lesser General Public License as
+   published by the Free Software Foundation; either version 2.1 of the
+   License, or (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
+   This file is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, 51 Franklin Street, Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
+   You should have received a copy of the GNU Lesser General Public License
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
-#include "config.h"
+#include <config.h>
 
-#ifndef HAVE_STRERROR
+/* Specification.  */
+#include <string.h>
 
-# ifndef BOOTSTRAP
-#  include <stdio.h>
-# endif
-# ifdef HAVE_STRING_H
-#  include <string.h>
-# endif
-# include <errno.h>
-# undef strerror
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-extern int sys_nerr;
-extern char *sys_errlist[];
+#include "intprops.h"
+#include "strerror-override.h"
+
+/* Use the system functions, not the gnulib overrides in this file.  */
+#undef sprintf
 
 char *
-strerror(e)
-  int e;
+strerror (int n)
+#undef strerror
 {
-  static char unknown_string[] =
-    "Unknown error code #xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+  static char buf[STACKBUF_LEN];
+  size_t len;
 
-  if (0<=e && e<sys_nerr)
-    return sys_errlist[e];
-  sprintf(unknown_string+20, "%d", e);
-  return unknown_string;
+  /* Cast away const, due to the historical signature of strerror;
+     callers should not be modifying the string.  */
+  const char *msg = strerror_override (n);
+  if (msg)
+    return (char *) msg;
+
+  msg = strerror (n);
+
+  /* Our strerror_r implementation might use the system's strerror
+     buffer, so all other clients of strerror have to see the error
+     copied into a buffer that we manage.  This is not thread-safe,
+     even if the system strerror is, but portable programs shouldn't
+     be using strerror if they care about thread-safety.  */
+  if (!msg || !*msg)
+    {
+      static char const fmt[] = "Unknown error %d";
+      static_assert (sizeof buf >= sizeof (fmt) + INT_STRLEN_BOUND (n));
+      sprintf (buf, fmt, n);
+      errno = EINVAL;
+      return buf;
+    }
+
+  /* Fix STACKBUF_LEN if this ever aborts.  */
+  len = strlen (msg);
+  if (sizeof buf <= len)
+    abort ();
+
+  memcpy (buf, msg, len + 1);
+  return buf;
 }
-
-#endif /* !HAVE_STRERROR */

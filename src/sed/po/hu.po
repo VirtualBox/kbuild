@@ -1,280 +1,774 @@
-# Hungarian translation of GNU sed
-# Copyright (C) 2002 Free Software Foundation, Inc.
-# G�bor Istv�n <stive@mezobereny.hu>, 2002.
-# Mih�ly Gyulai <gyulai@fbi.hu>, 2003.
+# Hungarian translation of sed
+# Copyright (C) 2002, 2014, 2016, 2018 Free Software Foundation, Inc.
+# This file is distributed under the same license as the sed package.
+#
+# First translator: Gábor István <stive@mezobereny.hu>, 2002.
+# Mihály Gyulai <gyulai@fbi.hu>, 2003, 2004.
+# Balázs Úr <urbalazs@gmail.com>, 2014.
+# Gabor Kelemen <kelemeng@gnome.hu>, 2016, 2018.
 msgid ""
 msgstr ""
-"Project-Id-Version: sed 4.0.8\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2006-02-03 10:26+0100\n"
-"PO-Revision-Date: 2003-10-26 09:28+0100\n"
-"Last-Translator: Mih�ly Gyulai <gyulai@fbi.hu>\n"
+"Project-Id-Version: sed 4.2.2.177\n"
+"Report-Msgid-Bugs-To: bug-gnu-utils@gnu.org\n"
+"POT-Creation-Date: 2022-11-06 13:50-0800\n"
+"PO-Revision-Date: 2018-03-20 22:12+0100\n"
+"Last-Translator: Gabor Kelemen <kelemeng@gnome.hu>\n"
 "Language-Team: Hungarian <translation-team-hu@lists.sourceforge.net>\n"
+"Language: hu\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-2\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Lokalize 1.5\n"
 
-#: sed/compile.c:162
+#: lib/closeout.c:121
+msgid "write error"
+msgstr "íráshiba"
+
+#: lib/copy-acl.c:54
+#, c-format
+msgid "preserving permissions for %s"
+msgstr "%s jogosultságainak megtartása"
+
+#: lib/dfa.c:894
+msgid "unbalanced ["
+msgstr "kiegyensúlyozatlan ["
+
+#: lib/dfa.c:1015
+msgid "invalid character class"
+msgstr "érvénytelen karakterosztály"
+
+#: lib/dfa.c:1143
+msgid "character class syntax is [[:space:]], not [:space:]"
+msgstr "a karakterosztály szintaxisa [[:space:]], nem [:space:]"
+
+#: lib/dfa.c:1209
+msgid "unfinished \\ escape"
+msgstr "befejezetlen \\ escape"
+
+#: lib/dfa.c:1319
 #, fuzzy
-msgid "multiple `!'s"
-msgstr "T�bb `!'"
+msgid "? at start of expression"
+msgstr "Érvénytelen reguláris kifejezés"
 
-#: sed/compile.c:163
+#: lib/dfa.c:1331
 #, fuzzy
-msgid "unexpected `,'"
-msgstr "V�ratlan `,'"
+msgid "* at start of expression"
+msgstr "Érvénytelen reguláris kifejezés"
 
-#: sed/compile.c:164
+#: lib/dfa.c:1345
 #, fuzzy
-msgid "invalid usage of +N or ~N as first address"
-msgstr "Nem lehet haszn�lni a +N-t vagy ~N-t elso c�mk�nt"
+msgid "+ at start of expression"
+msgstr "Érvénytelen reguláris kifejezés"
 
-#: sed/compile.c:165
+#: lib/dfa.c:1400
 #, fuzzy
-msgid "unmatched `{'"
-msgstr "Nincs p�rban `{'"
+msgid "{...} at start of expression"
+msgstr "Érvénytelen reguláris kifejezés"
 
-#: sed/compile.c:166
-#, fuzzy
-msgid "unexpected `}'"
-msgstr "Nincs p�rban `}'"
+#: lib/dfa.c:1403
+msgid "invalid content of \\{\\}"
+msgstr "a \\{\\} tartalma érvénytelen"
 
-#: sed/compile.c:167
-#, fuzzy
-msgid "extra characters after command"
-msgstr "Extra karakterek a parancs ut�n "
+#: lib/dfa.c:1405
+msgid "regular expression too big"
+msgstr "a szabályos kifejezés túl nagy"
 
-#: sed/compile.c:168
-#, fuzzy
-msgid "expected \\ after `a', `c' or `i'"
-msgstr "`a', `c' vagy `i' parancs ut�n \\ sz�ks�ges"
-
-#: sed/compile.c:169
-msgid "`}' doesn't want any addresses"
-msgstr "`}' nem ig�nyel c�mz�st"
-
-#: sed/compile.c:170
-msgid ": doesn't want any addresses"
-msgstr ": nem ig�nyel c�mz�st"
-
-#: sed/compile.c:171
-#, fuzzy
-msgid "comments don't accept any addresses"
-msgstr "Megjegyz�sben nem lehet c�mz�s"
-
-#: sed/compile.c:172
-#, fuzzy
-msgid "missing command"
-msgstr "Hi�nyz� parancs"
-
-#: sed/compile.c:173
-#, fuzzy
-msgid "command only uses one address"
-msgstr "A parancs csak egy c�mz�st haszn�l"
-
-#: sed/compile.c:174
-#, fuzzy
-msgid "unterminated address regex"
-msgstr "Befejezetlen regex c�m"
-
-#: sed/compile.c:175
-#, fuzzy
-msgid "unterminated `s' command"
-msgstr "Befejezetlen `s' parancs"
-
-#: sed/compile.c:176
-#, fuzzy
-msgid "unterminated `y' command"
-msgstr "Befejezetlen `y' parancs"
-
-#: sed/compile.c:177
-#, fuzzy
-msgid "unknown option to `s'"
-msgstr "Ismeretlen `s' opci�"
-
-#: sed/compile.c:178
-msgid "multiple `p' options to `s' command"
-msgstr "t�bbsz�r�s `p' opci�, `s' parancs mellett"
-
-#: sed/compile.c:179
-msgid "multiple `g' options to `s' command"
-msgstr "t�bbsz�r�s `g' opci�, `s' parancs mellett"
-
-#: sed/compile.c:180
-msgid "multiple number options to `s' command"
-msgstr "t�bbsz�r�s sz�m opci�, `s' parancs mellett"
-
-#: sed/compile.c:181
-msgid "number option to `s' command may not be zero"
-msgstr "a(z) `s' parancs sz�m opci�ja nem lehet nulla"
-
-#: sed/compile.c:182
-#, fuzzy
-msgid "strings for `y' command are different lengths"
-msgstr "a(z) `y' parancs sz�vegeinek hossza k�l�nb�z�"
-
-#: sed/compile.c:183
-msgid "delimiter character is not a single-byte character"
+#: lib/dfa.c:1555
+msgid "stray \\ before unprintable character"
 msgstr ""
 
-#: sed/compile.c:184
+#: lib/dfa.c:1557
+msgid "stray \\ before white space"
+msgstr ""
+
+#: lib/dfa.c:1561
+#, c-format
+msgid "stray \\ before %lc"
+msgstr ""
+
+#: lib/dfa.c:1562
+msgid "stray \\"
+msgstr ""
+
+#: lib/dfa.c:1917
+msgid "unbalanced ("
+msgstr "kiegyensúlyozatlan ("
+
+#: lib/dfa.c:2034
+msgid "no syntax specified"
+msgstr "nincs szintaxis megadva"
+
+#: lib/dfa.c:2045
+msgid "unbalanced )"
+msgstr "kiegyensúlyozatlan )"
+
+#: lib/error.c:195
+msgid "Unknown system error"
+msgstr "Ismeretlen rendszerhiba"
+
+#: lib/obstack.c:337 lib/obstack.c:339 lib/xalloc-die.c:34
+msgid "memory exhausted"
+msgstr "elfogyott a memória"
+
+#. TRANSLATORS:
+#. Get translations for open and closing quotation marks.
+#. The message catalog should translate "`" to a left
+#. quotation mark suitable for the locale, and similarly for
+#. "'".  For example, a French Unicode local should translate
+#. these to U+00AB (LEFT-POINTING DOUBLE ANGLE
+#. QUOTATION MARK), and U+00BB (RIGHT-POINTING DOUBLE ANGLE
+#. QUOTATION MARK), respectively.
+#.
+#. If the catalog has no translation, we will try to
+#. use Unicode U+2018 (LEFT SINGLE QUOTATION MARK) and
+#. Unicode U+2019 (RIGHT SINGLE QUOTATION MARK).  If the
+#. current locale is not Unicode, locale_quoting_style
+#. will quote 'like this', and clocale_quoting_style will
+#. quote "like this".  You should always include translations
+#. for "`" and "'" even if U+2018 and U+2019 are appropriate
+#. for your locale.
+#.
+#. If you don't know what to put here, please see
+#. <https://en.wikipedia.org/wiki/Quotation_marks_in_other_languages>
+#. and use glyphs suitable for your language.
+#: lib/quotearg.c:354
+msgid "`"
+msgstr "„"
+
+#: lib/quotearg.c:355
+msgid "'"
+msgstr "”"
+
+#: lib/regcomp.c:122
+msgid "Success"
+msgstr "Sikeres"
+
+#: lib/regcomp.c:125
+msgid "No match"
+msgstr "Nincs találat"
+
+#: lib/regcomp.c:128
+msgid "Invalid regular expression"
+msgstr "Érvénytelen reguláris kifejezés"
+
+#: lib/regcomp.c:131
+msgid "Invalid collation character"
+msgstr "Érvénytelen összehasonlító karakter"
+
+#: lib/regcomp.c:134
+msgid "Invalid character class name"
+msgstr "Érvénytelen karakterosztály-név"
+
+#: lib/regcomp.c:137
+msgid "Trailing backslash"
+msgstr "Lezáró fordított perjel"
+
+#: lib/regcomp.c:140
+msgid "Invalid back reference"
+msgstr "Érvénytelen vissza-hivatkozás"
+
+#: lib/regcomp.c:143
+msgid "Unmatched [, [^, [:, [., or [="
+msgstr "Pár nélküli [, [^, [:, [., vagy [="
+
+#: lib/regcomp.c:146
+msgid "Unmatched ( or \\("
+msgstr "Nincs párban ( vagy \\("
+
+#: lib/regcomp.c:149
+msgid "Unmatched \\{"
+msgstr "Nincs párban \\{"
+
+#: lib/regcomp.c:152
+msgid "Invalid content of \\{\\}"
+msgstr "\\{\\}-nek érvénytelen a tartalma"
+
+#: lib/regcomp.c:155
+msgid "Invalid range end"
+msgstr "Érvénytelen tartományvég"
+
+#: lib/regcomp.c:158
+msgid "Memory exhausted"
+msgstr "Elfogyott a memória"
+
+#: lib/regcomp.c:161
+msgid "Invalid preceding regular expression"
+msgstr "Érvénytelen megelőző reguláris kifejezés"
+
+#: lib/regcomp.c:164
+msgid "Premature end of regular expression"
+msgstr "Reguláris kifejezés túl korai vége"
+
+#: lib/regcomp.c:167
+msgid "Regular expression too big"
+msgstr "Túl nagy reguláris kifejezés"
+
+#: lib/regcomp.c:170
+msgid "Unmatched ) or \\)"
+msgstr "Nincs párban ) vagy \\)"
+
+#: lib/regcomp.c:650
+msgid "No previous regular expression"
+msgstr "Nincsen előző reguláris kifejezés"
+
+#: lib/set-acl.c:46
+#, c-format
+msgid "setting permissions for %s"
+msgstr "%s jogosultságainak beállítása"
+
+#: lib/version-etc.c:73
+#, c-format
+msgid "Packaged by %s (%s)\n"
+msgstr "Csomagolta: %s (%s)\n"
+
+#: lib/version-etc.c:76
+#, c-format
+msgid "Packaged by %s\n"
+msgstr "Csomagolta: %s\n"
+
+#. TRANSLATORS: Translate "(C)" to the copyright symbol
+#. (C-in-a-circle), if this symbol is available in the user's
+#. locale.  Otherwise, do not translate "(C)"; leave it as-is.
+#: lib/version-etc.c:83
+msgid "(C)"
+msgstr "©"
+
+#. TRANSLATORS: The %s placeholder is the web address of the GPL license.
+#: lib/version-etc.c:88
+#, fuzzy, c-format
+msgid ""
+"License GPLv3+: GNU GPL version 3 or later <%s>.\n"
+"This is free software: you are free to change and redistribute it.\n"
+"There is NO WARRANTY, to the extent permitted by law.\n"
+msgstr ""
+"\n"
+"A licenc GPLv3+: a GNU GPL 3. vagy újabb változata <http://gnu.org/licenses/"
+"gpl.html>\n"
+"Ez egy szabad szoftver, terjesztheti és/vagy módosíthatja.\n"
+"NINCS GARANCIA, a törvény által engedélyezett mértékig.\n"
+"\n"
+
+#. TRANSLATORS: %s denotes an author name.
+#: lib/version-etc.c:105
+#, c-format
+msgid "Written by %s.\n"
+msgstr "Írta: %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#: lib/version-etc.c:109
+#, c-format
+msgid "Written by %s and %s.\n"
+msgstr "Írta: %s és %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#: lib/version-etc.c:113
+#, c-format
+msgid "Written by %s, %s, and %s.\n"
+msgstr "Írta: %s, %s és %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:120
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"and %s.\n"
+msgstr ""
+"Írta: %s, %s, %s\n"
+"és %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:127
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, and %s.\n"
+msgstr ""
+"Írta: %s, %s, %s,\n"
+"%s és %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:134
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, and %s.\n"
+msgstr ""
+"Írta: %s, %s, %s,\n"
+"%s, %s és %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:142
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, and %s.\n"
+msgstr ""
+"Írta: %s, %s, %s,\n"
+"%s, %s, %s és %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:150
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"and %s.\n"
+msgstr ""
+"Írta: %s, %s, %s,\n"
+"%s, %s, %s, %s\n"
+"és %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:159
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"%s, and %s.\n"
+msgstr ""
+"Írta: %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"%s és %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:170
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"%s, %s, and others.\n"
+msgstr ""
+"Írta: %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"%s, %s és mások.\n"
+
+#. TRANSLATORS: The placeholder indicates the bug-reporting address
+#. for this package.  Please add _another line_ saying
+#. "Report translation bugs to <...>\n" with the address for translation
+#. bugs (typically your translation team's web or email address).
+#: lib/version-etc.c:249
+#, fuzzy, c-format
+msgid "Report bugs to: %s\n"
+msgstr ""
+"\n"
+"A hibák a(z) %s címen jelenthetők.\n"
+
+#: lib/version-etc.c:251
+#, c-format
+msgid "Report %s bugs to: %s\n"
+msgstr "A(z) %s hibái a(z) %s címen jelenthetők.\n"
+
+#: lib/version-etc.c:255 lib/version-etc.c:257
+#, c-format
+msgid "%s home page: <%s>\n"
+msgstr "A(z) %s honlapja: <%s>\n"
+
+#: lib/version-etc.c:260
+#, fuzzy, c-format
+msgid "General help using GNU software: <%s>\n"
+msgstr ""
+"Általános segítség a GNU szoftverek használatához: <http://www.gnu.org/"
+"gethelp/>\n"
+
+#: sed/compile.c:146
+msgid "multiple `!'s"
+msgstr "több „!”"
+
+#: sed/compile.c:147
+msgid "unexpected `,'"
+msgstr "váratlan „,”"
+
+#: sed/compile.c:149
+msgid "invalid usage of +N or ~N as first address"
+msgstr "a +N vagy ~N használata első címként érvénytelen"
+
+#: sed/compile.c:150
+msgid "unmatched `{'"
+msgstr "nincs párban „{”"
+
+#: sed/compile.c:151
+msgid "unexpected `}'"
+msgstr "nincs párban „}”"
+
+#: sed/compile.c:153
+msgid "extra characters after command"
+msgstr "extra karakterek a parancs után"
+
+#: sed/compile.c:155
+msgid "expected \\ after `a', `c' or `i'"
+msgstr "az „a”, „c” vagy „i” után \\ szükséges"
+
+#: sed/compile.c:157
+msgid "`}' doesn't want any addresses"
+msgstr "„}” nem igényel címzést"
+
+#: sed/compile.c:159
+msgid ": doesn't want any addresses"
+msgstr ": nem igényel címzést"
+
+#: sed/compile.c:161
+msgid "comments don't accept any addresses"
+msgstr "megjegyzésben nem lehet címzés"
+
+#: sed/compile.c:162
+msgid "missing command"
+msgstr "hiányzó parancs"
+
+#: sed/compile.c:163
+msgid "command only uses one address"
+msgstr "a parancs csak egy címzést használ"
+
+#: sed/compile.c:165
+msgid "unterminated address regex"
+msgstr "befejezetlen regex cím"
+
+#: sed/compile.c:166
+msgid "unterminated `s' command"
+msgstr "befejezetlen „s” parancs"
+
+#: sed/compile.c:167
+msgid "unterminated `y' command"
+msgstr "befejezetlen „y” parancs"
+
+#: sed/compile.c:168
+msgid "unknown option to `s'"
+msgstr "ismeretlen „s” kapcsoló"
+
+#: sed/compile.c:170
+msgid "multiple `p' options to `s' command"
+msgstr "többszörös „p” kapcsoló az „s” parancshoz"
+
+#: sed/compile.c:172
+msgid "multiple `g' options to `s' command"
+msgstr "többszörös „g” kapcsoló az „s” parancshoz"
+
+#: sed/compile.c:174
+msgid "multiple number options to `s' command"
+msgstr "többszörös szám kapcsoló az „s” parancshoz"
+
+#: sed/compile.c:176
+msgid "number option to `s' command may not be zero"
+msgstr "az „s” parancs szám kapcsolója nem lehet nulla"
+
+#: sed/compile.c:178
+msgid "strings for `y' command are different lengths"
+msgstr "az „y” parancs szövegeinek hossza különböző"
+
+#: sed/compile.c:180
+msgid "delimiter character is not a single-byte character"
+msgstr "az elválasztó karakter nem egy bájtból áll"
+
+#: sed/compile.c:182
 msgid "expected newer version of sed"
-msgstr "a 'sed' program �jabb verzi�j�ra van sz�ks�g"
+msgstr "a sed újabb verziójára van szükség"
+
+#: sed/compile.c:184
+msgid "invalid usage of line address 0"
+msgstr "a 0 sor címzés használata érvénytelen"
 
 #: sed/compile.c:185
-#, fuzzy
-msgid "invalid usage of line address 0"
-msgstr "A parancs csak egy c�mz�st haszn�l"
-
-#: sed/compile.c:186
-#, fuzzy, c-format
+#, c-format
 msgid "unknown command: `%c'"
-msgstr "Ismeretlen parancs:"
+msgstr "ismeretlen parancs: „%c”"
 
-#: sed/compile.c:209
+#: sed/compile.c:187
+msgid "incomplete command"
+msgstr "hiányos parancs"
+
+#: sed/compile.c:189
+msgid "\":\" lacks a label"
+msgstr "„:” után hiányzik a címke"
+
+#: sed/compile.c:191
+msgid "recursive escaping after \\c not allowed"
+msgstr "rekurzív escapelés a \\c után nem engedélyezett"
+
+#: sed/compile.c:193
+msgid "e/r/w commands disabled in sandbox mode"
+msgstr ""
+
+#: sed/compile.c:218
 #, c-format
 msgid "%s: file %s line %lu: %s\n"
-msgstr "%s: f�jl %s sor %lu: %s\n"
+msgstr "%s: %s fájl %lu sor: %s\n"
 
-#: sed/compile.c:212
+#: sed/compile.c:221
 #, c-format
 msgid "%s: -e expression #%lu, char %lu: %s\n"
-msgstr "%s: -e kifejez�s #%lu, karakter %lu: %s\n"
+msgstr "%s: -e kifejezés #%lu, karakter %lu: %s\n"
 
-#: sed/compile.c:1644
-#, fuzzy, c-format
+#: sed/compile.c:1623
+#, c-format
 msgid "can't find label for jump to `%s'"
-msgstr "Az ugr�shoz (`%s') nem tal�lom a c�mk�t"
+msgstr "az ugráshoz („%s”) nem található címke"
 
-#: sed/execute.c:650
+#: sed/execute.c:253 sed/execute.c:270
+#, c-format
+msgid "case conversion produced an invalid character"
+msgstr "a kis- és nagybetűk átalakítása érvénytelen karaktert eredményezett"
+
+#: sed/execute.c:565
 #, c-format
 msgid "%s: can't read %s: %s\n"
-msgstr "%s: nem lehet olvasni %s: %s\n"
+msgstr "%s: %s nem olvasható: %s\n"
 
-#: sed/execute.c:673
-#, fuzzy, c-format
+#: sed/execute.c:591
+#, c-format
 msgid "couldn't edit %s: is a terminal"
-msgstr "Nem lehet megnyitni a(z) %s f�jlt: %s"
+msgstr "nem lehet szerkeszteni (%s): terminál"
 
-#: sed/execute.c:677
-#, fuzzy, c-format
+#: sed/execute.c:596
+#, c-format
 msgid "couldn't edit %s: not a regular file"
-msgstr "Nem lehet megnyitni a(z) %s f�jlt: %s"
+msgstr "nem lehet szerkeszteni (%s): nem szabályos fájl"
 
-#: sed/execute.c:684 lib/utils.c:196
-#, fuzzy, c-format
+#: sed/execute.c:607
+#, c-format
+msgid "%s: warning: failed to set default file creation context to %s: %s"
+msgstr ""
+"%s: figyelem: nem sikerült beállítani a(z) %s alapértelmezett fájl "
+"létrehozási környezetét: %s"
+
+#: sed/execute.c:615
+#, c-format
+msgid "%s: warning: failed to get security context of %s: %s"
+msgstr "%s: figyelem: nem sikerült lekérni a(z) %s biztonsági környezetét: %s"
+
+#: sed/execute.c:633 sed/utils.c:215
+#, c-format
 msgid "couldn't open temporary file %s: %s"
-msgstr "Nem lehet megnyitni az �tmeneti f�jlt: %s: %s"
+msgstr "nem lehet megnyitni a(z) %s átmeneti fájlt: %s"
 
-#: sed/execute.c:1206 sed/execute.c:1387
+#: sed/execute.c:1170 sed/execute.c:1369
 msgid "error in subprocess"
 msgstr "hiba az alfolyamatban"
 
-#: sed/execute.c:1208
+#: sed/execute.c:1172
 msgid "option `e' not supported"
-msgstr "az `e' opci� nincs t�mogatva"
+msgstr "az „e” kapcsoló nem támogatott"
 
-#: sed/execute.c:1389
+#: sed/execute.c:1350
 msgid "`e' command not supported"
-msgstr "az `e' parancs nincs t�mogatva"
+msgstr "az „e” parancs nem támogatott"
 
-#: sed/execute.c:1714
+#: sed/execute.c:1672
 msgid "no input files"
-msgstr ""
-
-#: sed/regexp.c:39
-#, fuzzy
-msgid "no previous regular expression"
-msgstr "Nincsen el�z� regul�ris kifejez�s"
+msgstr "nincsenek bemeneti fájlok"
 
 #: sed/regexp.c:40
-#, fuzzy
-msgid "cannot specify modifiers on empty regexp"
-msgstr "Nem lehet m�dos�t�t megadni �res regul�ris kifejez�shez"
+msgid "no previous regular expression"
+msgstr "nincs előző reguláris kifejezés"
 
-#: sed/regexp.c:115
-#, fuzzy, c-format
+#: sed/regexp.c:125
+#, c-format
 msgid "invalid reference \\%d on `s' command's RHS"
-msgstr "Hib�s hivatkoz�s (\\%d) a(z) `s' parancs RHS-�re"
+msgstr "érvénytelen hivatkozás (\\%d) az „s” parancs RHS-ére"
 
-#: sed/sed.c:93
-msgid ""
-"  -R, --regexp-perl\n"
-"                 use Perl 5's regular expressions syntax in the script.\n"
+#: sed/regexp.c:196
+msgid "regex input buffer length larger than INT_MAX"
 msgstr ""
-"  -R --regexp-perl\n"
-"                Perl 5 regul�ris kifejez�s nyelvtan�nak haszn�lata.\n"
 
-#: sed/sed.c:98
+#: sed/sed.c:37
+msgid "Jay Fenlason"
+msgstr "Jay Fenlason"
+
+#: sed/sed.c:38
+msgid "Tom Lord"
+msgstr "Tom Lord"
+
+#: sed/sed.c:39
+msgid "Ken Pizzini"
+msgstr "Ken Pizzini"
+
+#: sed/sed.c:40
+msgid "Paolo Bonzini"
+msgstr "Paolo Bonzini"
+
+#: sed/sed.c:41
+msgid "Jim Meyering"
+msgstr ""
+
+#: sed/sed.c:42
+msgid "Assaf Gordon"
+msgstr ""
+
+#: sed/sed.c:103
+#, fuzzy, c-format
+msgid ""
+"GNU sed home page: <https://www.gnu.org/software/sed/>.\n"
+"General help using GNU software: <https://www.gnu.org/gethelp/>.\n"
+msgstr ""
+"GNU sed honlap: <http://www.gnu.org/software/sed/>.\n"
+"Általános segítség a GNU szoftverek használatához: <http://www.gnu.org/"
+"gethelp/>.\n"
+
+#: sed/sed.c:109
+#, c-format
+msgid "E-mail bug reports to: <%s>.\n"
+msgstr "Hibajelentést a következő címre küldhet: <%s>.\n"
+
+#: sed/sed.c:117
+msgid "This sed program was built with SELinux support."
+msgstr ""
+
+#: sed/sed.c:119
+msgid "SELinux is enabled on this system."
+msgstr ""
+
+#: sed/sed.c:121
+msgid "SELinux is disabled on this system."
+msgstr ""
+
+#: sed/sed.c:123
+msgid "This sed program was built without SELinux support."
+msgstr ""
+
+#: sed/sed.c:133
 #, c-format
 msgid ""
 "Usage: %s [OPTION]... {script-only-if-no-other-script} [input-file]...\n"
 "\n"
 msgstr ""
+"Használat: %s [OPCIÓ]... {parancsfájl-csak-ha-nincs-más-parancsfájl} "
+"[bemeneti fájl]…\n"
+"\n"
 
-#: sed/sed.c:102
+#: sed/sed.c:137
 #, c-format
 msgid ""
 "  -n, --quiet, --silent\n"
 "                 suppress automatic printing of pattern space\n"
 msgstr ""
+"  -n, --quiet, --silent\n"
+"                 a minta tér automatikus kiírásának elnyomása\n"
 
-#: sed/sed.c:104
+#: sed/sed.c:139
+#, fuzzy, c-format
+msgid ""
+"      --debug\n"
+"                 annotate program execution\n"
+msgstr ""
+"  --posix\n"
+"                 minden GNU kiterjesztés letiltása.\n"
+
+#: sed/sed.c:141
 #, c-format
 msgid ""
 "  -e script, --expression=script\n"
 "                 add the script to the commands to be executed\n"
 msgstr ""
+"  -e parancsfájl, --expression=parancsfájl\n"
+"                 parancsfájl hozzáadása a végrehajtandó parancsokhoz\n"
 
-#: sed/sed.c:106
+#: sed/sed.c:143
 #, c-format
 msgid ""
 "  -f script-file, --file=script-file\n"
 "                 add the contents of script-file to the commands to be "
 "executed\n"
 msgstr ""
+"  -f parancsfájl, --file=parancsfájl\n"
+"                 a megadott parancsfájl tartalmának hozzáadása a "
+"végrehajtandó\n"
+"                 parancsokhoz\n"
 
-#: sed/sed.c:108
+#: sed/sed.c:147
+#, c-format
+msgid ""
+"  --follow-symlinks\n"
+"                 follow symlinks when processing in place\n"
+msgstr ""
+"  --follow-symlinks\n"
+"                 szimbolikus linkek követése helyben feldolgozáskor\n"
+
+#: sed/sed.c:150
 #, c-format
 msgid ""
 "  -i[SUFFIX], --in-place[=SUFFIX]\n"
-"                 edit files in place (makes backup if extension supplied)\n"
+"                 edit files in place (makes backup if SUFFIX supplied)\n"
 msgstr ""
+"  -i[UTÓTAG], --in-place[=UTÓTAG]\n"
+"                 fájlok szerkesztése helyben (biztonsági mentést készít, ha\n"
+"                 az UTÓTAG meg van adva)\n"
 
-#: sed/sed.c:110
+#: sed/sed.c:153
+#, c-format
+msgid ""
+"  -b, --binary\n"
+"                 open files in binary mode (CR+LFs are not processed "
+"specially)\n"
+msgstr ""
+"  -b, --binary\n"
+"                 fájlok megnyitása bináris módban (a CR+LF karakterek nem\n"
+"                 lesznek speciálisan feldolgozva)\n"
+
+#: sed/sed.c:157
 #, c-format
 msgid ""
 "  -l N, --line-length=N\n"
 "                 specify the desired line-wrap length for the `l' command\n"
 msgstr ""
+"  -l N, --line-length=N\n"
+"                 a kívánt sortörési hossz megadása az „l” parancshoz\n"
 
-#: sed/sed.c:112
+#: sed/sed.c:159
 #, c-format
 msgid ""
 "  --posix\n"
 "                 disable all GNU extensions.\n"
 msgstr ""
+"  --posix\n"
+"                 minden GNU kiterjesztés letiltása.\n"
 
-#: sed/sed.c:114
-#, fuzzy, c-format
+#: sed/sed.c:161
+#, c-format
 msgid ""
-"  -r, --regexp-extended\n"
-"                 use extended regular expressions in the script.\n"
+"  -E, -r, --regexp-extended\n"
+"                 use extended regular expressions in the script\n"
+"                 (for portability use POSIX -E).\n"
 msgstr ""
-"  -R --regexp-perl\n"
-"                Perl 5 regul�ris kifejez�s nyelvtan�nak haszn�lata.\n"
+"  -E, -r, --regexp-extended\n"
+"                 kiterjesztett reguláris kifejezések használata a\n"
+"                 parancsfájlban (a hordozhatóságért használja a -E "
+"kapcsolót)\n"
 
-#: sed/sed.c:117
+#: sed/sed.c:164
 #, c-format
 msgid ""
 "  -s, --separate\n"
-"                 consider files as separate rather than as a single "
-"continuous\n"
-"                 long stream.\n"
+"                 consider files as separate rather than as a single,\n"
+"                 continuous long stream.\n"
 msgstr ""
+"  -s, --separate\n"
+"                 a fájlokat külön kezeli egyetlen folyamatos, hosszú folyam\n"
+"                 helyett.\n"
 
-#: sed/sed.c:120
+#: sed/sed.c:167
+#, fuzzy, c-format
+msgid ""
+"      --sandbox\n"
+"                 operate in sandbox mode (disable e/r/w commands).\n"
+msgstr ""
+"      --sandbox\n"
+"                 működés homokozó módban.\n"
+
+#: sed/sed.c:169
 #, c-format
 msgid ""
 "  -u, --unbuffered\n"
@@ -282,18 +776,31 @@ msgid ""
 "flush\n"
 "                 the output buffers more often\n"
 msgstr ""
+"  -u, --unbuffered\n"
+"                 minimális mennyiségű adat betöltése a bemeneti fájlokból és "
+"a\n"
+"                 kimeneti pufferek gyakori ürítése\n"
 
-#: sed/sed.c:123
+#: sed/sed.c:172
+#, c-format
+msgid ""
+"  -z, --null-data\n"
+"                 separate lines by NUL characters\n"
+msgstr ""
+"  -z, --null-data\n"
+"                 sorok elválasztása NULL karakterekkel\n"
+
+#: sed/sed.c:174
 #, c-format
 msgid "      --help     display this help and exit\n"
-msgstr ""
+msgstr "      --help     kiírja ezt a súgót és kilép\n"
 
-#: sed/sed.c:124
+#: sed/sed.c:175
 #, c-format
 msgid "      --version  output version information and exit\n"
-msgstr ""
+msgstr "      --version  kiírja a verzióinformációt és kilép\n"
 
-#: sed/sed.c:125
+#: sed/sed.c:176
 #, c-format
 msgid ""
 "\n"
@@ -303,144 +810,159 @@ msgid ""
 "specified, then the standard input is read.\n"
 "\n"
 msgstr ""
-
-#: sed/sed.c:131
-#, c-format
-msgid ""
-"E-mail bug reports to: %s .\n"
-"Be sure to include the word ``%s'' somewhere in the ``Subject:'' field.\n"
-msgstr ""
-"A ford�t�si hib�kat k�rem a gyulai@fbi.hu c�mre k�ldeni. \n"
-"Angolul ide: %s . A lev�l T�rgy mezej�ben legyen ott a `%s' sz�.\n"
-
-#: sed/sed.c:268
-#, c-format
-msgid "super-sed version %s\n"
-msgstr "super-sed verzi� %s\n"
-
-#: sed/sed.c:269
-#, fuzzy, c-format
-msgid ""
-"based on GNU sed version %s\n"
 "\n"
-msgstr ""
-"A GNU 3.02.80-as sed verzi�n alapszik\n"
+"Ha nincs megadva -e, --expression, -f vagy --file kapcsoló, akkor az első\n"
+"nem-kapcsoló paramétert héjprogramnak tekintjük. Minden további paraméter\n"
+"fájlnévnek számít. Ha nincs megadva bemeneti fájlnév, akkor a szabványos\n"
+"bemenetről olvas.\n"
 "\n"
 
-#: sed/sed.c:271
-#, c-format
-msgid "GNU sed version %s\n"
-msgstr "GNU sed verzi� %s\n"
-
-#: sed/sed.c:273
-#, c-format
-msgid ""
-"%s\n"
-"This is free software; see the source for copying conditions.  There is NO\n"
-"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE,\n"
-"to the extent permitted by law.\n"
+#: sed/sed.c:369
+msgid "failed to set binary mode on STDIN"
 msgstr ""
-"%s\n"
-"Ez egy ingyenes sz�m�t�g�pes program. A forr�sban megtal�lhat�k a m�sol�s "
-"felt�telei.\n"
-"SEMMILYEN garanci�t nem v�llalunk, m�g azt sem �ll�tjuk, hogy ez a program\n"
-"KERESKEDELMI C�LOKRA ALKALMAS vagy HASZN�LHAT� EGY ADOTT FELADATRA.\n"
 
-#: lib/utils.c:98 lib/utils.c:336
-#, fuzzy, c-format
-msgid "cannot remove %s: %s"
-msgstr "%s: nem lehet olvasni %s: %s\n"
+#: sed/sed.c:371
+msgid "failed to set binary mode on STDOUT"
+msgstr ""
 
-#: lib/utils.c:143
-#, fuzzy, c-format
+#: sed/utils.c:129
+#, c-format
 msgid "couldn't open file %s: %s"
-msgstr "Nem lehet megnyitni a(z) %s f�jlt: %s"
+msgstr "nem nyitható meg a(z) %s fájl: %s"
 
-#: lib/utils.c:220
+#: sed/utils.c:148
 #, c-format
-msgid "couldn't write %d item to %s: %s"
-msgid_plural "couldn't write %d items to %s: %s"
-msgstr[0] "nem tudom a(z) %d elemet ide �rni %s: %s"
-msgstr[1] "nem tudom a(z) %d elemeket ide �rni %s: %s"
+msgid "couldn't attach to %s: %s"
+msgstr "nem lehet csatolni ehhez: %s: %s"
 
-#: lib/utils.c:235 lib/utils.c:251
+#: sed/utils.c:207
+#, c-format
+msgid "failed to set binary mode on '%s'"
+msgstr ""
+
+#: sed/utils.c:228
+#, c-format
+msgid "couldn't write %llu item to %s: %s"
+msgid_plural "couldn't write %llu items to %s: %s"
+msgstr[0] "nem lehet %llu elemet írni ebbe: %s: %s"
+
+#: sed/utils.c:240 sed/utils.c:259
 #, c-format
 msgid "read error on %s: %s"
-msgstr "olvas�si hiba %s: %s"
+msgstr "olvasási hiba ezen: %s: %s"
 
-#: lib/utils.c:341
+#: sed/utils.c:358
 #, fuzzy, c-format
+msgid "couldn't readlink %s: %s"
+msgstr "nem lehet követni a(z) %s szimbolikus linket: %s"
+
+#: sed/utils.c:361
+#, c-format
+msgid "couldn't follow symlink %s: %s"
+msgstr "nem lehet követni a(z) %s szimbolikus linket: %s"
+
+#: sed/utils.c:408
+#, c-format
 msgid "cannot rename %s: %s"
-msgstr "%s: nem lehet olvasni %s: %s\n"
+msgstr "nem lehet átnevezni: %s: %s"
 
-#: lib/regcomp.c:132
-msgid "Success"
-msgstr "Sikeres"
+#, c-format
+#~ msgid "cannot stat %s: %s"
+#~ msgstr "nem lehet stat-olni: %s: %s"
 
-#: lib/regcomp.c:135
-msgid "No match"
-msgstr "Nincs tal�lat"
+#, c-format
+#~ msgid "cannot remove %s: %s"
+#~ msgstr "%s nem távolítható el: %s"
 
-#: lib/regcomp.c:138
-msgid "Invalid regular expression"
-msgstr "Hib�s regul�ris kifejez�s"
+#, fuzzy, c-format
+#~ msgid "%s: option '%s%s' is ambiguous\n"
+#~ msgstr "%s: a(z) „%s” kapcsoló nem egyértelmű\n"
 
-#: lib/regcomp.c:141
-msgid "Invalid collation character"
-msgstr "�rv�nytelen �sszehasonl�t� karakter"
+#, fuzzy, c-format
+#~ msgid "%s: option '%s%s' is ambiguous; possibilities:"
+#~ msgstr "%s: a(z) „%s” kapcsoló nem egyértelmű, lehetőségek:"
 
-#: lib/regcomp.c:144
-msgid "Invalid character class name"
-msgstr "�rv�nytelen karakteroszt�ly-n�v"
+#, fuzzy, c-format
+#~ msgid "%s: unrecognized option '%s%s'\n"
+#~ msgstr "%s: a(z) „%c%s” kapcsoló ismeretlen\n"
 
-#: lib/regcomp.c:147
-msgid "Trailing backslash"
-msgstr "Lez�r� visszaperjel"
+#, fuzzy, c-format
+#~ msgid "%s: option '%s%s' doesn't allow an argument\n"
+#~ msgstr "%s: a(z) „%c%s” kapcsoló nem enged meg argumentumot\n"
 
-#: lib/regcomp.c:150
-msgid "Invalid back reference"
-msgstr "�rv�nytelen vissza-hivatkoz�s"
+#, fuzzy, c-format
+#~ msgid "%s: option '%s%s' requires an argument\n"
+#~ msgstr "%s: a(z) „--%s” kapcsolóhoz argumentum szükséges\n"
 
-#: lib/regcomp.c:153
-msgid "Unmatched [ or [^"
-msgstr "Nincs p�rban [ vagy [^"
+#, c-format
+#~ msgid "%s: invalid option -- '%c'\n"
+#~ msgstr "%s: érvénytelen kapcsoló -- „%c”\n"
 
-#: lib/regcomp.c:156
-msgid "Unmatched ( or \\("
-msgstr "Nincs p�rban ( vagy \\("
+#, c-format
+#~ msgid "%s: option requires an argument -- '%c'\n"
+#~ msgstr "%s: a kapcsoló egy argumentumot igényel -- „%c”\n"
 
-#: lib/regcomp.c:159
-msgid "Unmatched \\{"
-msgstr "Nincs p�rban \\{"
+#, fuzzy
+#~ msgid "%s home page: <https://www.gnu.org/software/%s/>\n"
+#~ msgstr "A %s honlapja: <http://www.gnu.org/software/%s/>\n"
 
-#: lib/regcomp.c:162
-msgid "Invalid content of \\{\\}"
-msgstr "\\{\\}-nak �rv�nytelen a tartalma"
+#~ msgid ""
+#~ "  -R, --regexp-perl\n"
+#~ "                 use Perl 5's regular expressions syntax in the script.\n"
+#~ msgstr ""
+#~ "  -R --regexp-perl\n"
+#~ "                 Perl 5 reguláris kifejezés nyelvtanának használata a\n"
+#~ "                 parancsfájlban.\n"
 
-#: lib/regcomp.c:165
-msgid "Invalid range end"
-msgstr "Sorozat �rv�nytelen v�ge"
+#~ msgid "%s: option '--%s' doesn't allow an argument\n"
+#~ msgstr "%s: a(z) „--%s” kapcsoló nem enged meg argumentumot\n"
 
-#: lib/regcomp.c:168
-msgid "Memory exhausted"
-msgstr "Kev�s a mem�ria"
+#~ msgid "%s: unrecognized option '--%s'\n"
+#~ msgstr "%s: a(z) „--%s” kapcsoló ismeretlen\n"
 
-#: lib/regcomp.c:171
-msgid "Invalid preceding regular expression"
-msgstr "�rv�nytelen megel�z� regul�ris kifejez�s"
+#~ msgid "%s: option '-W %s' is ambiguous\n"
+#~ msgstr "%s: a „-W %s” kapcsoló nem egyértelmű\n"
 
-#: lib/regcomp.c:174
-msgid "Premature end of regular expression"
-msgstr "Regul�ris kifejez�s t�l korai v�ge"
+#~ msgid "%s: option '-W %s' doesn't allow an argument\n"
+#~ msgstr "%s: a „-W %s” kapcsoló nem enged meg argumentumot\n"
 
-#: lib/regcomp.c:177
-msgid "Regular expression too big"
-msgstr "T�l nagy regul�ris kifejez�s"
+#~ msgid "%s: option '-W %s' requires an argument\n"
+#~ msgstr "%s: a(z) „-W%s” kapcsolóhoz argumentum szükséges\n"
 
-#: lib/regcomp.c:180
-msgid "Unmatched ) or \\)"
-msgstr "Nincs p�rban ) vagy \\)"
+#~ msgid "cannot specify modifiers on empty regexp"
+#~ msgstr "nem lehet módosítót megadni üres reguláris kifejezéshez"
 
-#: lib/regcomp.c:660
-msgid "No previous regular expression"
-msgstr "Nincsen el�z� regul�ris kifejez�s"
+#~ msgid ""
+#~ "E-mail bug reports to: <%s>.\n"
+#~ "Be sure to include the word ``%s'' somewhere in the ``Subject:'' field.\n"
+#~ msgstr ""
+#~ "Hibajelentéseket erre a címre küldhet: <%s>.\n"
+#~ "Győződjön meg arról, hogy szerepeljen a(z) „%s” szó a „Tárgy:” mezőben "
+#~ "valahol.\n"
+
+#~ msgid "super-sed version %s\n"
+#~ msgstr "super-sed verzió %s\n"
+
+#~ msgid ""
+#~ "based on GNU sed version %s\n"
+#~ "\n"
+#~ msgstr ""
+#~ "a GNU sed %s verziója alapján\n"
+#~ "\n"
+
+#~ msgid "GNU sed version %s\n"
+#~ msgstr "GNU sed %s verzió\n"
+
+#~ msgid ""
+#~ "Copyright (C) %d Free Software Foundation, Inc.\n"
+#~ "This is free software; see the source for copying conditions.  There is "
+#~ "NO\n"
+#~ "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR "
+#~ "PURPOSE,\n"
+#~ "to the extent permitted by law.\n"
+#~ msgstr ""
+#~ "Copyright (C) %d Free Software Foundation, Inc.\n"
+#~ "Ez egy szabad szoftver. A forrásban megtalálhatók a másolás feltételei.\n"
+#~ "SEMMILYEN garanciát nem vállalunk, még azt sem állítjuk, hogy ez a "
+#~ "program\n"
+#~ "KERESKEDELMI CÉLOKRA ALKALMAS vagy HASZNÁLHATÓ EGY ADOTT FELADATRA.\n"

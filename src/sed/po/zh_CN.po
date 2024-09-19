@@ -1,272 +1,758 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) 2002 Free Software Foundation, Inc.
-# Wang Li <charles@linux.net.cn>, 2002.
+# Simplified Chinese(zh_CN) translation for sed
+# This file is distributed under the same license as the sed package.
 #
+# Copyright (C) 2002, 2007, 2008 Free Software Foundation, Inc.
+# Wang Li <charles@linux.net.cn>, 2002.
+# LI Daobing <lidaobing@gmail.com>, 2007, 2008.
+# Boyuan Yang <073plan@gmail.com>, 2017, 2018, 2019.
 msgid ""
 msgstr ""
-"Project-Id-Version: sed 3.02.80\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2006-02-03 10:26+0100\n"
-"PO-Revision-Date: 2002-08-18 11:11+0800\n"
-"Last-Translator: Wang Li <charles@linux.net.cn>\n"
-"Language-Team: Chinese (simplified) <i18n-translation@lists.linux.net.cn>\n"
+"Project-Id-Version: sed 4.7.13\n"
+"Report-Msgid-Bugs-To: bug-gnu-utils@gnu.org\n"
+"POT-Creation-Date: 2022-11-06 13:50-0800\n"
+"PO-Revision-Date: 2020-01-06 10:40-0500\n"
+"Last-Translator: Boyuan Yang <073plan@gmail.com>\n"
+"Language-Team: Chinese (simplified) <i18n-zh@googlegroups.com>\n"
+"Language: zh_CN\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=gb2312\n"
+"Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 2.2.4\n"
+
+#: lib/closeout.c:121
+msgid "write error"
+msgstr "写入错误"
+
+#: lib/copy-acl.c:54
+#, c-format
+msgid "preserving permissions for %s"
+msgstr "保留 %s 的权限未改变"
+
+#: lib/dfa.c:894
+msgid "unbalanced ["
+msgstr "不对称的 ["
+
+#: lib/dfa.c:1015
+msgid "invalid character class"
+msgstr "非法的字符类型"
+
+#: lib/dfa.c:1143
+msgid "character class syntax is [[:space:]], not [:space:]"
+msgstr "字符类型语法是 [[:space:]]，不是 [:space:]"
+
+#: lib/dfa.c:1209
+msgid "unfinished \\ escape"
+msgstr "未结束的 \\ 转义"
+
+#: lib/dfa.c:1319
+#, fuzzy
+msgid "? at start of expression"
+msgstr "非法的正则表达式"
+
+#: lib/dfa.c:1331
+#, fuzzy
+msgid "* at start of expression"
+msgstr "非法的正则表达式"
+
+#: lib/dfa.c:1345
+#, fuzzy
+msgid "+ at start of expression"
+msgstr "非法的正则表达式"
+
+#: lib/dfa.c:1400
+#, fuzzy
+msgid "{...} at start of expression"
+msgstr "非法的正则表达式"
+
+#: lib/dfa.c:1403
+msgid "invalid content of \\{\\}"
+msgstr "“\\{\\}”中内容非法"
+
+#: lib/dfa.c:1405
+msgid "regular expression too big"
+msgstr "正则表达式过大"
+
+#: lib/dfa.c:1555
+msgid "stray \\ before unprintable character"
+msgstr ""
+
+#: lib/dfa.c:1557
+msgid "stray \\ before white space"
+msgstr ""
+
+#: lib/dfa.c:1561
+#, c-format
+msgid "stray \\ before %lc"
+msgstr ""
+
+#: lib/dfa.c:1562
+msgid "stray \\"
+msgstr ""
+
+#: lib/dfa.c:1917
+msgid "unbalanced ("
+msgstr "不对称的 ("
+
+#: lib/dfa.c:2034
+msgid "no syntax specified"
+msgstr "未指定语法"
+
+#: lib/dfa.c:2045
+msgid "unbalanced )"
+msgstr "不对称的 )"
+
+#: lib/error.c:195
+msgid "Unknown system error"
+msgstr "未知的系统错误"
+
+#: lib/obstack.c:337 lib/obstack.c:339 lib/xalloc-die.c:34
+msgid "memory exhausted"
+msgstr "内存耗尽"
+
+#. TRANSLATORS:
+#. Get translations for open and closing quotation marks.
+#. The message catalog should translate "`" to a left
+#. quotation mark suitable for the locale, and similarly for
+#. "'".  For example, a French Unicode local should translate
+#. these to U+00AB (LEFT-POINTING DOUBLE ANGLE
+#. QUOTATION MARK), and U+00BB (RIGHT-POINTING DOUBLE ANGLE
+#. QUOTATION MARK), respectively.
+#.
+#. If the catalog has no translation, we will try to
+#. use Unicode U+2018 (LEFT SINGLE QUOTATION MARK) and
+#. Unicode U+2019 (RIGHT SINGLE QUOTATION MARK).  If the
+#. current locale is not Unicode, locale_quoting_style
+#. will quote 'like this', and clocale_quoting_style will
+#. quote "like this".  You should always include translations
+#. for "`" and "'" even if U+2018 and U+2019 are appropriate
+#. for your locale.
+#.
+#. If you don't know what to put here, please see
+#. <https://en.wikipedia.org/wiki/Quotation_marks_in_other_languages>
+#. and use glyphs suitable for your language.
+#: lib/quotearg.c:354
+msgid "`"
+msgstr "“"
+
+#: lib/quotearg.c:355
+msgid "'"
+msgstr "”"
+
+#: lib/regcomp.c:122
+msgid "Success"
+msgstr "成功"
+
+#: lib/regcomp.c:125
+msgid "No match"
+msgstr "没有匹配项"
+
+#: lib/regcomp.c:128
+msgid "Invalid regular expression"
+msgstr "非法的正则表达式"
+
+#: lib/regcomp.c:131
+msgid "Invalid collation character"
+msgstr "非法的收集字符"
+
+#: lib/regcomp.c:134
+msgid "Invalid character class name"
+msgstr "非法的字符类型名"
+
+#: lib/regcomp.c:137
+msgid "Trailing backslash"
+msgstr "尾端的反斜杠"
+
+#: lib/regcomp.c:140
+msgid "Invalid back reference"
+msgstr "非法回引用"
+
+#: lib/regcomp.c:143
+msgid "Unmatched [, [^, [:, [., or [="
+msgstr "未匹配的“[”、“[^”、“[:”、“[.”或“[=”"
+
+#: lib/regcomp.c:146
+msgid "Unmatched ( or \\("
+msgstr "未匹配的“(”或者“\\(”"
+
+#: lib/regcomp.c:149
+msgid "Unmatched \\{"
+msgstr "未匹配的“\\{”"
+
+#: lib/regcomp.c:152
+msgid "Invalid content of \\{\\}"
+msgstr "“\\{\\}”中内容非法"
+
+#: lib/regcomp.c:155
+msgid "Invalid range end"
+msgstr "非法的范围结束"
+
+#: lib/regcomp.c:158
+msgid "Memory exhausted"
+msgstr "内存耗尽"
+
+#: lib/regcomp.c:161
+msgid "Invalid preceding regular expression"
+msgstr "非法的正则表达式头"
+
+#: lib/regcomp.c:164
+msgid "Premature end of regular expression"
+msgstr "正则表达式不完整"
+
+#: lib/regcomp.c:167
+msgid "Regular expression too big"
+msgstr "正则表达式过大"
+
+#: lib/regcomp.c:170
+msgid "Unmatched ) or \\)"
+msgstr "未匹配的“)”或者“\\)”"
+
+#: lib/regcomp.c:650
+msgid "No previous regular expression"
+msgstr "前面没有正则表达式"
+
+#: lib/set-acl.c:46
+#, c-format
+msgid "setting permissions for %s"
+msgstr "设置 %s 的权限"
+
+#: lib/version-etc.c:73
+#, c-format
+msgid "Packaged by %s (%s)\n"
+msgstr "由 %s (%s)打包\n"
+
+#: lib/version-etc.c:76
+#, c-format
+msgid "Packaged by %s\n"
+msgstr "由 %s 打包\n"
+
+#. TRANSLATORS: Translate "(C)" to the copyright symbol
+#. (C-in-a-circle), if this symbol is available in the user's
+#. locale.  Otherwise, do not translate "(C)"; leave it as-is.
+#: lib/version-etc.c:83
+msgid "(C)"
+msgstr "(C)"
+
+#. TRANSLATORS: The %s placeholder is the web address of the GPL license.
+#: lib/version-etc.c:88
+#, c-format
+msgid ""
+"License GPLv3+: GNU GPL version 3 or later <%s>.\n"
+"This is free software: you are free to change and redistribute it.\n"
+"There is NO WARRANTY, to the extent permitted by law.\n"
+msgstr ""
+"许可证 GPLv3+：GNU 通用公共许可证第 3 版或更新版本<%s>。\n"
+"本软件是自由软件：您可以自由修改和重新发布它。\n"
+"在法律范围内没有其他保证。\n"
+
+#. TRANSLATORS: %s denotes an author name.
+#: lib/version-etc.c:105
+#, c-format
+msgid "Written by %s.\n"
+msgstr "由 %s 编写。\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#: lib/version-etc.c:109
+#, c-format
+msgid "Written by %s and %s.\n"
+msgstr "由 %s 和 %s 编写。\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#: lib/version-etc.c:113
+#, c-format
+msgid "Written by %s, %s, and %s.\n"
+msgstr "由 %s、%s 和 %s 编写。\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:120
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"and %s.\n"
+msgstr ""
+"由 %s、%s、%s 和\n"
+"%s 编写。\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:127
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, and %s.\n"
+msgstr ""
+"由 %s、%s、%s、\n"
+"%s 和 %s 编写。\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:134
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, and %s.\n"
+msgstr ""
+"由 %s、%s、%s、\n"
+"%s、%s 和 %s 编写。\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:142
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, and %s.\n"
+msgstr ""
+"由 %s、%s、%s、\n"
+"%s、%s、%s 和 %s 编写。\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:150
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"and %s.\n"
+msgstr ""
+"由 %s、%s、%s、\n"
+"%s、%s、%s、%s\n"
+"和 %s 编写。\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:159
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"%s, and %s.\n"
+msgstr ""
+"由 %s、%s、%s、\n"
+"%s、%s、%s、%s、\n"
+"%s、和 %s 编写。\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:170
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"%s, %s, and others.\n"
+msgstr ""
+"由 %s、%s、%s、\n"
+"%s、%s、%s、%s、\n"
+"%s、%s 和其他人编写。\n"
+
+#. TRANSLATORS: The placeholder indicates the bug-reporting address
+#. for this package.  Please add _another line_ saying
+#. "Report translation bugs to <...>\n" with the address for translation
+#. bugs (typically your translation team's web or email address).
+#: lib/version-etc.c:249
+#, c-format
+msgid "Report bugs to: %s\n"
+msgstr ""
+"请向 <%s> 报告软件错误。请向 <i18n-zh@googlegroups.com> 报告翻译错误。\n"
+
+#: lib/version-etc.c:251
+#, c-format
+msgid "Report %s bugs to: %s\n"
+msgstr "请将 %s 的错误报告至：%s\n"
+
+#: lib/version-etc.c:255 lib/version-etc.c:257
+#, c-format
+msgid "%s home page: <%s>\n"
+msgstr "%s 的主页：<%s>\n"
+
+#: lib/version-etc.c:260
+#, c-format
+msgid "General help using GNU software: <%s>\n"
+msgstr "GNU 软件一般性帮助：<%s>\n"
+
+#: sed/compile.c:146
+msgid "multiple `!'s"
+msgstr "多个“!”"
+
+#: sed/compile.c:147
+msgid "unexpected `,'"
+msgstr "意外的“,”"
+
+#: sed/compile.c:149
+msgid "invalid usage of +N or ~N as first address"
+msgstr "无法将 +N 或 ~N 作为第一个地址"
+
+#: sed/compile.c:150
+msgid "unmatched `{'"
+msgstr "未匹配的“{”"
+
+#: sed/compile.c:151
+msgid "unexpected `}'"
+msgstr "意外的“}”"
+
+#: sed/compile.c:153
+msgid "extra characters after command"
+msgstr "命令后含有多余的字符"
+
+#: sed/compile.c:155
+msgid "expected \\ after `a', `c' or `i'"
+msgstr "期望在“a”, “c”, “i”之后有“\\”"
+
+#: sed/compile.c:157
+msgid "`}' doesn't want any addresses"
+msgstr "“}”不需要任何地址"
+
+#: sed/compile.c:159
+msgid ": doesn't want any addresses"
+msgstr ": 不需要任何地址"
+
+#: sed/compile.c:161
+msgid "comments don't accept any addresses"
+msgstr "注释不接受任何地址"
 
 #: sed/compile.c:162
-#, fuzzy
-msgid "multiple `!'s"
-msgstr "�����!��"
+msgid "missing command"
+msgstr "遗漏命令"
 
 #: sed/compile.c:163
-#, fuzzy
-msgid "unexpected `,'"
-msgstr "����ġ�,��"
-
-#: sed/compile.c:164
-#, fuzzy
-msgid "invalid usage of +N or ~N as first address"
-msgstr "�޷��� +N �� ~N ��Ϊ��һ����ַ"
+msgid "command only uses one address"
+msgstr "命令只使用一个地址"
 
 #: sed/compile.c:165
-#, fuzzy
-msgid "unmatched `{'"
-msgstr "δƥ��ġ�{��"
+msgid "unterminated address regex"
+msgstr "未终止的地址正则表达式"
 
 #: sed/compile.c:166
-#, fuzzy
-msgid "unexpected `}'"
-msgstr "δƥ��ġ�}��"
+msgid "unterminated `s' command"
+msgstr "未终止的“s”命令"
 
 #: sed/compile.c:167
-#, fuzzy
-msgid "extra characters after command"
-msgstr "������ж�����ַ�"
+msgid "unterminated `y' command"
+msgstr "未终止的“y”命令"
 
 #: sed/compile.c:168
-msgid "expected \\ after `a', `c' or `i'"
-msgstr ""
-
-#: sed/compile.c:169
-msgid "`}' doesn't want any addresses"
-msgstr "��}������Ҫ�κε�ַ"
+msgid "unknown option to `s'"
+msgstr "“s”的未知选项"
 
 #: sed/compile.c:170
-msgid ": doesn't want any addresses"
-msgstr ": ����Ҫ�κε�ַ"
-
-#: sed/compile.c:171
-#, fuzzy
-msgid "comments don't accept any addresses"
-msgstr "ע�Ͳ������κε�ַ"
+msgid "multiple `p' options to `s' command"
+msgstr "多个“s”命令的选项“p”"
 
 #: sed/compile.c:172
-#, fuzzy
-msgid "missing command"
-msgstr "��©����"
-
-#: sed/compile.c:173
-#, fuzzy
-msgid "command only uses one address"
-msgstr "����ֻʹ��һ����ַ"
+msgid "multiple `g' options to `s' command"
+msgstr "多个“s”命令的选项“g”"
 
 #: sed/compile.c:174
-#, fuzzy
-msgid "unterminated address regex"
-msgstr "δ��ֹ�ĵ�ַ�������ʽ"
-
-#: sed/compile.c:175
-#, fuzzy
-msgid "unterminated `s' command"
-msgstr "δ��ֹ�ġ�s������"
+msgid "multiple number options to `s' command"
+msgstr "多个“s”命令的数值选项"
 
 #: sed/compile.c:176
-#, fuzzy
-msgid "unterminated `y' command"
-msgstr "δ��ֹ�ġ�y������"
-
-#: sed/compile.c:177
-#, fuzzy
-msgid "unknown option to `s'"
-msgstr "��s����δ֪ѡ��"
+msgid "number option to `s' command may not be zero"
+msgstr "“s”命令的数值选项不能为零"
 
 #: sed/compile.c:178
-msgid "multiple `p' options to `s' command"
-msgstr "�����s�������ѡ�p��"
-
-#: sed/compile.c:179
-msgid "multiple `g' options to `s' command"
-msgstr "�����s�������ѡ�g��"
+msgid "strings for `y' command are different lengths"
+msgstr "“y”命令的字符串长度不同"
 
 #: sed/compile.c:180
-msgid "multiple number options to `s' command"
-msgstr "�����s���������ֵѡ��"
-
-#: sed/compile.c:181
-msgid "number option to `s' command may not be zero"
-msgstr "��s���������ֵѡ���Ϊ��"
+msgid "delimiter character is not a single-byte character"
+msgstr "分割符长度不为1"
 
 #: sed/compile.c:182
-#, fuzzy
-msgid "strings for `y' command are different lengths"
-msgstr "y ������ַ������Ȳ�ͬ"
-
-#: sed/compile.c:183
-msgid "delimiter character is not a single-byte character"
-msgstr ""
+msgid "expected newer version of sed"
+msgstr "需要更高版本的sed"
 
 #: sed/compile.c:184
-msgid "expected newer version of sed"
-msgstr ""
+msgid "invalid usage of line address 0"
+msgstr "非法使用行地址0"
 
 #: sed/compile.c:185
-#, fuzzy
-msgid "invalid usage of line address 0"
-msgstr "�Ƿ�ʹ�õ�ַ���η�"
-
-#: sed/compile.c:186
-#, fuzzy, c-format
+#, c-format
 msgid "unknown command: `%c'"
-msgstr "δ֪�����"
+msgstr "未知的命令：“%c”"
 
-#: sed/compile.c:209
+#: sed/compile.c:187
+msgid "incomplete command"
+msgstr "不完整的命令"
+
+#: sed/compile.c:189
+msgid "\":\" lacks a label"
+msgstr "“:”缺少一个标签"
+
+#: sed/compile.c:191
+msgid "recursive escaping after \\c not allowed"
+msgstr "不允许 \\c 后的递归转义"
+
+#: sed/compile.c:193
+msgid "e/r/w commands disabled in sandbox mode"
+msgstr "e/r/w 命令在沙盒模式中被禁用"
+
+#: sed/compile.c:218
 #, c-format
 msgid "%s: file %s line %lu: %s\n"
-msgstr "%s���ļ� %s �кţ�%lu��%s\n"
+msgstr "%s：文件 %s 行号：%lu：%s\n"
 
-#: sed/compile.c:212
+#: sed/compile.c:221
 #, c-format
 msgid "%s: -e expression #%lu, char %lu: %s\n"
-msgstr "%s��-e ����ʽ #%lu���ַ� %lu��%s\n"
+msgstr "%s：-e 表达式 #%lu，字符 %lu：%s\n"
 
-#: sed/compile.c:1644
-#, fuzzy, c-format
+#: sed/compile.c:1623
+#, c-format
 msgid "can't find label for jump to `%s'"
-msgstr "�޷�ΪĿ��Ϊ��%s������ת�ҵ���ǩ"
+msgstr "无法为目的为“%s”的跳转找到标签"
 
-#: sed/execute.c:650
+#: sed/execute.c:253 sed/execute.c:270
+#, c-format
+msgid "case conversion produced an invalid character"
+msgstr "大小写转换产生了无效的字符"
+
+#: sed/execute.c:565
 #, c-format
 msgid "%s: can't read %s: %s\n"
-msgstr "%s���޷���ȡ %s��%s\n"
+msgstr "%s：无法读取 %s：%s\n"
 
-#: sed/execute.c:673
-#, fuzzy, c-format
+#: sed/execute.c:591
+#, c-format
 msgid "couldn't edit %s: is a terminal"
-msgstr "�޷����ļ� %s"
+msgstr "无法编辑文件 %s: 这是一个终端"
 
-#: sed/execute.c:677
-#, fuzzy, c-format
+#: sed/execute.c:596
+#, c-format
 msgid "couldn't edit %s: not a regular file"
-msgstr "�޷����ļ� %s"
+msgstr "无法编辑文件 %s: 不是一个普通文件"
 
-#: sed/execute.c:684 lib/utils.c:196
-#, fuzzy, c-format
+#: sed/execute.c:607
+#, c-format
+msgid "%s: warning: failed to set default file creation context to %s: %s"
+msgstr "%s：警告：无法设置默认文件创建上下文环境为 %s：%s"
+
+#: sed/execute.c:615
+#, c-format
+msgid "%s: warning: failed to get security context of %s: %s"
+msgstr "%s：警告：无法获取 %s 的安全上下文环境：%s"
+
+#: sed/execute.c:633 sed/utils.c:215
+#, c-format
 msgid "couldn't open temporary file %s: %s"
-msgstr "�޷����ļ� %s"
+msgstr "无法打开临时文件 %s: %s"
 
-#: sed/execute.c:1206 sed/execute.c:1387
+#: sed/execute.c:1170 sed/execute.c:1369
 msgid "error in subprocess"
-msgstr ""
+msgstr "子进程出错"
 
-#: sed/execute.c:1208
+#: sed/execute.c:1172
 msgid "option `e' not supported"
-msgstr ""
+msgstr "不支持选项“e”"
 
-#: sed/execute.c:1389
+#: sed/execute.c:1350
 msgid "`e' command not supported"
-msgstr ""
+msgstr "不支持命令“e”"
 
-#: sed/execute.c:1714
+#: sed/execute.c:1672
 msgid "no input files"
-msgstr ""
-
-#: sed/regexp.c:39
-msgid "no previous regular expression"
-msgstr ""
+msgstr "没有输入文件"
 
 #: sed/regexp.c:40
-msgid "cannot specify modifiers on empty regexp"
-msgstr ""
+msgid "no previous regular expression"
+msgstr "前面没有正则表达式"
 
-#: sed/regexp.c:115
+#: sed/regexp.c:125
 #, c-format
 msgid "invalid reference \\%d on `s' command's RHS"
-msgstr ""
+msgstr "“s”命令的RHS非法引用\\%d"
 
-#: sed/sed.c:93
+#: sed/regexp.c:196
+msgid "regex input buffer length larger than INT_MAX"
+msgstr "正则输入缓冲长度大于 INT_MAX"
+
+#: sed/sed.c:37
+msgid "Jay Fenlason"
+msgstr "Jay Fenlason"
+
+#: sed/sed.c:38
+msgid "Tom Lord"
+msgstr "Tom Lord"
+
+#: sed/sed.c:39
+msgid "Ken Pizzini"
+msgstr "Ken Pizzini"
+
+#: sed/sed.c:40
+msgid "Paolo Bonzini"
+msgstr "Paolo Bonzini"
+
+#: sed/sed.c:41
+msgid "Jim Meyering"
+msgstr "Jim Meyering"
+
+#: sed/sed.c:42
+msgid "Assaf Gordon"
+msgstr "Assaf Gordon"
+
+#: sed/sed.c:103
+#, c-format
 msgid ""
-"  -R, --regexp-perl\n"
-"                 use Perl 5's regular expressions syntax in the script.\n"
+"GNU sed home page: <https://www.gnu.org/software/sed/>.\n"
+"General help using GNU software: <https://www.gnu.org/gethelp/>.\n"
 msgstr ""
+"GNU sed 主页：<https://www.gnu.org/software/sed/>。\n"
+"使用 GNU 软件的一般性帮助：<https://www.gnu.org/gethelp/>。\n"
 
-#: sed/sed.c:98
+#: sed/sed.c:109
+#, c-format
+msgid "E-mail bug reports to: <%s>.\n"
+msgstr "请将错误报告发送至：<%s>。\n"
+
+#: sed/sed.c:117
+msgid "This sed program was built with SELinux support."
+msgstr "本 sed 程序构建时含有 SELinux 支持。"
+
+#: sed/sed.c:119
+msgid "SELinux is enabled on this system."
+msgstr "此系统已启用 SELinux。"
+
+#: sed/sed.c:121
+msgid "SELinux is disabled on this system."
+msgstr "此系统已禁用 SELinux。"
+
+#: sed/sed.c:123
+msgid "This sed program was built without SELinux support."
+msgstr "本 sed 程序构建时未包含 SELinux 支持。"
+
+#: sed/sed.c:133
 #, c-format
 msgid ""
 "Usage: %s [OPTION]... {script-only-if-no-other-script} [input-file]...\n"
 "\n"
 msgstr ""
+"用法: %s [选项]... {脚本(如果没有其他脚本)} [输入文件]...\n"
+"\n"
 
-#: sed/sed.c:102
+#: sed/sed.c:137
 #, c-format
 msgid ""
 "  -n, --quiet, --silent\n"
 "                 suppress automatic printing of pattern space\n"
 msgstr ""
+"  -n, --quiet, --silent\n"
+"                 取消自动打印模式空间\n"
 
-#: sed/sed.c:104
+#: sed/sed.c:139
+#, c-format
+msgid ""
+"      --debug\n"
+"                 annotate program execution\n"
+msgstr ""
+"      --debug\n"
+"                 对程序运行进行标注\n"
+
+#: sed/sed.c:141
 #, c-format
 msgid ""
 "  -e script, --expression=script\n"
 "                 add the script to the commands to be executed\n"
 msgstr ""
+"  -e 脚本, --expression=脚本\n"
+"                 添加“脚本”到程序的运行列表\n"
 
-#: sed/sed.c:106
+#: sed/sed.c:143
 #, c-format
 msgid ""
 "  -f script-file, --file=script-file\n"
 "                 add the contents of script-file to the commands to be "
 "executed\n"
 msgstr ""
+"  -f 脚本文件, --file=脚本文件\n"
+"                 添加“脚本文件”到程序的运行列表\n"
 
-#: sed/sed.c:108
+#: sed/sed.c:147
+#, c-format
+msgid ""
+"  --follow-symlinks\n"
+"                 follow symlinks when processing in place\n"
+msgstr ""
+"  --follow-symlinks\n"
+"                 直接修改文件时跟随软链接\n"
+
+#: sed/sed.c:150
 #, c-format
 msgid ""
 "  -i[SUFFIX], --in-place[=SUFFIX]\n"
-"                 edit files in place (makes backup if extension supplied)\n"
+"                 edit files in place (makes backup if SUFFIX supplied)\n"
 msgstr ""
+"  -i[扩展名], --in-place[=扩展名]\n"
+"                 直接修改文件（如果指定扩展名则备份文件）\n"
 
-#: sed/sed.c:110
+#: sed/sed.c:153
+#, c-format
+msgid ""
+"  -b, --binary\n"
+"                 open files in binary mode (CR+LFs are not processed "
+"specially)\n"
+msgstr ""
+"  -b, --binary\n"
+"                 以二进制方式打开文件 (回车加换行不做特殊处理)\n"
+
+#: sed/sed.c:157
 #, c-format
 msgid ""
 "  -l N, --line-length=N\n"
 "                 specify the desired line-wrap length for the `l' command\n"
 msgstr ""
+"  -l N, --line-length=N\n"
+"                 指定“l”命令的换行期望长度\n"
 
-#: sed/sed.c:112
+#: sed/sed.c:159
 #, c-format
 msgid ""
 "  --posix\n"
 "                 disable all GNU extensions.\n"
 msgstr ""
+"  --posix\n"
+"                 关闭所有 GNU 扩展\n"
 
-#: sed/sed.c:114
+#: sed/sed.c:161
 #, c-format
 msgid ""
-"  -r, --regexp-extended\n"
-"                 use extended regular expressions in the script.\n"
+"  -E, -r, --regexp-extended\n"
+"                 use extended regular expressions in the script\n"
+"                 (for portability use POSIX -E).\n"
 msgstr ""
+"  -E, -r, --regexp-extended\n"
+"                 在脚本中使用扩展正则表达式\n"
+"                 （为保证可移植性使用 POSIX -E）。\n"
 
-#: sed/sed.c:117
+#: sed/sed.c:164
 #, c-format
 msgid ""
 "  -s, --separate\n"
-"                 consider files as separate rather than as a single "
-"continuous\n"
-"                 long stream.\n"
+"                 consider files as separate rather than as a single,\n"
+"                 continuous long stream.\n"
 msgstr ""
+"  -s, --separate\n"
+"                 将输入文件视为各个独立的文件而不是单个\n"
+"                 长的连续输入流。\n"
 
-#: sed/sed.c:120
+#: sed/sed.c:167
+#, c-format
+msgid ""
+"      --sandbox\n"
+"                 operate in sandbox mode (disable e/r/w commands).\n"
+msgstr ""
+"      --sandbox\n"
+"                 在沙盒模式中进行操作（禁用 e/r/w 命令）。\n"
+
+#: sed/sed.c:169
 #, c-format
 msgid ""
 "  -u, --unbuffered\n"
@@ -274,18 +760,29 @@ msgid ""
 "flush\n"
 "                 the output buffers more often\n"
 msgstr ""
+"  -u, --unbuffered\n"
+"                 从输入文件读取最少的数据，更频繁的刷新输出\n"
 
-#: sed/sed.c:123
+#: sed/sed.c:172
+#, c-format
+msgid ""
+"  -z, --null-data\n"
+"                 separate lines by NUL characters\n"
+msgstr ""
+"  -z, --null-data\n"
+"                 使用 NUL 字符分隔各行\n"
+
+#: sed/sed.c:174
 #, c-format
 msgid "      --help     display this help and exit\n"
-msgstr ""
+msgstr "      --help     打印帮助并退出\n"
 
-#: sed/sed.c:124
+#: sed/sed.c:175
 #, c-format
 msgid "      --version  output version information and exit\n"
-msgstr ""
+msgstr "      --version  输出版本信息并退出\n"
 
-#: sed/sed.c:125
+#: sed/sed.c:176
 #, c-format
 msgid ""
 "\n"
@@ -295,141 +792,141 @@ msgid ""
 "specified, then the standard input is read.\n"
 "\n"
 msgstr ""
-
-#: sed/sed.c:131
-#, c-format
-msgid ""
-"E-mail bug reports to: %s .\n"
-"Be sure to include the word ``%s'' somewhere in the ``Subject:'' field.\n"
-msgstr ""
-"�����󱨸�ͨ�������ʼ����͵���%s .\n"
-"����ؽ����ʡ�%s�����ڡ�Subject:�����ĳ����\n"
-
-#: sed/sed.c:268
-#, c-format
-msgid "super-sed version %s\n"
-msgstr ""
-
-#: sed/sed.c:269
-#, c-format
-msgid ""
-"based on GNU sed version %s\n"
 "\n"
-msgstr ""
+"如果没有 -e, --expression, -f 或 --file 选项，那么第一个非选项参数被视为\n"
+"sed脚本。其他非选项参数被视为输入文件，如果没有输入文件，那么程序将从标准\n"
+"输入读取数据。\n"
 
-#: sed/sed.c:271
+#: sed/sed.c:369
+msgid "failed to set binary mode on STDIN"
+msgstr "无法对标准输入设置二进制模式"
+
+#: sed/sed.c:371
+msgid "failed to set binary mode on STDOUT"
+msgstr "无法对标准输出设置二进制模式"
+
+#: sed/utils.c:129
 #, c-format
-msgid "GNU sed version %s\n"
-msgstr ""
-
-#: sed/sed.c:273
-#, c-format
-msgid ""
-"%s\n"
-"This is free software; see the source for copying conditions.  There is NO\n"
-"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE,\n"
-"to the extent permitted by law.\n"
-msgstr ""
-
-#: lib/utils.c:98 lib/utils.c:336
-#, fuzzy, c-format
-msgid "cannot remove %s: %s"
-msgstr "%s���޷���ȡ %s��%s\n"
-
-#: lib/utils.c:143
-#, fuzzy, c-format
 msgid "couldn't open file %s: %s"
-msgstr "�޷����ļ� %s"
+msgstr "无法打开文件 %s: %s"
 
-#: lib/utils.c:220
-#, fuzzy, c-format
-msgid "couldn't write %d item to %s: %s"
-msgid_plural "couldn't write %d items to %s: %s"
-msgstr[0] "�޷��� %d ����Ŀд�� %s��%s"
-msgstr[1] "�޷��� %d ����Ŀд�� %s��%s"
+#: sed/utils.c:148
+#, c-format
+msgid "couldn't attach to %s: %s"
+msgstr "无法绑定 %s: %s"
 
-#: lib/utils.c:235 lib/utils.c:251
+#: sed/utils.c:207
+#, c-format
+msgid "failed to set binary mode on '%s'"
+msgstr "无法对“%s”设置二进制模式"
+
+#: sed/utils.c:228
+#, c-format
+msgid "couldn't write %llu item to %s: %s"
+msgid_plural "couldn't write %llu items to %s: %s"
+msgstr[0] "无法将 %llu 个项目写入 %s：%s"
+
+#: sed/utils.c:240 sed/utils.c:259
 #, c-format
 msgid "read error on %s: %s"
-msgstr "��ȡ %s ������%s"
+msgstr "读取 %s 出错：%s"
 
-#: lib/utils.c:341
+#: sed/utils.c:358
 #, fuzzy, c-format
+msgid "couldn't readlink %s: %s"
+msgstr "无法跟随软链接 %s: %s"
+
+#: sed/utils.c:361
+#, c-format
+msgid "couldn't follow symlink %s: %s"
+msgstr "无法跟随软链接 %s: %s"
+
+#: sed/utils.c:408
+#, c-format
 msgid "cannot rename %s: %s"
-msgstr "%s���޷���ȡ %s��%s\n"
+msgstr "无法重命名 %s：%s"
 
-#: lib/regcomp.c:132
-msgid "Success"
-msgstr ""
+#, c-format
+#~ msgid "cannot stat %s: %s"
+#~ msgstr "无法获取 %s 的状态: %s"
 
-#: lib/regcomp.c:135
-msgid "No match"
-msgstr ""
+#, c-format
+#~ msgid "cannot remove %s: %s"
+#~ msgstr "无法移除 %s：%s"
 
-#: lib/regcomp.c:138
-msgid "Invalid regular expression"
-msgstr ""
+#, c-format
+#~ msgid "%s: option '%s%s' is ambiguous\n"
+#~ msgstr "%s：选项“%s%s”是不明确的\n"
 
-#: lib/regcomp.c:141
-msgid "Invalid collation character"
-msgstr ""
+#, c-format
+#~ msgid "%s: option '%s%s' is ambiguous; possibilities:"
+#~ msgstr "%s：选项“%s%s”是不明确的；可能是："
 
-#: lib/regcomp.c:144
-msgid "Invalid character class name"
-msgstr ""
+#, c-format
+#~ msgid "%s: unrecognized option '%s%s'\n"
+#~ msgstr "%s：无法识别的选项“%s%s”\n"
 
-#: lib/regcomp.c:147
-msgid "Trailing backslash"
-msgstr ""
+#, c-format
+#~ msgid "%s: option '%s%s' doesn't allow an argument\n"
+#~ msgstr "%s：选项“%s%s”不允许带参数\n"
 
-#: lib/regcomp.c:150
-msgid "Invalid back reference"
-msgstr ""
+#, c-format
+#~ msgid "%s: option '%s%s' requires an argument\n"
+#~ msgstr "%s：选项“%s%s”需要一个参数\n"
 
-#: lib/regcomp.c:153
-#, fuzzy
-msgid "Unmatched [ or [^"
-msgstr "δƥ��ġ�{��"
+#, c-format
+#~ msgid "%s: invalid option -- '%c'\n"
+#~ msgstr "%s：无效选项 -- “%c”\n"
 
-#: lib/regcomp.c:156
-#, fuzzy
-msgid "Unmatched ( or \\("
-msgstr "δƥ��ġ�{��"
+#, c-format
+#~ msgid "%s: option requires an argument -- '%c'\n"
+#~ msgstr "%s：选项需要一个参数 -- '%c'\n"
 
-#: lib/regcomp.c:159
-#, fuzzy
-msgid "Unmatched \\{"
-msgstr "δƥ��ġ�{��"
+#~ msgid "%s home page: <https://www.gnu.org/software/%s/>\n"
+#~ msgstr "%s 项目主页：<https://www.gnu.org/software/%s/>\n"
 
-#: lib/regcomp.c:162
-msgid "Invalid content of \\{\\}"
-msgstr ""
+#~ msgid ""
+#~ "  -R, --regexp-perl\n"
+#~ "                 use Perl 5's regular expressions syntax in the script.\n"
+#~ msgstr ""
+#~ "  -R, --regexp-perl\n"
+#~ "                 使用 Perl 5 的正则表达式语法\n"
 
-#: lib/regcomp.c:165
-msgid "Invalid range end"
-msgstr ""
+#~ msgid "%s: unrecognized option '--%s'\n"
+#~ msgstr "%s：无法识别的选项“--%s”\n"
 
-#: lib/regcomp.c:168
-msgid "Memory exhausted"
-msgstr ""
+#~ msgid "cannot specify modifiers on empty regexp"
+#~ msgstr "无法对空正则表达式指定修饰符"
 
-#: lib/regcomp.c:171
-msgid "Invalid preceding regular expression"
-msgstr ""
+#~ msgid ""
+#~ "E-mail bug reports to: %s .\n"
+#~ "Be sure to include the word ``%s'' somewhere in the ``Subject:'' field.\n"
+#~ msgstr ""
+#~ "将错误报告通过电子邮件发送到：%s .\n"
+#~ "请务必将单词“%s”放在标题的某处。\n"
 
-#: lib/regcomp.c:174
-msgid "Premature end of regular expression"
-msgstr ""
+#~ msgid "super-sed version %s\n"
+#~ msgstr "超级-sed 版本 %s\n"
 
-#: lib/regcomp.c:177
-msgid "Regular expression too big"
-msgstr ""
+#~ msgid ""
+#~ "based on GNU sed version %s\n"
+#~ "\n"
+#~ msgstr ""
+#~ "基于 GNU sed 版本 %s\n"
+#~ "\n"
 
-#: lib/regcomp.c:180
-#, fuzzy
-msgid "Unmatched ) or \\)"
-msgstr "δƥ��ġ�{��"
+#~ msgid "GNU sed version %s\n"
+#~ msgstr "GNU sed 版本 %s\n"
 
-#: lib/regcomp.c:660
-msgid "No previous regular expression"
-msgstr ""
+#~ msgid ""
+#~ "%s\n"
+#~ "This is free software; see the source for copying conditions.  There is "
+#~ "NO\n"
+#~ "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR "
+#~ "PURPOSE,\n"
+#~ "to the extent permitted by law.\n"
+#~ msgstr ""
+#~ "%s\n"
+#~ "该程序为自由软件，详情可参阅版权条款。在法律允许的范围内我们不作任何担"
+#~ "保，\n"
+#~ "这包含但不限于任何商业适售性以及针对特定目的的适用性的担保。\n"
