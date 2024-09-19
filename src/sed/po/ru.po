@@ -1,284 +1,766 @@
-# Translation of sed-4.1.1.po to Russian
+# Translation of sed to Russian
 # Copyright (C) 1998, 2004 Free Software Foundation, Inc.
-# Const Kaplinsky <const@ce.cctpu.edu.ru>, 1998.
-# Pavel Maryanov <acid_jack@ukr.net>, 2004.
+# This file is distributed under the same license as the sed package.
 #
+# Const Kaplinsky <const@ce.cctpu.edu.ru>, 1998.
+# Pavel Maryanov <acid_jack@ukr.net>, 2004, 2008.
+# Yuri Kozlov <yuray@komyakino.ru>, 2013, 2016, 2018, 2020.
 msgid ""
 msgstr ""
-"Project-Id-Version: sed-4.1.1\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2006-02-03 10:26+0100\n"
-"PO-Revision-Date: 2004-07-07 17:54+0300\n"
-"Last-Translator: Pavel Maryanov <acid_jack@ukr.net>\n"
-"Language-Team: Russian <ru@li.org>\n"
+"Project-Id-Version: sed 4.7.13\n"
+"Report-Msgid-Bugs-To: bug-gnu-utils@gnu.org\n"
+"POT-Creation-Date: 2022-11-06 13:50-0800\n"
+"PO-Revision-Date: 2020-01-11 08:10+0300\n"
+"Last-Translator: Yuri Kozlov <yuray@komyakino.ru>\n"
+"Language-Team: Russian <gnu@d07.ru>\n"
+"Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=KOI8-R\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=n>1;\n"
-"X-Generator: KBabel 1.3\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Generator: Lokalize 2.0\n"
+
+#: lib/closeout.c:121
+msgid "write error"
+msgstr "п╬я┬п╦п╠п╨п╟ п╥п╟п©п╦я│п╦"
+
+#: lib/copy-acl.c:54
+#, c-format
+msgid "preserving permissions for %s"
+msgstr "я│п╬я┘я─п╟п╫п╣п╫п╦п╣ п©я─п╟п╡ п╢п╬я│я┌я┐п©п╟ п╢п╩я▐ %s"
+
+#: lib/dfa.c:894
+msgid "unbalanced ["
+msgstr "п╫п╣я│п╠п╟п╩п╟п╫я│п╦я─п╬п╡п╟п╫п╫п╟я▐ ["
+
+#: lib/dfa.c:1015
+msgid "invalid character class"
+msgstr "п╫п╣п©я─п╟п╡п╦п╩я▄п╫я▀п╧ п╨п╩п╟я│я│ я│п╦п╪п╡п╬п╩п╬п╡"
+
+#: lib/dfa.c:1143
+msgid "character class syntax is [[:space:]], not [:space:]"
+msgstr "я│п╦п╫я┌п╟п╨я│п╦я│ п╨п╩п╟я│я│п╟ я│п╦п╪п╡п╬п╩п╬п╡: [[:space:]], п╟ п╫п╣ [:space:]"
+
+#: lib/dfa.c:1209
+msgid "unfinished \\ escape"
+msgstr "п╫п╣п╥п╟п╡п╣я─я┬я▒п╫п╫п╟я▐ \\ я█п╨я─п╟п╫п╦я─я┐я▌я┴п╟я▐ п©п╬я│п╩п╣п╢п╬п╡п╟я┌п╣п╩я▄п╫п╬я│я┌я▄"
+
+#: lib/dfa.c:1319
+#, fuzzy
+msgid "? at start of expression"
+msgstr "п²п╣п╢п╬п©я┐я│я┌п╦п╪п╬п╣ я─п╣пЁя┐п╩я▐я─п╫п╬п╣ п╡я▀я─п╟п╤п╣п╫п╦п╣"
+
+#: lib/dfa.c:1331
+#, fuzzy
+msgid "* at start of expression"
+msgstr "п²п╣п╢п╬п©я┐я│я┌п╦п╪п╬п╣ я─п╣пЁя┐п╩я▐я─п╫п╬п╣ п╡я▀я─п╟п╤п╣п╫п╦п╣"
+
+#: lib/dfa.c:1345
+#, fuzzy
+msgid "+ at start of expression"
+msgstr "п²п╣п╢п╬п©я┐я│я┌п╦п╪п╬п╣ я─п╣пЁя┐п╩я▐я─п╫п╬п╣ п╡я▀я─п╟п╤п╣п╫п╦п╣"
+
+#: lib/dfa.c:1400
+#, fuzzy
+msgid "{...} at start of expression"
+msgstr "п²п╣п╢п╬п©я┐я│я┌п╦п╪п╬п╣ я─п╣пЁя┐п╩я▐я─п╫п╬п╣ п╡я▀я─п╟п╤п╣п╫п╦п╣"
+
+#: lib/dfa.c:1403
+msgid "invalid content of \\{\\}"
+msgstr "п╫п╣п©я─п╟п╡п╦п╩я▄п╫п╬п╣ я│п╬п╢п╣я─п╤п╦п╪п╬п╣ п╡ \\{\\}"
+
+#: lib/dfa.c:1405
+msgid "regular expression too big"
+msgstr "я─п╣пЁя┐п╩я▐я─п╫п╬п╣ п╡я▀я─п╟п╤п╣п╫п╦п╣ я│п╩п╦я┬п╨п╬п╪ п╠п╬п╩я▄я┬п╬п╣"
+
+#: lib/dfa.c:1555
+msgid "stray \\ before unprintable character"
+msgstr ""
+
+#: lib/dfa.c:1557
+msgid "stray \\ before white space"
+msgstr ""
+
+#: lib/dfa.c:1561
+#, c-format
+msgid "stray \\ before %lc"
+msgstr ""
+
+#: lib/dfa.c:1562
+msgid "stray \\"
+msgstr ""
+
+#: lib/dfa.c:1917
+msgid "unbalanced ("
+msgstr "п╫п╣я│п╠п╟п╩п╟п╫я│п╦я─п╬п╡п╟п╫п╫п╟я▐ ("
+
+#: lib/dfa.c:2034
+msgid "no syntax specified"
+msgstr "п╫п╣ я┐п╨п╟п╥п╟п╫ я│п╦п╫я┌п╟п╨я│п╦я│"
+
+#: lib/dfa.c:2045
+msgid "unbalanced )"
+msgstr "п╫п╣я│п╠п╟п╩п╟п╫я│п╦я─п╬п╡п╟п╫п╫п╟я▐ )"
+
+#: lib/error.c:195
+msgid "Unknown system error"
+msgstr "п²п╣п╦п╥п╡п╣я│я┌п╫п╟я▐ я│п╦я│я┌п╣п╪п╫п╟я▐ п╬я┬п╦п╠п╨п╟"
+
+#: lib/obstack.c:337 lib/obstack.c:339 lib/xalloc-die.c:34
+msgid "memory exhausted"
+msgstr "п©п╟п╪я▐я┌я▄ п╦я│я┤п╣я─п©п╟п╫п╟"
+
+#. TRANSLATORS:
+#. Get translations for open and closing quotation marks.
+#. The message catalog should translate "`" to a left
+#. quotation mark suitable for the locale, and similarly for
+#. "'".  For example, a French Unicode local should translate
+#. these to U+00AB (LEFT-POINTING DOUBLE ANGLE
+#. QUOTATION MARK), and U+00BB (RIGHT-POINTING DOUBLE ANGLE
+#. QUOTATION MARK), respectively.
+#.
+#. If the catalog has no translation, we will try to
+#. use Unicode U+2018 (LEFT SINGLE QUOTATION MARK) and
+#. Unicode U+2019 (RIGHT SINGLE QUOTATION MARK).  If the
+#. current locale is not Unicode, locale_quoting_style
+#. will quote 'like this', and clocale_quoting_style will
+#. quote "like this".  You should always include translations
+#. for "`" and "'" even if U+2018 and U+2019 are appropriate
+#. for your locale.
+#.
+#. If you don't know what to put here, please see
+#. <https://en.wikipedia.org/wiki/Quotation_marks_in_other_languages>
+#. and use glyphs suitable for your language.
+#: lib/quotearg.c:354
+msgid "`"
+msgstr "б╚"
+
+#: lib/quotearg.c:355
+msgid "'"
+msgstr "б╩"
+
+#: lib/regcomp.c:122
+msgid "Success"
+msgstr "пёя│п©п╣я┬п╫п╬"
+
+#: lib/regcomp.c:125
+msgid "No match"
+msgstr "п²п╣я┌ я│п╬п╬я┌п╡п╣я┌я│я┌п╡п╦я▐"
+
+#: lib/regcomp.c:128
+msgid "Invalid regular expression"
+msgstr "п²п╣п╢п╬п©я┐я│я┌п╦п╪п╬п╣ я─п╣пЁя┐п╩я▐я─п╫п╬п╣ п╡я▀я─п╟п╤п╣п╫п╦п╣"
+
+#: lib/regcomp.c:131
+msgid "Invalid collation character"
+msgstr "п²п╣п╢п╬п©я┐я│я┌п╦п╪я▀п╧ я│п╦п╪п╡п╬п╩ я│я─п╟п╡п╫п╣п╫п╦я▐"
+
+#: lib/regcomp.c:134
+msgid "Invalid character class name"
+msgstr "п²п╣п╢п╬п©я┐я│я┌п╦п╪п╬п╣ п╦п╪я▐ п╢п╩я▐ п╨п╩п╟я│я│п╟ я│п╦п╪п╡п╬п╩п╟"
+
+#: lib/regcomp.c:137
+msgid "Trailing backslash"
+msgstr "п≈п╟п╡п╣я─я┬п╟я▌я┴п╟я▐ п╬п╠я─п╟я┌п╫п╟я▐ п╨п╬я│п╟я▐ я┤п╣я─я┌п╟"
+
+#: lib/regcomp.c:140
+msgid "Invalid back reference"
+msgstr "п²п╣п╢п╬п©я┐я│я┌п╦п╪п╟я▐ п╬п╠я─п╟я┌п╫п╟я▐ я│я│я▀п╩п╨п╟"
+
+#: lib/regcomp.c:143
+msgid "Unmatched [, [^, [:, [., or [="
+msgstr "п²п╣п©п╟я─п╫п╟я▐ [, [^, [:, [. п╦п╩п╦ [="
+
+#: lib/regcomp.c:146
+msgid "Unmatched ( or \\("
+msgstr "п²п╣п©п╟я─п╫я▀п╧ я│п╦п╪п╡п╬п╩ ( or \\("
+
+#: lib/regcomp.c:149
+msgid "Unmatched \\{"
+msgstr "п²п╣п©п╟я─п╫я▀п╧ я│п╦п╪п╡п╬п╩ \\{"
+
+#: lib/regcomp.c:152
+msgid "Invalid content of \\{\\}"
+msgstr "п²п╣п╢п╬п©я┐я│я┌п╦п╪п╬п╣ я│п╬п╢п╣я─п╤п╦п╪п╬п╣ п╡ \\{\\}"
+
+#: lib/regcomp.c:155
+msgid "Invalid range end"
+msgstr "п²п╣п╢п╬п©я┐я│я┌п╦п╪п╬п╣ п╬п╨п╬п╫я┤п╟п╫п╦п╣ п╢п╦п╟п©п╟п╥п╬п╫п╟"
+
+#: lib/regcomp.c:158
+msgid "Memory exhausted"
+msgstr "п÷п╟п╪я▐я┌я▄ п╦я│я┤п╣я─п©п╟п╫п╟"
+
+#: lib/regcomp.c:161
+msgid "Invalid preceding regular expression"
+msgstr "п²п╣п╢п╬п©я┐я│я┌п╦п╪п╬п╣ п©я─п╣п╢я┬п╣я│я┌п╡я┐я▌я┴п╣п╣ я─п╣пЁя┐п╩я▐я─п╫п╬п╣ п╡я▀я─п╟п╤п╣п╫п╦п╣"
+
+#: lib/regcomp.c:164
+msgid "Premature end of regular expression"
+msgstr "п÷я─п╣п╤п╢п╣п╡я─п╣п╪п╣п╫п╫п╬п╣ п╬п╨п╬п╫я┤п╟п╫п╦п╣ я─п╣пЁя┐п╩я▐я─п╫п╬пЁп╬ п╡я▀я─п╟п╤п╣п╫п╦я▐"
+
+#: lib/regcomp.c:167
+msgid "Regular expression too big"
+msgstr "п═п╣пЁя┐п╩я▐я─п╫п╬п╣ п╡я▀я─п╟п╤п╣п╫п╦п╣ я│п╩п╦я┬п╨п╬п╪ п╠п╬п╩я▄я┬п╬п╣"
+
+#: lib/regcomp.c:170
+msgid "Unmatched ) or \\)"
+msgstr "п²п╣п©п╟я─п╫я▀п╧ я│п╦п╪п╡п╬п╩ ) п╦п╩п╦ \\)"
+
+#: lib/regcomp.c:650
+msgid "No previous regular expression"
+msgstr "п²п╣я┌ п©я─п╣п╢я▀п╢я┐я┴п╣пЁп╬ я─п╣пЁя┐п╩я▐я─п╫п╬пЁп╬ п╡я▀я─п╟п╤п╣п╫п╦я▐"
+
+#: lib/set-acl.c:46
+#, c-format
+msgid "setting permissions for %s"
+msgstr "я┐я│я┌п╟п╫п╬п╡п╨п╟ п©я─п╟п╡ п╢п╬я│я┌я┐п©п╟ п╢п╩я▐ %s"
+
+#: lib/version-etc.c:73
+#, c-format
+msgid "Packaged by %s (%s)\n"
+msgstr "пёп©п╟п╨п╬п╡п╟п╫ %s (%s)\n"
+
+#: lib/version-etc.c:76
+#, c-format
+msgid "Packaged by %s\n"
+msgstr "пёп©п╟п╨п╬п╡п╟п╫ %s\n"
+
+#. TRANSLATORS: Translate "(C)" to the copyright symbol
+#. (C-in-a-circle), if this symbol is available in the user's
+#. locale.  Otherwise, do not translate "(C)"; leave it as-is.
+#: lib/version-etc.c:83
+msgid "(C)"
+msgstr "б╘"
+
+#. TRANSLATORS: The %s placeholder is the web address of the GPL license.
+#: lib/version-etc.c:88
+#, c-format
+msgid ""
+"License GPLv3+: GNU GPL version 3 or later <%s>.\n"
+"This is free software: you are free to change and redistribute it.\n"
+"There is NO WARRANTY, to the extent permitted by law.\n"
+msgstr ""
+"п⌡п╦я├п╣п╫п╥п╦я▐ GPLv3+: GNU GPL п╡п╣я─я│п╦п╦ 3 п╦п╩п╦ п╫п╬п╡п╣п╣ <%s>.\n"
+"п╜я┌п╬ я│п╡п╬п╠п╬п╢п╫п╬п╣ п÷п·: п╡я▀ п╪п╬п╤п╣я┌п╣ п╦п╥п╪п╣п╫я▐я┌я▄ п╦ я─п╟я│п©я─п╬я│я┌я─п╟п╫я▐я┌я▄ п╣пЁп╬.\n"
+"п²п╣я┌ п²п≤п п░п п≤п╔ п⌠п░п═п░п²п╒п≤п≥ п╢п╬ я│я┌п╣п©п╣п╫п╦, я─п╟п╥я─п╣я┬я▒п╫п╫п╬п╧ п╥п╟п╨п╬п╫п╬п╪.\n"
+
+#. TRANSLATORS: %s denotes an author name.
+#: lib/version-etc.c:105
+#, c-format
+msgid "Written by %s.\n"
+msgstr "п░п╡я┌п╬я─ п©я─п╬пЁя─п╟п╪п╪я▀ Б─■ %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#: lib/version-etc.c:109
+#, c-format
+msgid "Written by %s and %s.\n"
+msgstr "п░п╡я┌п╬я─я▀ п©я─п╬пЁя─п╟п╪п╪я▀ Б─■ %s п╦ %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#: lib/version-etc.c:113
+#, c-format
+msgid "Written by %s, %s, and %s.\n"
+msgstr "п░п╡я┌п╬я─я▀ п©я─п╬пЁя─п╟п╪п╪я▀ Б─■ %s, %s п╦ %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:120
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"and %s.\n"
+msgstr ""
+"п░п╡я┌п╬я─я▀ п©я─п╬пЁя─п╟п╪п╪я▀ Б─■ %s, %s, %s\n"
+"п╦ %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:127
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, and %s.\n"
+msgstr ""
+"п░п╡я┌п╬я─я▀ п©я─п╬пЁя─п╟п╪п╪я▀ Б─■ %s, %s, %s,\n"
+"%s п╦ %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:134
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, and %s.\n"
+msgstr ""
+"п░п╡я┌п╬я─я▀ п©я─п╬пЁя─п╟п╪п╪я▀ Б─■ %s, %s, %s,\n"
+"%s, %s п╦ %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:142
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, and %s.\n"
+msgstr ""
+"п░п╡я┌п╬я─я▀ п©я─п╬пЁя─п╟п╪п╪я▀ Б─■ %s, %s, %s,\n"
+"%s, %s, %s п╦ %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:150
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"and %s.\n"
+msgstr ""
+"п░п╡я┌п╬я─я▀ п©я─п╬пЁя─п╟п╪п╪я▀ Б─■ %s, %s, %s,\n"
+"%s, %s, %s, %s\n"
+"п╦ %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:159
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"%s, and %s.\n"
+msgstr ""
+"п░п╡я┌п╬я─я▀ п©я─п╬пЁя─п╟п╪п╪я▀ Б─■ %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"%s п╦ %s.\n"
+
+#. TRANSLATORS: Each %s denotes an author name.
+#. You can use line breaks, estimating that each author name occupies
+#. ca. 16 screen columns and that a screen line has ca. 80 columns.
+#: lib/version-etc.c:170
+#, c-format
+msgid ""
+"Written by %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"%s, %s, and others.\n"
+msgstr ""
+"п░п╡я┌п╬я─я▀ п©я─п╬пЁя─п╟п╪п╪я▀ Б─■ %s, %s, %s,\n"
+"%s, %s, %s, %s,\n"
+"%s, %s п╦ п╢я─я┐пЁп╦п╣.\n"
+
+#. TRANSLATORS: The placeholder indicates the bug-reporting address
+#. for this package.  Please add _another line_ saying
+#. "Report translation bugs to <...>\n" with the address for translation
+#. bugs (typically your translation team's web or email address).
+#: lib/version-etc.c:249
+#, c-format
+msgid "Report bugs to: %s\n"
+msgstr ""
+"п·п╠ п╬я┬п╦п╠п╨п╟я┘ я│п╬п╬п╠я┴п╟п╧я┌п╣ п©п╬ п╟п╢я─п╣я│я┐: %s\n"
+"п·п╠ п╬я┬п╦п╠п╨п╟я┘ п╡ п©п╣я─п╣п╡п╬п╢п╣ я│п╬п╬п╠я┴п╟п╧я┌п╣ п©п╬ п╟п╢я─п╣я│я┐: <gnu@d07.ru>\n"
+
+#: lib/version-etc.c:251
+#, c-format
+msgid "Report %s bugs to: %s\n"
+msgstr "п·п╠ п╬я┬п╦п╠п╨п╟я┘ п╡ %s я│п╬п╬п╠я┴п╟п╧я┌п╣ п©п╬ п╟п╢я─п╣я│я┐ %s\n"
+
+#: lib/version-etc.c:255 lib/version-etc.c:257
+#, c-format
+msgid "%s home page: <%s>\n"
+msgstr "п■п╬п╪п╟я┬п╫я▐я▐ я│я┌я─п╟п╫п╦я├п╟ %s: <%s>\n"
+
+#: lib/version-etc.c:260
+#, c-format
+msgid "General help using GNU software: <%s>\n"
+msgstr "п║п©я─п╟п╡п╨п╟ п©п╬ я─п╟п╠п╬я┌п╣ я│ п©я─п╬пЁя─п╟п╪п╪п╟п╪п╦ GNU: <%s>\n"
+
+#: sed/compile.c:146
+msgid "multiple `!'s"
+msgstr "п╫п╣я│п╨п╬п╩я▄п╨п╬ я│п╦п╪п╡п╬п╩п╬п╡ б╚!б╩"
+
+#: sed/compile.c:147
+msgid "unexpected `,'"
+msgstr "п╫п╣п©я─п╣п╢п╡п╦п╢п╣п╫п╫я▀п╧ я│п╦п╪п╡п╬п╩ б╚,б╩"
+
+#: sed/compile.c:149
+msgid "invalid usage of +N or ~N as first address"
+msgstr "п╦я│п©п╬п╩я▄п╥п╬п╡п╟п╫п╦п╣ +N п╦п╩п╦ ~N п╡ п╨п╟я┤п╣я│я┌п╡п╣ п©п╣я─п╡п╬пЁп╬ п╟п╢я─п╣я│п╟ п╫п╣п╢п╬п©я┐я│я┌п╦п╪п╬"
+
+#: sed/compile.c:150
+msgid "unmatched `{'"
+msgstr "п╫п╣п©п╟я─п╫я▀п╧ я│п╦п╪п╡п╬п╩ б╚{б╩"
+
+#: sed/compile.c:151
+msgid "unexpected `}'"
+msgstr "п╫п╣п©я─п╣п╢п╡п╦п╢п╣п╫п╫я▀п╧ я│п╦п╪п╡п╬п╩ б╚}б╩"
+
+#: sed/compile.c:153
+msgid "extra characters after command"
+msgstr "п╩п╦я┬п╫п╦п╣ я│п╦п╪п╡п╬п╩я▀ п©п╬я│п╩п╣ п╨п╬п╪п╟п╫п╢я▀"
+
+#: sed/compile.c:155
+msgid "expected \\ after `a', `c' or `i'"
+msgstr "п╬п╤п╦п╢п╟п╩п╟я│я▄ \\ п©п╬я│п╩п╣ б╚aб╩, б╚cб╩ п╦п╩п╦ б╚iб╩"
+
+#: sed/compile.c:157
+msgid "`}' doesn't want any addresses"
+msgstr "б╚}б╩ п╫п╣ п╢п╬п©я┐я│п╨п╟п╣я┌ я┐п╨п╟п╥п╟п╫п╦я▐ п╨п╟п╨п╦я┘-п╩п╦п╠п╬ п╟п╢я─п╣я│п╬п╡"
+
+#: sed/compile.c:159
+msgid ": doesn't want any addresses"
+msgstr "б╚:б╩ п╫п╣ п╢п╬п©я┐я│п╨п╟п╣я┌ я┐п╨п╟п╥п╟п╫п╦я▐ п╨п╟п╨п╦я┘-п╩п╦п╠п╬ п╟п╢я─п╣я│п╬п╡"
+
+#: sed/compile.c:161
+msgid "comments don't accept any addresses"
+msgstr "п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╦ п╫п╣ п╢п╬п©я┐я│п╨п╟я▌я┌ я┐п╨п╟п╥п╟п╫п╦я▐ п╨п╟п╨п╦я┘-п╩п╦п╠п╬ п╟п╢я─п╣я│п╬п╡"
 
 #: sed/compile.c:162
-msgid "multiple `!'s"
-msgstr "несколько символов `!'"
+msgid "missing command"
+msgstr "п╬я┌я│я┐я┌я│я┌п╡я┐п╣я┌ п╨п╬п╪п╟п╫п╢п╟"
 
 #: sed/compile.c:163
-msgid "unexpected `,'"
-msgstr "непредвиденный символ `,'"
-
-#: sed/compile.c:164
-msgid "invalid usage of +N or ~N as first address"
-msgstr "использование +N или ~N в качестве первого адреса недопустимо"
+msgid "command only uses one address"
+msgstr "п╨п╬п╪п╟п╫п╢п╟ п╦я│п©п╬п╩я▄п╥я┐п╣я┌ я┌п╬п╩я▄п╨п╬ п╬п╢п╦п╫ п╟п╢я─п╣я│"
 
 #: sed/compile.c:165
-msgid "unmatched `{'"
-msgstr "непарный символ `{'"
+msgid "unterminated address regex"
+msgstr "п╫п╣п╥п╟п╡п╣я─я┬п╣п╫п╫п╬п╣ п╟п╢я─п╣я│п╫п╬п╣ я─п╣пЁя┐п╩я▐я─п╫п╬п╣ п╡я▀я─п╟п╤п╣п╫п╦п╣"
 
 #: sed/compile.c:166
-msgid "unexpected `}'"
-msgstr "непредвиденный символ `}'"
+msgid "unterminated `s' command"
+msgstr "п╫п╣п╥п╟п╡п╣я─я┬п╣п╫п╫п╟я▐ п╨п╬п╪п╟п╫п╢п╟ `s'"
 
 #: sed/compile.c:167
-msgid "extra characters after command"
-msgstr "лишние символы после команды"
+msgid "unterminated `y' command"
+msgstr "п╫п╣п╥п╟п╡п╣я─я┬п╣п╫п╫п╟я▐ п╨п╬п╪п╟п╫п╢п╟ `y'"
 
 #: sed/compile.c:168
-msgid "expected \\ after `a', `c' or `i'"
-msgstr "ожидалась \\ после `a', `c' или `i'"
-
-#: sed/compile.c:169
-msgid "`}' doesn't want any addresses"
-msgstr "`}' не допускает указания каких-либо адресов"
+msgid "unknown option to `s'"
+msgstr "п╫п╣п╦п╥п╡п╣я│я┌п╫я▀п╧ п╪п╬п╢п╦я└п╦п╨п╟я┌п╬я─ п╨ `s'"
 
 #: sed/compile.c:170
-msgid ": doesn't want any addresses"
-msgstr "`:' не допускает указания каких-либо адресов"
-
-#: sed/compile.c:171
-msgid "comments don't accept any addresses"
-msgstr "комментарии не допускают указания каких-либо адресов"
+msgid "multiple `p' options to `s' command"
+msgstr "п╫п╣я│п╨п╬п╩я▄п╨п╬ п╪п╬п╢п╦я└п╦п╨п╟я┌п╬я─п╬п╡ `p' я│ п╨п╬п╪п╟п╫п╢п╬п╧ `s'"
 
 #: sed/compile.c:172
-msgid "missing command"
-msgstr "отсутствует команда"
-
-#: sed/compile.c:173
-msgid "command only uses one address"
-msgstr "команда использует только один адрес"
+msgid "multiple `g' options to `s' command"
+msgstr "п╫п╣я│п╨п╬п╩я▄п╨п╬ п╪п╬п╢п╦я└п╦п╨п╟я┌п╬я─п╬п╡ `g' я│ п╨п╬п╪п╟п╫п╢п╬п╧ `s'"
 
 #: sed/compile.c:174
-msgid "unterminated address regex"
-msgstr "незавершенное адресное регулярное выражение"
-
-#: sed/compile.c:175
-msgid "unterminated `s' command"
-msgstr "незавершенная команда `s'"
+msgid "multiple number options to `s' command"
+msgstr "п╫п╣я│п╨п╬п╩я▄п╨п╬ я┤п╦я│п╩п╬п╡я▀я┘ п╪п╬п╢п╦я└п╦п╨п╟я┌п╬я─п╬п╡ я│ п╨п╬п╪п╟п╫п╢п╬п╧ `s'"
 
 #: sed/compile.c:176
-msgid "unterminated `y' command"
-msgstr "незавершенная команда `y'"
-
-#: sed/compile.c:177
-msgid "unknown option to `s'"
-msgstr "неизвестный модификатор к `s'"
+msgid "number option to `s' command may not be zero"
+msgstr "я┤п╦я│п╩п╬п╡п╬п╧ п╪п╬п╢п╦я└п╦п╨п╟я┌п╬я─ п╢п╩я▐ п╨п╬п╪п╟п╫п╢я▀ `s' п╫п╣ п╪п╬п╤п╣я┌ п╠я▀я┌я▄ п╫я┐п╩п╣п╡я▀п╪"
 
 #: sed/compile.c:178
-msgid "multiple `p' options to `s' command"
-msgstr "несколько модификаторов `p' с командой `s'"
-
-#: sed/compile.c:179
-msgid "multiple `g' options to `s' command"
-msgstr "несколько модификаторов `g' с командой `s'"
+msgid "strings for `y' command are different lengths"
+msgstr "я│я┌я─п╬п╨п╦ п╢п╩я▐ п╨п╬п╪п╟п╫п╢я▀ `y' п╦п╪п╣я▌я┌ я─п╟п╥п╫я┐я▌ п╢п╩п╦п╫я┐"
 
 #: sed/compile.c:180
-msgid "multiple number options to `s' command"
-msgstr "несколько числовых модификаторов с командой `s'"
-
-#: sed/compile.c:181
-msgid "number option to `s' command may not be zero"
-msgstr "числовой модификатор для команды `s' не может быть нулевым"
+msgid "delimiter character is not a single-byte character"
+msgstr "я│п╦п╪п╡п╬п╩-я─п╟п╥п╢п╣п╩п╦я┌п╣п╩я▄ п╫п╣ я▐п╡п╩я▐п╣я┌я│я▐ п╬п╢п╫п╬п╠п╟п╧я┌п╬п╡я▀п╪ я│п╦п╪п╡п╬п╩п╬п╪"
 
 #: sed/compile.c:182
-msgid "strings for `y' command are different lengths"
-msgstr "строки для команды `y' имеют разную длину"
-
-#: sed/compile.c:183
-msgid "delimiter character is not a single-byte character"
-msgstr "символ-разделитель не является однобайтовым символом"
+msgid "expected newer version of sed"
+msgstr "п╬п╤п╦п╢п╟п╩п╟я│я▄ п╠п╬п╩п╣п╣ п╫п╬п╡п╟я▐ п╡п╣я─я│п╦я▐ sed"
 
 #: sed/compile.c:184
-msgid "expected newer version of sed"
-msgstr "ожидалась более новая версия sed"
+msgid "invalid usage of line address 0"
+msgstr "п╫п╣п╢п╬п©я┐я│я┌п╦п╪п╬п╣ п╦я│п©п╬п╩я▄п╥п╬п╡п╟п╫п╦п╣ я│я┌я─п╬п╨п╦ п╟п╢я─п╣я│п╟ 0"
 
 #: sed/compile.c:185
-msgid "invalid usage of line address 0"
-msgstr "недопустимое использование строки адреса 0"
-
-#: sed/compile.c:186
 #, c-format
 msgid "unknown command: `%c'"
-msgstr "неизвестная команда: `%c'"
+msgstr "п╫п╣п╦п╥п╡п╣я│я┌п╫п╟я▐ п╨п╬п╪п╟п╫п╢п╟: `%c'"
 
-#: sed/compile.c:209
+#: sed/compile.c:187
+msgid "incomplete command"
+msgstr "п╫п╣п╥п╟п╡п╣я─я┬я▒п╫п╫п╟я▐ п╨п╬п╪п╟п╫п╢п╟"
+
+#: sed/compile.c:189
+msgid "\":\" lacks a label"
+msgstr "я┐ б╚:б╩ п╬я┌я│я┐я┌я│я┌п╡я┐п╣я┌ п╪п╣я┌п╨п╟"
+
+#: sed/compile.c:191
+msgid "recursive escaping after \\c not allowed"
+msgstr "я─п╣п╨я┐я─я│п╦п╡п╫п╬п╣ я█п╨я─п╟п╫п╦я─п╬п╡п╟п╫п╦п╣ п©п╬я│п╩п╣ \\c п╥п╟п©я─п╣я┴п╣п╫п╬"
+
+#: sed/compile.c:193
+msgid "e/r/w commands disabled in sandbox mode"
+msgstr "п╨п╬п╪п╟п╫п╢я▀ e/r/w п╬я┌п╨п╩я▌я┤п╣п╫я▀ п╡ я─п╣п╤п╦п╪п╣ б╚п©п╣я│п╬я┤п╫п╦я├я▀б╩"
+
+#: sed/compile.c:218
 #, c-format
 msgid "%s: file %s line %lu: %s\n"
-msgstr "%s: файл %s строка %lu: %s\n"
+msgstr "%s: я└п╟п╧п╩ %s я│я┌я─п╬п╨п╟ %lu: %s\n"
 
-#: sed/compile.c:212
+#: sed/compile.c:221
 #, c-format
 msgid "%s: -e expression #%lu, char %lu: %s\n"
-msgstr "%s: -e выражение #%lu, символ %lu: %s\n"
+msgstr "%s: -e п╡я▀я─п╟п╤п╣п╫п╦п╣ #%lu, я│п╦п╪п╡п╬п╩ %lu: %s\n"
 
-#: sed/compile.c:1644
+#: sed/compile.c:1623
 #, c-format
 msgid "can't find label for jump to `%s'"
-msgstr "невозможно найти метку для перехода к `%s'"
+msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п╫п╟п╧я┌п╦ п╪п╣я┌п╨я┐ п╢п╩я▐ п©п╣я─п╣я┘п╬п╢п╟ п╨ `%s'"
 
-#: sed/execute.c:650
+#: sed/execute.c:253 sed/execute.c:270
+#, c-format
+msgid "case conversion produced an invalid character"
+msgstr "п©я─п╦ п©я─п╣п╬п╠я─п╟п╥п╬п╡п╟п╫п╦п╦ я─п╣пЁп╦я│я┌я─п╟ п©п╬п╩я┐я┤п╦п╩я│я▐ п╫п╣п╨п╬я─я─п╣п╨я┌п╫я▀п╧ я│п╦п╪п╡п╬п╩"
+
+#: sed/execute.c:565
 #, c-format
 msgid "%s: can't read %s: %s\n"
-msgstr "%s: невозможно прочитать %s: %s\n"
+msgstr "%s: п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п©я─п╬я┤п╦я┌п╟я┌я▄ %s: %s\n"
 
-#: sed/execute.c:673
+#: sed/execute.c:591
 #, c-format
 msgid "couldn't edit %s: is a terminal"
-msgstr "невозможно редактировать %s: это терминал"
+msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ я─п╣п╢п╟п╨я┌п╦я─п╬п╡п╟я┌я▄ %s: я█я┌п╬ я┌п╣я─п╪п╦п╫п╟п╩"
 
-#: sed/execute.c:677
+#: sed/execute.c:596
 #, c-format
 msgid "couldn't edit %s: not a regular file"
-msgstr "невозможно редактировать %s: это не обычный файл"
+msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ я─п╣п╢п╟п╨я┌п╦я─п╬п╡п╟я┌я▄ %s: я█я┌п╬ п╫п╣ п╬п╠я▀я┤п╫я▀п╧ я└п╟п╧п╩"
 
-#: sed/execute.c:684 lib/utils.c:196
+#: sed/execute.c:607
+#, c-format
+msgid "%s: warning: failed to set default file creation context to %s: %s"
+msgstr ""
+"%s: п©я─п╣п╢я┐п©я─п╣п╤п╢п╣п╫п╦п╣: п╫п╣ я┐п╢п╟п╩п╬я│я▄ я┐я│я┌п╟п╫п╬п╡п╦я┌я▄ п╨п╬п╫я┌п╣п╨я│я┌ п╠п╣п╥п╬п©п╟я│п╫п╬я│я┌п╦ я└п╟п╧п╩п╟ п©п╬ "
+"я┐п╪п╬п╩я┤п╟п╫п╦я▌ п╡ %s: %s"
+
+#: sed/execute.c:615
+#, c-format
+msgid "%s: warning: failed to get security context of %s: %s"
+msgstr "%s: п©я─п╣п╢я┐п©я─п╣п╤п╢п╣п╫п╦п╣: п╫п╣ я┐п╢п╟п╩п╬я│я▄ п©п╬п╩я┐я┤п╦я┌я▄ п╨п╬п╫я┌п╣п╨я│я┌ п╠п╣п╥п╬п©п╟я│п╫п╬я│я┌п╦ %s: %s"
+
+#: sed/execute.c:633 sed/utils.c:215
 #, c-format
 msgid "couldn't open temporary file %s: %s"
-msgstr "невозможно открыть временный файл %s: %s"
+msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п╬я┌п╨я─я▀я┌я▄ п╡я─п╣п╪п╣п╫п╫я▀п╧ я└п╟п╧п╩ %s: %s"
 
-#: sed/execute.c:1206 sed/execute.c:1387
+#: sed/execute.c:1170 sed/execute.c:1369
 msgid "error in subprocess"
-msgstr "ошибка в подпроцессе"
+msgstr "п╬я┬п╦п╠п╨п╟ п╡ п©п╬п╢п©я─п╬я├п╣я│я│п╣"
 
-#: sed/execute.c:1208
+#: sed/execute.c:1172
 msgid "option `e' not supported"
-msgstr "опция `e' не поддерживается"
+msgstr "п©п╟я─п╟п╪п╣я┌я─ б╚eб╩ п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐"
 
-#: sed/execute.c:1389
+#: sed/execute.c:1350
 msgid "`e' command not supported"
-msgstr "команда `e' не поддерживается"
+msgstr "п╨п╬п╪п╟п╫п╢п╟ б╚eб╩ п╫п╣ п©п╬п╢п╢п╣я─п╤п╦п╡п╟п╣я┌я│я▐"
 
-#: sed/execute.c:1714
+#: sed/execute.c:1672
 msgid "no input files"
-msgstr ""
-
-#: sed/regexp.c:39
-msgid "no previous regular expression"
-msgstr "нет предыдущего регулярного выражения"
+msgstr "п╬я┌я│я┐я┌я│я┌п╡я┐я▌я┌ п╡я┘п╬п╢п╫я▀п╣ я└п╟п╧п╩я▀"
 
 #: sed/regexp.c:40
-msgid "cannot specify modifiers on empty regexp"
-msgstr "невозможно указать модификаторы в пустом регулярном выражении"
+msgid "no previous regular expression"
+msgstr "п╫п╣я┌ п©я─п╣п╢я▀п╢я┐я┴п╣пЁп╬ я─п╣пЁя┐п╩я▐я─п╫п╬пЁп╬ п╡я▀я─п╟п╤п╣п╫п╦я▐"
 
-#: sed/regexp.c:115
+#: sed/regexp.c:125
 #, c-format
 msgid "invalid reference \\%d on `s' command's RHS"
-msgstr "недопустимая ссылка \\%d на RHS команды `s'"
+msgstr "п╫п╣п╢п╬п©я┐я│я┌п╦п╪п╟я▐ я│я│я▀п╩п╨п╟ \\%d п╫п╟ RHS п╨п╬п╪п╟п╫п╢я▀ б╚sб╩"
 
-#: sed/sed.c:93
+#: sed/regexp.c:196
+msgid "regex input buffer length larger than INT_MAX"
+msgstr "п╢п╩п╦п╫п╟ п╡я┘п╬п╢п╫п╬пЁп╬ п╠я┐я└п╣я─п╟ я─п╣пЁя┐п╩я▐я─п╫п╬пЁп╬ п╡я▀я─п╟п╤п╣п╫п╦я▐ п╠п╬п╩я▄я┬п╣ INT_MAX"
+
+#: sed/sed.c:37
+msgid "Jay Fenlason"
+msgstr "п■п╤п╣п╧ п╓п╣п╫п╩п╟я│п╬п╫ (Jay Fenlason)"
+
+#: sed/sed.c:38
+msgid "Tom Lord"
+msgstr "п╒п╬п╪ п⌡п╬я─п╢ (Tom Lord)"
+
+#: sed/sed.c:39
+msgid "Ken Pizzini"
+msgstr "п п╣п╫ п÷п╦я├я├п╦п╫п╦ (Ken Pizzini)"
+
+#: sed/sed.c:40
+msgid "Paolo Bonzini"
+msgstr "п÷п╟п╬п╩п╬ п▒п╬п╫п╥п╦п╫п╦ (Paolo Bonzini)"
+
+#: sed/sed.c:41
+msgid "Jim Meyering"
+msgstr "п■п╤п╦п╪ п°п╣п╧п╣я─п╦п╫пЁ (Jim Meyering)"
+
+#: sed/sed.c:42
+msgid "Assaf Gordon"
+msgstr "п░я│я│п╟я└ п⌠п╬я─п╢п╬п╫ (Assaf Gordon)"
+
+#: sed/sed.c:103
+#, c-format
 msgid ""
-"  -R, --regexp-perl\n"
-"                 use Perl 5's regular expressions syntax in the script.\n"
+"GNU sed home page: <https://www.gnu.org/software/sed/>.\n"
+"General help using GNU software: <https://www.gnu.org/gethelp/>.\n"
 msgstr ""
-"  -R, --regexp-perl\n"
-"                 использование в скрипте синтаксиса регулярных выражений "
-"Perl 5.\n"
+"п■п╬п╪п╟я┬п╫я▐я▐ я│я┌я─п╟п╫п╦я├п╟ GNU sed: <https://www.gnu.org/software/sed/>.\n"
+"п║п©я─п╟п╡п╨п╟ п©п╬ я─п╟п╠п╬я┌п╣ я│ п©я─п╬пЁя─п╟п╪п╪п╟п╪п╦ GNU: <https://www.gnu.org/gethelp/>.\n"
 
-#: sed/sed.c:98
+#: sed/sed.c:109
+#, c-format
+msgid "E-mail bug reports to: <%s>.\n"
+msgstr "п║п╬п╬п╠я┴п╣п╫п╦я▐ п╬п╠ п╬я┬п╦п╠п╨п╟я┘ п╬я┌п©я─п╟п╡п╩я▐п╧я┌п╣ п╫п╟ <%s>.\n"
+
+#: sed/sed.c:117
+msgid "This sed program was built with SELinux support."
+msgstr "п÷я─п╬пЁя─п╟п╪п╪п╟ sed я│п╬п╠я─п╟п╫п╟ я│ п©п╬п╢п╢п╣я─п╤п╨п╬п╧ SELinux."
+
+#: sed/sed.c:119
+msgid "SELinux is enabled on this system."
+msgstr "п▓ я│п╦я│я┌п╣п╪п╣ п╡п╨п╩я▌я┤п╣п╫ SELinux."
+
+#: sed/sed.c:121
+msgid "SELinux is disabled on this system."
+msgstr "п▓ я│п╦я│я┌п╣п╪п╣ п╡я▀п╨п╩я▌я┤п╣п╫ SELinux."
+
+#: sed/sed.c:123
+msgid "This sed program was built without SELinux support."
+msgstr "п÷я─п╬пЁя─п╟п╪п╪п╟ sed я│п╬п╠я─п╟п╫п╟ п╠п╣п╥ п©п╬п╢п╢п╣я─п╤п╨п╦ SELinux."
+
+#: sed/sed.c:133
 #, c-format
 msgid ""
 "Usage: %s [OPTION]... {script-only-if-no-other-script} [input-file]...\n"
 "\n"
 msgstr ""
-"Использование: %s [ОПЦИЯ]... {только-скрипт-если-нет-другого-скрипта} "
-"[входной-файл]...\n"
+"п≤я│п©п╬п╩я▄п╥п╬п╡п╟п╫п╦п╣: %s [п÷п░п═п░п°п∙п╒п═]Б─╕ {я┌п╬п╩я▄п╨п╬-я│я├п╣п╫п╟я─п╦п╧-п╣я│п╩п╦-п╫п╣я┌-п╢я─я┐пЁп╬пЁп╬-я│я├п╣п╫п╟я─п╦я▐}\n"
+"               [п╡я┘п╬п╢п╫п╬п╧-я└п╟п╧п╩]Б─╕\n"
 "\n"
 
-#: sed/sed.c:102
+#: sed/sed.c:137
 #, c-format
 msgid ""
 "  -n, --quiet, --silent\n"
 "                 suppress automatic printing of pattern space\n"
 msgstr ""
 "  -n, --quiet, --silent\n"
-"                 подавление автоматического вывода промежутков\n"
+"                 п╡я▀п╨п╩я▌я┤п╦я┌я▄ п╟п╡я┌п╬п╪п╟я┌п╦я┤п╣я│п╨я┐я▌ п©п╣я┤п╟я┌я▄ п╬п╠я─п╟п╥я├п╟\n"
 
-#: sed/sed.c:104
+#: sed/sed.c:139
+#, c-format
+msgid ""
+"      --debug\n"
+"                 annotate program execution\n"
+msgstr ""
+"      --debug\n"
+"                 п╨п╬п╪п╪п╣п╫я┌п╦я─п╬п╡п╟я┌я▄ п╡я▀п©п╬п╩п╫п╣п╫п╦п╣ п©я─п╬пЁя─п╟п╪п╪я▀\n"
+
+#: sed/sed.c:141
 #, c-format
 msgid ""
 "  -e script, --expression=script\n"
 "                 add the script to the commands to be executed\n"
 msgstr ""
-"  -e script, --expression=script\n"
-"                 добавление скрипта в исполняемые команды\n"
+"  -e script, --expression=я│я├п╣п╫п╟я─п╦п╧\n"
+"                 п╢п╬п╠п╟п╡п╦я┌я▄ я│я├п╣п╫п╟я─п╦п╧ п╡ п╦я│п©п╬п╩п╫я▐п╣п╪я▀п╣ п╨п╬п╪п╟п╫п╢я▀\n"
 
-#: sed/sed.c:106
+#: sed/sed.c:143
 #, c-format
 msgid ""
 "  -f script-file, --file=script-file\n"
 "                 add the contents of script-file to the commands to be "
 "executed\n"
 msgstr ""
-"  -f script-file, --file=script-file\n"
-"                 добавление содержимого файла-скрипта в исполняемые команды\n"
+"  -f script-file, --file=я└п╟п╧п╩-я│я├п╣п╫п╟я─п╦я▐\n"
+"                 п╢п╬п╠п╟п╡п╦я┌я▄ я│п╬п╢п╣я─п╤п╦п╪п╬п╣ я└п╟п╧п╩п╟-я│я├п╣п╫п╟я─п╦я▐ п╡ п╦я│п©п╬п╩п╫я▐п╣п╪я▀п╣ п╨п╬п╪п╟п╫п╢я▀\n"
 
-#: sed/sed.c:108
+#: sed/sed.c:147
+#, c-format
+msgid ""
+"  --follow-symlinks\n"
+"                 follow symlinks when processing in place\n"
+msgstr ""
+"  --follow-symlinks\n"
+"                 п©п╣я─п╣я┘п╬п╢п╦я┌я▄ п©п╬ я│п╦п╪п╡п╬п╩я▄п╫я▀п╪ я│я│я▀п╩п╨п╟п╪ п©я─п╦ п╬п╠я─п╟п╠п╬я┌п╨п╣ п╫п╟ п╪п╣я│я┌п╣\n"
+
+#: sed/sed.c:150
 #, c-format
 msgid ""
 "  -i[SUFFIX], --in-place[=SUFFIX]\n"
-"                 edit files in place (makes backup if extension supplied)\n"
+"                 edit files in place (makes backup if SUFFIX supplied)\n"
 msgstr ""
-"  -i[СУФФИКС], --in-place[=СУФФИКС]\n"
-"                 редактирование файлов на месте (создает копию, если указано "
-"расширение)\n"
+"  -i[п║пёп╓п╓п≤п п║], --in-place[=п║пёп╓п╓п≤п п║]\n"
+"                 п©я─п╟п╡п╦я┌я▄ я└п╟п╧п╩я▀ п╫п╟ п╪п╣я│я┌п╣ (я│п╬п╥п╢п╟я▒я┌ п╨п╬п©п╦я▌, п╣я│п╩п╦ я┐п╨п╟п╥п╟п╫ "
+"п║пёп╓п╓п≤п п║)\n"
 
-#: sed/sed.c:110
+#: sed/sed.c:153
+#, c-format
+msgid ""
+"  -b, --binary\n"
+"                 open files in binary mode (CR+LFs are not processed "
+"specially)\n"
+msgstr ""
+"  -b, --binary\n"
+"                 п╬я┌п╨я─я▀п╡п╟я┌я▄ я└п╟п╧п╩я▀ п╡ п╢п╡п╬п╦я┤п╫п╬п╪ я─п╣п╤п╦п╪п╣ (CR+LF п╫п╣ "
+"п╬п╠я─п╟п╠п╟я┌я▀п╡п╟я▌я┌я│я▐)\n"
+
+#: sed/sed.c:157
 #, c-format
 msgid ""
 "  -l N, --line-length=N\n"
 "                 specify the desired line-wrap length for the `l' command\n"
 msgstr ""
 "  -l N, --line-length=N\n"
-"                 указание желаемой длины переносимой строки для команды `l'\n"
+"                 п╥п╟п╢п╟я┌я▄ п╤п╣п╩п╟п╣п╪я┐я▌ п╢п╩п╦п╫я┐ п╢п╬ п©п╣я─п╣п╫п╬я│п╟ я│я┌я─п╬п╨п╦ п╢п╩я▐ п╨п╬п╪п╟п╫п╢я▀ б╚lб╩\n"
 
-#: sed/sed.c:112
+#: sed/sed.c:159
 #, c-format
 msgid ""
 "  --posix\n"
 "                 disable all GNU extensions.\n"
 msgstr ""
 "  --posix\n"
-"                 отключение всех расширений GNU.\n"
+"                 п╬я┌п╨п╩я▌я┤п╦я┌я▄ п╡я│п╣ я─п╟я│я┬п╦я─п╣п╫п╦я▐ GNU\n"
 
-#: sed/sed.c:114
+#: sed/sed.c:161
 #, c-format
 msgid ""
-"  -r, --regexp-extended\n"
-"                 use extended regular expressions in the script.\n"
+"  -E, -r, --regexp-extended\n"
+"                 use extended regular expressions in the script\n"
+"                 (for portability use POSIX -E).\n"
 msgstr ""
-"  -r, --regexp-extended\n"
-"                 использование в скрипте расширенных регулярных выражений.\n"
+"  -E, -r, --regexp-extended\n"
+"                 п╦я│п©п╬п╩я▄п╥п╬п╡п╟я┌я▄ п╡ я│я├п╣п╫п╟я─п╦п╦ я─п╟я│я┬п╦я─п╣п╫п╫я▀п╣ я─п╣пЁя┐п╩я▐я─п╫я▀п╣ п╡я▀я─п╟п╤п╣п╫п╦я▐\n"
+"                 (п╢п╩я▐ п©п╣я─п╣п╫п╬я│п╦п╪п╬я│я┌п╦ п╦я│п©п╬п╩я▄п╥я┐п╧я┌п╣ -E (POSIX)\n"
 
-#: sed/sed.c:117
+#: sed/sed.c:164
 #, c-format
 msgid ""
 "  -s, --separate\n"
-"                 consider files as separate rather than as a single "
-"continuous\n"
-"                 long stream.\n"
+"                 consider files as separate rather than as a single,\n"
+"                 continuous long stream.\n"
 msgstr ""
 "  -s, --separate\n"
-"                 допущение, что файлы разделены, а не в виде одного\n"
-"                 длинного непрерывного потока.\n"
+"                 я─п╟я│я│п╪п╟я┌я─п╦п╡п╟я┌я▄ я└п╟п╧п╩я▀ я─п╟п╥п╢п╣п╩я▄п╫п╬, п╟ п╫п╣ п╡ п╡п╦п╢п╣ п╬п╢п╫п╬пЁп╬\n"
+"                 п╢п╩п╦п╫п╫п╬пЁп╬ п╫п╣п©я─п╣я─я▀п╡п╫п╬пЁп╬ п©п╬я┌п╬п╨п╟\n"
 
-#: sed/sed.c:120
+#: sed/sed.c:167
+#, c-format
+msgid ""
+"      --sandbox\n"
+"                 operate in sandbox mode (disable e/r/w commands).\n"
+msgstr ""
+"      --sandbox\n"
+"                 я─п╟п╠п╬я┌п╟я┌я▄ п╡ я─п╣п╤п╦п╪п╣ б╚п©п╣я│п╬я┤п╫п╦я├я▀б╩\n"
+"                 (п╬я┌п╨п╩я▌я┤п╟п╣я┌ п╨п╬п╪п╟п╫п╢я▀ e/r/w)\n"
+
+#: sed/sed.c:169
 #, c-format
 msgid ""
 "  -u, --unbuffered\n"
@@ -287,20 +769,29 @@ msgid ""
 "                 the output buffers more often\n"
 msgstr ""
 "  -u, --unbuffered\n"
-"                 загрузка минимального объема данных из входных файлов\n"
-"                 и более частый сброс на диск выходных буферов\n"
+"                 п╥п╟пЁя─я┐п╤п╟я┌я▄ п╪п╦п╫п╦п╪п╟п╩я▄п╫я▀п╧ п╬п╠я┼я▒п╪ п╢п╟п╫п╫я▀я┘ п╦п╥ п╡я┘п╬п╢п╫я▀я┘ я└п╟п╧п╩п╬п╡\n"
+"                 п╦ я┤п╟я┴п╣ я│п╠я─п╟я│я▀п╡п╟я┌я▄ п╡я▀я┘п╬п╢п╫я▀п╣ п╠я┐я└п╣я─я▀ п╫п╟ п╢п╦я│п╨\n"
 
-#: sed/sed.c:123
+#: sed/sed.c:172
+#, c-format
+msgid ""
+"  -z, --null-data\n"
+"                 separate lines by NUL characters\n"
+msgstr ""
+"  -z, --null-data\n"
+"                 я─п╟п╥п╢п╣п╩я▐я┌я▄ я│я┌я─п╬п╨п╦ я│п╦п╪п╡п╬п╩п╟п╪п╦ NUL\n"
+
+#: sed/sed.c:174
 #, c-format
 msgid "      --help     display this help and exit\n"
-msgstr "      --help     вывод этой справки и выход\n"
+msgstr "      --help     п©п╬п╨п╟п╥п╟я┌я▄ я█я┌я┐ я│п©я─п╟п╡п╨я┐ п╦ п╡я▀п╧я┌п╦\n"
 
-#: sed/sed.c:124
+#: sed/sed.c:175
 #, c-format
 msgid "      --version  output version information and exit\n"
-msgstr "      --version  вывод информации о версии и выход\n"
+msgstr "      --version  п©п╬п╨п╟п╥п╟я┌я▄ п╦п╫я└п╬я─п╪п╟я├п╦я▌ п╬ п╡п╣я─я│п╦п╦ п╦ п╡я▀п╧я┌п╦\n"
 
-#: sed/sed.c:125
+#: sed/sed.c:176
 #, c-format
 msgid ""
 "\n"
@@ -311,149 +802,159 @@ msgid ""
 "\n"
 msgstr ""
 "\n"
-"Если опция -e, --expression, -f, или --file не указана, тогда первый\n"
-"неопциональный аргумент берется как скрипт sed для интерпретации. Все\n"
-"оставшиеся аргументы являются именами входных файлов; если входные\n"
-"файлы не указаны, тогда читается стантартный ввод.\n"
+"п∙я│п╩п╦ п╫п╣ я┐п╨п╟п╥п╟п╫ п©п╟я─п╟п╪п╣я┌я─ -e, --expression, -f п╦п╩п╦ --file, я┌п╬ п╡ п╨п╟я┤п╣я│я┌п╡п╣\n"
+"п╦п╫я┌п╣я─п©я─п╣я┌п╦я─я┐п╣п╪п╬пЁп╬ я│я├п╣п╫п╟я─п╦я▐ sed п╠п╣я─я▒я┌я│я▐ п©п╣я─п╡я▀п╧ п╫п╣п╬п╠я▐п╥п╟я┌п╣п╩я▄п╫я▀п╧ п╟я─пЁя┐п╪п╣п╫я┌.\n"
+"п▓я│п╣ п╬я│я┌п╟п╡я┬п╦п╣я│я▐ п╟я─пЁя┐п╪п╣п╫я┌я▀ я▐п╡п╩я▐я▌я┌я│я▐ п╦п╪п╣п╫п╟п╪п╦ п╡я┘п╬п╢п╫я▀я┘ я└п╟п╧п╩п╬п╡; п╣я│п╩п╦ п╡я┘п╬п╢п╫я▀п╣\n"
+"я└п╟п╧п╩я▀ п╫п╣ я┐п╨п╟п╥п╟п╫я▀, я┌п╬пЁп╢п╟ я┤п╦я┌п╟п╣я┌я│я▐ я│я┌п╟п╫п╢п╟я─я┌п╫я▀п╧ п╡п╡п╬п╢.\n"
 "\n"
 
-#: sed/sed.c:131
-#, c-format
-msgid ""
-"E-mail bug reports to: %s .\n"
-"Be sure to include the word ``%s'' somewhere in the ``Subject:'' field.\n"
-msgstr ""
-"Отчеты об ошибках отправляйте по адресу: %s .\n"
-"Убедитесь, что включили где-либо в поле ``Тема:'' слово ``%s''.\n"
+#: sed/sed.c:369
+msgid "failed to set binary mode on STDIN"
+msgstr "п╬я┬п╦п╠п╨п╟ п©я─п╦ я┐я│я┌п╟п╫п╬п╡п╨п╣ п╢п╡п╬п╦я┤п╫п╬пЁп╬ я─п╣п╤п╦п╪п╟ п╢п╩я▐ STDIN"
 
-#: sed/sed.c:268
-#, c-format
-msgid "super-sed version %s\n"
-msgstr "super-sed версия %s\n"
+#: sed/sed.c:371
+msgid "failed to set binary mode on STDOUT"
+msgstr "п╬я┬п╦п╠п╨п╟ п©я─п╦ я┐я│я┌п╟п╫п╬п╡п╨п╣ п╢п╡п╬п╦я┤п╫п╬пЁп╬ я─п╣п╤п╦п╪п╟ п╢п╩я▐ STDOUT"
 
-#: sed/sed.c:269
-#, c-format
-msgid ""
-"based on GNU sed version %s\n"
-"\n"
-msgstr ""
-"основан на GNU sed версии %s\n"
-"\n"
-
-#: sed/sed.c:271
-#, c-format
-msgid "GNU sed version %s\n"
-msgstr "GNU sed версия %s\n"
-
-#: sed/sed.c:273
-#, c-format
-msgid ""
-"%s\n"
-"This is free software; see the source for copying conditions.  There is NO\n"
-"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE,\n"
-"to the extent permitted by law.\n"
-msgstr ""
-"%s\n"
-"Это свободное программное обеспечение; условия его копирования смотрите в\n"
-"исходных текстах. Не предоставляется НИКАКОЙ гарантии; даже гарантии\n"
-"ПРИГОДНОСТИ ДЛЯ ПРОДАЖИ или ПРИМЕНИМОСТИ ДЛЯ КОНКРЕТНОЙ ЦЕЛИ, в той мере,\n"
-"в которой это может быть допущено законодательством.\n"
-
-#: lib/utils.c:98 lib/utils.c:336
-#, c-format
-msgid "cannot remove %s: %s"
-msgstr "невозможно удалить %s: %s"
-
-#: lib/utils.c:143
+#: sed/utils.c:129
 #, c-format
 msgid "couldn't open file %s: %s"
-msgstr "невозможно открыть файл %s: %s"
+msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п╬я┌п╨я─я▀я┌я▄ я└п╟п╧п╩ %s: %s"
 
-#: lib/utils.c:220
+#: sed/utils.c:148
 #, c-format
-msgid "couldn't write %d item to %s: %s"
-msgid_plural "couldn't write %d items to %s: %s"
-msgstr[0] "невозможно записать %d элемент в %s: %s"
-msgstr[1] "невозможно записать %d элементов в %s: %s"
+msgid "couldn't attach to %s: %s"
+msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п©я─п╦п╨я─п╣п©п╦я┌я▄ п╨ %s: %s"
 
-#: lib/utils.c:235 lib/utils.c:251
+#: sed/utils.c:207
+#, c-format
+msgid "failed to set binary mode on '%s'"
+msgstr "п╬я┬п╦п╠п╨п╟ п©я─п╦ я┐я│я┌п╟п╫п╬п╡п╨п╣ п╢п╡п╬п╦я┤п╫п╬пЁп╬ я─п╣п╤п╦п╪п╟ п╢п╩я▐ б╚%sб╩"
+
+#: sed/utils.c:228
+#, c-format
+msgid "couldn't write %llu item to %s: %s"
+msgid_plural "couldn't write %llu items to %s: %s"
+msgstr[0] "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п╥п╟п©п╦я│п╟я┌я▄ %llu я█п╩п╣п╪п╣п╫я┌ п╡ %s: %s"
+msgstr[1] "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п╥п╟п©п╦я│п╟я┌я▄ %llu я█п╩п╣п╪п╣п╫я┌п╟ п╡ %s: %s"
+msgstr[2] "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п╥п╟п©п╦я│п╟я┌я▄ %llu я█п╩п╣п╪п╣п╫я┌п╬п╡ п╡ %s: %s"
+
+#: sed/utils.c:240 sed/utils.c:259
 #, c-format
 msgid "read error on %s: %s"
-msgstr "ошибка чтения %s: %s"
+msgstr "п╬я┬п╦п╠п╨п╟ я┤я┌п╣п╫п╦я▐ %s: %s"
 
-#: lib/utils.c:341
+#: sed/utils.c:358
+#, fuzzy, c-format
+msgid "couldn't readlink %s: %s"
+msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п©п╣я─п╣п╧я┌п╦ п©п╬ я│п╦п╪п╡п╬п╩я▄п╫п╬п╧ я│я│я▀п╩п╨п╣ %s: %s"
+
+#: sed/utils.c:361
+#, c-format
+msgid "couldn't follow symlink %s: %s"
+msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п©п╣я─п╣п╧я┌п╦ п©п╬ я│п╦п╪п╡п╬п╩я▄п╫п╬п╧ я│я│я▀п╩п╨п╣ %s: %s"
+
+#: sed/utils.c:408
 #, c-format
 msgid "cannot rename %s: %s"
-msgstr "невозможно переименовать %s: %s"
+msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п©п╣я─п╣п╦п╪п╣п╫п╬п╡п╟я┌я▄ %s: %s"
 
-#: lib/regcomp.c:132
-msgid "Success"
-msgstr "Успешно"
+#, c-format
+#~ msgid "cannot stat %s: %s"
+#~ msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ п╡я▀п©п╬п╩п╫п╦я┌я▄ stat п╢п╩я▐ %s: %s"
 
-#: lib/regcomp.c:135
-msgid "No match"
-msgstr "Нет соотвествия"
+#, c-format
+#~ msgid "cannot remove %s: %s"
+#~ msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ я┐п╢п╟п╩п╦я┌я▄ %s: %s"
 
-#: lib/regcomp.c:138
-msgid "Invalid regular expression"
-msgstr "Недопустимое регулярное выражение"
+#, c-format
+#~ msgid "%s: option '%s%s' is ambiguous\n"
+#~ msgstr "%s: п╢п╡я┐я│п╪я▀я│п╩п╣п╫п╫я▀п╧ п©п╟я─п╟п╪п╣я┌я─ б╚%s%sб╩\n"
 
-#: lib/regcomp.c:141
-msgid "Invalid collation character"
-msgstr "Недопустимый символ сравнения"
+#, c-format
+#~ msgid "%s: option '%s%s' is ambiguous; possibilities:"
+#~ msgstr "%s: п╢п╡я┐я│п╪я▀я│п╩п╣п╫п╫я▀п╧ п©п╟я─п╟п╪п╣я┌я─ б╚%s%sб╩; п╡п╬п╥п╪п╬п╤п╫я▀п╣ п╡п╟я─п╦п╟п╫я┌я▀:"
 
-#: lib/regcomp.c:144
-msgid "Invalid character class name"
-msgstr "Недопустимое имя для класса символа"
+#, c-format
+#~ msgid "%s: unrecognized option '%s%s'\n"
+#~ msgstr "%s: п╫п╣я─п╟я│п©п╬п╥п╫п╟п╫п╫я▀п╧ п©п╟я─п╟п╪п╣я┌я─ б╚%s%sб╩\n"
 
-#: lib/regcomp.c:147
-msgid "Trailing backslash"
-msgstr "Завершающая обратная косая черта"
+#, c-format
+#~ msgid "%s: option '%s%s' doesn't allow an argument\n"
+#~ msgstr "%s: п╢п╩я▐ п©п╟я─п╟п╪п╣я┌я─п╟ б╚%s%sб╩ п╫п╣ п╪п╬п╤п╣я┌ п╠я▀я┌я▄ п╟я─пЁя┐п╪п╣п╫я┌п╟\n"
 
-#: lib/regcomp.c:150
-msgid "Invalid back reference"
-msgstr "Недопустимая обратная ссылка"
+#, c-format
+#~ msgid "%s: option '%s%s' requires an argument\n"
+#~ msgstr "%s: п╢п╩я▐ п©п╟я─п╟п╪п╣я┌я─п╟ б╚%s%sб╩ я┌я─п╣п╠я┐п╣я┌я│я▐ п╟я─пЁя┐п╪п╣п╫я┌\n"
 
-#: lib/regcomp.c:153
-msgid "Unmatched [ or [^"
-msgstr "Непарный символ [ или [^"
+#, c-format
+#~ msgid "%s: invalid option -- '%c'\n"
+#~ msgstr "%s: п╫п╣п╢п╬п©я┐я│я┌п╦п╪я▀п╧ п©п╟я─п╟п╪п╣я┌я─ Б─■ б╚%cб╩\n"
 
-#: lib/regcomp.c:156
-msgid "Unmatched ( or \\("
-msgstr "Непарный символ ( or \\("
+#, c-format
+#~ msgid "%s: option requires an argument -- '%c'\n"
+#~ msgstr "%s: п╢п╩я▐ п©п╟я─п╟п╪п╣я┌я─п╟ я┌я─п╣п╠я┐п╣я┌я│я▐ п╟я─пЁя┐п╪п╣п╫я┌ Б─■ б╚%cб╩\n"
 
-#: lib/regcomp.c:159
-msgid "Unmatched \\{"
-msgstr "Непарный символ \\{"
+#~ msgid "%s home page: <https://www.gnu.org/software/%s/>\n"
+#~ msgstr "п■п╬п╪п╟я┬п╫я▐я▐ я│я┌я─п╟п╫п╦я├п╟ %s: <https://www.gnu.org/software/%s/>\n"
 
-#: lib/regcomp.c:162
-msgid "Invalid content of \\{\\}"
-msgstr "Недопустимое содержимое в \\{\\}"
+#~ msgid ""
+#~ "  -R, --regexp-perl\n"
+#~ "                 use Perl 5's regular expressions syntax in the script.\n"
+#~ msgstr ""
+#~ "  -R, --regexp-perl\n"
+#~ "                 п╦я│п©п╬п╩я▄п╥п╬п╡п╟я┌я▄ п╡ я│я├п╣п╫п╟я─п╦п╦ я│п╦п╫я┌п╟п╨я│п╦я│ я─п╣пЁя┐п╩я▐я─п╫я▀я┘ п╡я▀я─п╟п╤п╣п╫п╦п╧ "
+#~ "Perl 5\n"
 
-#: lib/regcomp.c:165
-msgid "Invalid range end"
-msgstr "Недопустимое окончание диапазона"
+#~ msgid "%s: option '--%s' doesn't allow an argument\n"
+#~ msgstr "%s: я┐ п©п╟я─п╟п╪п╣я┌я─п╟ б╚--%sб╩ п╫п╣ п╪п╬п╤п╣я┌ п╠я▀я┌я▄ п╟я─пЁя┐п╪п╣п╫я┌п╟\n"
 
-#: lib/regcomp.c:168
-msgid "Memory exhausted"
-msgstr "Память исчерпана"
+#~ msgid "%s: unrecognized option '--%s'\n"
+#~ msgstr "%s: п╫п╣я─п╟я│п©п╬п╥п╫п╟п╫п╫я▀п╧ п©п╟я─п╟п╪п╣я┌я─ б╚--%sб╩\n"
 
-#: lib/regcomp.c:171
-msgid "Invalid preceding regular expression"
-msgstr "Недопустимое предшествующее регулярное выражение"
+#~ msgid "%s: option '-W %s' is ambiguous\n"
+#~ msgstr "%s: п©п╟я─п╟п╪п╣я┌я─ б╚-W %sб╩ п╫п╣п╬п╢п╫п╬п╥п╫п╟я┤п╣п╫\n"
 
-#: lib/regcomp.c:174
-msgid "Premature end of regular expression"
-msgstr "Преждевременное окончание регулярного выражения"
+#~ msgid "%s: option '-W %s' doesn't allow an argument\n"
+#~ msgstr "%s: я│ п©п╟я─п╟п╪п╣я┌я─п╬п╪ б╚-W %sб╩ п╫п╣п╩я▄п╥я▐ п╦я│п©п╬п╩я▄п╥п╬п╡п╟я┌я▄ п╟я─пЁя┐п╪п╣п╫я┌\n"
 
-#: lib/regcomp.c:177
-msgid "Regular expression too big"
-msgstr "Регулярное выражение слишком большое"
+#~ msgid "%s: option '-W %s' requires an argument\n"
+#~ msgstr "%s: п╢п╩я▐ п©п╟я─п╟п╪п╣я┌я─п╟ б╚-W %sб╩ я┌я─п╣п╠я┐п╣я┌я│я▐ п╟я─пЁя┐п╪п╣п╫я┌\n"
 
-#: lib/regcomp.c:180
-msgid "Unmatched ) or \\)"
-msgstr "Непарный символ ) или \\)"
+#~ msgid "cannot specify modifiers on empty regexp"
+#~ msgstr "п╫п╣п╡п╬п╥п╪п╬п╤п╫п╬ я┐п╨п╟п╥п╟я┌я▄ п╪п╬п╢п╦я└п╦п╨п╟я┌п╬я─я▀ п╡ п©я┐я│я┌п╬п╪ я─п╣пЁя┐п╩я▐я─п╫п╬п╪ п╡я▀я─п╟п╤п╣п╫п╦п╦"
 
-#: lib/regcomp.c:660
-msgid "No previous regular expression"
-msgstr "Нет предыдущего регулярного выражения"
+#~ msgid ""
+#~ "E-mail bug reports to: <%s>.\n"
+#~ "Be sure to include the word ``%s'' somewhere in the ``Subject:'' field.\n"
+#~ msgstr ""
+#~ "п║п╬п╬п╠я┴п╣п╫п╦я▐ п╬п╠ п╬я┬п╦п╠п╨п╟я┘ п╬я┌п©я─п╟п╡п╩я▐п╧я┌п╣ п©п╬ п╟п╢я─п╣я│я┐: <%s>.\n"
+#~ "пёп╠п╣п╢п╦я┌п╣я│я▄, я┤я┌п╬ п╡п╨п╩я▌я┤п╦п╩п╦ пЁп╢п╣-п╩п╦п╠п╬ п╡ п©п╬п╩п╣ б╚п╒п╣п╪п╟:б╩ я│п╩п╬п╡п╬ б╚%sб╩.\n"
+
+#~ msgid "super-sed version %s\n"
+#~ msgstr "super-sed п╡п╣я─я│п╦я▐ %s\n"
+
+#~ msgid ""
+#~ "based on GNU sed version %s\n"
+#~ "\n"
+#~ msgstr ""
+#~ "п╬я│п╫п╬п╡п╟п╫ п╫п╟ GNU sed п╡п╣я─я│п╦п╦ %s\n"
+#~ "\n"
+
+#~ msgid "GNU sed version %s\n"
+#~ msgstr "GNU sed п╡п╣я─я│п╦я▐ %s\n"
+
+#~ msgid ""
+#~ "Copyright (C) %d Free Software Foundation, Inc.\n"
+#~ "This is free software; see the source for copying conditions.  There is "
+#~ "NO\n"
+#~ "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR "
+#~ "PURPOSE,\n"
+#~ "to the extent permitted by law.\n"
+#~ msgstr ""
+#~ "Copyright (C) %d Free Software Foundation, Inc.\n"
+#~ "п╜я┌п╬ я│п╡п╬п╠п╬п╢п╫п╬п╣ п÷п·; я┐я│п╩п╬п╡п╦я▐ п╣пЁп╬ п╨п╬п©п╦я─п╬п╡п╟п╫п╦я▐ я│п╪п╬я┌я─п╦я┌п╣ п╡\n"
+#~ "п╦я│я┘п╬п╢п╫п╬п╪ п╨п╬п╢п╣. п²п╣ п©я─п╣п╢п╬я│я┌п╟п╡п╩я▐п╣я┌я│я▐ п²п≤п п░п п·п≥ пЁп╟я─п╟п╫я┌п╦п╦; п╢п╟п╤п╣ пЁп╟я─п╟п╫я┌п╦п╦\n"
+#~ "п÷п═п≤п⌠п·п■п²п·п║п╒п≤ п■п⌡п╞ п÷п═п·п■п░п√п≤ п╦п╩п╦ п÷п═п≤п°п∙п²п≤п°п·п║п╒п≤ п■п⌡п╞ п п·п²п п═п∙п╒п²п·п≥ п╕п∙п⌡п≤, п╡ я┌п╬п╧ "
+#~ "п╪п╣я─п╣,\n"
+#~ "п╡ п╨п╬я┌п╬я─п╬п╧ я█я┌п╬ п╪п╬п╤п╣я┌ п╠я▀я┌я▄ п╢п╬п©я┐я┴п╣п╫п╬ п╥п╟п╨п╬п╫п╬п╢п╟я┌п╣п╩я▄я│я┌п╡п╬п╪.\n"

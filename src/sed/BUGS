@@ -9,9 +9,9 @@ include in the Subject: header the first line of the output of
 
 Please do not send a bug report like this:
 
-	[while building frobme-1.3.4] 
-	$ configure 
-	sed: file sedscr line 1: Unknown option to 's'
+        [while building frobme-1.3.4]
+        $ configure
+        sed: file sedscr line 1: Unknown option to 's'
 
 If sed doesn't configure your favorite package, take a few extra
 minutes to identify the specific problem and make a stand-alone test
@@ -76,7 +76,7 @@ regex syntax clashes (problems with backslashes)
   In short, `sed d -i' will let one delete the contents of
   a read-only file, and in general the `-i' option will let
   one clobber protected files.  This is not a bug, but rather a
-  consequence of how the Unix filesystem works.
+  consequence of how the Unix file system works.
 
   The permissions on a file say what can happen to the data
   in that file, while the permissions on a directory say what can
@@ -87,8 +87,8 @@ regex syntax clashes (problems with backslashes)
   modifying the contents of the directory, so the operation depends on
   the permissions of the directory, not of the file).  For this same
   reason, sed will not let one use `-i' on a writeable file in a
-  read-only directory (but unbelievably nobody reports that as a
-  bug...).
+  read-only directory, and will break hard or symbolic links when
+  `-i' is used on such a file.
 
 
 `0a' does not work (gives an error)
@@ -103,20 +103,30 @@ regex syntax clashes (problems with backslashes)
 
 
 `[a-z]' is case insensitive
+`s/.*//' does not clear pattern space
 
   You are encountering problems with locales.  POSIX mandates that `[a-z]'
   uses the current locale's collation order -- in C parlance, that means
   strcoll(3) instead of strcmp(3).  Some locales have a case insensitive
-  strcoll, others don't: one of those that have problems is Estonian.
+  strcoll, others don't.
 
   Another problem is that [a-z] tries to use collation symbols.  This
   only happens if you are on the GNU system, using GNU libc's regular
   expression matcher instead of compiling the one supplied with GNU sed.
   In a Danish locale, for example, the regular expression `^[a-z]$'
-  matches the string `aa', because aa is a single collating symbol that
+  matches the string `aa', because `aa' is a single collating symbol that
   comes after `a' and before `b'; `ll' behaves similarly in Spanish
   locales, or `ij' in Dutch locales.
 
-  To work around these problems, which may cause bugs in shell scripts,
-  set the LC_ALL environment variable to `C', or set the locale on a
-  more fine-grained basis with the other LC_* environment variables.
+  Another common localization-related problem happens if your input stream
+  includes invalid multibyte sequences.  POSIX mandates that such
+  sequences are _not_ matched by `.', so that `s/.*//' will not clear
+  pattern space as you would expect.  In fact, there is no way to clear
+  sed's buffers in the middle of the script in most multibyte locales
+  (including UTF-8 locales).  For this reason, GNU sed provides a `z'
+  command (for `zap') as an extension.
+
+  However, to work around both of these problems, which may cause bugs
+  in shell scripts, you can set the LC_ALL environment variable to `C',
+  or set the locale on a more fine-grained basis with the other LC_*
+  environment variables.

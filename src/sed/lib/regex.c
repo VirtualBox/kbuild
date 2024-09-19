@@ -1,5 +1,5 @@
 /* Extended regular expression matching and search library.
-   Copyright (C) 2002, 2003, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2002-2022 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
    Contributed by Isamu Hasegawa <isamu@yamato.ibm.com>.
 
@@ -14,16 +14,26 @@
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.  */
+   License along with the GNU C Library; if not, see
+   <https://www.gnu.org/licenses/>.  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
+#define __STDC_WANT_IEC_60559_BFP_EXT__
+
+#ifndef _LIBC
+# include <libc-config.h>
+
+# if __GNUC_PREREQ (4, 6)
+#  pragma GCC diagnostic ignored "-Wsuggest-attribute=pure"
+#  pragma GCC diagnostic ignored "-Wvla"
+# endif
+# if __GNUC_PREREQ (4, 3)
+#  pragma GCC diagnostic ignored "-Wold-style-definition"
+#  pragma GCC diagnostic ignored "-Wtype-limits"
+# endif
 #endif
 
-/* Make sure noone compiles this code with a C++ compiler.  */
-#ifdef __cplusplus
+/* Make sure no one compiles this code with a C++ compiler.  */
+#if defined __cplusplus && defined _LIBC
 # error "This is C code, use a C compiler"
 #endif
 
