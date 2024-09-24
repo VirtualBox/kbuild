@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 2674 2013-01-31 13:28:27Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3614 2024-09-24 09:09:33Z knut.osmundsen@oracle.com $
 ## @file
 # Top-Level Sub-Makefile for kBuild.
 #
 
 #
-# Copyright (c) 2005-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2005-2024 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 #
 # This file is part of kBuild.
 #
