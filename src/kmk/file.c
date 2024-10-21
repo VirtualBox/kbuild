@@ -728,7 +728,11 @@ expand_deps (struct file *f)
           if (d->file == 0)
             d->file = enter_file (name);
           d->name = 0;
-          free(name);
+# ifndef CONFIG_WITH_STRCACHE2
+          free (name);
+# else
+          assert (strcache2_is_cached (&file_strcache, name));
+# endif
 
           dp = &d->next;
           d = d->next;
