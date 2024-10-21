@@ -1,4 +1,4 @@
-# $Id: WINSDK10-KM.kmk 3507 2021-12-16 01:35:08Z knut.osmundsen@oracle.com $
+# $Id: WINSDK10-KM.kmk 3616 2024-10-21 12:45:26Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Derives from WINSDK10.kmk, kernel mode.
 #
@@ -38,8 +38,8 @@ endif
 SDK_WINSDK10-KM               := The Microsoft Windows 10 SDK, kernel mode.
 SDK_WINSDK10-KM_DEFS.amd64    ?= _AMD64_ AMD64 _WIN64
 SDK_WINSDK10-KM_DEFS.x86      ?= _X86_=1 i386=1 STD_CALL
-SDK_WINSDK10-KM_DEFS.arm32    ?= #??
-SDK_WINSDK10-KM_DEFS.arm64    ?= #??
+SDK_WINSDK10-KM_DEFS.arm32    ?= _ARM_
+SDK_WINSDK10-KM_DEFS.arm64    ?= _ARM64_
 SDK_WINSDK10-KM_INCS          ?= \
 	$(PATH_SDK_WINSDK10_KM_INC) \
 	$(PATH_SDK_WINSDK10_SHARED_INC)
