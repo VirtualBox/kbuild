@@ -808,7 +808,7 @@ usage(PKMKBUILTINCTX pCtx, int fIsErr)
 	                       "   -v\n"
 	                       "       Be verbose, show files as they are removed.\n"
 	                       "   -W\n"
-	                       "       Undelete without files.\n"
+	                       "       Undelete white-out files.\n"
 	                       "   --disable-protection\n"
 	                       "       Will disable the protection file protection applied with -R.\n"
 	                       "   --enable-protection\n"
