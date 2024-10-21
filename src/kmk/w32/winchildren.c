@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3359 2020-06-05 16:17:17Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3617 2024-10-21 20:43:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -344,10 +344,16 @@ static MKWINCHILDCPUGROUPALLOCSTATE g_ProcessorGroupAllocator;
 static unsigned             g_cProcessorGroups = 1;
 /** Array detailing how many active processors there are in each group. */
 static unsigned const      *g_pacProcessorsInGroup = &g_cProcessorGroups;
+/** Info from the GetLogicalProcessorInformationEx call - can be NULL. */
+static GROUP_RELATIONSHIP const *g_pGroupInfo = NULL;
+
 /** Kernel32!GetActiveProcessorGroupCount */
 static WORD (WINAPI        *g_pfnGetActiveProcessorGroupCount)(VOID);
 /** Kernel32!GetActiveProcessorCount */
 static DWORD (WINAPI       *g_pfnGetActiveProcessorCount)(WORD);
+/** Kernel32!GetLogicalProcessorInformationEx */
+static DWORD (WINAPI       *g_pfnGetLogicalProcessorInformationEx)(LOGICAL_PROCESSOR_RELATIONSHIP,
+                                                                   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
 /** Kernel32!SetThreadGroupAffinity */
 static BOOL (WINAPI        *g_pfnSetThreadGroupAffinity)(HANDLE, CONST GROUP_AFFINITY *, GROUP_AFFINITY *);
 /** NTDLL!NtQueryInformationProcess */
@@ -459,12 +465,16 @@ void MkWinChildInit(unsigned int cJobSlots)
     if (g_VersionInfo.dwMajorVersion >= 6)
     {
         hmod = GetModuleHandleA("KERNEL32.DLL");
-        *(FARPROC *)&g_pfnGetActiveProcessorGroupCount = GetProcAddress(hmod, "GetActiveProcessorGroupCount");
-        *(FARPROC *)&g_pfnGetActiveProcessorCount      = GetProcAddress(hmod, "GetActiveProcessorCount");
-        *(FARPROC *)&g_pfnSetThreadGroupAffinity       = GetProcAddress(hmod, "SetThreadGroupAffinity");
+        *(FARPROC *)&g_pfnGetActiveProcessorGroupCount     = GetProcAddress(hmod, "GetActiveProcessorGroupCount");
+        *(FARPROC *)&g_pfnGetActiveProcessorCount          = GetProcAddress(hmod, "GetActiveProcessorCount");
+        *(FARPROC *)&g_pfnSetThreadGroupAffinity           = GetProcAddress(hmod, "SetThreadGroupAffinity");
+        *(FARPROC *)&g_pfnGetLogicalProcessorInformationEx = GetProcAddress(hmod, "GetLogicalProcessorInformationEx");
+        /*(FARPROC *)&g_pfnGetSystemCpuSetInformation       = GetProcAddress(hmod, "GetSystemCpuSetInformation"); / * W10 */
+        /*(FARPROC *)&g_pfnSetThreadSelectedCpuSetMasks     = GetProcAddress(hmod, "SetThreadSelectedCpuSetMasks"); / * W11 */
         if (   g_pfnSetThreadGroupAffinity
             && g_pfnGetActiveProcessorCount
-            && g_pfnGetActiveProcessorGroupCount)
+            && g_pfnGetActiveProcessorGroupCount
+            && g_pfnGetLogicalProcessorInformationEx)
         {
             unsigned int *pacProcessorsInGroup;
             unsigned      iGroup;
@@ -477,13 +487,38 @@ void MkWinChildInit(unsigned int cJobSlots)
             for (iGroup = 0; iGroup < g_cProcessorGroups; iGroup++)
                 pacProcessorsInGroup[iGroup] = g_pfnGetActiveProcessorCount(iGroup);
 
+            /* Get active process group affinity masks so we can set them correctly. */
+            {
+                DWORD cbNeeded = cbNeeded = offsetof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, Group)
+                               + offsetof(GROUP_RELATIONSHIP, GroupInfo)
+                               + sizeof(PROCESSOR_GROUP_INFO) * (g_cProcessorGroups + 4);
+                PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX pInfo = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)xcalloc(cbNeeded);
+                BOOL fRet = g_pfnGetLogicalProcessorInformationEx(RelationGroup, pInfo, &cbNeeded);
+                if (!fRet && GetLastError() == ERROR_BUFFER_OVERFLOW)
+                {
+                    free(pInfo);
+                    pInfo = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)xcalloc(cbNeeded);
+                    fRet = g_pfnGetLogicalProcessorInformationEx(RelationGroup, pInfo, &cbNeeded);
+                }
+                if (   fRet
+                    && pInfo->Group.ActiveGroupCount > 0
+                    && pInfo->Group.ActiveGroupCount <= pInfo->Group.MaximumGroupCount)
+                {
+                    g_pGroupInfo = &pInfo->Group; /* leaked */
+                    pInfo = NULL;
+                }
+                else
+                    free(pInfo);
+            }
+
             MkWinChildInitCpuGroupAllocator(&g_ProcessorGroupAllocator);
         }
         else
         {
-            g_pfnSetThreadGroupAffinity       = NULL;
-            g_pfnGetActiveProcessorCount      = NULL;
-            g_pfnGetActiveProcessorGroupCount = NULL;
+            g_pfnSetThreadGroupAffinity           = NULL;
+            g_pfnGetActiveProcessorCount          = NULL;
+            g_pfnGetActiveProcessorGroupCount     = NULL;
+            g_pfnGetLogicalProcessorInformationEx = NULL;
         }
     }
 
@@ -1342,7 +1377,9 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, WCHAR 
 #ifdef MKWINCHILD_DO_SET_PROCESSOR_GROUP
         if (g_cProcessorGroups > 1)
         {
-            GROUP_AFFINITY Affinity = { 0 /* == all active apparently */, pWorker->iProcessorGroup, { 0, 0, 0 } };
+            GROUP_AFFINITY Affinity = { 0, pWorker->iProcessorGroup, { 0, 0, 0 } };
+            if (g_pGroupInfo && pWorker->iProcessorGroup < g_pGroupInfo->ActiveGroupCount)
+                Affinity.Mask = g_pGroupInfo->GroupInfo[pWorker->iProcessorGroup].ActiveProcessorMask;
             fRet = g_pfnSetThreadGroupAffinity(ProcInfo.hThread, &Affinity, NULL);
             assert(fRet);
         }
@@ -2560,8 +2597,12 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
      */
     if (g_cProcessorGroups > 1)
     {
-        GROUP_AFFINITY Affinity = { 0 /* == all active apparently */, pWorker->iProcessorGroup, { 0, 0, 0 } };
-        BOOL fRet = g_pfnSetThreadGroupAffinity(GetCurrentThread(), &Affinity, NULL);
+        BOOL           fRet;
+        GROUP_AFFINITY Affinity = { 0, pWorker->iProcessorGroup, { 0, 0, 0 } };
+        if (g_pGroupInfo && pWorker->iProcessorGroup < g_pGroupInfo->ActiveGroupCount)
+            Affinity.Mask = g_pGroupInfo->GroupInfo[pWorker->iProcessorGroup].ActiveProcessorMask;
+
+        fRet = g_pfnSetThreadGroupAffinity(GetCurrentThread(), &Affinity, NULL);
         assert(fRet); (void)fRet;
 # ifndef NDEBUG
         {
