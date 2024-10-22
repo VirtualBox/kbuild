@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 3619 2024-10-21 20:46:49Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 3628 2024-10-22 23:34:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -90,6 +90,22 @@ extern PKFSCACHE g_pFsCache; /* dir-nt-bird.c for now */
 
 #if defined(__gnu_linux__) || defined(__linux__)
 # define PARSE_IN_WORKER
+#endif
+
+
+/*******************************************************************************
+* Defined Constants And Macros                                                 *
+********************************************************************************/
+/* Custom assertion macro */
+#if (!defined(NDEBUG) || 0) && defined(_MSC_VER)
+# define MY_ASSERT(expr) do { \
+    if (!!(expr)) { /* likely */ } \
+    else { fprintf (stderr, "assertion failed on line %u in incdep.c: %s\n", __LINE__, #expr); __debugbreak(); } \
+  } while (0)
+# undef assert
+# define assert(expr)     MY_ASSERT(expr)
+#else
+# define MY_ASSERT(expr)  ((void)0)
 #endif
 
 
@@ -1428,7 +1444,15 @@ incdep_unescape_and_cache_filename(struct incdep *curdep, char *start, const cha
       const char ch = *src++;
       if (ch != '\\' && ch != '$')
         {
-          if (!STOP_SET (ch, stop_mask))
+          if (!STOP_SET (ch, stop_mask)
+#ifdef HAVE_DOS_PATHS
+              || (    ch == ':'
+                   && (uintptr_t)src < (uintptr_t)end
+                   && (*src == '/' || *src == '\\')
+                   && (dst - start) == 1
+                   && isalpha ((unsigned char)*start))
+#endif
+             )
             *dst++ = ch;
           else
             {
@@ -2126,7 +2150,7 @@ eval_include_dep_file (struct incdep *curdep, floc *f)
                       }
                     else
                       filename = incdep_unescape_and_cache_filename (curdep, (char *)fnnext, fnend, 0, &fnnext, NULL);
-                    if (filename != filename_prev) /* clang optimization. */
+                    if (filename != filename_prev) /* clang optimization, it emit two targets for each dependency list. */
                       incdep_record_file (curdep, filename, incdep_dup_dep_list (curdep, deps), f);
                   }
             }
@@ -2234,6 +2258,17 @@ eval_include_dep (const char *names, floc *f, enum incdep_op op)
   const char *name;
   unsigned int name_len;
 
+#if 0 /* sanity / debug */
+  {
+    struct incdep *check, *checktail;
+    unsigned items;
+    for (items = 0, check = checktail = incdep_head_todo; check; check = check->next)
+      checktail = check, items++;
+    MY_ASSERT (items == incdep_count_todo);
+    MY_ASSERT (checktail == incdep_tail_todo);
+  }
+#endif
+
   /* loop through NAMES, creating a todo list out of them. */
 
   while ((name = find_next_token (&names_iterator, &name_len)) != 0)
@@ -2299,41 +2334,55 @@ eval_include_dep (const char *names, floc *f, enum incdep_op op)
     }
   else
     {
-      struct incdep *tmp;
-
-      /* initialize the worker threads and related stuff the first time around. */
-
-      if (!incdep_initialized)
-        incdep_init (f);
-
-      /* queue the files and notify the worker threads. */
-
-      incdep_lock ();
-
-      tmp = incdep_tail_todo;
-      if (tmp)
+      if (head)
         {
-          assert (incdep_count_todo > 0);
-          assert (incdep_head_todo != NULL);
-          tmp->next = head;
+          struct incdep *tmp;
+
+          /* initialize the worker threads and related stuff the first time around. */
+
+          if (!incdep_initialized)
+            incdep_init (f);
+
+          /* queue the files and notify the worker threads. */
+
+          incdep_lock ();
+
+          tmp = incdep_tail_todo;
+          if (tmp)
+            {
+              assert (incdep_count_todo > 0);
+              assert (incdep_head_todo != NULL);
+              tmp->next = head;
+            }
+          else
+            {
+              assert (incdep_count_todo == 0);
+              assert (incdep_head_todo == NULL);
+              incdep_head_todo = head;
+            }
+          incdep_tail_todo = tail;
+          incdep_count_todo += count;
+          thrd_data->todo_count += count;
+
+#if 0 /* sanity / debug */
+          {
+            struct incdep *check, *checktail;
+            unsigned items;
+            for (items = 0, check = checktail = incdep_head_todo; check; check = check->next)
+              checktail = check, items++;
+            MY_ASSERT (items == incdep_count_todo);
+            MY_ASSERT (checktail == incdep_tail_todo);
+          }
+#endif
+
+          incdep_signal_todo ();
+          incdep_unlock ();
         }
-      else
-        {
-          assert (incdep_count_todo == 0);
-          assert (incdep_head_todo == NULL);
-          incdep_head_todo = head;
-        }
-      incdep_tail_todo = tail;
-      incdep_count_todo += count;
-      thrd_data->todo_count += count;
 
-      incdep_signal_todo ();
-      incdep_unlock ();
+        /* flush the todo queue if we're requested to do so. */
 
-      /* flush the todo queue if we're requested to do so. */
-
-      if (op == incdep_flush)
-        incdep_flush_it (f);
+        if (op == incdep_flush)
+          incdep_flush_it (f);
     }
 }
 
