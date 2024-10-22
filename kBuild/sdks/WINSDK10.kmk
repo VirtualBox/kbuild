@@ -1,4 +1,4 @@
-# $Id: WINSDK10.kmk 3511 2021-12-16 12:00:28Z knut.osmundsen@oracle.com $
+# $Id: WINSDK10.kmk 3626 2024-10-22 23:02:49Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Windows SDK v10.
 #
@@ -43,32 +43,46 @@ endif
 
 ## @def PATH_SDK_WINSDK10
 ## The base path of the Windows 10 SDK.
+
+## @def SDK_WINSDK10_MAX_VERSION
+## The maximum SDK version to use.
+ifndef SDK_WINSDK10_MAX_VERSION
+ SDK_WINSDK10_MAX_VERSION := 99.9.99999.9
+endif
+
 ## @def SDK_WINSDK10_VERSION
 ## The SDK version for subdirectories.
+if defined(SDK_WINSDK10_VERSION) &&  "$(SDK_WINSDK10_VERSION)" > "$(SDK_WINSDK10_MAX_VERSION)"
+ $(warning Dropping SDK_WINSDK10_VERSION=$(SDK_WINSDK10_VERSION) is it is later than SDK_WINSDK10_MAX_VERSION=$(SDK_WINSDK10_MAX_VERSION))
+ SDK_WINSDK10_VERSION :=
+endif
+
 ifndef PATH_SDK_WINSDK10
  ifndef SDK_WINSDK10_VERSION
-  PATH_SDK_WINSDK10 := $(firstfile $(foreachfile toolsdir, \
-  	$(KBUILD_DEVTOOLS_BLD) $(KBUILD_DEVTOOLS_TRG) $(KBUILD_DEVTOOLS)/win.x86 $(KBUILD_DEVTOOLS)/win.amd64 \
-       , $(rsortfiles $(qwildcard ,$(toolsdir)/sdk/v10*/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/10.0.*))))
+  PATH_SDK_WINSDK10 := $(firstfile $(foreachfile candidate, $(foreachfile toolsdir, \
+  	$(KBUILD_DEVTOOLS)/win $(KBUILD_DEVTOOLS_BLD) $(KBUILD_DEVTOOLS_TRG) $(KBUILD_DEVTOOLS)/win.x86 $(KBUILD_DEVTOOLS)/win.amd64 \
+       ,$(rsortfiles $(qwildcard ,$(toolsdir)/sdk/v10*/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/10.0.*))) \
+	,$(if-expr "$(qnotdir ,$(candidate))" vle "$(SDK_WINSDK10_MAX_VERSION)",$(candidate),)))
   ifeq ($(PATH_SDK_WINSDK10),)
-   PATH_SDK_WINSDK10 := $(firstfile $(foreachfile progfilesdir,$(WINCMN_PROGRAM_FILES_LIST)\
-   	,$(rsortfiles $(qwildcard ,$(progfilesdir)/Windows\ Kits/10/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/10.0.*)) ))
+   PATH_SDK_WINSDK10 := $(firstfile $(foreachfile candidate, $(foreachfile progfilesdir,$(WINCMN_PROGRAM_FILES_LIST)\
+   	,$(rsortfiles $(qwildcard ,$(progfilesdir)/Windows\ Kits/10/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/10.0.*)) ) \
+	,$(if-expr "$(qnotdir ,$(candidate))" vle "$(SDK_WINSDK10_MAX_VERSION)",$(candidate),)))
    ifeq ($(PATH_SDK_WINSDK10),)
-    $(warning kBuild: PATH_SDK_WINSDK10 couldn't be determined!)
-    PATH_SDK_WINSDK10 := $(KBUILD_DEVTOOLS_BLD)/sdk/v10-not-found/Include/10.0.10240.0
+    $(warning kBuild: PATH_SDK_WINSDK10 could not be determined!)
+    PATH_SDK_WINSDK10 := $(KBUILD_DEVTOOLS)/win/sdk/v10-not-found/Include/10.0.10240.0
    endif
   endif
   SDK_WINSDK10_VERSION := $(qnotdir ,$(PATH_SDK_WINSDK10))
  else
   PATH_SDK_WINSDK10 := $(firstfile $(foreachfile toolsdir, \
   	$(KBUILD_DEVTOOLS_BLD) $(KBUILD_DEVTOOLS_TRG) $(KBUILD_DEVTOOLS)/win.x86 $(KBUILD_DEVTOOLS)/win.amd64 \
-       , $(rsortfiles $(qwildcard ,$(toolsdir)/sdk/v10*/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/$(SDK_WINSDK10_VERSION)))))
+       ,$(rsortfiles $(qwildcard ,$(toolsdir)/sdk/v10*/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/$(SDK_WINSDK10_VERSION)))))
   ifeq ($(PATH_SDK_WINSDK10),)
    PATH_SDK_WINSDK10 := $(firstfile $(foreachfile progfilesdir,$(WINCMN_PROGRAM_FILES_LIST)\
    	,$(rsortfiles $(qwildcard ,$(progfilesdir)/Windows\ Kits/10/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]/$(SDK_WINSDK10_VERSION))) ))
    ifeq ($(PATH_SDK_WINSDK10),)
-    $(warning kBuild: PATH_SDK_WINSDK10 couldn't be determined!)
-    PATH_SDK_WINSDK10 := $(KBUILD_DEVTOOLS_BLD)/sdk/v10-not-found/Include/$(SDK_WINSDK10_VERSION)
+    $(warning kBuild: PATH_SDK_WINSDK10 could not be determined!)
+    PATH_SDK_WINSDK10 := $(KBUILD_DEVTOOLS)/win/sdk/v10-not-found/Include/$(SDK_WINSDK10_VERSION)
    endif
   endif
   SDK_WINSDK10_VERSION := $(qnotdir ,$(PATH_SDK_WINSDK10))
