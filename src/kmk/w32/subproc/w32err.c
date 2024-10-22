@@ -48,7 +48,11 @@ map_windows32_error_to_string (DWORD ercode) {
         /* Fill message buffer with a default message in
          * case FormatMessage fails
          */
+#ifdef KMK /* Avoid unnecessary unsafe USER32.DLL sprintf. */
+    snprintf (szMessageBuffer, sizeof(szMessageBuffer), "Error %ld\n", ercode);
+#else
     wsprintf (szMessageBuffer, "Error %ld\n", ercode);
+#endif
 
         /*
          *  Special code for winsock error handling.
