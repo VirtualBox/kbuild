@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3617 2024-10-21 20:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3627 2024-10-22 23:33:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -356,8 +356,13 @@ static DWORD (WINAPI       *g_pfnGetLogicalProcessorInformationEx)(LOGICAL_PROCE
                                                                    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
 /** Kernel32!SetThreadGroupAffinity */
 static BOOL (WINAPI        *g_pfnSetThreadGroupAffinity)(HANDLE, CONST GROUP_AFFINITY *, GROUP_AFFINITY *);
+/** Kernel32!SetThreadSelectedCpuSetMasks (windows 11+).   */
+static BOOL (WINAPI        *g_pfnSetThreadSelectedCpuSetMasks)(HANDLE, PGROUP_AFFINITY, USHORT);
+/** Kernel32!SetProcessDefaultCpuSetMasks (windows 11+).   */
+static BOOL (WINAPI        *g_pfnSetProcessDefaultCpuSetMasks)(HANDLE, PGROUP_AFFINITY, USHORT);
 /** NTDLL!NtQueryInformationProcess */
 static NTSTATUS (NTAPI     *g_pfnNtQueryInformationProcess)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG);
+
 /** Set if the windows host is 64-bit. */
 static BOOL                 g_f64BitHost = (K_ARCH_BITS == 64);
 /** Windows version info.
@@ -469,8 +474,8 @@ void MkWinChildInit(unsigned int cJobSlots)
         *(FARPROC *)&g_pfnGetActiveProcessorCount          = GetProcAddress(hmod, "GetActiveProcessorCount");
         *(FARPROC *)&g_pfnSetThreadGroupAffinity           = GetProcAddress(hmod, "SetThreadGroupAffinity");
         *(FARPROC *)&g_pfnGetLogicalProcessorInformationEx = GetProcAddress(hmod, "GetLogicalProcessorInformationEx");
-        /*(FARPROC *)&g_pfnGetSystemCpuSetInformation       = GetProcAddress(hmod, "GetSystemCpuSetInformation"); / * W10 */
-        /*(FARPROC *)&g_pfnSetThreadSelectedCpuSetMasks     = GetProcAddress(hmod, "SetThreadSelectedCpuSetMasks"); / * W11 */
+        *(FARPROC *)&g_pfnSetThreadSelectedCpuSetMasks      = GetProcAddress(hmod, "SetThreadSelectedCpuSetMasks"); /* W11 */
+        *(FARPROC *)&g_pfnSetProcessDefaultCpuSetMasks      = GetProcAddress(hmod, "SetProcessDefaultCpuSetMasks"); /* W11 */
         if (   g_pfnSetThreadGroupAffinity
             && g_pfnGetActiveProcessorCount
             && g_pfnGetActiveProcessorGroupCount
@@ -510,6 +515,16 @@ void MkWinChildInit(unsigned int cJobSlots)
                 else
                     free(pInfo);
             }
+
+            /* Iff this is windows 11 or later, the default policy should be that
+               threads can be scheduled in any CPU group, so reset any prior crap
+               to make sure this remains the case for us and our children.
+
+               This means we can skip g_pfnSetThreadGroupAffinity the calls later. */
+            if (g_pfnSetProcessDefaultCpuSetMasks)
+                g_pfnSetProcessDefaultCpuSetMasks(GetCurrentProcess(), NULL, 0);
+            if (g_pfnSetThreadSelectedCpuSetMasks)
+                g_pfnSetThreadSelectedCpuSetMasks(GetCurrentThread(), NULL, 0);
 
             MkWinChildInitCpuGroupAllocator(&g_ProcessorGroupAllocator);
         }
@@ -1375,7 +1390,7 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, WCHAR 
          * Assign processor group (ignore failure).
          */
 #ifdef MKWINCHILD_DO_SET_PROCESSOR_GROUP
-        if (g_cProcessorGroups > 1)
+        if (g_cProcessorGroups > 1 && !g_pfnSetProcessDefaultCpuSetMasks)
         {
             GROUP_AFFINITY Affinity = { 0, pWorker->iProcessorGroup, { 0, 0, 0 } };
             if (g_pGroupInfo && pWorker->iProcessorGroup < g_pGroupInfo->ActiveGroupCount)
@@ -2595,7 +2610,7 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
      *       active processors.  Couldn't find any alternative API for getting
      *       the correct active processor mask.
      */
-    if (g_cProcessorGroups > 1)
+    if (g_cProcessorGroups > 1 && !g_pfnSetProcessDefaultCpuSetMasks)
     {
         BOOL           fRet;
         GROUP_AFFINITY Affinity = { 0, pWorker->iProcessorGroup, { 0, 0, 0 } };
