@@ -1,4 +1,4 @@
-# $Id: header.kmk 3630 2024-10-25 09:49:17Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3632 2024-10-25 23:26:28Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3630 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3632 $  )
 
 
 #
@@ -1075,6 +1075,40 @@ endif
 #
 # @param 1     recipe name
 KB_FN_AUTO_CMD_DEPS = $(call KB_FN_AUTO_CMD_DEPS_EX,$1,$1.auto-dep)
+
+##
+# Call this (evalcall) this to explictly load tool by name.
+#
+# @param 1    	The tool name
+define KB_FN_LOAD_TOOL
+ifndef TOOL_$(1)
+ TOOL_$(1)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_TOOL_PATHS) $(KBUILD_PATH)/tools $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(1).kmk)))
+ ifeq ($(TOOL_$(1)_KMK_FILE),)
+  $(error kBuild: Cannot find include file for the tool '$(1)'! Searched: $(KBUILD_TOOL_PATHS) $(KBUILD_PATH)/tools $(KBUILD_DEFAULT_PATHS))
+ endif
+ include $(TOOL_$(1)_KMK_FILE)
+ ifndef TOOL_$(1)
+  $(warning kBuild: TOOL_$(1) was not defined by $(TOOL_$(1)_KMK_FILE)!)
+ endif
+endif
+endef
+
+##
+# Call this (evalcall) this to explictly load an SDK by name.
+#
+# @param 1    	The SDK name
+define KB_FN_LOAD_SDK
+ifndef SDK_$(1)
+ SDK_$(1)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_SDK_PATHS) $(KBUILD_PATH)/sdks $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(1).kmk)))
+ ifeq ($(SDK_$(1)_KMK_FILE),)
+  $(error kBuild: Cannot find include file for the SDK '$(1)'! Searched: $(KBUILD_SDK_PATHS) $(KBUILD_PATH)/sdks $(KBUILD_DEFAULT_PATHS))
+ endif
+ include $(SDK_$(1)_KMK_FILE)
+ ifndef SDK_$(1)
+  $(warning kBuild: SDK_$(1) was not defined by $(SDK_$(1)_KMK_FILE)!)
+ endif
+endif
+endef
 
 
 #
