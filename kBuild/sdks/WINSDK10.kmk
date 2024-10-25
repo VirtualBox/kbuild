@@ -1,4 +1,4 @@
-# $Id: WINSDK10.kmk 3626 2024-10-22 23:02:49Z knut.osmundsen@oracle.com $
+# $Id: WINSDK10.kmk 3629 2024-10-25 09:46:04Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Windows SDK v10.
 #
@@ -244,6 +244,9 @@ PATH_SDK_WINSDK10_BIN := $(PATH_SDK_WINSDK10_BASE_BIN)/$(SDK_WINSDK10_VERSION)/a
 PATH_SDK_WINSDK10_BIN := $(PATH_SDK_WINSDK10_BASE_BIN)/$(SDK_WINSDK10_VERSION)/$(KBUILD_HOST_ARCH)
  endif
 endif
+
+# The x86 host directory (contains inf2cat.exe and other stuff missing in the others).
+PATH_SDK_WINSDK10_BIN.x86 := $(PATH_SDK_WINSDK10_BASE_BIN)/$(SDK_WINSDK10_VERSION)/x86
 
 #
 # Properties used by kBuild.
