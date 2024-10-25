@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 3521 2021-12-18 13:41:28Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 3630 2024-10-25 09:49:17Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -896,18 +896,49 @@ local flags       :=\
 	$($(target)_LDFLAGS.$(bld_trg_arch))\
 	$($(target)_LDFLAGS.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_LDFLAGS.$(bld_trg_cpu))
+
+local targetsdks  := \
+	$($(target)_SDKS.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_SDKS.$(bld_trg_arch))\
+	$($(target)_SDKS.$(bld_trg))\
+	$($(target)_SDKS.$(bld_type))\
+	$($(target)_SDKS)
+local globalsdks  := \
+	$(SDKS.$(bld_trg).$(bld_trg_arch))\
+	$(SDKS.$(bld_trg_arch))\
+	$(SDKS.$(bld_trg))\
+	$(SDKS.$(bld_type))\
+	$(SDKS)
+# Note! Global EARLY_LIBS and LATE_LIBS variables are ignored.
+## @todo ignore global LIBS and most other global properties.
 local libs        :=\
+	$($(target)_EARLY_LIBS.$(bld_trg_cpu))\
+	$($(target)_EARLY_LIBS.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_EARLY_LIBS.$(bld_trg_arch))\
+	$($(target)_EARLY_LIBS.$(bld_trg))\
+	$($(target)_EARLY_LIBS.$(bld_type))\
+	$($(target)_EARLY_LIBS)\
+	$(foreach sdk, $(targetsdks) $(globalsdks),\
+		$(SDK_$(sdk)_EARLY_LIBS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_EARLY_LIBS.$(bld_trg).$(bld_trg_arch))\
+		$(SDK_$(sdk)_EARLY_LIBS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_EARLY_LIBS.$(bld_trg))\
+		$(SDK_$(sdk)_EARLY_LIBS.$(bld_type))\
+		$(SDK_$(sdk)_EARLY_LIBS))\
+	$(TOOL_$(tool)_EARLY_LIBS.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_EARLY_LIBS.$(bld_trg).$(bld_trg_arch))\
+	$(TOOL_$(tool)_EARLY_LIBS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_EARLY_LIBS.$(bld_trg))\
+	$(TOOL_$(tool)_EARLY_LIBS.$(bld_type))\
+	$(TOOL_$(tool)_EARLY_LIBS)\
+	\
 	$($(target)_LIBS.$(bld_trg_cpu))\
 	$($(target)_LIBS.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_LIBS.$(bld_trg_arch))\
 	$($(target)_LIBS.$(bld_trg))\
 	$($(target)_LIBS.$(bld_type))\
 	$($(target)_LIBS)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg).$(bld_trg_arch)) \
-		       $($(target)_SDKS.$(bld_trg_arch)) \
-		       $($(target)_SDKS.$(bld_trg)) \
-		       $($(target)_SDKS.$(bld_type)) \
-		       $($(target)_SDKS),\
+	$(foreach sdk, $(targetsdks),\
 		$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_LIBS.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
@@ -920,11 +951,7 @@ local libs        :=\
 	$(LIBS.$(bld_trg))\
 	$(LIBS.$(bld_type))\
 	$(LIBS)\
-	$(foreach sdk, $(SDKS.$(bld_trg).$(bld_trg_arch)) \
-	               $(SDKS.$(bld_trg_arch)) \
-	               $(SDKS.$(bld_trg)) \
-	               $(SDKS.$(bld_type)) \
-	               $(SDKS),\
+	$(foreach sdk, $(globalsdks),\
 		$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_LIBS.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
@@ -936,7 +963,27 @@ local libs        :=\
 	$(TOOL_$(tool)_LIBS.$(bld_trg_arch))\
 	$(TOOL_$(tool)_LIBS.$(bld_trg))\
 	$(TOOL_$(tool)_LIBS.$(bld_type))\
-	$(TOOL_$(tool)_LIBS)
+	$(TOOL_$(tool)_LIBS)\
+	\
+	$($(target)_LATE_LIBS.$(bld_trg_cpu))\
+	$($(target)_LATE_LIBS.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_LATE_LIBS.$(bld_trg_arch))\
+	$($(target)_LATE_LIBS.$(bld_trg))\
+	$($(target)_LATE_LIBS.$(bld_type))\
+	$($(target)_LATE_LIBS)\
+	$(foreach sdk, $(targetsdks) $(globalsdks),\
+		$(SDK_$(sdk)_LATE_LIBS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_LATE_LIBS.$(bld_trg).$(bld_trg_arch))\
+		$(SDK_$(sdk)_LATE_LIBS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_LATE_LIBS.$(bld_trg))\
+		$(SDK_$(sdk)_LATE_LIBS.$(bld_type))\
+		$(SDK_$(sdk)_LATE_LIBS))\
+	$(TOOL_$(tool)_LATE_LIBS.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_LATE_LIBS.$(bld_trg).$(bld_trg_arch))\
+	$(TOOL_$(tool)_LATE_LIBS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LATE_LIBS.$(bld_trg))\
+	$(TOOL_$(tool)_LATE_LIBS.$(bld_type))\
+	$(TOOL_$(tool)_LATE_LIBS)
 local libpath    :=\
 	$($(target)_LIBPATH.$(bld_trg_cpu))\
 	$($(target)_LIBPATH.$(bld_trg).$(bld_trg_arch))\
@@ -944,11 +991,7 @@ local libpath    :=\
 	$($(target)_LIBPATH.$(bld_trg))\
 	$($(target)_LIBPATH.$(bld_type))\
 	$($(target)_LIBPATH)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg).$(bld_trg_arch)) \
-		       $($(target)_SDKS.$(bld_trg_arch)) \
-		       $($(target)_SDKS.$(bld_trg)) \
-		       $($(target)_SDKS.$(bld_type)) \
-		       $($(target)_SDKS),\
+	$(foreach sdk, $(targetsdks),\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
@@ -961,11 +1004,7 @@ local libpath    :=\
 	$(LIBPATH.$(bld_trg))\
 	$(LIBPATH.$(bld_type))\
 	$(LIBPATH)\
-	$(foreach sdk, $(SDKS.$(bld_trg).$(bld_trg_arch)) \
-	               $(SDKS.$(bld_trg_arch)) \
-	               $(SDKS.$(bld_trg)) \
-	               $(SDKS.$(bld_type)) \
-	               $(SDKS),\
+	$(foreach sdk, $(globalsdks),\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
