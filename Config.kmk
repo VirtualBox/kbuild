@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3600 2023-10-19 14:26:27Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3637 2024-11-02 01:54:01Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -125,7 +125,7 @@ if1of ($(KBUILD_TARGET), openbsd)
 endif
 # Not all compiler tools currently do the same quoting of DEFS, so here's a
 # temporary workaround.
-ifn1of ($(KBUILD_TARGET), win)
+if "$(KBUILD_TARGET)" != "win" || defined(KBUILD_NEW_VCC)
  TMP_QUOTE_SLASH :=
 else
  TMP_QUOTE_SLASH := \$(NO_SUCH_VARIABLE)
@@ -240,14 +240,15 @@ ifeq ($(KBUILD_TARGET),os2)
 
 else if1of ($(KBUILD_TARGET), win nt)
  ifdef KBUILD_NEW_VCC
-  TEMPLATE_BIN_TOOL             = VCC142
-  TEMPLATE_BIN_TOOL.x86         = VCC142X86
-  TEMPLATE_BIN_TOOL.amd64       = VCC142AMD64
+  TEMPLATE_BIN_TOOL             = VCC143
+  TEMPLATE_BIN_TOOL.x86         = VCC143X86
+  TEMPLATE_BIN_TOOL.amd64       = VCC143AMD64
  else
   TEMPLATE_BIN_TOOL             = VCC100
   TEMPLATE_BIN_TOOL.x86         = VCC100X86
   TEMPLATE_BIN_TOOL.amd64       = VCC100AMD64
  endif
+ TEMPLATE_BIN_TOOL.arm64        = VCC143ARM64
  TEMPLATE_BIN_DEFS              = WINDOWS32 _CONSOLE __WIN__ _CRT_SECURE_NO_DEPRECATE _CRT_NONSTDC_NO_WARNINGS
  TEMPLATE_BIN_DEFS.x86          = WIN32 __WIN32__
  TEMPLATE_BIN_DEFS.amd64        = WIN32 __WIN32__ __WIN64__ WIN64
@@ -261,20 +262,20 @@ else if1of ($(KBUILD_TARGET), win nt)
  TEMPLATE_BIN_LDFLAGS           = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG /OPT:REF /OPT:ICF /LargeAddressAware
  ifdef KBUILD_NEW_VCC
   ifdef KBUILD_WITH_STATIC_MSVCRT
-   TEMPLATE_BIN_SDKS            = WINPSDK71 WINSDK10-UCRT-STATIC
+   TEMPLATE_BIN_SDKS            = WINSDK10-UM WINSDK10-UCRT-STATIC
    TEMPLATE_BIN_CFLAGS         += -MT
    TEMPLATE_BIN_LIBS            = \
-   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/vcruntime.lib \
-   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
-   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcmt.lib \
-   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcpmt.lib
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.$(KBUILD_TARGET_ARCH))_LIB)/vcruntime.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.$(KBUILD_TARGET_ARCH))_LIB)/oldnames.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.$(KBUILD_TARGET_ARCH))_LIB)/libcmt.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.$(KBUILD_TARGET_ARCH))_LIB)/libcpmt.lib
   else
-   TEMPLATE_BIN_SDKS            = WINPSDK71 WINSDK10-UCRT
+   TEMPLATE_BIN_SDKS            = WINSDK10-UM WINSDK10-UCRT
    TEMPLATE_BIN_CFLAGS         += -MD
    TEMPLATE_BIN_LIBS            = \
-   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/vcruntime.lib \
-   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
-   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.$(KBUILD_TARGET_ARCH))_LIB)/vcruntime.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.$(KBUILD_TARGET_ARCH))_LIB)/oldnames.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL.$(KBUILD_TARGET_ARCH))_LIB)/msvcrt.lib
   endif
  else ifeq ($(KBUILD_TYPE),profile)
    TEMPLATE_BIN_SDKS             = WINPSDKINCS

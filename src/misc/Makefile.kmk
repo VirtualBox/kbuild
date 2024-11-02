@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3538 2021-12-21 12:19:40Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3637 2024-11-02 01:54:01Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk_time.
 #
@@ -49,7 +49,7 @@ TEMPLATE_EXECWRAPPER_SOURCES    = win_exec_wrapper.c
 define def_WindowsWrapper
 PROGRAMS.win += $1
 $1_TEMPLATE   = EXECWRAPPER
-$1_DEFS       = TARGET_EXE_NAME=\"$2.exe\"
+$1_DEFS       = TARGET_EXE_NAME=$(TMP_QUOTE_SLASH)"$2.exe$(TMP_QUOTE_SLASH)"
 endef
 
 $(evalcall2 def_WindowsWrapper,cat,kmk_cat)
