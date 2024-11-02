@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 3213 2018-03-30 21:03:28Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 3636 2024-11-02 01:52:45Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
@@ -47,6 +47,7 @@
 #include <sys/stat.h>
 #include <io.h>
 #include <direct.h>
+#include <stdio.h> /* unlink for UCRT */
 #include "nt/ntstat.h"
 #include "nt/ntunlink.h"
 #ifdef MSC_DO_64_BIT_IO

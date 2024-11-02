@@ -1,4 +1,4 @@
-/* $Id: err.c 3237 2018-12-25 04:11:26Z knut.osmundsen@oracle.com $ */
+/* $Id: err.c 3636 2024-11-02 01:52:45Z knut.osmundsen@oracle.com $ */
 /** @file
  * Override err.h so we get the program name right.
  */
@@ -36,7 +36,9 @@
 # endif
 #else
 # include <stdlib.h>
-# define snprintf _snprintf
+# if _MSC_VER < 1400
+#  define snprintf _snprintf
+# endif
 #endif
 #include <stdio.h>
 #include <stdarg.h>
