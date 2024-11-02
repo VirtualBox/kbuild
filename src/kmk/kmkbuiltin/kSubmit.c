@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3413 2020-08-20 08:20:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3642 2024-11-02 23:40:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -188,6 +188,11 @@ static unsigned             g_cArchBits    = 32;
 static char const           g_szArch[]     = "x86";
 static unsigned             g_cAltArchBits = 64;
 static char const           g_szAltArch[]  = "amd64";
+#elif defined(KBUILD_ARCH_ARM64)
+static unsigned             g_cArchBits    = 64;
+static char const           g_szArch[]     = "arm64";
+static unsigned             g_cAltArchBits = 64;
+static char const           g_szAltArch[]  = "arm64"; /* not used */
 #else
 # error "Port me!"
 #endif
@@ -2031,10 +2036,11 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx,
                         iArg--;
                         break;
 
+#if !defined(KBUILD_ARCH_ARM64)
                     case '3':
                         cBitsWorker = 32;
                         break;
-
+#endif
                     case '6':
                         cBitsWorker = 64;
                         break;
