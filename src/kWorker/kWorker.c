@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3522 2021-12-19 12:11:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3634 2024-11-02 01:51:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -891,9 +891,9 @@ typedef struct KWSANDBOX
     /** Size of the array we've allocated (ASSUMES nobody messes with it!). */
     KSIZE       cEnvVarsAllocated;
     /** The _environ msvcrt variable. */
-    char      **environ;
+    char      **environC;
     /** The _wenviron msvcrt variable. */
-    wchar_t   **wenviron;
+    wchar_t   **wenvironC;
     /** The shadow _environ msvcrt variable. */
     char      **papszEnvVars;
     /** The shadow _wenviron msvcrt variable. */
@@ -2763,9 +2763,9 @@ static int kwLdrModuleCreateNonNativeSetupTls(PKWMODULE pMod)
          */
         for (iEntry = 0; iEntry < cEntries; iEntry++)
         {
-            KUPTR        offIndex     = (KUPTR)paEntries[iEntry].AddressOfIndex     - (KUPTR)pMod->u.Manual.pbLoad;
-            KUPTR        offCallbacks = (KUPTR)paEntries[iEntry].AddressOfCallBacks - (KUPTR)pMod->u.Manual.pbLoad;
-            KUPTR const *puCallbacks  = (KUPTR const *)&pbImg[offCallbacks];
+            offIndex     = (KUPTR)paEntries[iEntry].AddressOfIndex     - (KUPTR)pMod->u.Manual.pbLoad;
+            offCallbacks = (KUPTR)paEntries[iEntry].AddressOfCallBacks - (KUPTR)pMod->u.Manual.pbLoad;
+            puCallbacks  = (KUPTR const *)&pbImg[offCallbacks];
             KWLDR_LOG(("TLS DIR #%u: %#x-%#x idx=@%#x (%#x) callbacks=@%#x (%#x) cbZero=%#x flags=%#x\n",
                        iEntry, paEntries[iEntry].StartAddressOfRawData, paEntries[iEntry].EndAddressOfRawData,
                        paEntries[iEntry].AddressOfIndex, offIndex, paEntries[iEntry].AddressOfCallBacks, offCallbacks,
@@ -4620,7 +4620,7 @@ static int __cdecl kwSandbox_msvcrt___getmainargs(int *pargc, char ***pargv, cha
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
     *pargc = g_Sandbox.cArgs;
     *pargv = g_Sandbox.papszArgs;
-    *penvp = g_Sandbox.environ;
+    *penvp = g_Sandbox.environC;
 
     /** @todo startinfo points at a newmode (setmode) value.   */
     return 0;
@@ -4634,7 +4634,7 @@ static int __cdecl kwSandbox_msvcrt___wgetmainargs(int *pargc, wchar_t ***pargv,
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
     *pargc = g_Sandbox.cArgs;
     *pargv = g_Sandbox.papwszArgs;
-    *penvp = g_Sandbox.wenviron;
+    *penvp = g_Sandbox.wenvironC;
 
     /** @todo startinfo points at a newmode (setmode) value.   */
     return 0;
@@ -4989,8 +4989,8 @@ static BOOL WINAPI kwSandbox_Kernel32_FreeEnvironmentStringsW(LPWCH pwszzEnv)
 
 
 /**
- * Grows the environment vectors (KWSANDBOX::environ, KWSANDBOX::papszEnvVars,
- * KWSANDBOX::wenviron, and KWSANDBOX::papwszEnvVars).
+ * Grows the environment vectors (KWSANDBOX::environC, KWSANDBOX::papszEnvVars,
+ * KWSANDBOX::wenvironC, and KWSANDBOX::papwszEnvVars).
  *
  * @returns 0 on success, non-zero on failure.
  * @param   pSandbox            The sandbox.
@@ -5004,11 +5004,11 @@ static int kwSandboxGrowEnv(PKWSANDBOX pSandbox, KSIZE cMin)
     while (cNew < cMin)
         cNew += 256;
 
-    pvNew = kHlpRealloc(pSandbox->environ, cNew * sizeof(pSandbox->environ[0]));
+    pvNew = kHlpRealloc(pSandbox->environC, cNew * sizeof(pSandbox->environC[0]));
     if (pvNew)
     {
-        pSandbox->environ = (char **)pvNew;
-        pSandbox->environ[cOld] = NULL;
+        pSandbox->environC = (char **)pvNew;
+        pSandbox->environC[cOld] = NULL;
 
         pvNew = kHlpRealloc(pSandbox->papszEnvVars, cNew * sizeof(pSandbox->papszEnvVars[0]));
         if (pvNew)
@@ -5016,11 +5016,11 @@ static int kwSandboxGrowEnv(PKWSANDBOX pSandbox, KSIZE cMin)
             pSandbox->papszEnvVars = (char **)pvNew;
             pSandbox->papszEnvVars[cOld] = NULL;
 
-            pvNew = kHlpRealloc(pSandbox->wenviron, cNew * sizeof(pSandbox->wenviron[0]));
+            pvNew = kHlpRealloc(pSandbox->wenvironC, cNew * sizeof(pSandbox->wenvironC[0]));
             if (pvNew)
             {
-                pSandbox->wenviron = (wchar_t **)pvNew;
-                pSandbox->wenviron[cOld] = NULL;
+                pSandbox->wenvironC = (wchar_t **)pvNew;
+                pSandbox->wenvironC[cOld] = NULL;
 
                 pvNew = kHlpRealloc(pSandbox->papwszEnvVars, cNew * sizeof(pSandbox->papwszEnvVars[0]));
                 if (pvNew)
@@ -5030,7 +5030,7 @@ static int kwSandboxGrowEnv(PKWSANDBOX pSandbox, KSIZE cMin)
 
                     pSandbox->cEnvVarsAllocated = cNew;
                     KW_LOG(("kwSandboxGrowEnv: cNew=%d - crt: %p / %p; shadow: %p, %p\n",
-                            cNew, pSandbox->environ, pSandbox->wenviron, pSandbox->papszEnvVars, pSandbox->papwszEnvVars));
+                            cNew, pSandbox->environC, pSandbox->wenvironC, pSandbox->papszEnvVars, pSandbox->papwszEnvVars));
                     return 0;
                 }
             }
@@ -5083,11 +5083,11 @@ static int kwSandboxDoSetEnvA(PKWSANDBOX pSandbox, const char *pchVar, KSIZE cch
 
                     kHlpFree(pSandbox->papszEnvVars[iVar]);
                     pSandbox->papszEnvVars[iVar]  = pszNew;
-                    pSandbox->environ[iVar]       = pszNew;
+                    pSandbox->environC[iVar]      = pszNew;
 
                     kHlpFree(pSandbox->papwszEnvVars[iVar]);
                     pSandbox->papwszEnvVars[iVar] = pwszNew;
-                    pSandbox->wenviron[iVar]      = pwszNew;
+                    pSandbox->wenvironC[iVar]     = pwszNew;
                     return 0;
                 }
                 iVar++;
@@ -5102,13 +5102,13 @@ static int kwSandboxDoSetEnvA(PKWSANDBOX pSandbox, const char *pchVar, KSIZE cch
 
                 pSandbox->papszEnvVars[iVar + 1]  = NULL;
                 pSandbox->papszEnvVars[iVar]      = pszNew;
-                pSandbox->environ[iVar + 1]       = NULL;
-                pSandbox->environ[iVar]           = pszNew;
+                pSandbox->environC[iVar + 1]      = NULL;
+                pSandbox->environC[iVar]          = pszNew;
 
                 pSandbox->papwszEnvVars[iVar + 1] = NULL;
                 pSandbox->papwszEnvVars[iVar]     = pwszNew;
-                pSandbox->wenviron[iVar + 1]      = NULL;
-                pSandbox->wenviron[iVar]          = pwszNew;
+                pSandbox->wenvironC[iVar + 1]     = NULL;
+                pSandbox->wenvironC[iVar]         = pwszNew;
                 return 0;
             }
 
@@ -5163,11 +5163,11 @@ static int kwSandboxDoSetEnvW(PKWSANDBOX pSandbox, const wchar_t *pwchVar, KSIZE
 
                     kHlpFree(pSandbox->papszEnvVars[iVar]);
                     pSandbox->papszEnvVars[iVar]  = pszNew;
-                    pSandbox->environ[iVar]       = pszNew;
+                    pSandbox->environC[iVar]      = pszNew;
 
                     kHlpFree(pSandbox->papwszEnvVars[iVar]);
                     pSandbox->papwszEnvVars[iVar] = pwszNew;
-                    pSandbox->wenviron[iVar]      = pwszNew;
+                    pSandbox->wenvironC[iVar]     = pwszNew;
                     return 0;
                 }
                 iVar++;
@@ -5182,13 +5182,13 @@ static int kwSandboxDoSetEnvW(PKWSANDBOX pSandbox, const wchar_t *pwchVar, KSIZE
 
                 pSandbox->papszEnvVars[iVar + 1]  = NULL;
                 pSandbox->papszEnvVars[iVar]      = pszNew;
-                pSandbox->environ[iVar + 1]       = NULL;
-                pSandbox->environ[iVar]           = pszNew;
+                pSandbox->environC[iVar + 1]      = NULL;
+                pSandbox->environC[iVar]          = pszNew;
 
                 pSandbox->papwszEnvVars[iVar + 1] = NULL;
                 pSandbox->papwszEnvVars[iVar]     = pwszNew;
-                pSandbox->wenviron[iVar + 1]      = NULL;
-                pSandbox->wenviron[iVar]          = pwszNew;
+                pSandbox->wenvironC[iVar + 1]     = NULL;
+                pSandbox->wenvironC[iVar]         = pwszNew;
                 return 0;
             }
 
@@ -5223,15 +5223,15 @@ static int kwSandboxDoUnsetEnvA(PKWSANDBOX pSandbox, const char *pchVar, KSIZE c
 
             kHlpFree(pSandbox->papszEnvVars[iVar]);
             pSandbox->papszEnvVars[iVar]    = pSandbox->papszEnvVars[cVars];
-            pSandbox->environ[iVar]         = pSandbox->papszEnvVars[cVars];
+            pSandbox->environC[iVar]        = pSandbox->papszEnvVars[cVars];
             pSandbox->papszEnvVars[cVars]   = NULL;
-            pSandbox->environ[cVars]        = NULL;
+            pSandbox->environC[cVars]       = NULL;
 
             kHlpFree(pSandbox->papwszEnvVars[iVar]);
             pSandbox->papwszEnvVars[iVar]   = pSandbox->papwszEnvVars[cVars];
-            pSandbox->wenviron[iVar]        = pSandbox->papwszEnvVars[cVars];
+            pSandbox->wenvironC[iVar]       = pSandbox->papwszEnvVars[cVars];
             pSandbox->papwszEnvVars[cVars]  = NULL;
-            pSandbox->wenviron[cVars]       = NULL;
+            pSandbox->wenvironC[cVars]      = NULL;
             return 0;
         }
         iVar++;
@@ -5262,15 +5262,15 @@ static int kwSandboxDoUnsetEnvW(PKWSANDBOX pSandbox, const wchar_t *pwcVar, KSIZ
 
             kHlpFree(pSandbox->papszEnvVars[iVar]);
             pSandbox->papszEnvVars[iVar]    = pSandbox->papszEnvVars[cVars];
-            pSandbox->environ[iVar]         = pSandbox->papszEnvVars[cVars];
+            pSandbox->environC[iVar]        = pSandbox->papszEnvVars[cVars];
             pSandbox->papszEnvVars[cVars]   = NULL;
-            pSandbox->environ[cVars]        = NULL;
+            pSandbox->environC[cVars]       = NULL;
 
             kHlpFree(pSandbox->papwszEnvVars[iVar]);
             pSandbox->papwszEnvVars[iVar]   = pSandbox->papwszEnvVars[cVars];
-            pSandbox->wenviron[iVar]        = pSandbox->papwszEnvVars[cVars];
+            pSandbox->wenvironC[iVar]       = pSandbox->papwszEnvVars[cVars];
             pSandbox->papwszEnvVars[cVars]  = NULL;
-            pSandbox->wenviron[cVars]       = NULL;
+            pSandbox->wenvironC[cVars]      = NULL;
             return 0;
         }
         iVar++;
@@ -5551,7 +5551,7 @@ static char *** __cdecl kwSandbox_msvcrt___p__environ(void)
 {
     KW_LOG(("__p__environ\n"));
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
-    return &g_Sandbox.environ;
+    return &g_Sandbox.environC;
 }
 
 
@@ -5560,7 +5560,7 @@ static wchar_t *** __cdecl kwSandbox_msvcrt___p__wenviron(void)
 {
     KW_LOG(("__p__wenviron\n"));
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
-    return &g_Sandbox.wenviron;
+    return &g_Sandbox.wenvironC;
 }
 
 
@@ -5570,7 +5570,7 @@ static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_environ(char ***ppapszEnviro
 {
     KWFS_TODO(); /** @todo check the callers expectations! */
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
-    *ppapszEnviron = g_Sandbox.environ;
+    *ppapszEnviron = g_Sandbox.environC;
     return 0;
 }
 
@@ -5581,7 +5581,7 @@ static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_wenviron(wchar_t ***ppapwszE
 {
     KWFS_TODO(); /** @todo check the callers expectations! */
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
-    *ppapwszEnviron = g_Sandbox.wenviron;
+    *ppapwszEnviron = g_Sandbox.wenvironC;
     return 0;
 }
 
@@ -6331,7 +6331,7 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
         {
             //static int s_cDbgGets = 0;
             KU32 cchProc = (KU32)kHlpStrLen(pszProc);
-            KU32 i = g_cSandboxGetProcReplacements;
+            i = g_cSandboxGetProcReplacements;
             while (i-- > 0)
                 if (   g_aSandboxGetProcReplacements[i].cchFunction == cchProc
                     && kHlpMemComp(g_aSandboxGetProcReplacements[i].pszFunction, pszProc, cchProc) == 0)
@@ -6349,7 +6349,7 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
                             {
                                 if (pMod->iCrtSlot == KU8_MAX)
                                 {
-                                    int rc = kwLdrModuleCreateCrtSlot(pMod);
+                                    rc = kwLdrModuleCreateCrtSlot(pMod);
                                     if (rc)
                                     {
                                         KW_LOG(("GetProcAddress: kwLdrModuleCreateCrtSlot failed: %d\n", rc));
@@ -6371,7 +6371,6 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
             /* Intercept the compiler pass method, dumping arguments. */
             if (kHlpStrComp(pszProc, g_szInvokeCompilePassW) == 0)
             {
-                KU32 i;
                 for (i = 0; i < K_ELEMENTS(g_aCxInterceptorEntries); i++)
                     if ((KUPTR)g_aCxInterceptorEntries[i].pfnOrg == uValue)
                     {
@@ -9669,7 +9668,7 @@ static PVOID WINAPI kwSandbox_Kernel32_VirtualAlloc(PVOID pvAddr, SIZE_T cb, DWO
             if (!pTracker)
             {
                 DWORD dwErr = GetLastError();
-                PKWVIRTALLOC pTracker = (PKWVIRTALLOC)kHlpAlloc(sizeof(*pTracker));
+                pTracker = (PKWVIRTALLOC)kHlpAlloc(sizeof(*pTracker));
                 if (pTracker)
                 {
                     pTracker->pvAlloc           = pvMem;
@@ -11077,8 +11076,8 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("__winitenv"),                  NULL,       (KUPTR)&g_Sandbox.winitenv },
     { TUPLE("__p___initenv"),               NULL,       (KUPTR)kwSandbox_msvcrt___p___initenv},
     { TUPLE("__p___winitenv"),              NULL,       (KUPTR)kwSandbox_msvcrt___p___winitenv},
-    { TUPLE("_environ"),                    NULL,       (KUPTR)&g_Sandbox.environ },
-    { TUPLE("_wenviron"),                   NULL,       (KUPTR)&g_Sandbox.wenviron },
+    { TUPLE("_environ"),                    NULL,       (KUPTR)&g_Sandbox.environC },
+    { TUPLE("_wenviron"),                   NULL,       (KUPTR)&g_Sandbox.wenvironC },
     { TUPLE("_get_environ"),                NULL,       (KUPTR)kwSandbox_msvcrt__get_environ },
     { TUPLE("_get_wenviron"),               NULL,       (KUPTR)kwSandbox_msvcrt__get_wenviron },
     { TUPLE("__p__environ"),                NULL,       (KUPTR)kwSandbox_msvcrt___p__environ },
@@ -11644,9 +11643,9 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
                 if (pszCopy && pwszCopy)
                 {
                     pSandbox->papszEnvVars[iDst]  = pszCopy;
-                    pSandbox->environ[iDst]       = pszCopy;
+                    pSandbox->environC[iDst]      = pszCopy;
                     pSandbox->papwszEnvVars[iDst] = pwszCopy;
-                    pSandbox->wenviron[iDst]      = pwszCopy;
+                    pSandbox->wenvironC[iDst]     = pwszCopy;
 
                     /* When we see the path, we must tell the system or native exec and module loading won't work . */
                     if (   (pszEqual - pszVar) == 4
@@ -11670,9 +11669,9 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
                 kwErrPrintf("kwSandboxInit: Skipping bad env var '%s'\n", pszVar);
         }
         pSandbox->papszEnvVars[iDst]  = NULL;
-        pSandbox->environ[iDst]       = NULL;
+        pSandbox->environC[iDst]      = NULL;
         pSandbox->papwszEnvVars[iDst] = NULL;
-        pSandbox->wenviron[iDst]      = NULL;
+        pSandbox->wenvironC[iDst]     = NULL;
     }
     else
         return kwErrPrintfRc(KERR_NO_MEMORY, "Error setting up environment variables: kwSandboxGrowEnv failed\n");
@@ -11887,12 +11886,12 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
         KU32 i;
         for (i = 0; pSandbox->papszEnvVars[i]; i++)
             kHlpFree(pSandbox->papszEnvVars[i]);
-        pSandbox->environ[0]      = NULL;
+        pSandbox->environC[0]      = NULL;
         pSandbox->papszEnvVars[0] = NULL;
 
         for (i = 0; pSandbox->papwszEnvVars[i]; i++)
             kHlpFree(pSandbox->papwszEnvVars[i]);
-        pSandbox->wenviron[0]      = NULL;
+        pSandbox->wenvironC[0]     = NULL;
         pSandbox->papwszEnvVars[0] = NULL;
     }
 
@@ -13065,10 +13064,11 @@ static char **kwFullTestLoadArgvFile(const char *pszFile, int *pcArgs, char **pp
             && (cbFile = ftell(pFile)) >= 0
             && fseek(pFile, 0, SEEK_SET) == 0)
         {
-            char *pszFile = kHlpAllocZ(cbFile + 3);
-            if (pszFile)
+            char *pszContent = kHlpAllocZ(cbFile + 3);
+            *ppszFileContent = pszContent;
+            if (pszContent)
             {
-                size_t cbRead = fread(pszFile, 1, cbFile + 1, pFile);
+                size_t cbRead = fread(pszContent, 1, cbFile + 1, pFile);
                 if (   feof(pFile)
                     && !ferror(pFile))
                 {
@@ -13077,11 +13077,11 @@ static char **kwFullTestLoadArgvFile(const char *pszFile, int *pcArgs, char **pp
                     int    cAllocated = 0;
                     char   ch;
 
-                    pszFile[cbRead]     = '\0';
-                    pszFile[cbRead + 1] = '\0';
-                    pszFile[cbRead + 2] = '\0';
+                    pszContent[cbRead]     = '\0';
+                    pszContent[cbRead + 1] = '\0';
+                    pszContent[cbRead + 2] = '\0';
 
-                    while ((ch = pszFile[off]) != '\0')
+                    while ((ch = pszContent[off]) != '\0')
                     {
                         char *pszArg;
                         switch (ch)
@@ -13094,32 +13094,32 @@ static char **kwFullTestLoadArgvFile(const char *pszFile, int *pcArgs, char **pp
                                 continue;
 
                             case '\\':
-                                if (pszFile[off + 1] == '\n' || pszFile[off + 1] == '\r')
+                                if (pszContent[off + 1] == '\n' || pszContent[off + 1] == '\r')
                                 {
                                     off += 2;
                                     continue;
                                 }
                                 /* fall thru */
                             default:
-                                pszArg = &pszFile[off];
+                                pszArg = &pszContent[off];
                                 do
-                                    ch = pszFile[++off];
+                                    ch = pszContent[++off];
                                 while (ch != '\0' && ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r');
-                                pszFile[off++] = '\0';
+                                pszContent[off++] = '\0';
                                 break;
 
                             case '\'':
-                                pszArg = &pszFile[++off];
-                                while ((ch = pszFile[off]) != '\0' && ch != '\'')
+                                pszArg = &pszContent[++off];
+                                while ((ch = pszContent[off]) != '\0' && ch != '\'')
                                     off++;
-                                pszFile[off++] = '\0';
+                                pszContent[off++] = '\0';
                                 break;
 
                             case '\"': /** @todo escape sequences */
-                                pszArg = &pszFile[++off];
-                                while ((ch = pszFile[off]) != '\0' && ch != '"')
+                                pszArg = &pszContent[++off];
+                                while ((ch = pszContent[off]) != '\0' && ch != '"')
                                     off++;
-                                pszFile[off++] = '\0';
+                                pszContent[off++] = '\0';
                                 break;
                         }
                         if (cArgs + 1 >= cAllocated)
@@ -13248,10 +13248,10 @@ static int kwFullTestRunParseArgs(PKWONETEST *ppHead, int *piState, int argc, ch
                     ch = 's';
                 else if (kHlpStrComp(pszArg, "default-env") == 0)
                 {
-                    unsigned i;
+                    unsigned j;
                     pCur->cEnvVars = 0;
-                    for (i = 0; environ[i] && rc == 0; i++)
-                        rc = kwFullTestVectorAppend(&pCur->papszEnvVars, &pCur->cEnvVars, kHlpStrDup(environ[i])); /* leaks; unchecked */
+                    for (j = 0; environ[j] && rc == 0; j++)
+                        rc = kwFullTestVectorAppend(&pCur->papszEnvVars, &pCur->cEnvVars, kHlpStrDup(environ[j])); /* leaks; unchecked */
                 }
                 else if (kHlpStrComp(pszArg, "chdir") == 0)
                     ch = 'C';
