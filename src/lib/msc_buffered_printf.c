@@ -1,4 +1,4 @@
-/* $Id: msc_buffered_printf.c 3547 2022-01-29 02:39:47Z knut.osmundsen@oracle.com $ */
+/* $Id: msc_buffered_printf.c 3635 2024-11-02 01:52:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * printf, vprintf, fprintf, puts, fputs console optimizations for Windows/MSC.
  */
@@ -41,11 +41,6 @@
 #include <locale.h>
 #include "console.h"
 
-#undef printf
-#undef vprintf
-#undef fprintf
-#undef puts
-#undef fputs
 #pragma warning(disable: 4273) /* inconsistent dll linkage*/
 
 #ifndef KWORKER
@@ -55,6 +50,92 @@
 #endif
 
 
+
+#if _MSC_VER >= 1400
+typedef int (__cdecl *PFN_STDIO_COMMON_VFPRINTF_T)(unsigned __int64, FILE *, const char *, _locale_t, va_list);
+
+static PFN_STDIO_COMMON_VFPRINTF_T g_pfnFallback_vfprintf = NULL;
+
+DLL_IMPORT
+int __cdecl __stdio_common_vfprintf(unsigned __int64 fOptions, FILE *pFile, const char *pszFormat, _locale_t hLocale, va_list va)
+{
+    /* 
+     * Make sure we've got the fallback function before we start.
+     */
+    PFN_STDIO_COMMON_VFPRINTF_T pfnFallback = g_pfnFallback_vfprintf;
+    if (g_pfnFallback_vfprintf)
+    { /* likely */ }
+    else
+    {
+        HANDLE hmodCrt = GetModuleHandleW(L"api-ms-win-crt-stdio-l1-1-0.dll");
+        if (!hmodCrt)
+        {
+            hmodCrt = GetModuleHandleW(L"ucrtbase.dll");
+            if (!hmodCrt)
+            {
+                hmodCrt = LoadLibraryW(L"api-ms-win-crt-stdio-l1-1-0.dll");
+                if (!hmodCrt)
+                {
+                    static char const s_szMsg[] = "fatal error! Failed to load the UCRT DLL and therefore no __stdio_common_vfprintf fallback!\r\n";
+                    DWORD cbIgn = 0;
+                    WriteFile(GetStdHandle(STD_ERROR_HANDLE ), s_szMsg, sizeof(s_szMsg) - 1, &cbIgn, NULL);
+                    TerminateProcess(GetCurrentProcess(), 998);
+                }
+            }
+        }
+
+        pfnFallback = (PFN_STDIO_COMMON_VFPRINTF_T)GetProcAddress(hmodCrt, "__stdio_common_vfprintf");
+        if (!pfnFallback)
+        {
+            static char const s_szMsg[] = "fatal error! Failed resolve __stdio_common_vfprintf in the UCRT DLL!\r\n";
+            DWORD cbIgn = 0;
+            WriteFile(GetStdHandle(STD_ERROR_HANDLE ), s_szMsg, sizeof(s_szMsg) - 1, &cbIgn, NULL);
+            TerminateProcess(GetCurrentProcess(), 997);
+        }
+
+        g_pfnFallback_vfprintf = pfnFallback;
+    }
+
+    /*
+     * If it's a TTY, try format into a stack buffer and output using our
+     * console optimized fwrite wrapper.
+     */
+    if (*pszFormat != '\0')
+    {
+        if (hLocale == NULL)
+        {
+            int fd = fileno(pFile);
+            if (fd >= 0)
+            {
+                if (is_console(fd))
+                {
+                    char *pszTmp = (char *)alloca(16384);
+                    va_list va2 = va;
+                    int cchRet = vsnprintf(pszTmp, 16384, pszFormat, va2);
+                    if (cchRet < 16384 - 1)
+                        return (int)maybe_con_fwrite(pszTmp, cchRet, 1, stdout);
+                }
+            }
+        }
+    }
+
+    /*
+     * Fallback.
+     */
+    return g_pfnFallback_vfprintf(fOptions, pFile, pszFormat, hLocale, va);
+}
+
+
+void * const __imp___stdio_common_vfprintf  = (void *)(uintptr_t)__stdio_common_vfprintf;
+
+
+#else /* < _MSC_VER <= 1400 */
+
+# undef printf
+# undef vprintf
+# undef fprintf
+# undef puts
+# undef fputs
 
 /**
  * Replaces printf for MSC to speed up console output.
@@ -264,3 +345,4 @@ void * const __imp_fprintf = (void *)(uintptr_t)fprintf;
 void * const __imp_puts    = (void *)(uintptr_t)puts;
 void * const __imp_fputs   = (void *)(uintptr_t)fputs;
 
+#endif /* Old MSC */
