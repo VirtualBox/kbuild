@@ -1,4 +1,4 @@
-/* $Id: shfile.c 3542 2022-01-29 01:36:00Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 3640 2024-11-02 23:39:14Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -1028,7 +1028,7 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                         ph -= dwPerH;
 
                         if (   (paf[i] & (FOPEN | FNOINHERIT)) == FOPEN
-                            && *ph != (uint32_t)INVALID_HANDLE_VALUE
+                            && *ph != (uint32_t)(uintptr_t)INVALID_HANDLE_VALUE
                             && *ph != 0)
                         {
                             HANDLE  h = (HANDLE)(intptr_t)*ph;
