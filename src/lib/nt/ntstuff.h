@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 3223 2018-03-31 02:29:56Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 3644 2024-11-02 23:41:03Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -521,6 +521,8 @@ typedef struct MY_PARTIAL_TEB
 # define MY_NT_READ_TEB_WORKER(a_offTebMember) ( __readgsqword(a_offTebMember) )
 #elif K_ARCH == K_ARCH_X86_32
 # define MY_NT_READ_TEB_WORKER(a_offTebMember) ( __readfsdword(a_offTebMember) )
+#elif K_ARCH == K_ARCH_ARM_64
+# define MY_NT_READ_TEB_WORKER(a_offTebMember) ( __readx18qword(a_offTebMember) )
 #else
 # error "Port me!"
 #endif
