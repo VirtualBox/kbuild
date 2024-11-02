@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3614 2024-09-24 09:09:33Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3637 2024-11-02 01:54:01Z knut.osmundsen@oracle.com $
 ## @file
 # Top-Level Sub-Makefile for kBuild.
 #
@@ -74,8 +74,10 @@ kBuild_bin_SOURCES.os2 = \
 	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc065.dll=>libc065.dll
 
 if1of ($(KBUILD_TARGET), nt win)
+ ifndef KBUILD_NEW_VCC
 kBuild_bin_SOURCES.$(KBUILD_TARGET) = \
-	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/msvcr100.dll
+ 	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/msvcr100.dll
+ endif
 kBuild_bin_SOURCES.profile = \
 	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/bin/kPrf2.dll \
 	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/bin/kPrf2WinApiWrappers.dll
