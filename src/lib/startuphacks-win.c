@@ -1,12 +1,10 @@
-/* $Id: startuphacks-win.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: startuphacks-win.c 3645 2024-11-03 02:32:49Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild - Alternative argument parser for the windows startup code.
- *
- * @todo Update license when SED is updated.
  */
 
 /*
- * Copyright (c) 2006-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2006-2024 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * parse_args(): Copyright (c) 1992-1998 by Eberhard Mattes
  *
@@ -35,6 +33,9 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <Windows.h>
+#if _MSC_VER >= 1400
+# include <vcruntime_startup.h>
+#endif
 
 
 /*******************************************************************************
@@ -52,8 +53,11 @@ static int  g_cArgs = 0;
 static char **g_papszArgs = NULL;
 
 
-
+#if _MSC_VER >= 1400
+int __cdecl _configure_narrow_argv(_crt_argv_mode const mode)
+#else
 int __cdecl _setargv(void)
+#endif
 {
     static char s_szProgramName[MAX_PATH + 1];
     const char *pszCmdLine;
@@ -65,8 +69,9 @@ int __cdecl _setargv(void)
      */
     GetModuleFileName(NULL, s_szProgramName, MAX_PATH);
     s_szProgramName[MAX_PATH] = '\0';
-#if _MSC_VER >= 1400 && !defined(CRTDLL) && !defined(_DLL)
-    _set_pgmptr(s_szProgramName);
+#if _MSC_VER >= 1400
+    _pgmptr = s_szProgramName;
+    (void)mode;
 #endif
 
     /*
@@ -82,10 +87,10 @@ int __cdecl _setargv(void)
     cb = parse_args(pszCmdLine, NULL, NULL);
     g_papszArgs = malloc(sizeof(*g_papszArgs) * (g_cArgs + 2));
     if (!g_papszArgs)
-        return -1;
+        return _MSC_VER >= 1400 ? ENOMEM : -1;
     pszCmdLineBuf = malloc(cb);
     if (!pszCmdLineBuf)
-        return -1;
+        return _MSC_VER >= 1400 ? ENOMEM : -1;
     parse_args(pszCmdLine, g_papszArgs, pszCmdLineBuf);
     g_papszArgs[g_cArgs] = g_papszArgs[g_cArgs + 1] = NULL;
 
@@ -94,8 +99,12 @@ int __cdecl _setargv(void)
     __argv = g_papszArgs;
     return 0;
 }
+#if _MSC_VER >= 1400
+int (__cdecl * __imp__configure_narrow_argv)(_crt_argv_mode) = _configure_narrow_argv;
+#endif
 
 
+#if _MSC_VER < 1400
 /* when linking with the crtexe.c, the __getmainargs() call will redo the _setargv job inside the msvc*.dll. */
 int __cdecl __getmainargs(int *pargc, char ***pargv, char ***penvp, int dowildcard, /*_startupinfo*/ void *startinfo)
 {
@@ -105,12 +114,12 @@ int __cdecl __getmainargs(int *pargc, char ***pargv, char ***penvp, int dowildca
     return 0;
 }
 
-#if defined(_M_IX86)
+# if defined(_M_IX86)
 int (__cdecl * _imp____getmainargs)(int *, char ***, char ***, int, /*_startupinfo*/ void *) = __getmainargs;
-#else
+# else
 int (__cdecl * __imp___getmainargs)(int *, char ***, char ***, int, /*_startupinfo*/ void *) = __getmainargs;
+# endif
 #endif
-
 
 
 /**
