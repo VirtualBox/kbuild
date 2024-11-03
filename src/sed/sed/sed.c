@@ -29,7 +29,9 @@
 #include "progname.h"
 #include "version.h"
 #include "xalloc.h"
+#ifdef HAVE_SELINUX_SELINUX_H
 #include <selinux/selinux.h>
+#endif
 
 #include "version-etc.h"
 
@@ -392,7 +394,7 @@ main (int argc, char **argv)
             if (locale == NULL)
               fprintf (stderr,
                        _("%s: warning: setlocale (LC_ALL, \"%s\") failed: %d\n"),
-                       myname, optarg, errno);
+                       program_name, optarg, errno);
             else if (getenv ("KMK_SED_CODEPAGE_DEBUG"))
               fprintf (stderr, "kmk_sed: codepage=%u locale=%s ACP=%u\n",
                        get_crt_codepage (), locale, get_ansi_codepage ());

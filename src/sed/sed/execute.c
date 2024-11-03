@@ -30,8 +30,10 @@
 #include <sys/stat.h>
 #include "stat-macros.h"
 
+#ifdef HAVE_SELINUX_SELINUX_H
 #include <selinux/selinux.h>
 #include <selinux/context.h>
+#endif
 #include "acl.h"
 #include "ignore-value.h"
 #include "progname.h"
@@ -595,6 +597,7 @@ open_next_file (const char *name, struct input *input)
       if (!S_ISREG (input->st.st_mode))
         panic (_("couldn't edit %s: not a regular file"), input->in_file_name);
 
+#ifdef HAVE_SELINUX_SELINUX_H
       if (is_selinux_enabled () > 0)
         {
           char *con;
@@ -617,6 +620,7 @@ open_next_file (const char *name, struct input *input)
                          program_name, input->in_file_name, strerror (errno));
             }
         }
+#endif
 
       output_file.fp = ck_mkstemp (&input->out_file_name, tmpdir, "sed",
                                    write_mode);
@@ -625,8 +629,10 @@ open_next_file (const char *name, struct input *input)
 
       if (reset_fscreatecon)
         {
+#ifdef HAVE_SELINUX_SELINUX_H
           setfscreatecon (old_fscreatecon);
           freecon (old_fscreatecon);
+#endif
         }
 
       if (!output_file.fp)
@@ -668,9 +674,11 @@ closedown (struct input *input)
       if (fchown (output_fd, input->st.st_uid, input->st.st_gid) == -1)
         ignore_value (fchown (output_fd, -1, input->st.st_gid));
 #endif
+#if USE_ACL
       copy_acl (input->in_file_name, input_fd,
                 input->out_file_name, output_fd,
                 input->st.st_mode);
+#endif
 
       ck_fclose (input->fp);
       ck_fclose (output_file.fp);
