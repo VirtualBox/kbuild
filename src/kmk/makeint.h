@@ -254,7 +254,11 @@ extern unsigned long make_stats_ht_collisions;
 /* bird - start */
 #ifdef _MSC_VER
 # include <intrin.h>
-# define CURRENT_CLOCK_TICK() __rdtsc()
+# if defined(KBUILD_ARCH_ARM64)
+#  define CURRENT_CLOCK_TICK() _ReadStatusReg(ARM64_SYSREG(3, 3, 14, 0, 2)) /*CNTCVT_EL0*/
+# else
+#  define CURRENT_CLOCK_TICK() __rdtsc()
+# endif
 #else
 # define CURRENT_CLOCK_TICK() 0
 #endif
