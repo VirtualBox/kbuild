@@ -1,11 +1,11 @@
 @echo off
-REM $Id: envwin.cmd 3113 2017-10-29 17:16:03Z knut.osmundsen@oracle.com $
+REM $Id: envwin.cmd 3647 2024-11-03 02:33:51Z knut.osmundsen@oracle.com $
 REM REM @file
 REM Environment setup script.
 REM
 
 REM
-REM Copyright (c) 2005-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+REM Copyright (c) 2005-2024 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 REM
 REM This file is part of kBuild.
 REM
@@ -451,7 +451,8 @@ if ".%KBUILD_HOST_CPU%" == ".k8"        set _KBUILD_HOST_ARCH=amd64
 if ".%KBUILD_HOST_CPU%" == ".k9"        set _KBUILD_HOST_ARCH=amd64
 if ".%KBUILD_HOST_CPU%" == ".k10"       set _KBUILD_HOST_ARCH=amd64
 if not ".%_KBUILD_HOST_ARCH%" == "."    goto have_host_arch
-REM try guess from PROCESSOR_ARCHITEW6432 and PROCESSOR_ARCHITECTURE
+REM try guess from PROCESSOR_ARCHITECTURE, PROCESSOR_ARCHITEW6432, and
+REM PROCESSOR_IDENTIFIER (latter for arm running non-native shells (tcc.exe)).
 set _KBUILD_TMP=%PROCESSOR_ARCHITECTURE%
 if not ".%PROCESSOR_ARCHITEW6432%" == "." set _KBUILD_TMP=%PROCESSOR_ARCHITEW6432%
 if "%_KBUILD_TMP%" == "x86"             set _KBUILD_HOST_ARCH=x86
@@ -461,6 +462,8 @@ if "%_KBUILD_TMP%" == "Amd64"           set _KBUILD_HOST_ARCH=amd64
 if "%_KBUILD_TMP%" == "AMD64"           set _KBUILD_HOST_ARCH=amd64
 if "%_KBUILD_TMP%" == "x64"             set _KBUILD_HOST_ARCH=amd64
 if "%_KBUILD_TMP%" == "X64"             set _KBUILD_HOST_ARCH=amd64
+if /i "%PROCESSOR_IDENTIFIER:~0,5%" == "ARMv8" set _KBUILD_HOST_ARCH=arm64
+if /i "%PROCESSOR_IDENTIFIER:~0,5%" == "ARMv9" set _KBUILD_HOST_ARCH=arm64
 if not ".%_KBUILD_HOST_ARCH%" == "."    goto have_host_arch
 echo error: Cannot figure KBUILD_HOST_ARCH!
 goto failed
