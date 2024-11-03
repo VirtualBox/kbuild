@@ -226,7 +226,7 @@
 
 /* Define to a C preprocessor expression that evaluates to 1 or 0, depending
    whether the gnulib module fd-safer-flag shall be considered present. */
-#undef GNULIB_FD_SAFER_FLAG
+#define GNULIB_FD_SAFER_FLAG 1
 
 /* Define to a C preprocessor expression that evaluates to 1 or 0, depending
    whether the gnulib module fopen-gnu shall be considered present. */
