@@ -1,4 +1,4 @@
-/* $Id: win_exec_wrapper.c 3528 2021-12-19 16:32:38Z knut.osmundsen@oracle.com $ */
+/* $Id: win_exec_wrapper.c 3652 2024-11-03 03:04:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * win_exec_wrapper - Stub for exec'ing a kmk_xxx program.
  */
@@ -34,8 +34,9 @@ VOID __stdcall BareBoneStart(VOID)
 {
     DWORD               dwIgnored;
     PROCESS_INFORMATION ProcInfo        = { NULL, NULL, 0, 0 };
-    WCHAR               wszExec[260];
-    UINT                cwcExec         = GetModuleFileNameW(NULL, wszExec, 512);
+#define MAX_EXEC_SIZE   512
+    WCHAR               wszExec[MAX_EXEC_SIZE];
+    UINT                cwcExec         = GetModuleFileNameW(NULL, wszExec, MAX_EXEC_SIZE);
     BOOL                fExecOk         = FALSE;
     WCHAR const * const pwszCommandLine = GetCommandLineW();
     STARTUPINFOW        StartInfo       = { sizeof(StartInfo), NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL};
@@ -52,7 +53,7 @@ VOID __stdcall BareBoneStart(VOID)
     /*
      * Construct the executable path.
      */
-    if (cwcExec > 10)
+    if (cwcExec > 3+4)
     {
         /* Strip the filename. */
 #define IS_SEP(a_wc) ( (a_wc) == '\\' || (a_wc) == ':' || (a_wc) == '\\' )
@@ -75,7 +76,7 @@ VOID __stdcall BareBoneStart(VOID)
                     unsigned off = 0;
                     while (off < sizeof(s_szTargetName))
                         wszExec[cwcExec++] = s_szTargetName[off++];
-                    fExecOk = cwcExec <= 260;
+                    fExecOk = cwcExec <= MAX_EXEC_SIZE;
                 }
             }
         }
