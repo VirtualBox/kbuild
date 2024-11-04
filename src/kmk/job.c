@@ -439,6 +439,10 @@ is_bourne_compatible_shell (const char *path)
 {
   /* List of known POSIX (or POSIX-ish) shells.  */
   static const char *unix_shells[] = {
+#ifdef KMK
+    "kmk_ash",
+    "kmk_kash",
+#endif
     "sh",
     "bash",
     "ksh",
@@ -1773,7 +1777,7 @@ start_job_command (struct child *child)
         fprintf (stderr, _("failed to launch process (rc=%d)\n"), rc);
         for (i = 0; argv[i]; i++)
           fprintf (stderr, "%s ", argv[i]);
-        fprintf (stderr, "\n", argv[i]);
+        fprintf (stderr, "\n");
         goto error;
       }
 #  endif  /* CONFIG_NEW_WIN_CHILDREN */
@@ -3084,6 +3088,31 @@ construct_command_argv_internal (char *line, char **restp, const char *shell,
              If we see any of those, punt.
              But on MSDOS, if we use COMMAND.COM, double and single
              quotes have the same effect.  */
+#ifdef KMK
+          else if (instring == '"' && unixy_shell && *p == '\\')
+            {
+              /* If kmk_ash, allow simple escape sequence: \", \\, \$, \` */
+              char const ch2 = p[1];
+              if (is_kmk_shell
+               && (   ch2 == '\"'
+                   || ch2 == '\\'
+                   || ch2 == '$'
+                   || ch2 == '`'))
+                *ap++ = *++p;
+              else
+                goto slow;
+            }
+          else if (instring == '"' && unixy_shell && (*p == '$' || *p == '`'))
+            goto slow;
+# ifdef WINDOWS32
+          /* Quoted wildcard characters must be passed quoted to the
+             command, so give up the fast route.  */
+          else if (instring == '"' && !unixy_shell && (*p == '*' || *p == '?'))
+            goto slow;
+          else if (instring == '"' && !unixy_shell && p[0] == '\\' && p[1] == '"') /* bird: this smells */
+            *ap++ = *++p;
+# endif
+#else /* !KMK */
           else if (instring == '"' && strchr ("\\$`", *p) != 0 && unixy_shell)
             goto slow;
 #ifdef WINDOWS32
@@ -3094,6 +3123,7 @@ construct_command_argv_internal (char *line, char **restp, const char *shell,
           else if (instring == '"' && strncmp (p, "\\\"", 2) == 0)
             *ap++ = *++p;
 #endif
+#endif /* !KMK */
           else
             *ap++ = *p;
         }
