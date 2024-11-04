@@ -1413,16 +1413,16 @@ find_and_set_default_shell (const char *token)
 }
 
 /* bird: */
-#ifdef CONFIG_NEW_WIN32_CTRL_EVENT
-#include <process.h>
+# ifdef CONFIG_NEW_WIN32_CTRL_EVENT
+#  include <process.h>
 static UINT g_tidMainThread = 0;
 static int volatile g_sigPending = 0; /* lazy bird */
-# ifndef _M_IX86
+#  ifndef _M_IX86
 static LONG volatile g_lTriggered = 0;
 static CONTEXT g_Ctx;
-# endif
+#  endif
 
-# ifdef _M_IX86
+#  ifdef _M_IX86
 static __declspec(naked) void dispatch_stub(void)
 {
     __asm  {
@@ -1439,7 +1439,7 @@ static __declspec(naked) void dispatch_stub(void)
         ret
     }
 }
-# else /* !_M_IX86 */
+#  else /* !_M_IX86 */
 static void dispatch_stub(void)
 {
     fflush(stdout);
@@ -1451,7 +1451,7 @@ static void dispatch_stub(void)
     for (;;)
         exit(131);
 }
-# endif /* !_M_IX86 */
+#  endif /* !_M_IX86 */
 
 static BOOL WINAPI ctrl_event(DWORD CtrlType)
 {
@@ -1460,14 +1460,14 @@ static BOOL WINAPI ctrl_event(DWORD CtrlType)
     CONTEXT Ctx;
 
     /*fprintf(stderr, "dbg: ctrl_event sig=%d\n", sig);*/
-#ifndef _M_IX86
+#  ifndef _M_IX86
     /* only once. */
     if (InterlockedExchange(&g_lTriggered, 1))
     {
         Sleep(1);
         return TRUE;
     }
-#endif
+#  endif
 
     /* open the main thread and suspend it. */
     hThread = OpenThread(THREAD_ALL_ACCESS, FALSE, g_tidMainThread);
@@ -1479,24 +1479,24 @@ static BOOL WINAPI ctrl_event(DWORD CtrlType)
     memset(&Ctx, 0, sizeof(Ctx));
     Ctx.ContextFlags = CONTEXT_FULL;
     if (GetThreadContext(hThread, &Ctx)
-#ifdef _M_IX86
+#  ifdef _M_IX86
         && Ctx.Esp >= 0x1000
-#else
+#  else
         && Ctx.Rsp >= 0x1000
-#endif
+#  endif
        )
     {
-#ifdef _M_IX86
+#  ifdef _M_IX86
         ((uintptr_t *)Ctx.Esp)[-1] = Ctx.Eip;
         Ctx.Esp -= sizeof(uintptr_t);
         Ctx.Eip = (uintptr_t)&dispatch_stub;
-#else
+#  else
         g_Ctx = Ctx;
         Ctx.Rsp -= 0x80;
         Ctx.Rsp &= ~(uintptr_t)0xf;
         Ctx.Rsp += 8;   /* (Stack aligned before call instruction, not after.) */
         Ctx.Rip  = (uintptr_t)&dispatch_stub;
-#endif
+#  endif
 
         SetThreadContext(hThread, &Ctx);
         g_sigPending = sig;
@@ -1515,7 +1515,7 @@ static BOOL WINAPI ctrl_event(DWORD CtrlType)
     Sleep(1);
     return TRUE;
 }
-#endif /* CONFIG_NEW_WIN32_CTRL_EVENT */
+# endif /* CONFIG_NEW_WIN32_CTRL_EVENT */
 
 #endif  /* WINDOWS32 */
 
@@ -2403,72 +2403,110 @@ main (int argc, char **argv, char **envp)
     }
 
 #ifdef KMK
-  /* Check for [Mm]akefile.kup and change directory when found.
-     Makefile.kmk overrides Makefile.kup but not plain Makefile.
+  /* If no [Mm]akefile.kmk in the current directory, we may want to ascend to a
+     parent directory that contains one.  This is explicitly ordered by placing
+     [Mm]akefile.kup files in the directory.  And since 2024-11-04 we
+     automatically do this when here is a goal (e.g. main.o) on the command
+     line and no other default makefiles around.  This new behvior simplifies
+     compiling individial source files from the editor without requiring us to
+     sprinkle Makefile.kup-files around the tree, esp. in 3rd party code.
+
      If no -C arguments were given, fake one to indicate chdir. */
   if (makefiles == 0)
     {
       struct stat st;
-      if ((   (   stat ("Makefile.kup", &st) == 0
-               && S_ISREG (st.st_mode) )
-           || (   stat ("makefile.kup", &st) == 0
-               && S_ISREG (st.st_mode) ) )
-       && stat ("Makefile.kmk", &st) < 0
+      if (stat ("Makefile.kmk", &st) < 0
        && stat ("makefile.kmk", &st) < 0)
         {
           static char fake_path[3*16 + 32] = "..";
           char *cur = &fake_path[2];
           int   up_levels = 1;
-          while (up_levels < 16)
-            {
-              /* File with higher precedence.s */
-              strcpy (cur, "/Makefile.kmk");
-              if (stat (fake_path, &st) == 0)
-                break;
-              strcpy (cur, "/makefile.kmk");
-              if (stat (fake_path, &st) == 0)
-                break;
 
-              /* the .kup files */
-              strcpy (cur, "/Makefile.kup");
-              if (   stat (fake_path, &st) != 0
-                  || !S_ISREG (st.st_mode))
+          /* If there are any .kup-files. */
+          if ((   stat ("Makefile.kup", &st) == 0
+               && S_ISREG (st.st_mode) )
+           || (   stat ("makefile.kup", &st) == 0
+               && S_ISREG (st.st_mode) ) )
+            {
+              while (up_levels < 16)
                 {
-                  strcpy (cur, "/makefile.kup");
+                  /* File with higher precedence. */
+                  strcpy (cur, "/Makefile.kmk");
+                  if (stat (fake_path, &st) == 0)
+                    break;
+                  cur[1] = 'm';
+                  if (stat (fake_path, &st) == 0)
+                    break;
+
+                  /* the .kup files */
+                  strcpy (cur, "/Makefile.kup");
                   if (   stat (fake_path, &st) != 0
                       || !S_ISREG (st.st_mode))
-                    break;
+                    {
+                      cur[1] = 'm';
+                      if (   stat (fake_path, &st) != 0
+                          || !S_ISREG (st.st_mode))
+                        break;
+                    }
+
+                  /* ok */
+                  strcpy (cur, "/..");
+                  cur += 3;
+                  up_levels++;
                 }
-
-              /* ok */
-              strcpy (cur, "/..");
-              cur += 3;
-              up_levels++;
+              if (up_levels >= 16)
+                O (fatal, NILF, _("Makefile.kup recursion is too deep."));
             }
+          /* If there are no default makefiles either and one or more goals on
+             the command line, go looking for kmk-files up the parent tree. */
+          else if (goals != NULL
+                && stat ("GNUmakefile", &st) < 0
+                && stat ("makefile", &st) < 0
+                && stat ("Makefile", &st) < 0
+#ifdef WINDOWS32
+                && stat ("makefile.mak", &st) < 0
+#endif
+                   )
+            while (up_levels < 16)
+              {
+                /* File with higher precedence.s */
+                strcpy (cur, "/Makefile.kmk");
+                if (stat (fake_path, &st) == 0)
+                  break;
+                cur[1] = 'm';
+                if (stat (fake_path, &st) == 0)
+                  break;
 
-          if (up_levels >= 16)
-            O (fatal, NILF, _("Makefile.kup recursion is too deep."));
-
-          /* attempt to change to the directory. */
-          *cur = '\0';
-          if (chdir (fake_path) < 0)
-            pfatal_with_name (fake_path);
-
-          /* add the string to the directories. */
-          if (!directories)
+                /* ok */
+                strcpy (cur, "/..");
+                cur += 3;
+                up_levels++;
+              }
+          else
+              up_levels = 0;
+          if (up_levels > 0 && up_levels < 16)
             {
-              directories = xmalloc (sizeof(*directories));
-              directories->list = xmalloc (5 * sizeof (char *));
-              directories->max = 5;
-              directories->idx = 0;
+              /* attempt to change to the directory. */
+              *cur = '\0';
+              if (chdir (fake_path) < 0)
+                pfatal_with_name (fake_path);
+
+              /* add the string to the directories. */
+              if (!directories)
+                {
+                  directories = xmalloc (sizeof(*directories));
+                  directories->list = xmalloc (5 * sizeof (char *));
+                  directories->max = 5;
+                  directories->idx = 0;
+                }
+              else if (directories->idx == directories->max - 1)
+                {
+                  directories->max += 5;
+                  directories->list = xrealloc ((void *)directories->list,
+                                       directories->max * sizeof (char *));
+                }
+              directories->list[directories->idx++] = fake_path;
             }
-          else if (directories->idx == directories->max - 1)
-            {
-              directories->max += 5;
-              directories->list = xrealloc ((void *)directories->list,
-                                   directories->max * sizeof (char *));
-            }
-          directories->list[directories->idx++] = fake_path;
         }
     }
 #endif /* KMK */
