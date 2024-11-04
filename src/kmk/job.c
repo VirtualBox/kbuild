@@ -3101,7 +3101,7 @@ construct_command_argv_internal (char *line, char **restp, const char *shell,
 #ifdef KMK
         {
           /* Tilde is only special if at the start of a path spec,
-             i.e. don't get excited when we by 8.3 files on windows. */
+             i.e. don't get excited by 8.3 filenames on windows. */
           if (   *p == '~'
               && p > line
               && !ISSPACE (p[-1])
