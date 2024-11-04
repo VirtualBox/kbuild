@@ -1222,18 +1222,42 @@ lex (struct dfa *dfa)
         case '$':
           if (backslash)
             goto normal_char;
+          /* kmk: cl v19.29.30139/amd64 messes this function up when optimizing
+             for speed, workaround is to optimize it for size instead. The
+             symptom is that the following SED expression fail to match:
+             s/^[0-9a-fA-F]\{1,\} \(00[0-9a-fA-F]*\) ABS *notype *External *| \([^.]\{1,\}\)\.\(.*$\)/ 1=\1 2=\2 3=\3/
+
+             Seems the exact problem is that it gets the indexing here wrong:
+                 dfa->lex.ptr[!(dfa->syntax.syntax_bits & RE_NO_BK_PARENS) & (dfa->lex.ptr[0] == '\\')]
+             It forgets to do the ` dfa->lex.ptr[0] == '\\' ` part and instead
+             ANDs with a register initialized to zero.  Rewriting the
+             expressions using the tinary operator works around the problem,
+             although the resulting code is a lot bulkier.
+             */
           if (dfa->syntax.syntax_bits & RE_CONTEXT_INDEP_ANCHORS
               || dfa->lex.left == 0
+#ifdef _MSC_VER /* see above */
+              || (!(dfa->syntax.syntax_bits & RE_NO_BK_PARENS)
+                  ? dfa->lex.left > 1 && dfa->lex.ptr[dfa->lex.ptr[0] == '\\'] == ')'
+                  : dfa->lex.left > 0 && dfa->lex.ptr[0]                       == ')')
+#else
               || ((dfa->lex.left
                    > !(dfa->syntax.syntax_bits & RE_NO_BK_PARENS))
                   && (dfa->lex.ptr[!(dfa->syntax.syntax_bits & RE_NO_BK_PARENS)
                                    & (dfa->lex.ptr[0] == '\\')]
                       == ')'))
+#endif
+#ifdef _MSC_VER /* see above */
+              || (!(dfa->syntax.syntax_bits & RE_NO_BK_VBAR)
+                  ? dfa->lex.left > 1 && dfa->lex.ptr[dfa->lex.ptr[0] == '\\'] == '|'
+                  : dfa->lex.left > 0 && dfa->lex.ptr[0]                       == '|')
+#else
               || ((dfa->lex.left
                    > !(dfa->syntax.syntax_bits & RE_NO_BK_VBAR))
                   && (dfa->lex.ptr[!(dfa->syntax.syntax_bits & RE_NO_BK_VBAR)
                                    & (dfa->lex.ptr[0] == '\\')]
                       == '|'))
+#endif
               || ((dfa->syntax.syntax_bits & RE_NEWLINE_ALT)
                   && dfa->lex.left > 0 && dfa->lex.ptr[0] == '\n'))
             return dfa->lex.lasttok = ENDLINE;
