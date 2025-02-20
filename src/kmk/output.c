@@ -59,6 +59,43 @@ unsigned int stdio_traced = 0;
 # define STREAM_OK(_s) 1
 #endif
 
+#if defined(KMK) && defined(KBUILD_OS_WINDOWS) && 1
+/* fflush wrapper w/ error checking + reporting for stdout.
+   This is to debug the mysterious 'kmk: write error: stdout' errors. */
+int g_fStdOutError = 0;
+
+static int my_fflush (FILE *pFile)
+{
+  if (pFile == stdout && !g_fStdOutError)
+    {
+      if (!ferror (pFile))
+        {
+          int rcRet = fflush (pFile);
+          g_fStdOutError = ferror(g_fStdOutError);
+          if (rcRet != EOF && !g_fStdOutError)
+            { /* likely */ }
+          else if (rcRet == EOF)
+            fprintf (stderr, "kmk: fflush(stdout): flush failed! errno=%d\n", errno);
+          else
+            fprintf (stderr, "kmk: fflush(stdout): error pending after successful flush! errno=%d\n", errno);
+
+          return rcRet;
+        }
+      else
+        {
+          fprintf (stderr, "kmk: fflush(stdout): error pending on entry! errno=%d\n", errno);
+          g_fStdOutError = 1;
+        }
+
+    }
+  return fflush (pFile);
+}
+
+# undef  fflush
+# undef  fflush(a_pFile) my_fflush(a_pFile)
+
+#endif
+
 
 #if defined(KMK) && !defined(NO_OUTPUT_SYNC)
 /* Non-negative if we're counting output lines.
@@ -193,7 +230,7 @@ static void membuf_dump (struct output *out)
               err_run = err_run->next;
             }
           if (dst != prevdst)
-            fflush(prevdst);
+            fflush (prevdst);
           prevdst = dst;
 #ifdef KMK
           if (output_metered < 0)
