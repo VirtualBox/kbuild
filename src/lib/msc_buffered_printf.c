@@ -1,4 +1,4 @@
-/* $Id: msc_buffered_printf.c 3635 2024-11-02 01:52:02Z knut.osmundsen@oracle.com $ */
+/* $Id: msc_buffered_printf.c 3661 2025-02-20 16:30:05Z knut.osmundsen@oracle.com $ */
 /** @file
  * printf, vprintf, fprintf, puts, fputs console optimizations for Windows/MSC.
  */
@@ -113,7 +113,7 @@ int __cdecl __stdio_common_vfprintf(unsigned __int64 fOptions, FILE *pFile, cons
                     va_list va2 = va;
                     int cchRet = vsnprintf(pszTmp, 16384, pszFormat, va2);
                     if (cchRet < 16384 - 1)
-                        return (int)maybe_con_fwrite(pszTmp, cchRet, 1, stdout);
+                        return (int)maybe_con_fwrite(pszTmp, cchRet, 1, pFile);
                 }
             }
         }
