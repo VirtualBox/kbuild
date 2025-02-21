@@ -60,9 +60,21 @@ unsigned int stdio_traced = 0;
 #endif
 
 #if defined(KMK) && defined(KBUILD_OS_WINDOWS) && 1
+# define DEBUG_STDOUT_CLOSE_ISSUE
 /* fflush wrapper w/ error checking + reporting for stdout.
    This is to debug the mysterious 'kmk: write error: stdout' errors. */
 int g_fStdOutError = 0;
+
+static void my_stdout_error (const char *pszOperation, const char *pszMessage)
+{
+  DWORD const     dwErr   = GetLastError ();
+  int const       iErrNo  = errno;
+  int const       fdFile  = fileno(stdout);
+  HANDLE    const hNative = (HANDLE)_get_osfhandle (_fileno (stdout));
+  DWORD const     dwType  = GetFileType (hNative);
+  fprintf (stderr, "kmk: %s: %s! (lasterr=%u errno=%d fileno=%d native=%p type=%#x)\n",
+           pszOperation, pszMessage, dwErr, iErrNo, fdFile, hNative, dwType);
+}
 
 static int my_fflush (FILE *pFile)
 {
@@ -71,19 +83,19 @@ static int my_fflush (FILE *pFile)
       if (!ferror (pFile))
         {
           int rcRet = fflush (pFile);
-          g_fStdOutError = ferror(g_fStdOutError);
+          g_fStdOutError = ferror (pFile);
           if (rcRet != EOF && !g_fStdOutError)
             { /* likely */ }
           else if (rcRet == EOF)
-            fprintf (stderr, "kmk: fflush(stdout): flush failed! errno=%d\n", errno);
+            my_stdout_error ("fflush(stdout)", "flush failed!");
           else
-            fprintf (stderr, "kmk: fflush(stdout): error pending after successful flush! errno=%d\n", errno);
+            my_stdout_error ("fflush(stdout)", "error pending after successful flush!");
 
           return rcRet;
         }
       else
         {
-          fprintf (stderr, "kmk: fflush(stdout): error pending on entry! errno=%d\n", errno);
+          my_stdout_error ("fflush(stdout)", "error pending on entry!");
           g_fStdOutError = 1;
         }
 
@@ -92,7 +104,7 @@ static int my_fflush (FILE *pFile)
 }
 
 # undef  fflush
-# undef  fflush(a_pFile) my_fflush(a_pFile)
+# define fflush(a_pFile) my_fflush(a_pFile)
 
 #endif
 
@@ -274,8 +286,10 @@ static void membuf_dump (struct output *out)
 
       /* Exit the critical section.  */
 # if defined (KBUILD_OS_WINDOWS) || defined (KBUILD_OS_OS2) || defined (KBUILD_OS_DOS)
-      _setmode (fileno (stdout), prev_mode_out);
-      _setmode (fileno (stderr), prev_mode_err);
+      if (prev_mode_out != -1)
+        _setmode (fileno (stdout), prev_mode_out);
+      if (prev_mode_err != -1)
+        _setmode (fileno (stderr), prev_mode_err);
 # endif
       if (sem)
         release_semaphore (sem);
@@ -569,7 +583,7 @@ output_write_text (struct output *out, int is_err, const char *src, size_t len)
       /* Work the buffer line by line, replacing each \n with \r\n. */
       while (len > 0)
         {
-          const char *nl = memchr ( src, '\n', len);
+          const char *nl = memchr (src, '\n', len);
           size_t line_len = nl ? nl - src : len;
           output_write_bin (out, is_err, src, line_len);
           if (!nl)
@@ -976,7 +990,7 @@ setup_tmpfile (struct output *out)
   output_sync = OUTPUT_SYNC_NONE;
 }
 
-#endif /* CONFIG_WITH_OUTPUT_IN_MEMORY */
+#endif /* !CONFIG_WITH_OUTPUT_IN_MEMORY */
 
 /* Synchronize the output of jobs in -j mode to keep the results of
    each job together. This is done by holding the results in temp files,
@@ -1155,10 +1169,19 @@ static void
 close_stdout (void)
 {
   int prev_fail = ferror (stdout);
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+  if (prev_fail)
+    my_stdout_error ("close_stdout", "error pending on entry!");
+  errno = 0; SetLastError (0);
+#endif
   int fclose_fail = fclose (stdout);
 
   if (prev_fail || fclose_fail)
     {
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+      if (fclose_fail)
+        my_stdout_error ("close_stdout", "fclose failed!");
+#endif
       if (fclose_fail)
         perror_with_name (_("write error: stdout"), "");
       else
@@ -1171,6 +1194,11 @@ close_stdout (void)
 void
 output_init (struct output *out)
 {
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+  if (STREAM_OK (stdout) && ferror (stdout))
+    my_stdout_error (out ? "output_init(out)" : "output_init(NULL)", "error pending entry!");
+#endif
+
   if (out)
     {
 #ifdef CONFIG_WITH_OUTPUT_IN_MEMORY
@@ -1213,6 +1241,10 @@ output_init (struct output *out)
   set_append_mode (fileno (stdout));
   set_append_mode (fileno (stderr));
 
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+  if (ferror (stdout))
+    my_stdout_error ("output_init", "error pending on exit!");
+#endif
 #ifdef HAVE_ATEXIT
   if (STREAM_OK (stdout))
     atexit (close_stdout);
@@ -1256,7 +1288,10 @@ output_start (void)
   /* If we're syncing output make sure the sempahore (win) is set up. */
   if (output_context && output_context->syncout)
     if (combined_output < 0)
-      combined_output = sync_init ();
+      {
+        combined_output = 0;
+        combined_output = sync_init ();
+      }
 #else
 #ifndef NO_OUTPUT_SYNC
   /* If we're syncing output make sure the temporary file is set up.  */
