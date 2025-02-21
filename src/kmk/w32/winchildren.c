@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3666 2025-02-21 14:31:23Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3667 2025-02-21 14:36:48Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -2674,6 +2674,9 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
              * We got work to do.  First job is to deque the job.
              */
             pChild = mkWinChildDequeFromLifo(&pWorker->pTailTodoChildren, pChild);
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+            my_check_stdout("mkWinChildcareWorkerThread/deque");
+#endif
             assert(pChild);
             if (pChild)
             {
@@ -2685,19 +2688,34 @@ static unsigned int __stdcall mkWinChildcareWorkerThread(void *pvUser)
                 {
                     case WINCHILDTYPE_PROCESS:
                         mkWinChildcareWorkerThreadHandleProcess(pWorker, pChild);
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+                        my_check_stdout("mkWinChildcareWorkerThread/done-process");
+#endif
                         break;
 #ifdef KMK
                     case WINCHILDTYPE_BUILT_IN:
                         mkWinChildcareWorkerThreadHandleBuiltIn(pWorker, pChild);
+# ifdef DEBUG_STDOUT_CLOSE_ISSUE
+                        my_check_stdout("mkWinChildcareWorkerThread/done-built-in");
+# endif
                         break;
                     case WINCHILDTYPE_APPEND:
                         mkWinChildcareWorkerThreadHandleAppend(pWorker, pChild);
+# ifdef DEBUG_STDOUT_CLOSE_ISSUE
+                        my_check_stdout("mkWinChildcareWorkerThread/done-append");
+# endif
                         break;
                     case WINCHILDTYPE_SUBMIT:
                         mkWinChildcareWorkerThreadHandleSubmit(pWorker, pChild);
+# ifdef DEBUG_STDOUT_CLOSE_ISSUE
+                        my_check_stdout("mkWinChildcareWorkerThread/done-submit");
+# endif
                         break;
                     case WINCHILDTYPE_REDIRECT:
                         mkWinChildcareWorkerThreadHandleRedirect(pWorker, pChild);
+# ifdef DEBUG_STDOUT_CLOSE_ISSUE
+                        my_check_stdout("mkWinChildcareWorkerThread/done-redirect");
+# endif
                         break;
 #endif
                     default:
