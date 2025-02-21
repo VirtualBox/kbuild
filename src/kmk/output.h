@@ -103,5 +103,9 @@ void output_reset (struct output *out);
 # endif
 #endif
 
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+void my_check_stdout (const char *pszWhere);
+#endif
+
 #endif /* INLCUDED_MAKE_OUTPUT_H */
 

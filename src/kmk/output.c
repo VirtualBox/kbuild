@@ -59,21 +59,27 @@ unsigned int stdio_traced = 0;
 # define STREAM_OK(_s) 1
 #endif
 
-#if defined(KMK) && defined(KBUILD_OS_WINDOWS) && 1
-# define DEBUG_STDOUT_CLOSE_ISSUE
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
 /* fflush wrapper w/ error checking + reporting for stdout.
    This is to debug the mysterious 'kmk: write error: stdout' errors. */
 int g_fStdOutError = 0;
 
 static void my_stdout_error (const char *pszOperation, const char *pszMessage)
 {
+# ifdef KBUILD_OS_WINDOWS
   DWORD const     dwErr   = GetLastError ();
+# endif
   int const       iErrNo  = errno;
-  int const       fdFile  = fileno(stdout);
+  int const       fdFile  = fileno (stdout);
+# ifdef KBUILD_OS_WINDOWS
   HANDLE    const hNative = (HANDLE)_get_osfhandle (_fileno (stdout));
   DWORD const     dwType  = GetFileType (hNative);
-  fprintf (stderr, "kmk: %s: %s! (lasterr=%u errno=%d fileno=%d native=%p type=%#x)\n",
-           pszOperation, pszMessage, dwErr, iErrNo, fdFile, hNative, dwType);
+  fprintf (stderr, "kmk[%u]: %s: %s! (lasterr=%u errno=%d fileno=%d native=%p type=%#x)\n",
+           makelevel, pszOperation, pszMessage, dwErr, iErrNo, fdFile, hNative, dwType);
+# else
+  fprintf (stderr, "kmk[%u]: %s: %s! (lasterr=%u errno=%d fileno=%d)\n",
+           makelevel, pszOperation, pszMessage, dwErr, iErrNo, fdFile);
+# endif
 }
 
 static int my_fflush (FILE *pFile)
@@ -106,7 +112,30 @@ static int my_fflush (FILE *pFile)
 # undef  fflush
 # define fflush(a_pFile) my_fflush(a_pFile)
 
-#endif
+/* Preserves errno and win32 last error. */
+void my_check_stdout (const char *pszWhere)
+{
+  if (!g_fStdOutError)
+    {
+# ifdef KBUILD_OS_WINDOWS
+      DWORD const dwErrSaved  = GetLastError();
+# endif
+      int const   iErrNoSaved = errno;
+
+      if (ferror (stdout))
+        {
+          my_stdout_error (pszWhere, "error pending!");
+          g_fStdOutError = 1;
+        }
+
+      errno = iErrNoSaved;
+# ifdef KBUILD_OS_WINDOWS
+      SetLastError(dwErrSaved);
+# endif
+    }
+}
+
+#endif /* DEBUG_STDOUT_CLOSE_ISSUE */
 
 
 #if defined(KMK) && !defined(NO_OUTPUT_SYNC)

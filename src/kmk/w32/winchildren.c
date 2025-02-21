@@ -1,4 +1,4 @@
-/* $Id: winchildren.c 3627 2024-10-22 23:33:19Z knut.osmundsen@oracle.com $ */
+/* $Id: winchildren.c 3666 2025-02-21 14:31:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * Child process creation and management for kmk.
  */
@@ -1286,6 +1286,9 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, WCHAR 
 #ifdef KMK
     extern int          process_priority;
 #endif
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+    my_check_stdout("mkWinChildcareWorkerCreateProcess/entry");
+#endif
 
     /*
      * Populate startup info.
@@ -1449,6 +1452,9 @@ static int mkWinChildcareWorkerCreateProcess(PWINCHILDCAREWORKER pWorker, WCHAR 
      */
     CloseHandle(ProcInfo.hThread);
     kmk_cache_exec_image_w(pwszImageName);
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+    my_check_stdout("mkWinChildcareWorkerCreateProcess/tail");
+#endif
     return 0;
 }
 
@@ -3588,6 +3594,9 @@ int MkWinChildKill(pid_t pid, int iSignal, struct child *pMkChild)
 int MkWinChildWait(int fBlock, pid_t *pPid, int *piExitCode, int *piSignal, int *pfCoreDumped, struct child **ppMkChild)
 {
     PWINCHILD pChild;
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+    my_check_stdout ("MkWinChildWait/entry");
+#endif
 
     *pPid         = 0;
     *piExitCode   = -222222;
@@ -3600,6 +3609,9 @@ int MkWinChildWait(int fBlock, pid_t *pPid, int *piExitCode, int *piSignal, int 
     if (fBlock && !g_pTailCompletedChildren && g_cPendingChildren > 0)
     {
         DWORD dwStatus = WaitForSingleObject(g_hEvtWaitChildren, INFINITE);
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+        my_check_stdout ("MkWinChildWait/wakeup");
+#endif
         if (dwStatus == WAIT_FAILED)
             return (int)GetLastError();
     }
@@ -3640,6 +3652,9 @@ int MkWinChildWait(int fBlock, pid_t *pPid, int *piExitCode, int *piSignal, int 
     /* Flush the volatile directory cache. */
     dir_cache_invalid_after_job();
 #endif
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+    my_check_stdout ("MkWinChildWait/tail");
+#endif
     return 0;
 }
 
@@ -3677,6 +3692,9 @@ void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
     WCHAR                  *pwszzEnvironment;
     WCHAR                  *pwszPathIgnored;
     int                     rc;
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+    my_check_stdout("MkWinChildReExecMake/entry");
+#endif
 
     /*
      * Get the executable name.
@@ -3743,6 +3761,9 @@ void MkWinChildReExecMake(char **papszArgs, char **papszEnv)
             dwExitCode = dwStatus;
 
         CloseHandle(ProcInfo.hProcess);
+#ifdef DEBUG_STDOUT_CLOSE_ISSUE
+        my_check_stdout("MkWinChildReExecMake/exit");
+#endif
         for (;;)
             exit(dwExitCode);
     }
