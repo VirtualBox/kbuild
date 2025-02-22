@@ -14,6 +14,11 @@ A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+#if defined (DEBUG_STDOUT_CLOSE_ISSUE) && defined (KBUILD_OS_WINDOWS)
+# include "nt/ntstuff.h"
+# include "nt/nthlp.h"
+# include <process.h>
+#endif
 #include "makeint.h"
 #include "job.h"
 
@@ -60,9 +65,44 @@ unsigned int stdio_traced = 0;
 #endif
 
 #ifdef DEBUG_STDOUT_CLOSE_ISSUE
+
 /* fflush wrapper w/ error checking + reporting for stdout.
    This is to debug the mysterious 'kmk: write error: stdout' errors. */
 int g_fStdOutError = 0;
+
+# ifdef KBUILD_OS_WINDOWS
+static void my_output_pipe_info (HANDLE hStdOut, const char *pszWhere)
+{
+  MY_IO_STATUS_BLOCK Ios = {0} ;
+  struct MY_FILE_PIPE_INFORMATION
+  {
+      ULONG           ReadMode;
+      ULONG           CompletionMode;
+  } Info1 = {0};
+  MY_NTSTATUS rcNt1 = g_pfnNtQueryInformationFile(hStdOut, &Ios, &Info1, sizeof(Info1), MyFilePipeInformation);
+  struct MY_FILE_PIPE_LOCAL_INFORMATION
+  {
+      ULONG           NamedPipeType;
+      ULONG           NamedPipeConfiguration;
+      ULONG           MaximumInstances;
+      ULONG           CurrentInstances;
+      ULONG           InboundQuota;
+      ULONG           ReadDataAvailable;
+      ULONG           OutboundQuota;
+      ULONG           WriteQuotaAvailable;
+      ULONG           NamedPipeState;
+      ULONG           NamedPipeEnd;
+  } Info2 = {0};
+  MY_NTSTATUS rcNt2 = g_pfnNtQueryInformationFile(hStdOut, &Ios, &Info2, sizeof(Info2), MyFilePipeLocalInformation);
+  union { BYTE ab[1024]; MY_FILE_NAME_INFORMATION NameInfo; } uBuf = {{0}};
+  MY_NTSTATUS rcNt3 = g_pfnNtQueryInformationFile(hStdOut, &Ios, &uBuf, sizeof(uBuf) - sizeof(WCHAR), MyFileNameInformation);
+  fprintf(stderr, "kmk[%u/%u]: stdout pipeinfo at %s: mode=%#x complmode=%#x type=%#x cfg=%#x instances=%u/%u inquota=%#x readable=%#x outquota=%#x writable=%#x state=%#x end=%#x hStdOut=%p %S rcNt=%#x/%#x/%#x\n",
+          makelevel, _getpid(), pszWhere, Info1.ReadMode, Info1.CompletionMode, Info2.NamedPipeType, Info2.NamedPipeConfiguration,
+          Info2.CurrentInstances, Info2.MaximumInstances, Info2.InboundQuota, Info2.ReadDataAvailable, Info2.OutboundQuota,
+          Info2.WriteQuotaAvailable, Info2.NamedPipeState, Info2.NamedPipeEnd,
+          hStdOut, uBuf.NameInfo.FileName, rcNt1, rcNt2, rcNt3);
+}
+# endif /* KBUILD_OS_WINDOWS */
 
 static void my_stdout_error (const char *pszOperation, const char *pszMessage)
 {
@@ -74,14 +114,75 @@ static void my_stdout_error (const char *pszOperation, const char *pszMessage)
 # ifdef KBUILD_OS_WINDOWS
   HANDLE    const hNative = (HANDLE)_get_osfhandle (_fileno (stdout));
   DWORD const     dwType  = GetFileType (hNative);
-  fprintf (stderr, "kmk[%u]: %s: %s! (lasterr=%u errno=%d fileno=%d native=%p type=%#x)\n",
-           makelevel, pszOperation, pszMessage, dwErr, iErrNo, fdFile, hNative, dwType);
+  unsigned int    uDosErr = _doserrno;
+  if ((dwType & ~FILE_TYPE_REMOTE) == FILE_TYPE_PIPE)
+    my_output_pipe_info (hNative, "error");
+  fprintf (stderr, "kmk[%u/%u]: stdout error: %s: %s! (lasterr=%u errno=%d fileno=%d uDosErr=%u native=%p type=%#x)\n",
+           makelevel, _getpid(), pszOperation, pszMessage, dwErr, iErrNo, fdFile, uDosErr, hNative, dwType);
 # else
-  fprintf (stderr, "kmk[%u]: %s: %s! (lasterr=%u errno=%d fileno=%d)\n",
+  fprintf (stderr, "kmk[%u]: stdout error: %s: %s! (lasterr=%u errno=%d fileno=%d)\n",
            makelevel, pszOperation, pszMessage, dwErr, iErrNo, fdFile);
 # endif
 }
 
+/* Preserves errno and win32 last error. */
+void my_check_stdout (const char *pszWhere)
+{
+  if (!g_fStdOutError)
+    {
+# ifdef KBUILD_OS_WINDOWS
+      DWORD const dwErrSaved  = GetLastError();
+# endif
+      int const   iErrNoSaved = errno;
+
+      if (ferror (stdout))
+        {
+          my_stdout_error (pszWhere, "error pending!");
+          g_fStdOutError = 1;
+        }
+
+      errno = iErrNoSaved;
+# ifdef KBUILD_OS_WINDOWS
+      SetLastError(dwErrSaved);
+# endif
+    }
+}
+
+# ifdef KBUILD_OS_WINDOWS
+/* generic fwrite wrapper */
+__declspec(dllexport) size_t __cdecl fwrite(void const *pvBuf, size_t cbItem, size_t cItems, FILE *pFile)
+{
+  size_t cbWritten;
+  if (pFile == stdout)
+    my_check_stdout("fwrite/entry");
+  _lock_file(pFile);
+  cbWritten = _fwrite_nolock(pvBuf, cbItem, cItems, pFile);
+  _unlock_file(pFile);
+  if (pFile == stdout)
+    my_check_stdout("fwrite/exit");
+  return cbWritten;
+}
+void * const __imp_fwrite  = (void *)(uintptr_t)fwrite;
+
+/* generic fflush wrapper */
+__declspec(dllexport) int __cdecl fflush(FILE *pFile)
+{
+  int rc;
+  if (pFile == stdout || !pFile)
+    my_check_stdout("fflush/entry");
+  if (pFile)
+    {
+      _lock_file(pFile);
+      rc = _fflush_nolock(pFile);
+      _unlock_file(pFile);
+    }
+  if (pFile == stdout || !pFile)
+    my_check_stdout("fflush/exit");
+  return rc;
+}
+void * const __imp_fflush  = (void *)(uintptr_t)fflush;
+
+# else
 static int my_fflush (FILE *pFile)
 {
   if (pFile == stdout && !g_fStdOutError)
@@ -109,31 +210,9 @@ static int my_fflush (FILE *pFile)
   return fflush (pFile);
 }
 
-# undef  fflush
-# define fflush(a_pFile) my_fflush(a_pFile)
-
-/* Preserves errno and win32 last error. */
-void my_check_stdout (const char *pszWhere)
-{
-  if (!g_fStdOutError)
-    {
-# ifdef KBUILD_OS_WINDOWS
-      DWORD const dwErrSaved  = GetLastError();
+#  undef  fflush
+#  define fflush(a_pFile) my_fflush(a_pFile)
 # endif
-      int const   iErrNoSaved = errno;
-
-      if (ferror (stdout))
-        {
-          my_stdout_error (pszWhere, "error pending!");
-          g_fStdOutError = 1;
-        }
-
-      errno = iErrNoSaved;
-# ifdef KBUILD_OS_WINDOWS
-      SetLastError(dwErrSaved);
-# endif
-    }
-}
 
 #endif /* DEBUG_STDOUT_CLOSE_ISSUE */
 
@@ -1273,6 +1352,38 @@ output_init (struct output *out)
 #ifdef DEBUG_STDOUT_CLOSE_ISSUE
   if (ferror (stdout))
     my_stdout_error ("output_init", "error pending on exit!");
+# ifdef KBUILD_OS_WINDOWS
+  {
+    HANDLE const hStdOut = (HANDLE)_get_osfhandle(_fileno(stdout));
+    DWORD const  dwType  = GetFileType(hStdOut);
+    birdResolveImportsWorker();
+    if ((dwType & ~FILE_TYPE_REMOTE) == FILE_TYPE_PIPE)
+      {
+        my_output_pipe_info (hStdOut, "output_init");
+#  if 0
+        DWORD cbOutBuf      = 0;
+        DWORD cbInBuf       = 0;
+        BOOL const fRc2 = GetNamedPipeInfo(hStdOut, NULL, &cbOutBuf, &cbInBuf, NULL);
+        if (cbInBuf != 0x1000)
+          {
+            DWORD dwMode = 0;
+            if (GetNamedPipeHandleStateW(hStdOut, &dwMode, NULL, NULL, NULL, NULL, 0))
+              {
+                dwMode &= ~PIPE_WAIT;
+                dwMode |= PIPE_NOWAIT;
+                if (!SetNamedPipeHandleState(hStdOut, &dwMode, NULL, NULL))
+                  fprintf(stderr, "SetNamedPipeHandleState failed: %u\n", GetLastError());
+                else
+                  {
+                    GetNamedPipeHandleStateW(hStdOut, &dwMode, NULL, NULL, NULL, NULL, 0);
+                    fprintf(stderr, "SetNamedPipeHandleState succeeded: %#x\n", dwMode);
+                  }
+              }
+          }
+#  endif
+# endif
+      }
+    }
 #endif
 #ifdef HAVE_ATEXIT
   if (STREAM_OK (stdout))

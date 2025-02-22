@@ -1,4 +1,4 @@
-/* $Id: msc_buffered_printf.c 3661 2025-02-20 16:30:05Z knut.osmundsen@oracle.com $ */
+/* $Id: msc_buffered_printf.c 3669 2025-02-22 01:31:14Z knut.osmundsen@oracle.com $ */
 /** @file
  * printf, vprintf, fprintf, puts, fputs console optimizations for Windows/MSC.
  */
@@ -122,7 +122,17 @@ int __cdecl __stdio_common_vfprintf(unsigned __int64 fOptions, FILE *pFile, cons
     /*
      * Fallback.
      */
+# ifdef DEBUG_STDOUT_CLOSE_ISSUE
+    extern void my_check_stdout(const char *pszWhere);
+    if (pFile == stdout)
+        my_check_stdout("__stdio_common_vfprintf/entry");
+    int rcRet = g_pfnFallback_vfprintf(fOptions, pFile, pszFormat, hLocale, va);
+    if (pFile == stdout)
+        my_check_stdout("__stdio_common_vfprintf/exit");
+    return rcRet;
+# else
     return g_pfnFallback_vfprintf(fOptions, pFile, pszFormat, hLocale, va);
+# endif
 }
 
 

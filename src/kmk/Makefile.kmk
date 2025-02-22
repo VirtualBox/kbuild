@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3666 2025-02-21 14:31:23Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3669 2025-02-22 01:31:14Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -242,7 +242,7 @@ kmk_DEFS.x86       := CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.amd64     := CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.win       := CONFIG_WITH_OUTPUT_IN_MEMORY
 kmk_DEFS.win.x86   := CONFIG_NEW_WIN32_CTRL_EVENT
-kmk_DEFS.win.amd64 := CONFIG_NEW_WIN32_CTRL_EVENT DEBUG_STDOUT_CLOSE_ISSUE
+kmk_DEFS.win.amd64 := CONFIG_NEW_WIN32_CTRL_EVENT
 kmk_DEFS.debug     := CONFIG_WITH_MAKE_STATS
 ifdef CONFIG_WITH_MAKE_STATS
  kmk_DEFS += CONFIG_WITH_MAKE_STATS
@@ -311,6 +311,9 @@ else
 kmk_SOURCES.win = \
 	w32/winchildren.c
 endif
+
+kmk_DEFS.win    += DEBUG_STDOUT_CLOSE_ISSUE
+kmk_SOURCES.win += ../lib/msc_buffered_printf.c
 
 kmk_DEFS.freebsd.x86 = CONFIG_WITHOUT_THREADS
 
