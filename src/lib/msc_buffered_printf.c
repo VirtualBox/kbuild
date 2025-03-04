@@ -1,4 +1,4 @@
-/* $Id: msc_buffered_printf.c 3669 2025-02-22 01:31:14Z knut.osmundsen@oracle.com $ */
+/* $Id: msc_buffered_printf.c 3672 2025-03-04 02:27:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * printf, vprintf, fprintf, puts, fputs console optimizations for Windows/MSC.
  */
@@ -63,7 +63,7 @@ int __cdecl __stdio_common_vfprintf(unsigned __int64 fOptions, FILE *pFile, cons
      * Make sure we've got the fallback function before we start.
      */
     PFN_STDIO_COMMON_VFPRINTF_T pfnFallback = g_pfnFallback_vfprintf;
-    if (g_pfnFallback_vfprintf)
+    if (pfnFallback)
     { /* likely */ }
     else
     {
