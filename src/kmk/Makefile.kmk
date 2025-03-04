@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3669 2025-02-22 01:31:14Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3671 2025-03-04 02:26:47Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -312,7 +312,7 @@ kmk_SOURCES.win = \
 	w32/winchildren.c
 endif
 
-kmk_DEFS.win    += DEBUG_STDOUT_CLOSE_ISSUE
+#kmk_DEFS.win    += DEBUG_STDOUT_CLOSE_ISSUE
 kmk_SOURCES.win += ../lib/msc_buffered_printf.c
 
 kmk_DEFS.freebsd.x86 = CONFIG_WITHOUT_THREADS

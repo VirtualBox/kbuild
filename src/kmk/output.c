@@ -14,7 +14,7 @@ A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#if defined (DEBUG_STDOUT_CLOSE_ISSUE) && defined (KBUILD_OS_WINDOWS)
+#if defined (KBUILD_OS_WINDOWS) && (defined(KMK) || defined(DEBUG_STDOUT_CLOSE_ISSUE))
 # include "nt/ntstuff.h"
 # include "nt/nthlp.h"
 # include <process.h>
@@ -96,11 +96,13 @@ static void my_output_pipe_info (HANDLE hStdOut, const char *pszWhere)
   MY_NTSTATUS rcNt2 = g_pfnNtQueryInformationFile(hStdOut, &Ios, &Info2, sizeof(Info2), MyFilePipeLocalInformation);
   union { BYTE ab[1024]; MY_FILE_NAME_INFORMATION NameInfo; } uBuf = {{0}};
   MY_NTSTATUS rcNt3 = g_pfnNtQueryInformationFile(hStdOut, &Ios, &uBuf, sizeof(uBuf) - sizeof(WCHAR), MyFileNameInformation);
-  fprintf(stderr, "kmk[%u/%u]: stdout pipeinfo at %s: mode=%#x complmode=%#x type=%#x cfg=%#x instances=%u/%u inquota=%#x readable=%#x outquota=%#x writable=%#x state=%#x end=%#x hStdOut=%p %S rcNt=%#x/%#x/%#x\n",
-          makelevel, _getpid(), pszWhere, Info1.ReadMode, Info1.CompletionMode, Info2.NamedPipeType, Info2.NamedPipeConfiguration,
-          Info2.CurrentInstances, Info2.MaximumInstances, Info2.InboundQuota, Info2.ReadDataAvailable, Info2.OutboundQuota,
-          Info2.WriteQuotaAvailable, Info2.NamedPipeState, Info2.NamedPipeEnd,
-          hStdOut, uBuf.NameInfo.FileName, rcNt1, rcNt2, rcNt3);
+  DWORD dwMode = 0;
+  MY_NTSTATUS rcNt4 = g_pfnNtQueryInformationFile(hStdOut, &Ios, &dwMode, sizeof(dwMode), MyFileModeInformation);
+  fprintf(stderr, "kmk[%u/%u]: stdout pipeinfo at %s: fmode=%#x pipemode=%#x complmode=%#x type=%#x cfg=%#x instances=%u/%u inquota=%#x readable=%#x outquota=%#x writable=%#x state=%#x end=%#x hStdOut=%p %S rcNt=%#x/%#x/%#x/%#x\n",
+          makelevel, _getpid(), pszWhere, dwMode, Info1.ReadMode, Info1.CompletionMode, Info2.NamedPipeType,
+          Info2.NamedPipeConfiguration, Info2.CurrentInstances, Info2.MaximumInstances, Info2.InboundQuota,
+          Info2.ReadDataAvailable, Info2.OutboundQuota, Info2.WriteQuotaAvailable, Info2.NamedPipeState, Info2.NamedPipeEnd,
+          hStdOut, uBuf.NameInfo.FileName, rcNt1, rcNt2, rcNt3, rcNt4);
 }
 # endif /* KBUILD_OS_WINDOWS */
 
@@ -216,6 +218,342 @@ static int my_fflush (FILE *pFile)
 
 #endif /* DEBUG_STDOUT_CLOSE_ISSUE */
 
+#if defined(KBUILD_OS_WINDOWS) && defined(KMK)
+/*
+   Windows Asynchronous (Overlapping) Pipe Hack
+   --------------------------------------------
+
+   If a write pipe is opened with FILE_FLAG_OVERLAPPED or equivalent flags,
+   concurrent WriteFile calls on that pipe may run into a race causing the
+   wrong thread to be worken up on completion.  Since the write is still
+   pending, the number of bytes written hasn't been set and is still zero.
+   This leads to UCRT setting errno = ENOSPC and may cause stack corruption
+   when the write is finally completed and the IO_STATUS_BLOCK is written
+   by the kernel.
+
+   To work around this problem, we detect asynchronous pipes attached to
+   stdout and stderr and replaces them with standard pipes and threads
+   pumping output.  The thread deals properly with the async writes. */
+ 
+/* Data for the pipe workaround hacks. */
+struct win_pipe_hacks
+{
+  /* 1 (stdout) or 2 (stderr). */
+  int           fd;
+  int volatile  fShutdown;
+  /** Event handle for overlapped I/O. */
+  HANDLE        hEvt;
+  /* The original pipe that's in overlapping state (write end). */
+  HANDLE        hDstPipe;
+  /* The replacement pipe (read end). */
+  HANDLE        hSrcPipe;
+  /** The thread pumping bytes between the two pipes. */
+  HANDLE        hThread;
+  /** Putting the overlapped I/O structure here is safer.   */
+  OVERLAPPED    Overlapped;
+} g_pipe_workarounds[2] =
+{
+  { 1, 0, NULL, NULL, NULL, NULL, { 0, 0, {{ 0, 0}}} },
+  { 2, 0, NULL, NULL, NULL, NULL, { 0, 0, {{ 0, 0}}} },
+};
+
+/* Thread function that pumps bytes between our pipe and the parents pipe. */
+static unsigned __stdcall win_pipe_pump_thread (void *user)
+{
+  unsigned const idx   = (unsigned)(intptr_t)user;
+  int            fQuit = 0;
+  do
+    {
+      /* Read from the source pipe (our). */
+      char  achBuf[4096];
+      DWORD cbRead = 0;
+      if (ReadFile (g_pipe_workarounds[idx].hSrcPipe, achBuf, sizeof(achBuf), &cbRead, NULL))
+        {
+          for (unsigned iWrite = 0, off = 0; off < cbRead && !fQuit; iWrite++)
+            {
+              /* Write the data we've read to the origianl pipe, using overlapped
+                 I/O.  This should work fine even if hDstPipe wasn't opened in
+                 overlapped I/O mode. */
+              g_pipe_workarounds[idx].Overlapped.Internal     = 0;
+              g_pipe_workarounds[idx].Overlapped.InternalHigh = 0;
+              g_pipe_workarounds[idx].Overlapped.Offset       = 0xffffffff /*FILE_WRITE_TO_END_OF_FILE*/;
+              g_pipe_workarounds[idx].Overlapped.OffsetHigh   = (DWORD)-1;
+              g_pipe_workarounds[idx].Overlapped.hEvent       = g_pipe_workarounds[idx].hEvt;
+              DWORD cbWritten = 0;
+              if (!WriteFile (g_pipe_workarounds[idx].hDstPipe, &achBuf[off], cbRead - off,
+                              &cbWritten, &g_pipe_workarounds[idx].Overlapped))
+                {
+                  if ((fQuit = GetLastError () != ERROR_IO_PENDING))
+                    break;
+                  if ((fQuit = !GetOverlappedResult (g_pipe_workarounds[idx].hDstPipe, &g_pipe_workarounds[idx].Overlapped,
+                                                     &cbWritten, TRUE)))
+                    break;
+                }
+              off += cbWritten;
+              if (cbWritten == 0 && iWrite > 15)
+                {
+                  DWORD fState = 0;
+                  if (   GetNamedPipeHandleState(g_pipe_workarounds[idx].hDstPipe, &fState, NULL, NULL, NULL, NULL,  0)
+                      && (fState & (PIPE_WAIT | PIPE_NOWAIT)) == PIPE_NOWAIT)
+                    {
+                      fState &= ~PIPE_NOWAIT;
+                      fState |= PIPE_WAIT;
+                      if (   SetNamedPipeHandleState(g_pipe_workarounds[idx].hDstPipe, &fState, NULL, NULL)
+                          && iWrite == 16)
+                          continue;
+                    }
+                  Sleep(iWrite & 15);
+                }
+          }
+      }
+      else
+        break;
+    }
+  while (!g_pipe_workarounds[idx].fShutdown && !fQuit);
+
+  /* Cleanup. */
+  CloseHandle (g_pipe_workarounds[idx].hSrcPipe);
+  g_pipe_workarounds[idx].hSrcPipe = NULL;
+
+  CloseHandle (g_pipe_workarounds[idx].hDstPipe);
+  g_pipe_workarounds[idx].hDstPipe = NULL;
+
+  CloseHandle (g_pipe_workarounds[idx].hEvt);
+  g_pipe_workarounds[idx].hEvt = NULL;
+  return 0;
+}
+
+/* Shuts down the thread pumping bytes between our pipe and the parents pipe. */
+static void win_pipe_hack_terminate (void)
+{
+  for (unsigned idx = 0; idx < 2; idx++)
+    if (g_pipe_workarounds[idx].hThread != NULL)
+      {
+        g_pipe_workarounds[idx].fShutdown++;
+        if (g_pipe_workarounds[idx].hSrcPipe != NULL)
+          CancelIoEx (g_pipe_workarounds[idx].hSrcPipe, NULL);
+      }
+
+  for (unsigned idx = 0; idx < 2; idx++)
+    if (g_pipe_workarounds[idx].hThread != NULL)
+      for (unsigned msWait = 64; msWait <= 1000; msWait *= 2) /* wait almost 2 seconds. */
+        {
+          if (g_pipe_workarounds[idx].hSrcPipe != NULL)
+            CancelIoEx (g_pipe_workarounds[idx].hSrcPipe, NULL);
+          DWORD dwWait = WaitForSingleObject (g_pipe_workarounds[idx].hThread, msWait);
+          if (dwWait == WAIT_OBJECT_0)
+            {
+              CloseHandle (g_pipe_workarounds[idx].hThread);
+              g_pipe_workarounds[idx].hThread = NULL;
+              break;
+            }
+        }
+}
+
+/* Applies the asynchronous pipe hack to a standard handle.
+   The hPipe argument is the handle, and idx is 0 for stdout and 1 for stderr. */
+static void win_pipe_hack_apply (HANDLE hPipe, int idx, int fSameObj)
+{
+  /* Create a normal pipe and assign it to an CRT file descriptor. The handles
+     will be created as not inheritable, but the _dup2 call below will duplicate
+     the write handle with inhertiance enabled. */
+  HANDLE hPipeR = NULL;
+  HANDLE hPipeW = NULL;
+  if (CreatePipe (&hPipeR, &hPipeW, NULL, 0x1000))
+    {
+      int fdTmp = _open_osfhandle ((intptr_t)hPipeW, _O_TEXT);
+      if (fdTmp >= 0)
+        {
+          int const fOldMode = _setmode (idx + 1, _O_TEXT);
+          if (fOldMode != _O_TEXT && fOldMode != -1)
+            {
+              _setmode (idx + 1, fOldMode);
+              _setmode (fdTmp, fOldMode);
+            }
+
+          /* Create the event sempahore. */
+          HANDLE hEvt = CreateEventW (NULL, FALSE, FALSE, NULL);
+          if (hEvt != NULL && hEvt != INVALID_HANDLE_VALUE)
+            {
+              /* Duplicate the pipe, as the _dup2 call below will (probably) close it. */
+              HANDLE hDstPipe = NULL;
+              if (DuplicateHandle (GetCurrentProcess (), hPipe,
+                                   GetCurrentProcess (), &hDstPipe,
+                                   0, FALSE, DUPLICATE_SAME_ACCESS))
+                {
+                  /* Create a thread for safely pumping bytes between the pipes. */
+                  g_pipe_workarounds[idx].hEvt      = hEvt;
+                  g_pipe_workarounds[idx].fShutdown = 0;
+                  g_pipe_workarounds[idx].hDstPipe  = hDstPipe;
+                  g_pipe_workarounds[idx].hSrcPipe  = hPipeR;
+                  HANDLE hThread = (HANDLE)_beginthreadex(NULL, 0, win_pipe_pump_thread, (void *)(intptr_t)idx, 0, NULL);
+                  if (hThread != NULL && hThread != INVALID_HANDLE_VALUE)
+                    {
+                      g_pipe_workarounds[idx].hThread = hThread;
+
+                      /* Now that the thread is operating, replace the file descriptors(s).
+                         This involves DuplicateHandle and will call SetStdHandle. */
+                      if (_dup2 (fdTmp, idx + 1) == 0)
+                        {
+                          if (   fSameObj
+                              && _dup2 (fdTmp, idx + 2) != 0)
+                            {
+                              fprintf (stderr, "%s: warning: _dup2(%d,%d) failed - fSameObj=1: %s (%d, %u)",
+                                       program, fdTmp, idx + 2, strerror (errno), errno, GetLastError ());
+                              fSameObj = 0;
+                            }
+
+                          /* Boost the thread priority. */
+                          int const iPrioOld = GetThreadPriority (hThread);
+                          int const iPrioNew = iPrioOld < THREAD_PRIORITY_NORMAL  ? THREAD_PRIORITY_NORMAL
+                                             : iPrioOld < THREAD_PRIORITY_HIGHEST ? THREAD_PRIORITY_HIGHEST
+                                             : iPrioOld;
+                          if (iPrioOld != iPrioNew)
+                            SetThreadPriority (hThread, iPrioNew);
+
+                          /* Update the standard handle and close the temporary file descriptor. */
+                          close (fdTmp);
+                          return;
+                        }
+                      g_pipe_workarounds[idx].fShutdown = 1;
+                      fprintf (stderr, "%s: warning: _dup2(%d,%d) failed: %s (%d, %u)",
+                               program, fdTmp, idx + 1, strerror (errno), errno, GetLastError ());
+                      for (unsigned msWait = 64; msWait <= 1000; msWait *= 2) /* wait almost 2 seconds. */
+                        {
+                          if (g_pipe_workarounds[idx].hSrcPipe != NULL)
+                            CancelIoEx (g_pipe_workarounds[idx].hSrcPipe, NULL);
+                          DWORD dwWait = WaitForSingleObject (hThread, msWait);
+                          if (dwWait == WAIT_OBJECT_0)
+                            break;
+                        }
+                      CloseHandle (g_pipe_workarounds[idx].hThread);
+                    }
+                  else
+                    fprintf (stderr, "%s: warning: _beginthreadex failed: %s (%d, %u)",
+                             program, strerror (errno), errno, GetLastError ());
+                  CloseHandle (hDstPipe);
+                }
+              else
+                fprintf (stderr, "%s: warning: DuplicateHandle failed: %u", program, GetLastError ());
+            }
+          else
+            fprintf (stderr, "%s: warning: CreateEventW failed: %u", program, GetLastError ());
+          close (fdTmp);
+        }
+      else
+        {
+          fprintf (stderr, "%s: warning: _open_osfhandle failed: %s (%d, %u)",
+                   program, strerror (errno), errno, GetLastError ());
+          CloseHandle (hPipeW);
+        }
+      CloseHandle (hPipeR);
+    }
+  else
+    fprintf (stderr, "%s: warning: CreatePipe failed: %u", program, GetLastError());
+}
+
+/* Check if the two handles refers to the same pipe. */
+int win_pipe_is_same_object (HANDLE hPipe1, HANDLE hPipe2)
+{
+  if (hPipe1 == NULL || hPipe1 == INVALID_HANDLE_VALUE)
+    return 0;
+  if (hPipe1 == hPipe2)
+    return 1;
+
+  /* Since windows 10 there is an API for this. */
+  typedef BOOL (WINAPI *PFNCOMPAREOBJECTHANDLES)(HANDLE, HANDLE);
+  static int                     s_fInitialized = 0;
+  static PFNCOMPAREOBJECTHANDLES s_pfnCompareObjectHandles = NULL;
+  PFNCOMPAREOBJECTHANDLES pfnCompareObjectHandles = s_pfnCompareObjectHandles;
+  if (!pfnCompareObjectHandles && !s_fInitialized)
+    {
+      pfnCompareObjectHandles = (PFNCOMPAREOBJECTHANDLES)GetProcAddress (GetModuleHandleW (L"kernelbase.dll"),
+                                                                         "CompareObjectHandles");
+      s_pfnCompareObjectHandles = pfnCompareObjectHandles;
+      s_fInitialized = 1;
+    }
+  if (pfnCompareObjectHandles)
+    return pfnCompareObjectHandles (hPipe1, hPipe2);
+
+  /* Otherwise we use FileInternalInformation, assuming ofc that the two are
+     local pipes. */
+  birdResolveImportsWorker();
+  MY_IO_STATUS_BLOCK           Ios   = {0};
+  MY_FILE_INTERNAL_INFORMATION Info1;
+  MY_NTSTATUS rcNt = g_pfnNtQueryInformationFile (hPipe1, &Ios, &Info1, sizeof(Info1), MyFileInternalInformation);
+  if (!NT_SUCCESS (rcNt))
+    return 0;
+
+  MY_FILE_INTERNAL_INFORMATION Info2;
+  rcNt = g_pfnNtQueryInformationFile (hPipe2, &Ios, &Info2, sizeof(Info2), MyFileInternalInformation);
+  if (!NT_SUCCESS (rcNt))
+    return 0;
+
+  return Info1.IndexNumber.QuadPart == Info2.IndexNumber.QuadPart;
+}
+
+/* Predicate function that checks if the hack is required. */
+static int win_pipe_hack_needed (HANDLE hPipe, const char *pszEnvVarOverride)
+{
+  birdResolveImportsWorker ();
+
+  /* Check the environment variable override first.
+     Setting it to '0' disables the hack, setting to anything else (other than
+     an empty string) forces the hack to be enabled. */
+  const char * const pszValue = getenv (pszEnvVarOverride);
+  if (pszValue && *pszValue != '\0')
+    return *pszValue != '0';
+
+  /* Check whether it is a pipe next. */
+  DWORD const fType = GetFileType (hPipe) & ~FILE_TYPE_REMOTE;
+  if (fType != FILE_TYPE_PIPE)
+    return 0;
+
+  /* Check if the pipe is synchronous or overlapping. If it's overlapping
+     we must apply the workaround. */
+  MY_IO_STATUS_BLOCK Ios = {0};
+  DWORD fFlags = 0;
+  MY_NTSTATUS rcNt = g_pfnNtQueryInformationFile (hPipe, &Ios, &fFlags, sizeof(fFlags), MyFileModeInformation);
+  if (   NT_SUCCESS(rcNt)
+      && !(fFlags & (FILE_SYNCHRONOUS_IO_NONALERT | FILE_SYNCHRONOUS_IO_ALERT)))
+    return 1;
+
+#if 1
+  /* We could also check if the pipe is in NOWAIT mode, but since we've got
+     code elsewhere for switching them to WAIT mode, we probably don't need
+     to do that... */
+  if (   GetNamedPipeHandleStateW (hPipe, &fFlags, NULL, NULL, NULL, NULL, 0)
+      && (fFlags & PIPE_NOWAIT))
+    return 1;
+#endif
+  return 0;
+}
+
+/** Initializes the pipe hack. */
+static void win_pipe_hack_init (void)
+{
+  HANDLE const hStdOut       = (HANDLE)_get_osfhandle (_fileno (stdout));
+  int const    fStdOutNeeded = win_pipe_hack_needed (hStdOut, "KMK_PIPE_HACK_STDOUT");
+  HANDLE const hStdErr       = (HANDLE)_get_osfhandle (_fileno (stderr));
+  int const    fStdErrNeeded = win_pipe_hack_needed (hStdErr, "KMK_PIPE_HACK_STDERR");
+
+  /* To avoid getting too mixed up output in a 'kmk |& tee log' situation, we
+     must try figure out if the two handles refer to the same pipe object. */
+  int const    fSameObj      = fStdOutNeeded
+                            && fStdErrNeeded
+                            && win_pipe_is_same_object (hStdOut, hStdOut);
+
+  /* Apply the hack as needed. */
+  if (fStdOutNeeded)
+    win_pipe_hack_apply (hStdOut, 0, fSameObj);
+  if (fStdErrNeeded && !fSameObj)
+    win_pipe_hack_apply (hStdErr, 1, 0);
+  if (getenv ("KMK_PIPE_HACK_DEBUG"))
+    fprintf (stderr, "fStdOutNeeded=%d fStdErrNeeded=%d fSameObj=%d\n",
+             fStdOutNeeded, fStdErrNeeded, fSameObj);
+}
+
+#endif /* KBUILD_OS_WINDOWS && KMK */
 
 #if defined(KMK) && !defined(NO_OUTPUT_SYNC)
 /* Non-negative if we're counting output lines.
@@ -1296,12 +1634,25 @@ close_stdout (void)
         O (error, NILF, _("write error: stdout"));
       exit (MAKE_TROUBLE);
     }
+#if defined(KBUILD_OS_WINDOWS) && defined(KMK)
+  win_pipe_hack_terminate ();
+#endif
 }
 
 
 void
 output_init (struct output *out)
 {
+#if defined(KBUILD_OS_WINDOWS) && defined(KMK)
+  /* Apply workaround for asynchronous pipes on windows on first call. */
+  static int s_not_first_call = 0;
+  if (!s_not_first_call)
+    {
+      s_not_first_call = 1;
+      win_pipe_hack_init ();
+    }
+#endif
+
 #ifdef DEBUG_STDOUT_CLOSE_ISSUE
   if (STREAM_OK (stdout) && ferror (stdout))
     my_stdout_error (out ? "output_init(out)" : "output_init(NULL)", "error pending entry!");
