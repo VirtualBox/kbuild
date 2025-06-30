@@ -25,6 +25,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <limits.h>
+#ifdef KBUILD_OS_WINDOWS
+# include "console.h"
+# define fwrite maybe_con_fwrite
+#endif
 
 #include "binary-io.h"
 #include "eloop-threshold.h"
