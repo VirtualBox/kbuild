@@ -1,0 +1,66 @@
+# $Id: MACOSX145.kmk 3676 2025-07-28 12:59:18Z knut.osmundsen@oracle.com $
+## @file
+# kBuild SDK - Mac OS X v14.5 SDK.
+#
+
+#
+# Copyright (c) 2008-2025 knut st. osmundsen <bird-kBuild-spam-xxiii@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1401  USA
+#
+#
+# As a special exception you are granted permission to include this file, via
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
+# This exception does not however invalidate any other reasons why the makefile,
+# program, whatever should not be covered the GPL.
+#
+#
+
+ifndef INCLUDED_DARWIN_COMMON_KMK
+ include $(KBUILD_PATH)/darwin-common.kmk
+endif
+
+SDK_MACOSX145 := Mac OS X v14.5 SDK
+
+# SDK Specific Properties
+ifndef PATH_SDK_MACOSX145
+ PATH_SDK_MACOSX145 := $(call DARWINCMN_FN_FIND_MACOSX_SDK,MacOSX14.5.sdk)
+ ifndef PATH_SDK_MACOSX145
+  PATH_SDK_MACOSX145 := $(call DARWINCMN_FN_FIND_MACOSX_SDK,MacOSX14.sdk)
+ endif
+else
+ # Resolve any fancy stuff once and for all.
+ PATH_SDK_MACOSX145 := $(PATH_SDK_MACOSX145)
+endif
+ifeq ($(PATH_SDK_MACOSX145),)
+ $(warning $(call DARWINCMN_FN_ERROR_MACOSX_SDK,MacOSX14.5.sdk))
+endif
+
+## The MAC_OS_X_VERSION_MIN_REQUIRED and -mmacosx-version-min values for this SDK.
+SDK_MACOSX145_VERSION_ARG   := 14.5
+SDK_MACOSX145_VERSION_VALUE := $(subst .,,$(SDK_MACOSX145_VERSION_ARG))000
+
+# General Properties (used by kBuild)
+# Note: The MAC_OS_X_VERSION_MAX_ALLOWED is left free for the SDK user to define.
+SDK_MACOSX145_DEFS        ?= MAC_OS_X_VERSION_MIN_REQUIRED=$(SDK_MACOSX145_VERSION_VALUE)
+SDK_MACOSX145_CFLAGS      ?= -mmacosx-version-min=$(SDK_MACOSX145_VERSION_ARG) -isysroot "$(PATH_SDK_MACOSX145)"
+SDK_MACOSX145_CXXFLAGS    ?= -mmacosx-version-min=$(SDK_MACOSX145_VERSION_ARG) -isysroot "$(PATH_SDK_MACOSX145)"
+SDK_MACOSX145_OBJCFLAGS   ?= -mmacosx-version-min=$(SDK_MACOSX145_VERSION_ARG) -isysroot "$(PATH_SDK_MACOSX145)"
+SDK_MACOSX145_OBJCXXFLAGS ?= -mmacosx-version-min=$(SDK_MACOSX145_VERSION_ARG) -isysroot "$(PATH_SDK_MACOSX145)"
+SDK_MACOSX145_LDFLAGS     ?= -mmacosx-version-min=$(SDK_MACOSX145_VERSION_ARG) -isysroot "$(PATH_SDK_MACOSX145)"
+
