@@ -1,4 +1,4 @@
-# $Id: header.kmk 3654 2024-11-04 00:47:41Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3677 2025-07-28 21:33:39Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3654 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3677 $  )
 
 
 #
@@ -521,8 +521,8 @@ ifndef KBUILD_DEVTOOLS
 endif
 KBUILD_DEVTOOLS_TRG ?= $(KBUILD_DEVTOOLS)/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)
 KBUILD_DEVTOOLS_HST ?= $(KBUILD_DEVTOOLS)/$(KBUILD_HOST).$(KBUILD_HOST_ARCH)
-KBUILD_DEVTOOLS_TRG_NOARCH ?= $(KBUILD_DEVTOOLS)/$(KBUILD_TARGET).noarch
-KBUILD_DEVTOOLS_HST_NOARCH ?= $(KBUILD_DEVTOOLS)/$(KBUILD_HOST).noarch
+KBUILD_DEVTOOLS_TRG_NOARCH ?= $(KBUILD_DEVTOOLS)/$(KBUILD_TARGET)
+KBUILD_DEVTOOLS_HST_NOARCH ?= $(KBUILD_DEVTOOLS)/$(KBUILD_HOST)
 
 if1of ($(KBUILD_TARGET_ARCH), amd64 hppa64 mips64 ppc64 s390x sparc64)
  ifeq ($(KBUILD_TARGET_ARCH),amd64)
