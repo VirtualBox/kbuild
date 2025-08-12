@@ -131,6 +131,7 @@ dosify (const char *filename)
 static const char *
 downcase (const char *filename)
 {
+# error "bird: bogus use of PATH_VAR"
   static PATH_VAR (new_filename);
   char *df;
 
