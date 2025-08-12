@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 3535 2021-12-20 23:32:28Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 3681 2025-08-12 23:32:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -1325,7 +1325,7 @@ fts_palloc(FTS *sp, size_t more, size_t cwcmore)
 
 	if (cwcmore) {
 		sp->fts_cwcpath += cwcmore + 256;
-		ptr = realloc(sp->fts_wcspath, sp->fts_cwcpath);
+		ptr = realloc(sp->fts_wcspath, sp->fts_cwcpath * sizeof(sp->fts_wcspath[0]));
 		if (ptr) {
 			sp->fts_wcspath = ptr;
 		} else {
