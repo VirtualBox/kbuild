@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3648 2024-11-03 02:35:01Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3678 2025-08-12 23:30:28Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -336,6 +336,7 @@ else if1of ($(KBUILD_TARGET), win nt)
 		'  <application>' \
 		'    <windowsSettings>' \
 		'      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>' \
+		'      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>' \
 		'    </windowsSettings>' \
 		'  </application>' \
 		'</assembly>' \
