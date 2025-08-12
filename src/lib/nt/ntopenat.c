@@ -39,13 +39,9 @@
 
 #include "ntstuff.h"
 #include "nthlp.h"
+#include "nthlpmisc.h"
 #include "ntopenat.h"
 #include "ntstat.h"
-
-
-#define IS_ALPHA(ch) ( ((ch) >= 'A' && (ch) <= 'Z') || ((ch) >= 'a' && (ch) <= 'z') )
-#define IS_SLASH(ch) ((ch) == '\\' || (ch) == '/')
-
 
 
 static int birdOpenInt(const char *pszPath, int fFlags, unsigned __int16 fMode)
@@ -94,6 +90,9 @@ static int birdOpenInt(const char *pszPath, int fFlags, unsigned __int16 fMode)
 }
 
 
+/**
+ * Implements open.
+ */
 int birdOpen(const char *pszPath, int fFlags, ...)
 {
     unsigned __int16 fMode;
@@ -158,5 +157,4 @@ int birdOpenAt(int fdDir, const char *pszPath, int fFlags, ...)
     }
     return -1;
 }
-
 

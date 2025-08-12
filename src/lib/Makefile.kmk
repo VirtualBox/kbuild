@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3551 2022-01-29 02:57:33Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3682 2025-08-12 23:34:19Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -55,6 +55,8 @@ kUtil_SOURCES.win = \
        nt/nthlpcore.c \
        nt/nthlpfs.c \
        nt/ntdir.c \
+       nt/ntmkdirat.c \
+       nt/ntopenat.c \
        nt/ntstat.c \
        nt/ntunlink.c \
        nt/ntutimes.c \

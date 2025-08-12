@@ -32,12 +32,12 @@
 #define ___nt_ntopenat_h
 
 #include "nttypes.h"
+#include "ntat.h"
 
+extern int birdOpen(const char *pszPath, int fFlags, ...);
 extern int birdOpenAt(int fdDir, const char *pszPath, int fFlags, ...);
 
 #define openat                      birdOpenAt
-
-#define AT_FDCWD        (-987654321)
 
 #endif
 

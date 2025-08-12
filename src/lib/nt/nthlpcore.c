@@ -1,4 +1,4 @@
-/* $Id: nthlpcore.c 3534 2021-12-20 23:31:55Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlpcore.c 3682 2025-08-12 23:34:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT core helpers functions and globals.
  */
@@ -59,6 +59,9 @@ MY_NTSTATUS (WINAPI *g_pfnNtQueryAttributesFile)(MY_OBJECT_ATTRIBUTES *, MY_FILE
 MY_NTSTATUS (WINAPI *g_pfnNtQueryFullAttributesFile)(MY_OBJECT_ATTRIBUTES *, MY_FILE_NETWORK_OPEN_INFORMATION *);
 MY_NTSTATUS (WINAPI *g_pfnNtSetInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *, PVOID, LONG, MY_FILE_INFORMATION_CLASS);
 BOOLEAN     (WINAPI *g_pfnRtlDosPathNameToNtPathName_U)(PCWSTR, MY_UNICODE_STRING *, PCWSTR *, MY_RTL_RELATIVE_NAME_U *);
+BOOLEAN     (WINAPI *g_pfnRtlDosPathNameToNtPathName_U)(PCWSTR, MY_UNICODE_STRING *, PCWSTR *, MY_RTL_RELATIVE_NAME_U *);
+MY_NTSTATUS (WINAPI *g_pfnRtlDosLongPathNameToNtPathName_U_WithStatus)(PCWSTR, MY_UNICODE_STRING *, PCWSTR *,
+                                                                       MY_RTL_RELATIVE_NAME_U *);
 MY_NTSTATUS (WINAPI *g_pfnRtlAnsiStringToUnicodeString)(MY_UNICODE_STRING *, MY_ANSI_STRING const *, BOOLEAN);
 MY_NTSTATUS (WINAPI *g_pfnRtlUnicodeStringToAnsiString)(MY_ANSI_STRING *, MY_UNICODE_STRING *, BOOLEAN);
 BOOLEAN     (WINAPI *g_pfnRtlEqualUnicodeString)(MY_UNICODE_STRING const *, MY_UNICODE_STRING const *, BOOLEAN);
@@ -67,41 +70,49 @@ UCHAR       (WINAPI *g_pfnRtlUpperChar)(UCHAR uch);
 ULONG       (WINAPI *g_pfnRtlNtStatusToDosError)(MY_NTSTATUS rcNt);
 VOID        (WINAPI *g_pfnRtlAcquirePebLock)(VOID);
 VOID        (WINAPI *g_pfnRtlReleasePebLock)(VOID);
+MY_NTSTATUS (WINAPI *g_pfnRtlGetVersion)(OSVERSIONINFOEXW *);
+
 
 static struct
 {
     FARPROC    *ppfn;
     const char *pszName;
+    int         fOptional;
 } const g_apfnDynamicNtdll[] =
 {
-    { (FARPROC *)&g_pfnNtClose,                         "NtClose" },
-    { (FARPROC *)&g_pfnNtCreateFile,                    "NtCreateFile" },
-    { (FARPROC *)&g_pfnNtDeleteFile,                    "NtDeleteFile" },
-    { (FARPROC *)&g_pfnNtDuplicateObject,               "NtDuplicateObject" },
-    { (FARPROC *)&g_pfnNtReadFile,                      "NtReadFile" },
-    { (FARPROC *)&g_pfnNtQueryInformationFile,          "NtQueryInformationFile" },
-    { (FARPROC *)&g_pfnNtQueryVolumeInformationFile,    "NtQueryVolumeInformationFile" },
-    { (FARPROC *)&g_pfnNtQueryDirectoryFile,            "NtQueryDirectoryFile" },
-    { (FARPROC *)&g_pfnNtQueryAttributesFile,           "NtQueryAttributesFile" },
-    { (FARPROC *)&g_pfnNtQueryFullAttributesFile,       "NtQueryFullAttributesFile" },
-    { (FARPROC *)&g_pfnNtSetInformationFile,            "NtSetInformationFile" },
-    { (FARPROC *)&g_pfnRtlDosPathNameToNtPathName_U,    "RtlDosPathNameToNtPathName_U" },
-    { (FARPROC *)&g_pfnRtlAnsiStringToUnicodeString,    "RtlAnsiStringToUnicodeString" },
-    { (FARPROC *)&g_pfnRtlUnicodeStringToAnsiString,    "RtlUnicodeStringToAnsiString" },
-    { (FARPROC *)&g_pfnRtlEqualUnicodeString,           "RtlEqualUnicodeString" },
-    { (FARPROC *)&g_pfnRtlEqualString,                  "RtlEqualString" },
-    { (FARPROC *)&g_pfnRtlUpperChar,                    "RtlUpperChar" },
-    { (FARPROC *)&g_pfnRtlNtStatusToDosError,           "RtlNtStatusToDosError" },
-    { (FARPROC *)&g_pfnRtlAcquirePebLock,               "RtlAcquirePebLock" },
-    { (FARPROC *)&g_pfnRtlReleasePebLock,               "RtlReleasePebLock" },
+    { (FARPROC *)&g_pfnNtClose,                                     "NtClose",                                      0 },
+    { (FARPROC *)&g_pfnNtCreateFile,                                "NtCreateFile",                                 0 },
+    { (FARPROC *)&g_pfnNtDeleteFile,                                "NtDeleteFile",                                 0 },
+    { (FARPROC *)&g_pfnNtDuplicateObject,                           "NtDuplicateObject",                            0 },
+    { (FARPROC *)&g_pfnNtReadFile,                                  "NtReadFile",                                   0 },
+    { (FARPROC *)&g_pfnNtQueryInformationFile,                      "NtQueryInformationFile",                       0 },
+    { (FARPROC *)&g_pfnNtQueryVolumeInformationFile,                "NtQueryVolumeInformationFile",                 0 },
+    { (FARPROC *)&g_pfnNtQueryDirectoryFile,                        "NtQueryDirectoryFile",                         0 },
+    { (FARPROC *)&g_pfnNtQueryAttributesFile,                       "NtQueryAttributesFile",                        0 },
+    { (FARPROC *)&g_pfnNtQueryFullAttributesFile,                   "NtQueryFullAttributesFile",                    0 },
+    { (FARPROC *)&g_pfnNtSetInformationFile,                        "NtSetInformationFile",                         0 },
+    { (FARPROC *)&g_pfnRtlDosPathNameToNtPathName_U,                "RtlDosPathNameToNtPathName_U",                 0 },
+    { (FARPROC *)&g_pfnRtlDosLongPathNameToNtPathName_U_WithStatus, "RtlDosLongPathNameToNtPathName_U_WithStatus",  1 },
+    { (FARPROC *)&g_pfnRtlAnsiStringToUnicodeString,                "RtlAnsiStringToUnicodeString",                 0 },
+    { (FARPROC *)&g_pfnRtlUnicodeStringToAnsiString,                "RtlUnicodeStringToAnsiString",                 0 },
+    { (FARPROC *)&g_pfnRtlEqualUnicodeString,                       "RtlEqualUnicodeString",                        0 },
+    { (FARPROC *)&g_pfnRtlEqualString,                              "RtlEqualString",                               0 },
+    { (FARPROC *)&g_pfnRtlUpperChar,                                "RtlUpperChar",                                 0 },
+    { (FARPROC *)&g_pfnRtlNtStatusToDosError,                       "RtlNtStatusToDosError",                        0 },
+    { (FARPROC *)&g_pfnRtlAcquirePebLock,                           "RtlAcquirePebLock",                            0 },
+    { (FARPROC *)&g_pfnRtlReleasePebLock,                           "RtlReleasePebLock",                            0 },
+    { (FARPROC *)&g_pfnRtlGetVersion,                               "RtlGetVersion",                                1 },
 };
 /** Set to 1 if we've successfully resolved the imports, otherwise 0. */
 int g_fResolvedNtImports = 0;
 
+/** Windows / NT version info. */
+OSVERSIONINFOEXW g_NtVerInfo;
 
 
 void birdResolveImportsWorker(void)
 {
+    /* Load the imports. */
     HMODULE     hMod = LoadLibraryW(L"ntdll.dll");
     int         i    = sizeof(g_apfnDynamicNtdll) / sizeof(g_apfnDynamicNtdll[0]);
     while (i-- > 0)
@@ -109,7 +120,7 @@ void birdResolveImportsWorker(void)
         const char *pszSym = g_apfnDynamicNtdll[i].pszName;
         FARPROC     pfn;
         *g_apfnDynamicNtdll[i].ppfn = pfn = GetProcAddress(hMod, pszSym);
-        if (!pfn)
+        if (!pfn && !g_apfnDynamicNtdll[i].fOptional)
         {
             /* Write short message and die. */
             static const char   s_szMsg[] = "\r\nFatal error resolving NTDLL.DLL symbols!\r\nSymbol: ";
@@ -123,6 +134,16 @@ void birdResolveImportsWorker(void)
         }
     }
 
+    /* Get the version. */
+#pragma warning(push)
+#pragma warning(disable:4996)
+    g_NtVerInfo.dwOSVersionInfoSize = sizeof(g_NtVerInfo);
+    GetVersionExW((OSVERSIONINFOW *)&g_NtVerInfo);
+#pragma warning(pop)
+    if (g_pfnRtlGetVersion)
+        g_pfnRtlGetVersion(&g_NtVerInfo);
+
+    /* Mark everything as done. */
     g_fResolvedNtImports = 1;
 }
 
@@ -476,6 +497,13 @@ int birdSetErrnoToInvalidArg(void)
 int birdSetErrnoToBadFileNo(void)
 {
     errno = EBADF;
+    return -1;
+}
+
+
+int birdSetErrnoToDirNotEmpty(void)
+{
+    errno = ENOTEMPTY;
     return -1;
 }
 

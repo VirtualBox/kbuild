@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 3636 2024-11-02 01:52:45Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 3682 2025-08-12 23:34:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -43,6 +43,9 @@
 #include "nt/ntutimes.h"
 #undef utimes
 #undef lutimes
+#include "nt/ntmkdirat.h"
+#undef mkdir
+#undef mkdirat
 
 #include "console.h"
 
@@ -313,6 +316,7 @@ int link(const char *pszDst, const char *pszLink)
 
 int mkdir_msc(const char *path, mode_t mode)
 {
+#if 0
     int rc = (mkdir)(path);
     if (rc)
     {
@@ -327,6 +331,9 @@ int mkdir_msc(const char *path, mode_t mode)
         }
     }
     return rc;
+#else
+    return birdMkDir(path, mode);
+#endif
 }
 
 int rmdir_msc(const char *path)

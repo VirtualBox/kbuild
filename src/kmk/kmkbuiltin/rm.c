@@ -81,10 +81,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 # ifdef _MSC_VER
 #  include "mscfakes.h"
 # endif
-# include "nt/ntunlink.h"
-  /* Use the special unlink implementation to do rmdir too. */
-# undef  rmdir
-# define rmdir(a_pszPath) 	birdUnlinkForced(a_pszPath)
+# include "nt/ntunlink.h" /* redefines both unlink & rmdir */
 #endif
 #if defined(__OS2__) || defined(_MSC_VER)
 # include <direct.h>
@@ -429,9 +426,9 @@ rm_tree(PRMINSTANCE pThis, char **argv)
 			case FTS_DNR:
 #ifdef KBUILD_OS_WINDOWS
 				if (p->fts_parent->fts_dirfd != NT_FTS_INVALID_HANDLE_VALUE) {
-				    rval = birdUnlinkForcedEx(p->fts_parent->fts_dirfd, p->fts_name);
+				    rval = birdRmDirForcedEx(p->fts_parent->fts_dirfd, p->fts_name);
 				} else {
-				    rval = birdUnlinkForced(p->fts_accpath);
+				    rval = birdRmDirForced(p->fts_accpath);
 				}
 #else
 				rval = rmdir(p->fts_accpath);
@@ -479,13 +476,21 @@ rm_tree(PRMINSTANCE pThis, char **argv)
 					if (p->fts_info != FTS_SL && p->fts_info != FTS_SLNONE) {
 						rval = birdUnlinkForcedFastEx(p->fts_parent->fts_dirfd, p->fts_name);
 					} else { /* NtDeleteFile doesn't work on directory links, so slow symlink deletion: */
-						rval = birdUnlinkForcedEx(p->fts_parent->fts_dirfd, p->fts_name);
+                                                if (p->fts_stat.st_isdirsymlink) {
+                                                        rval = birdRmDirForcedEx(p->fts_parent->fts_dirfd, p->fts_name);
+                                                } else {
+                                                        rval = birdUnlinkForcedEx(p->fts_parent->fts_dirfd, p->fts_name);
+                                                }
 					}
 				} else {
 					if (p->fts_info != FTS_SL && p->fts_info != FTS_SLNONE) {
 						rval = birdUnlinkForcedFast(p->fts_accpath);
 					} else { /* NtDeleteFile doesn't work on directory links, so slow symlink deletion: */
-						rval = birdUnlinkForced(p->fts_accpath);
+                                                if (p->fts_stat.st_isdirsymlink) {
+                                                        rval = birdRmDirForced(p->fts_accpath);
+                                                } else {
+                                                        rval = birdUnlinkForced(p->fts_accpath);
+                                                }
 					}
 				}
 #else
@@ -585,7 +590,10 @@ rm_file(PRMINSTANCE pThis, char **argv)
 				rval = unlink(f);
 				operation = "unlink";
 #else
-				if (pThis->fUseNtDeleteFile) {
+				/*if (sb.st_isdirsymlink) {
+					rval = birdRmDirForced(f);
+					operation = "rmdir";
+				} else*/ if (pThis->fUseNtDeleteFile /*&& S_ISREG(sb.st_mode) && !sb.st_isdirsymlink*/) {
 					rval = birdUnlinkForcedFast(f);
 					operation = "NtDeleteFile";
 				} else {

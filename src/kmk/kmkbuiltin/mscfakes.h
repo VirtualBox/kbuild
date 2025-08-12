@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 3636 2024-11-02 01:52:45Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 3682 2025-08-12 23:34:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
@@ -49,7 +49,7 @@
 #include <direct.h>
 #include <stdio.h> /* unlink for UCRT */
 #include "nt/ntstat.h"
-#include "nt/ntunlink.h"
+#include "nt/ntunlink.h" /* redefines both unlink and rmdir */
 #ifdef MSC_DO_64_BIT_IO
 # if _MSC_VER >= 1400 /* We want 64-bit file lengths here when possible. */
 #  define off_t __int64
@@ -60,9 +60,10 @@
 #undef timeval
 
 #undef  PATH_MAX
-#define PATH_MAX   _MAX_PATH
+/*#define PATH_MAX   _MAX_PATH */
+#define PATH_MAX   1024
 #undef  MAXPATHLEN
-#define MAXPATHLEN _MAX_PATH
+#define MAXPATHLEN PATH_MAX
 
 #define EX_OK 0
 #define EX_OSERR 1
@@ -145,8 +146,8 @@ int mkdir_msc(const char *path, mode_t mode);
 int mkstemp(char *temp);
 #define readlink(link, buf, size) -1
 #define reallocf(old, size) realloc(old, size)
-int rmdir_msc(const char *path);
-#define rmdir(path) rmdir_msc(path)
+/*int rmdir_msc(const char *path);
+#define rmdir(path) rmdir_msc(path) */
 intmax_t strtoimax(const char *nptr, char **endptr, int base);
 uintmax_t strtoumax(const char *nptr, char **endptr, int base);
 #define strtoll(a,b,c) strtoimax(a,b,c)

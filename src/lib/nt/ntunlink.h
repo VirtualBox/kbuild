@@ -1,4 +1,4 @@
-/* $Id: ntunlink.h 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
+/* $Id: ntunlink.h 3682 2025-08-12 23:34:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT unlink and variations.
  */
@@ -32,6 +32,7 @@
 #define ___nt_ntunlink_h
 
 #include "nttypes.h"
+#include "ntat.h"
 #include <wchar.h>
 
 int birdUnlink(const char *pszFile);
@@ -47,8 +48,26 @@ int birdUnlinkForcedFastW(const wchar_t *pwszFile);
 int birdUnlinkForcedFastEx(void *hRoot, const char *pszFile);
 int birdUnlinkForcedFastExW(void *hRoot, const wchar_t *pwszFile);
 
+int birdRmDir(const char *pszFile);
+int birdRmDirW(const wchar_t *pwszFile);
+int birdRmDirEx(void *hRoot, const char *pszFile);
+int birdRmDirExW(void *hRoot, const wchar_t *pwszFile);
+int birdRmDirForced(const char *pszFile);
+int birdRmDirForcedW(const wchar_t *pwszFile);
+int birdRmDirForcedEx(void *hRoot, const char *pszFile);
+int birdRmDirForcedExW(void *hRoot, const wchar_t *pszFile);
+
+#define AT_REMOVEDIR 1
+int birdUnlinkAt(int fdDir, const char *pszPath, int fFlags);
+
 #undef  unlink
 #define unlink(a_pszPath)     birdUnlinkForced(a_pszPath)
+
+#undef  rmdir
+#define rmdir(a_pszPath)      birdRmDirForced(a_pszPath)
+
+#undef  unlinkat
+#define unlinkat(a_fdDir, a_pszPath, a_fFlags) birdUnlinkAt(a_fdDir, a_pszPath, a_fFlags)
 
 #endif
 
