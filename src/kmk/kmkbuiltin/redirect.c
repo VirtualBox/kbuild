@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3564 2022-03-08 11:12:18Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3685 2025-08-15 00:51:28Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -118,6 +118,7 @@ static int kmk_redirect_usage(PKMKBUILTINCTX pCtx, int fIsErr)
     kmk_builtin_ctx_printf(pCtx, fIsErr,
                            "Usage: %s [-[rwa+tb]<fd> <file>] [-d<fd>=<src-fd>] [-c<fd>] [--stdin-pipe]\n"
                            "           [-Z] [-E <var=val>] [-A <var=val>] [-P <var=val>] [-D <var>]\n"
+                           "           [-X <from-exitcode>[=<to>]\n"
                            "           [-C <dir>] [--wcc-brain-damage] [-v] -- <program> [args]\n"
                            "   or: %s --help\n"
                            "   or: %s --version\n"
@@ -152,6 +153,8 @@ static int kmk_redirect_usage(PKMKBUILTINCTX pCtx, int fIsErr)
                            "    The -U switch deletes an environment variable.\n"
     /*                      0         1         2         3         4         5         6         7         8 */
     /*                      012345678901234567890123456789012345678901234567890123456789012345678901234567890 */
+                           "-X <from-exitcode>[=<to>], --translate-exitcode <from-exitcode>[=<to>]\n"
+                           "    Translates exit codes.  The '<to>' value defaults to zero.\n"
                            "-C <dir>, --chdir <dir>\n"
                            "    The -C switch is for changing the current directory.  Please specify an\n"
                            "    absolute program path as it's platform dependent whether this takes\n"
@@ -163,7 +166,7 @@ static int kmk_redirect_usage(PKMKBUILTINCTX pCtx, int fIsErr)
                            "    The -v switch is for making the thing more verbose.\n"
                            "\n"
                            "On OS/2 the kernel variables BEGINLIBPATH, ENDLIBPATH and LIBPATHSTRICT can be\n"
-                           "accessed as-if they were regular enviornment variables.\n"
+                           "accessed as-if they were regular environment variables.\n"
                            "\n"
                            "This command was originally just a quick hack to avoid invoking the shell\n"
                            "on Windows (cygwin) where forking is very expensive and has exhibited\n"
@@ -1376,6 +1379,12 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
     unsigned        cOrders = 0;
     REDIRECTORDERS  aOrders[32];
 
+    unsigned        cExitCodeTranslations = 0;
+    struct
+    {
+        int         rcExitFrom, rcExitTo;
+    }               aExitCodeTranslations[8];
+
     int             iArg;
     const char     *pszExecutable      = NULL;
     char          **papszEnvVars       = NULL;
@@ -1407,7 +1416,7 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
     else
         return err(pCtx, 9, "getcwd failed");
 
-    /* We start out with a read-only enviornment from kmk or the crt, and will
+    /* We start out with a read-only environment from kmk or the crt, and will
        duplicate it if we make changes to it. */
     cAllocatedEnvVars = 0;
     papszEnvVars = envp;
@@ -1501,6 +1510,8 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
                     chOpt = 'v';
                 else if (strcmp(pszArg, "stdin-pipe") == 0)
                     chOpt = 'I';
+                else if (strcmp(pszArg, "translate-exitcode") == 0)
+                    chOpt = 'X';
                 else
                 {
                     errx(pCtx, 2, "Unknown option: '%s'", pszArg - 2);
@@ -1536,7 +1547,8 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
                 || chOpt == 'C'
                 || chOpt == 'c'
                 || chOpt == 'd'
-                || chOpt == 'e')
+                || chOpt == 'e'
+                || chOpt == 'X')
             {
                 if (*pszArg != '\0')
                     pszValue = pszArg + (*pszArg == ':' || *pszArg == '=');
@@ -1692,6 +1704,43 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
             if (chOpt == 'e')
             {
                 pszExecutable = pszValue;
+                continue;
+            }
+
+            /*
+             * Exit code translation: from[=to]
+             */
+            if (chOpt == 'X')
+            {
+                int   rcExitTo = 0;
+                char *pszEqual;
+                int   rcExitFrom = (int)strtol(pszValue, &pszEqual, 0);
+                if (pszEqual == pszValue)
+                    rcExit = errx(pCtx, 2, "error: failed to convert 1st part of '--translate-exitcode %s' to a number",
+                                  pszValue);
+                else if (!pszEqual || !*pszEqual)
+                    rcExitTo = 0;
+                else if (*pszEqual != '=')
+                    rcExit = errx(pCtx, 2, "syntax error: expected '=' to separate the two values in: '--translate-exitcode %s'",
+                                  pszValue);
+                else
+                {
+                    char *pszEnd = 0;
+                    rcExitTo = (int)strtol(++pszEqual, &pszEnd, 0);
+                    if (pszEnd == pszEqual)
+                        rcExit = errx(pCtx, 2, "error: failed to convert 2nd half of '--translate-exitcode %s' to a number",
+                                      pszValue);
+                    else if (pszEnd && *pszEnd != '\0')
+                        rcExit = errx(pCtx, 2, "error: unexpected trailing chars in: '--translate-exitcode %s'", pszValue);
+                }
+                if (cExitCodeTranslations >= K_ELEMENTS(aExitCodeTranslations))
+                    rcExit = errx(pCtx, 2, "error: too many exit code translations");
+                else if (rcExit == 0)
+                {
+                    aExitCodeTranslations[cExitCodeTranslations].rcExitFrom = rcExitFrom;
+                    aExitCodeTranslations[cExitCodeTranslations].rcExitTo   = rcExitTo;
+                    cExitCodeTranslations++;
+                }
                 continue;
             }
 
@@ -2020,6 +2069,18 @@ int kmk_builtin_redirect(int argc, char **argv, char **envp, PKMKBUILTINCTX pCtx
                                   pPidSpawned,
 #endif
                                   &fChildExitCode);
+
+        /* Do exit code translations if rcExit is a child exit code. */
+        if (fChildExitCode)
+            while (cExitCodeTranslations-- > 0)
+                if (aExitCodeTranslations[cExitCodeTranslations].rcExitFrom == rcExit)
+                {
+                    if (cVerbosity > 0)
+                        warnx(pCtx, "info: translating exit code %d to %d",
+                              rcExit, aExitCodeTranslations[cExitCodeTranslations].rcExitTo);
+                    rcExit = aExitCodeTranslations[cExitCodeTranslations].rcExitTo;
+                    break;
+                }
     }
     else if (rcExit == 0)
     {
