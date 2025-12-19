@@ -1,4 +1,4 @@
-/* $Id: kDeDup.c 3296 2019-01-22 21:29:08Z knut.osmundsen@oracle.com $ */
+/* $Id: kDeDup.c 3687 2025-12-19 21:21:09Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDeDup - Utility that finds duplicate files, optionally hardlinking them.
  */
@@ -1134,6 +1134,7 @@ int main(int argc, char **argv)
         /*
          * Display the result.
          */
+        printf("Scanned %" KU64_PRI " files, %" KU64_PRI " of which are already hardlinked.\n", g_cFiles, g_cHardlinked);
         printf("Found %" KU64_PRI " duplicate files, out which %" KU64_PRI " can be hardlinked saving %" KU64_PRI " bytes\n",
                g_cDuplicates, g_cDuplicatesSaved, g_cbDuplicatesSaved);
 
