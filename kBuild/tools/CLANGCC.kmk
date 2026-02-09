@@ -1,0 +1,518 @@
+# $Id: CLANGCC.kmk 3688 2026-02-09 09:12:00Z knut.osmundsen@oracle.com $
+## @file
+# kBuild Tool Config - Generic LLVM Clang, for building C code for the default target.
+#
+
+#
+# Copyright (c) 2004-2026 knut st. osmundsen <bird-kBuild-spam-xxvi@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+# As a special exception you are granted permission to include this file, via
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
+# This exception does not however invalidate any other reasons why the makefile,
+# program, whatever should not be covered the GPL.
+#
+#
+
+if1of ($(KBUILD_HOST), darwin)
+ ifndef INCLUDED_DARWIN_COMMON_KMK
+  include $(KBUILD_PATH)/darwin-common.kmk
+ endif
+endif
+
+TOOL_CLANGCC := Generic LLVM Clang, for building C code for the default target.
+
+# Tool Specific Properties
+# PREFIX/SUFFIX: clang;   PREFIX2/SUFFIX2: cctool;
+ifndef PATH_TOOL_CLANGCC
+ ifeq ($(KBUILD_HOST),darwin)
+  PATH_TOOL_CLANGCC := $(substr $(firstfile $(foreachfile toolchaindir, $(DARWINCMN_TOOLCHAIN_DIRS) \
+  	, $(qwildcard ,$(toolchaindir)/usr/bin/clang++))), 1, -12)
+ ## @todo else
+ endif
+else
+ PATH_TOOL_CLANGCC := $(PATH_TOOL_CLANGCC)
+endif
+ifndef TOOL_CLANGCC_PREFIX
+ ifdef PATH_TOOL_CLANGCC
+  TOOL_CLANGCC_PREFIX  := $(PATH_TOOL_CLANGCC)/bin/
+ else
+  TOOL_CLANGCC_PREFIX  :=
+ endif
+endif
+ifndef TOOL_CLANGCC_SUFFIX
+ TOOL_CLANGCC_SUFFIX   := $(HOSTSUFF_EXE)
+endif
+TOOL_CLANGCC_PREFIX2   ?= $(TOOL_CLANGCC_PREFIX)llvm-
+TOOL_CLANGCC_SUFFIX2   ?= $(TOOL_CLANGCC_SUFFIX)
+TOOL_CLANGCC_CC        ?= $(TOOL_CLANGCC_PREFIX)clang$(TOOL_CLANGCC_SUFFIX)
+TOOL_CLANGCC_CXX       ?= $(TOOL_CLANGCC_PREFIX)clang++$(TOOL_CLANGCC_SUFFIX)
+TOOL_CLANGCC_PCH       ?= $(TOOL_CLANGCC_CXX)
+TOOL_CLANGCC_OBJC      ?= $(TOOL_CLANGCC_PREFIX)clang$(TOOL_CLANGCC_SUFFIX)
+TOOL_CLANGCC_OBJCXX    ?= $(TOOL_CLANGCC_PREFIX)clang$(TOOL_CLANGCC_SUFFIX)
+TOOL_CLANGCC_AS        ?= $(TOOL_CLANGCC_PREFIX)clang$(TOOL_CLANGCC_SUFFIX)
+TOOL_CLANGCC_LD        ?= $(TOOL_CLANGCC_PREFIX)clang$(TOOL_CLANGCC_SUFFIX)
+TOOL_CLANGCC_LD_SYSMOD ?= $(TOOL_CLANGCC_PREFIX)clang$(TOOL_CLANGCC_SUFFIX)
+TOOL_CLANGCC_LDFLAGS.dll       ?= $(if-expr "$(bld_trg)" == "darwin",-dynamiclib,-shared)
+TOOL_CLANGCC_LDFLAGS.sysmod    ?= -r
+TOOL_CLANGCC_DSYMUTIL  ?= $(TOOL_CLANGCC_PREFIX)dsymutil$(TOOL_CLANGCC_SUFFIX)
+
+TOOL_CLANGCC_AR        ?= $(TOOL_CLANGCC_PREFIX2)ar$(TOOL_CLANGCC_SUFFIX2)
+TOOL_CLANGCC_AR_IMP    ?= $(TOOL_CLANGCC_PREFIX2)todo-ar-imp$(TOOL_CLANGCC_SUFFIX2)
+TOOL_CLANGCC_STRIP     ?= $(TOOL_CLANGCC_PREFIX2)strip$(TOOL_CLANGCC_SUFFIX2)
+TOOL_CLANGCC_STRIP_PROGRAM ?= $(TOOL_CLANGCC_STRIP) -SXxru
+TOOL_CLANGCC_STRIP_DLL     ?= $(TOOL_CLANGCC_STRIP) -Sxru
+TOOL_CLANGCC_STRIP_SYSMOD  ?= $(TOOL_CLANGCC_STRIP) -Sru
+
+# General Properties used by kBuild
+TOOL_CLANGCC_COBJSUFF         ?= .o
+TOOL_CLANGCC_CFLAGS           ?=
+TOOL_CLANGCC_CFLAGS.debug     ?= -g
+TOOL_CLANGCC_CFLAGS.profile   ?= -O2 #-g -pg
+TOOL_CLANGCC_CFLAGS.release   ?= -O2
+TOOL_CLANGCC_CINCS            ?=
+TOOL_CLANGCC_CDEFS            ?=
+
+TOOL_CLANGCC_CXXOBJSUFF       ?= .o
+TOOL_CLANGCC_CXXFLAGS         ?=
+TOOL_CLANGCC_CXXFLAGS.debug   ?= -g
+TOOL_CLANGCC_CXXFLAGS.profile ?= -O2 #-g -pg
+TOOL_CLANGCC_CXXFLAGS.release ?= -O2
+TOOL_CLANGCC_CXXINCS          ?=
+TOOL_CLANGCC_CXXDEFS          ?=
+
+TOOL_CLANGCC_PCHOBJSUFF       ?= .h.gch
+TOOL_CLANGCC_PCHFLAGS         ?= $(TOOL_CLANGCC_CXXFLAGS) -x c++-header # HACK ALERT! We should use .hpp as input! 18.0.0 complains.
+TOOL_CLANGCC_PCHFLAGS.debug   ?= $(TOOL_CLANGCC_CXXFLAGS.debug)
+TOOL_CLANGCC_PCHFLAGS.profile ?= $(TOOL_CLANGCC_CXXFLAGS.profile)
+TOOL_CLANGCC_PCHFLAGS.release ?= $(TOOL_CLANGCC_CXXFLAGS.release)
+TOOL_CLANGCC_PCHINCS          ?= $(TOOL_CLANGCC_CXXINCS)
+TOOL_CLANGCC_PCHDEFS          ?= $(TOOL_CLANGCC_CXXDEFS)
+
+TOOL_CLANGCC_OBJCOBJSUFF      ?= .o
+TOOL_CLANGCC_OBJCFLAGS        ?=
+TOOL_CLANGCC_OBJCFLAGS.debug  ?= -g
+TOOL_CLANGCC_OBJCFLAGS.profile?= -O2 #-g -pg
+TOOL_CLANGCC_OBJCFLAGS.release?= -O2
+TOOL_CLANGCC_OBJCINCS         ?=
+TOOL_CLANGCC_OBJCDEFS         ?=
+
+TOOL_CLANGCC_OBJCXXOBJSUFF        ?= .o
+TOOL_CLANGCC_OBJCXXFLAGS          ?=
+TOOL_CLANGCC_OBJCXXFLAGS.debug    ?= -g
+TOOL_CLANGCC_OBJCXXFLAGS.profile  ?= -O2 #-g -pg
+TOOL_CLANGCC_OBJCXXFLAGS.release  ?= -O2
+TOOL_CLANGCC_OBJCXXINCS           ?=
+TOOL_CLANGCC_OBJCXXDEFS           ?=
+
+TOOL_CLANGCC_ASFLAGS          ?= -x assembler-with-cpp
+TOOL_CLANGCC_ASFLAGS.debug    ?= -g
+TOOL_CLANGCC_ASFLAGS.profile  ?= -g
+TOOL_CLANGCC_ASOBJSUFF        ?= .o
+
+TOOL_CLANGCC_ARFLAGS          ?= -c -rs
+TOOL_CLANGCC_ARLIBSUFF        ?= .a
+
+TOOL_CLANGCC_LDFLAGS          ?= -fuse-ld=lld$(TOOL_CLANGCC_SUFFIX2)
+TOOL_CLANGCC_LDFLAGS.debug    ?= -g
+TOOL_CLANGCC_LDFLAGS.profile  ?= -g
+
+
+
+##
+# Calculate the files in the debug bundle.
+# @param    1  The whole output filename.
+# @param    2  The output filename sans suffix.
+TOOL_CLANGCC_OUTPUT_DEBUG = $(if-expr "$(bld_trg)" == "darwin" && "$(ld_debug)" == "split",\
+    $(1).dSYM/Contents/Info.plist \
+    $(1).dSYM/Contents/Resources/DWARF/$(notdir $(1)) \
+    )
+
+##
+# Calculate the files in the debug bundle.
+# @param    1  The whole linker output filename.
+# @param    2  The linker output filename sans suffix.
+# @param    3  The desired install name (no dir slash).
+# @remarks  darwin: The Info.plist has some reference to the original name, but
+#           gdb does not care and only check for a symbol file in the DWARF
+#           directory with the same name as the debugged module.
+TOOL_CLANGCC_DEBUG_INSTALL_FN = $(if-expr "$(bld_trg)" == "darwin" && "$(ld_debug)" == "split",\
+    $(3).dSYM/ \
+    $(3).dSYM/Contents/ \
+    $(3).dSYM/Contents/Resources/ \
+    $(3).dSYM/Contents/Resources/DWARF/ \
+    $(1).dSYM/Contents/Info.plist=>$(3).dSYM/Contents/Info.plist \
+    $(1).dSYM/Contents/Resources/DWARF/$(notdir $(1))=>$(3).dSYM/Contents/Resources/DWARF/$(notdir $(3)) \
+    )
+
+
+## Compile C source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)      Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+TOOL_CLANGCC_COMPILE_C_DEPEND =
+TOOL_CLANGCC_COMPILE_C_DEPORD =
+TOOL_CLANGCC_COMPILE_C_OUTPUT         = $(if-expr "$(use_objcache)" != "",$(outbase).i,)
+TOOL_CLANGCC_COMPILE_C_USES_KOBJCACHE = $(if-expr "$(use_objcache)" != "",1,)
+define TOOL_CLANGCC_COMPILE_C_CMDS
+if "$(use_objcache)" != ""
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
+		--kObjCache-cpp $(outbase).i\
+		$(TOOL_CLANGCC_CC) -E -o -\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		$(abspath $(source))\
+		--kObjCache-cc $(obj)\
+		$(TOOL_CLANGCC_CC) -c\
+		$(flags) -fpreprocessed -x c\
+		-o $(obj)\
+		-
+else
+	$(QUIET)$(TOOL_CLANGCC_CC) -c\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(abspath $(source))
+endif
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
+endef
+
+
+## Compile C++ source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)      Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+TOOL_CLANGCC_COMPILE_CXX_OUTPUT         = $(if-expr "$(use_objcache)" != "",$(outbase).ii,)
+TOOL_CLANGCC_COMPILE_CXX_DEPEND         = $($(target)_1_GCC_PCH_FILE)
+TOOL_CLANGCC_COMPILE_CXX_DEPORD         =
+TOOL_CLANGCC_COMPILE_CXX_USES_KOBJCACHE = $(if-expr "$(use_objcache)" != "",1,)
+define TOOL_CLANGCC_COMPILE_CXX_CMDS
+if "$(use_objcache)" != ""
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
+		--kObjCache-cpp $(outbase).ii\
+		$(TOOL_CLANGCC_CXX) -E -o - $(if-expr defined($(target)_PCH_HDR)\
+		,-fpch-preprocess -Winvalid-pch -I$($(target)_1_GCC_PCH_DIR) -include $(basename $($(target)_1_GCC_PCH_FILE)),)\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		$(abspath $(source))\
+		--kObjCache-cc $(obj)\
+		$(TOOL_CLANGCC_CXX) -c\
+		$(flags) -fpreprocessed $(if-expr defined($(target)_PCH_HDR),-fpch-preprocess,) -x c++\
+		-o $(obj)\
+		-
+else
+	$(QUIET)$(TOOL_CLANGCC_CXX) -c\
+		$(flags) $(qaddprefix sh,-I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(qaddprefix sh,-D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj) $(if-expr defined($(target)_PCH_HDR) \
+		,-Winvalid-pch -include $(basename $($(target)_1_GCC_PCH_FILE)),) \
+		$(abspath $(source))
+endif
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
+endef
+
+
+## Precompile C++ header.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)	    Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)		Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+TOOL_CLANGCC_COMPILE_PCH_OUTPUT = $($(target)_1_GCC_PCH_FILE)
+TOOL_CLANGCC_COMPILE_PCH_DEPEND =
+TOOL_CLANGCC_COMPILE_PCH_DEPORD = $($(target)_1_GCC_PCH_DIR)
+define TOOL_CLANGCC_COMPILE_PCH_CMDS
+	$(QUIET)$(TOOL_CLANGCC_PCH) -c\
+		$(flags) $(qaddprefix sh,-I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(qaddprefix sh,-D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(abspath $(source))
+	$(INSTALL) --hard-link-files-when-possible -m 0644 -- "$(obj)" "$($(target)_1_GCC_PCH_FILE)"
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
+endef
+
+
+## Compile Objective-C source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)	    Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)		Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+TOOL_CLANGCC_COMPILE_OBJC_DEPEND =
+TOOL_CLANGCC_COMPILE_OBJC_DEPORD =
+ifdef KBUILD_USE_KOBJCACHE
+TOOL_CLANGCC_COMPILE_OBJC_USES_KOBJCACHE = 1
+TOOL_CLANGCC_COMPILE_OBJC_OUTPUT = $(outbase).mi
+define TOOL_CLANGCC_COMPILE_OBJC_CMDS
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
+		--kObjCache-cpp $(outbase).ii\
+		$(TOOL_CLANGCC_OBJC) -E -o -\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		$(abspath $(source))\
+		--kObjCache-cc $(obj)\
+		$(TOOL_CLANGCC_OBJC) -c\
+		$(flags) -fpreprocessed -x objective-c \
+		-o $(obj)\
+		-
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
+endef
+else  # !KBUILD_USE_KOBJCACHE
+TOOL_CLANGCC_COMPILE_OBJC_OUTPUT =
+define TOOL_CLANGCC_COMPILE_OBJC_CMDS
+	$(QUIET)$(TOOL_CLANGCC_OBJC) -c\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(abspath $(source))
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
+endef
+endif # !KBUILD_USE_KOBJCACHE
+
+
+## Compile Objective-C++ source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)	    Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)		Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+TOOL_CLANGCC_COMPILE_OBJCXX_DEPEND =
+TOOL_CLANGCC_COMPILE_OBJCXX_DEPORD =
+ifdef KBUILD_USE_KOBJCACHE
+TOOL_CLANGCC_COMPILE_OBJCXX_USES_KOBJCACHE = 1
+TOOL_CLANGCC_COMPILE_OBJCXX_OUTPUT = $(outbase).mii
+define TOOL_CLANGCC_COMPILE_OBJCXX_CMDS
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
+		--kObjCache-cpp $(outbase).mii\
+		$(TOOL_CLANGCC_OBJCXX) -E -o -\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		$(abspath $(source))\
+		--kObjCache-cc $(obj)\
+		$(TOOL_CLANGCC_OBJCXX) -c\
+		$(flags) -fpreprocessed -x objective-c++ \
+		-o $(obj)\
+		-
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
+endef
+else  # !KBUILD_USE_KOBJCACHE
+TOOL_CLANGCC_COMPILE_OBJCXX_OUTPUT =
+define TOOL_CLANGCC_COMPILE_OBJCXX_CMDS
+	$(QUIET)$(TOOL_CLANGCC_OBJCXX) -c\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(abspath $(source))
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
+endef
+endif # !KBUILD_USE_KOBJCACHE
+
+
+## Compile Assembly source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)      Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+#
+TOOL_CLANGCC_COMPILE_AS_OUTPUT =
+TOOL_CLANGCC_COMPILE_AS_DEPEND =
+TOOL_CLANGCC_COMPILE_AS_DEPORD =
+define TOOL_CLANGCC_COMPILE_AS_CMDS
+	$(QUIET)$(TOOL_CLANGCC_AS) -c\
+		$(flags) $(qaddprefix sh,-I, $(incs)) $(qaddprefix sh,-D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(abspath $(source))
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
+endef
+
+
+## Link library
+# @param    $(target)   Normalized main target name.
+# @param    $(out)      Library name.
+# @param    $(objs)     Object files to put in the library.
+# @param    $(flags)    Flags.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(othersrc) Unhandled sources.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @note llvm-ar has MRI script support since 10.0.0 judging from the man page.
+TOOL_CLANGCC_LINK_LIBRARY_OUTPUT_MAYBE_PRECIOUS = $(outbase).ar-script
+TOOL_CLANGCC_LINK_LIBRARY_OUTPUT =
+TOOL_CLANGCC_LINK_LIBRARY_DEPEND = $(othersrc)
+TOOL_CLANGCC_LINK_LIBRARY_DEPORD =
+define TOOL_CLANGCC_LINK_LIBRARY_CMDS
+	$(QUIET)$(APPEND) -t $(out).ar-script 'CREATE $(out)'
+	$(QUIET)$(APPEND) -n $(out).ar-script \
+		$(foreach o,$(filter-out %.gch,$(objs)), 'ADDMOD $(o)') \
+		$(foreach o,$(filter-out %.def %.imp %.dll,$(othersrc)), 'ADDLIB $(o)')
+	$(if $(filter %.def %.imp %.dll,$(othersrc))\
+		,$(TOOL_CLANGCC_AR_IMP) -o $(outbase).imp.a $(filter %.def %.imp %.dll,$(othersrc))\
+		$(NL)$(TAB)$(QUIET)$(APPEND) $(out).ar-script 'ADDLIB $(outbase).imp.a')
+	$(QUIET)$(APPEND) $(out).ar-script 'SAVE'
+	$(QUIET)$(APPEND) $(out).ar-script 'END'
+	$(QUIET)$(REDIRECT) -rti $(out).ar-script -- $(TOOL_CLANGCC_AR) -M
+endef
+
+
+## Link program
+# @param    $(target)   Normalized main target name.
+# @param    $(out)      Program name.
+# @param    $(objs)     Object files to link together.
+# @param    $(libs)     Libraries to search.
+# @param    $(libpath)  Library search paths.
+# @param    $(flags)    Flags.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(othersrc) Unhandled sources.
+# @param    $(custom_pre)   Custom step invoked before linking.
+# @param    $(custom_post)  Custom step invoked after linking.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+TOOL_CLANGCC_LINK_PROGRAM_OUTPUT_MAYBE_PRECIOUS = $(outbase).rsp
+TOOL_CLANGCC_LINK_PROGRAM_OUTPUT_MAYBE = $(outbase).map
+TOOL_CLANGCC_LINK_PROGRAM_OUTPUT_DEBUG = $(TOOL_CLANGCC_OUTPUT_DEBUG)
+TOOL_CLANGCC_LINK_PROGRAM_DEBUG_INSTALL_FN = $(TOOL_CLANGCC_DEBUG_INSTALL_FN)
+TOOL_CLANGCC_LINK_PROGRAM_DEPEND = $(qforeachfile ,lib,$(libs),$(if-expr "$(qnotdir ,$(lib))" != "$(lib)",$(lib)))
+TOOL_CLANGCC_LINK_PROGRAM_DEPORD =
+define TOOL_CLANGCC_LINK_PROGRAM_CMDS
+	$(QUIET)$(APPEND) -tn "$(outbase).rsp" $(filter-out %.gch,$(objs))
+	$(QUIET)$(TOOL_CLANGCC_LD) $(flags) -o "$(out)"\
+		@"$(outbase).rsp"\
+		$(qaddprefix sh,-L,$(libpath))\
+		$(qforeachfile ,lib,$(libs),$(if-expr "$(qnotdir ,$(lib))" != "$(lib)",$(lib), -l$(quote-sh $(patsubst lib%,%,$(lib)))))
+ ifeq ($(ld_debug),split)
+	$(QUIET)$(TOOL_CLANGCC_DSYMUTIL) -o "$(out).dSYM/" "$(out)"
+	$(QUIET)$(TOOL_CLANGCC_STRIP_PROGRAM) "$(out)"
+ endif
+endef
+
+
+## Link DLL
+# @param    $(target)   Normalized main target name.
+# @param    $(out)      Program name.
+# @param    $(objs)     Object files to link together.
+# @param    $(libs)     Libraries to search.
+# @param    $(libpath)  Library search paths.
+# @param    $(flags)    Flags.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(othersrc) Unhandled sources.
+# @param    $(custom_pre)   Custom step invoked before linking.
+# @param    $(custom_post)  Custom step invoked after linking.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+TOOL_CLANGCC_LINK_DLL_OUTPUT_MAYBE_PRECIOUS = $(outbase).rsp
+TOOL_CLANGCC_LINK_DLL_OUTPUT_MAYBE = $(outbase).map
+TOOL_CLANGCC_LINK_DLL_OUTPUT_DEBUG = $(TOOL_CLANGCC_OUTPUT_DEBUG)
+TOOL_CLANGCC_LINK_DLL_DEBUG_INSTALL_FN = $(TOOL_CLANGCC_DEBUG_INSTALL_FN)
+TOOL_CLANGCC_LINK_DLL_DEPEND = $(qforeachfile ,lib,$(libs),$(if-expr "$(qnotdir ,$(lib))" != "$(lib)",$(lib)))
+TOOL_CLANGCC_LINK_DLL_DEPORD =
+define TOOL_CLANGCC_LINK_DLL_CMDS
+	$(QUIET)$(APPEND) -tn $(outbase).rsp $(filter-out %.gch,$(objs))
+	$(QUIET)$(TOOL_CLANGCC_LD) $(TOOL_CLANGCC_LDFLAGS.dll) $(flags) -o "$(out)"\
+		$(if-expr "$(bld_trg)" != "darwin" && "$(bld_trg)" != "win" && "$(bld_trg)" != "os2" \
+		,-Wl$(COMMA)-soname=$(firstword $($(target)_SONAME.$(bld_trg).$(bld_type)) $($(target)_SONAME.$(bld_trg)) $($(target)_SONAME.$(bld_type)) $($(target)_SONAME) $(notdir $(out))))\
+		@"$(outbase).rsp"\
+		$(qaddprefix sh,-L,$(libpath))\
+		$(qforeachfile ,lib,$(libs),$(if-expr "$(qnotdir ,$(lib))" != "$(lib)",$(lib), -l$(quote-sh $(patsubst lib%,%,$(lib)))))
+ ifeq ($(ld_debug),split)
+  ifeq ($(bld_trg),darwin)
+	$(QUIET)$(TOOL_CLANGCC_DSYMUTIL) -o "$(out).dSYM/" "$(out)"
+	$(QUIET)$(TOOL_CLANGCC_STRIP_DLL) "$(out)"
+  else
+  endif
+ endif
+endef
+
+
+## Link system module (windows aka driver, linux aka kernel module)
+# @param    $(target)   Normalized main target name.
+# @param    $(out)      System module name.
+# @param    $(objs)     Object files to link together.
+# @param    $(libs)     Libraries to search.
+# @param    $(libpath)  Library search paths.
+# @param    $(flags)    Flags.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(othersrc) Unhandled sources.
+# @param    $(custom_pre)   Custom step invoked before linking.
+# @param    $(custom_post)  Custom step invoked after linking.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+TOOL_CLANGCC_LINK_SYSMOD_OUTPUT_MAYBE_PRECIOUS = $(outbase).rsp
+TOOL_CLANGCC_LINK_SYSMOD_OUTPUT_MAYBE = $(outbase).map
+TOOL_CLANGCC_LINK_SYSMOD_OUTPUT_DEBUG = $(TOOL_CLANGCC_OUTPUT_DEBUG)
+TOOL_CLANGCC_LINK_SYSMOD_DEBUG_INSTALL_FN = $(TOOL_CLANGCC_DEBUG_INSTALL_FN)
+TOOL_CLANGCC_LINK_SYSMOD_DEPEND = $(qforeachfile ,lib,$(libs),$(if-expr "$(qnotdir ,$(lib))" != "$(lib)",$(lib)))
+TOOL_CLANGCC_LINK_SYSMOD_DEPORD =
+define TOOL_CLANGCC_LINK_SYSMOD_CMDS
+	$(QUIET)$(APPEND) -tn "$(outbase).rsp" $(filter-out %.gch,$(objs))
+	$(QUIET)$(TOOL_CLANGCC_LD_SYSMOD) $(TOOL_CLANGCC_LDFLAGS.sysmod) $(flags) -o "$(out)"\
+		@"$(outbase).rsp"\
+		$(qaddprefix sh,-L,$(libpath))\
+		$(qforeachfile ,lib,$(libs),$(if-expr "$(qnotdir ,$(lib))" != "$(lib)",$(lib), -l$(quote-sh $(patsubst lib%,%,$(lib)))))
+ ifeq ($(ld_debug),split)
+  ifeq ($(bld_trg),darwin)
+	$(QUIET)$(TOOL_CLANGCC_DSYMUTIL) -o "$(out).dSYM/" "$(out)"
+	$(QUIET)$(TOOL_CLANGCC_STRIP_SYSMOD) "$(out)"
+  else
+  endif
+ endif
+endef
+
