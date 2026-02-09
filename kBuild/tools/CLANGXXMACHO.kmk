@@ -1,4 +1,4 @@
-# $Id: CLANGXXMACHO.kmk 3580 2023-01-05 02:16:42Z knut.osmundsen@oracle.com $
+# $Id: CLANGXXMACHO.kmk 3689 2026-02-09 09:13:00Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - LLVM Clang targeting Darwin (Mac OS X) Mach-O, for building C++ code.
 #
@@ -256,7 +256,7 @@ TOOL_CLANGXXMACHO_COMPILE_PCH_DEPEND =
 TOOL_CLANGXXMACHO_COMPILE_PCH_DEPORD = $($(target)_1_GCC_PCH_DIR)
 define TOOL_CLANGXXMACHO_COMPILE_PCH_CMDS
 	$(QUIET)$(TOOL_CLANGXXMACHO_PCH) -c\
-		$(flags) $(qaddprefix sh,-I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(qaddprefix sh,-I, $($(target)_1_GCC_PCH_DIR) $(incs)) $(qaddprefix sh,-D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
