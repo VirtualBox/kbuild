@@ -1,4 +1,4 @@
-# $Id: footer-inherit-uses-tools.kmk 3594 2023-06-01 21:07:11Z knut.osmundsen@oracle.com $
+# $Id: footer-inherit-uses-tools.kmk 3691 2026-03-04 22:49:37Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Template & Target Inheritance, Uses and Tools.
 #
@@ -623,9 +623,20 @@ ifdef $(src)_BLD_TRG_CPU
  endif
  _BLD_CPUS += $($(src)_BLD_TRG_CPU)
 endif
+# Recurse to cover inheriance.
+local extends := $($(src)_EXTENDS)
+ifneq ($(extends),)
+ ifndef $(src)_2_EXTEND_STATUS_FOR_COLLECT_BLD_XYZ
+  $(src)_2_EXTEND_STATUS_FOR_COLLECT_BLD_XYZ := 22
+  $(foreach src, $(addprefix $(prefix),$(extends)), $(evalval def_collect_bld_xyz))
+ endif
+endif
 endef # def_collect_bld_xyz
-$(foreach src, $(addprefix TEMPLATE_, $(_TEMPLATES)) $(_ALL_TARGETS) \
-	,$(evalval def_collect_bld_xyz))
+prefix :=
+$(foreach src,$(_ALL_TARGETS),$(evalval def_collect_bld_xyz))
+prefix := TEMPLATE_
+$(foreach src, $(addprefix TEMPLATE_, $(_TEMPLATES)),$(evalval def_collect_bld_xyz))
+prefix :=
 
 # Drop duplicate values.
 # WARNING! These list might not include keywords only involved in inheritance.
